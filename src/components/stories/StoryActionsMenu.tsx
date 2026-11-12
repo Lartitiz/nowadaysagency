@@ -15,7 +15,7 @@ import StoryStructureControls from "@/components/stories/StoryStructureControls"
 
 type RedoProps = Omit<ComponentProps<typeof StoryRedo>, "renderTrigger">;
 
-export function StoryActionsMenu({ index, count, redo, onDelete, onMove, onDuplicate, onAdd }: {
+export function StoryActionsMenu({ index, count, redo, onDelete, onMove, onDuplicate, onAdd, hideDelete }: {
   index: number;
   count: number;
   redo: RedoProps;
@@ -23,12 +23,14 @@ export function StoryActionsMenu({ index, count, redo, onDelete, onMove, onDupli
   onMove: (to: number) => void;
   onDuplicate: () => void;
   onAdd: () => void;
+  /** Ordi : « Supprimer la story » est sous les vignettes (stories comme le carrousel). */
+  hideDelete?: boolean;
 }) {
   const isMobile = useIsMobile();
   if (!isMobile) {
     return (
       <>
-        {count > 1 && (
+        {count > 1 && !hideDelete && (
           <Button
             variant="ghost"
             size="sm"

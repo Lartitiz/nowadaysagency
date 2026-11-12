@@ -2,8 +2,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { readableError } from "@/lib/error-messages";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Camera, Clock3, Download, FileDown, ImageIcon, Loader2, Palette, Play } from "lucide-react";
 import {
   AlertDialog,
@@ -35,10 +33,13 @@ import { useUserPhotos } from "@/hooks/use-user-photos";
 import { getSignedPhotoUrls, type UserPhotoRow } from "@/lib/photo-storage";
 import StorySequenceReaderDialog from "@/components/stories/StorySequenceReaderDialog";
 import StoryVisualDirectControls from "@/components/stories/StoryVisualDirectControls";
-import StoryNav from "@/components/stories/StoryNav";
+import StoryStrip from "@/components/stories/StoryStrip";
+import StoryEditorPanel from "@/components/stories/StoryEditorPanel";
+import StoryUndoButtons from "@/components/stories/StoryUndoButtons";
+import { storyInlineField } from "@/components/stories/story-inline-fields";
+import { storyChangeKind, useStoryHistory } from "@/components/stories/use-story-history";
 import StoryPersonalAnchor from "@/components/stories/StoryPersonalAnchor";
-import { StoryActionsMenu, StoryStructureRow } from "@/components/stories/StoryActionsMenu";
-import StoryTextSizeControl from "@/components/stories/StoryTextSizeControl";
+import { StoryActionsMenu } from "@/components/stories/StoryActionsMenu";
 import { useStoryStructure } from "@/components/stories/use-story-structure";
 import { attachedPhotoSlots, attachedPhotoUrl, pinAttachedPhotos, type AttachedPhotoLike } from "@/lib/story-attached-photos";
 
@@ -119,6 +120,10 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
   const [personalAnchor, setPersonalAnchor] = useState("");
   const [currentStory, setCurrentStory] = useState(0);
   const shownStory = Math.min(currentStory, Math.max(0, stories.length - 1));
+  const storiesRef = useRef(stories);
+  storiesRef.current = stories;
+  const [historyEpoch, setHistoryEpoch] = useState(0);
+  const automaticChange = useRef(false);
 
   const rawSignature = JSON.stringify(rawStories);
   const prevSignature = useRef(rawSignature);
@@ -127,8 +132,13 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     // Une régénération peut garder le même nombre de stories. Comparer le
     // contenu, tout en gardant les éditions locales si le parent ne change rien.
     if (rawSignature !== prevSignature.current) {
-      setStories(JSON.parse(rawSignature).map(withStoryVisualFallback));
       prevSignature.current = rawSignature;
+      const incoming = JSON.parse(rawSignature).map(withStoryVisualFallback);
+      // Le parent renvoie souvent nos propres modifications (enregistrement) :
+      // rien à changer, et Annuler garde son historique.
+      if (JSON.stringify(incoming) === JSON.stringify(storiesRef.current)) return;
+      setStories(incoming);
+      setHistoryEpoch((n) => n + 1);
     }
   }, [rawSignature]);
 
@@ -528,6 +538,8 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
         if (opts?.onlyIfEmpty && (current?.photo_id || current?.photo_url)) {
           return prev;
         }
+        // Photo posée d'office : pas une modification à annuler.
+        if (opts?.onlyIfEmpty) automaticChange.current = true;
         const positionedVisual = placeTextAwayFromLikelyFace(
           current,
           photo.alt,
@@ -651,6 +663,17 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onStoriesUpdate, stories.length]);
 
+  // Annuler / Rétablir, comme le carrousel. Une nouvelle séquence venue du parent repart de zéro.
+  const restore = useCallback((next: typeof stories) => { setStories(next); onStoriesUpdate?.(next); }, [onStoriesUpdate]);
+  const history = useStoryHistory(stories, restore, String(historyEpoch), storyChangeKind, automaticChange);
+  // Écrire sur la story ou dans la case du panneau : les mêmes champs.
+  const textSetters = (i: number, story: (typeof stories)[number]) => ({
+    narration: getStoryText(story),
+    setNarration: (value: string) => updateStoryText(i, value),
+    setPill: (field: "title_pill" | "body_pill" | "quote", value: string) => updateVisualPill(i, field, value),
+    setListItem: (itemIndex: number, value: string) => updateVisualListPill(i, itemIndex, value),
+  });
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between gap-2 px-1 flex-wrap">
@@ -694,273 +717,76 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
         </div>
       </div>
 
-      <StoryNav count={stories.length} current={shownStory} onChange={setCurrentStory} />
-      <div ref={storyCardsRef} className="space-y-2 scroll-mt-16" data-selection-enabled="true">
-        {stories.map((story: any, i: number) => (
-          <Card key={structure.keys[i] ?? i} className="border-border" hidden={i !== shownStory}>
-            <CardContent className="p-3">
-              {/* Téléphone : texte, puis aperçu juste dessous, puis le reste. Ordi : aperçu à droite, qui suit le défilement. */}
-              <div className="grid gap-x-3 gap-y-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:grid-rows-[auto_1fr] sm:gap-y-1.5">
-                <div className="min-w-0 space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="secondary" className="font-mono text-2xs">
-                      Story {i + 1}
-                    </Badge>
-                    {story.role && (
-                      <Badge className="bg-primary/10 text-primary border-primary/20 text-2xs font-mono">
-                        {formatSlideRole(story.role)}
-                      </Badge>
+      {/* Stories comme le carrousel (12/11/2026) : vignettes à gauche, story au centre, réglages à droite. */}
+      <div ref={storyCardsRef} className="grid gap-3 scroll-mt-16 lg:grid-cols-[88px_minmax(0,1fr)] lg:items-start" data-story-editor>
+        <StoryStrip frames={frames} current={shownStory} onChange={setCurrentStory} onMove={structure.move}
+          onDuplicate={structure.duplicate} onAdd={structure.add} onDelete={setDeleteTarget} />
+        <div className="min-w-0" data-selection-enabled="true">
+          {stories.map((story: any, i: number) => (
+            <div key={structure.keys[i] ?? i} hidden={i !== shownStory} className={i === shownStory ? "grid gap-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-start" : "hidden"}>
+              <div className="min-w-0 space-y-2 lg:sticky lg:top-20">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Badge variant="secondary" className="font-mono text-2xs">Story {i + 1}</Badge>
+                  {story.role && (
+                    <Badge className="bg-primary/10 text-primary border-primary/20 text-2xs font-mono">{formatSlideRole(story.role)}</Badge>
+                  )}
+                  <StoryActionsMenu index={i} count={stories.length} onDelete={() => setDeleteTarget(i)} onMove={(to) => structure.move(i, to)}
+                    onDuplicate={() => structure.duplicate(i)} onAdd={() => structure.add(i)} hideDelete
+                    redo={{ number: i + 1, total: stories.length, role: story.role ? formatSlideRole(story.role) : null, text: getStoryText(story),
+                      previous: i > 0 ? getStoryText(stories[i - 1]) : null, next: i < stories.length - 1 ? getStoryText(stories[i + 1]) : null,
+                      listNote: story.visual?.gabarit === "liste", onKeep: ((key) => (text: string) => {
+                        const at = structure.indexOfKey(key);
+                        if (at < 0) toast.error("Cette story n'existe plus : rien n'a été changé."); else updateStoryText(at, text);
+                      })(structure.keys[i]) }} />
+                  {i === shownStory && <StoryUndoButtons history={history} />}
+                  <Button variant="outline" size="sm"
+                    className="h-7 px-2.5 text-2xs gap-1.5 font-medium border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+                    onClick={() => toggleFaceCam(i)}>
+                    {story.face_cam ? (
+                      <><ImageIcon className="h-3.5 w-3.5" /> Revenir à la story designée</>
+                    ) : (
+                      <><Camera className="h-3.5 w-3.5" /><span>Me filmer<span className="hidden min-[400px]:inline"> à la place</span></span></>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2.5 text-2xs gap-1.5 font-medium border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
-                      onClick={() => toggleFaceCam(i)}
-                    >
-                      {story.face_cam ? (
-                        <>
-                          <ImageIcon className="h-3.5 w-3.5" />
-                          Revenir à la story designée
-                        </>
-                      ) : (
-                        <>
-                          <Camera className="h-3.5 w-3.5" />
-                          <span>Me filmer<span className="hidden min-[400px]:inline"> à la place</span></span>
-                        </>
-                      )}
-                    </Button>
-                    <StoryActionsMenu index={i} count={stories.length} onDelete={() => setDeleteTarget(i)} onMove={(to) => structure.move(i, to)}
-                      onDuplicate={() => structure.duplicate(i)} onAdd={() => structure.add(i)}
-                      redo={{ number: i + 1, total: stories.length, role: story.role ? formatSlideRole(story.role) : null, text: getStoryText(story),
-                        previous: i > 0 ? getStoryText(stories[i - 1]) : null, next: i < stories.length - 1 ? getStoryText(stories[i + 1]) : null,
-                        listNote: story.visual?.gabarit === "liste", onKeep: ((key) => (text: string) => {
-                          const at = structure.indexOfKey(key);
-                          if (at < 0) toast.error("Cette story n'existe plus : rien n'a été changé."); else updateStoryText(at, text);
-                        })(structure.keys[i]) }} />
-                  </div>
-                  <StoryStructureRow index={i} count={stories.length} onMove={(to) => structure.move(i, to)}
-                    onDuplicate={() => structure.duplicate(i)} onAdd={() => structure.add(i)} />
-                  <div className="space-y-1 pt-1">
-                    <label htmlFor={`story-${i}-full-text`} className="text-2xs font-medium text-muted-foreground">
-                      Texte de la story
-                    </label>
-                    <Textarea
-                      id={`story-${i}-full-text`}
-                      aria-label={`Texte complet de la story ${i + 1}`}
-                      value={getStoryText(story)}
-                      onChange={(e) => updateStoryText(i, e.target.value)}
-                      className="min-h-[84px] resize-y text-sm leading-relaxed"
-                      placeholder="Écris ici tout ce que tu veux dire dans cette story"
-                    />
-                  </div>
+                  </Button>
                 </div>
-                {frames[i] && story.visual && (
+                {frames[i] && story.visual ? (
                   <StoryVisualDirectControls
-                    className="justify-self-center sm:sticky sm:top-24 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:self-start"
+                    className="mx-auto"
                     storyIndex={i} html={frames[i]!} visual={story.visual}
                     photoEnabled={story.visual.background === "photo" && Boolean(getStoryPhotoUrl(story, i))}
                     onTextMove={(x, y) => moveStoryText(i, x, y)}
                     onPhotoMove={(x, y) => updateVisualViewport(i, { photo_position_x: x, photo_position_y: y })}
-                    onPhotoZoom={(zoom) => updateVisualViewport(i, { photo_zoom: zoom })} onReset={(mode) => resetStoryViewport(i, mode)}
+                    inlineField={(box) => storyInlineField(story, box, textSetters(i, story))}
                   />
+                ) : (
+                  <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                    Story filmée : écris à droite ce que tu vas dire face caméra.
+                  </p>
                 )}
-                <div className="min-w-0 space-y-1.5 sm:col-start-1 sm:row-start-2">
-                  {story.sticker && (
-                    <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2">
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant="secondary" className="text-2xs">
-                          {story.sticker.type || "Sticker"}
-                        </Badge>
-                        <span className="text-2xs text-muted-foreground">à poser dans Instagram</span>
-                      </div>
-                      {Array.isArray(story.sticker.options) && story.sticker.options.length > 0 ? (
-                        <div className="grid gap-1.5 sm:grid-cols-2">
-                          {story.sticker.options.map((option: string, optionIndex: number) => (
-                            <div key={optionIndex} className="space-y-1">
-                              <label htmlFor={`story-${i}-sticker-option-${optionIndex}`} className="text-2xs text-muted-foreground">
-                                Option {optionIndex + 1}
-                              </label>
-                              <Input
-                                id={`story-${i}-sticker-option-${optionIndex}`}
-                                aria-label={`Option ${optionIndex + 1} du sticker de la story ${i + 1}`}
-                                value={option}
-                                onChange={(e) => updateStickerText(i, optionIndex, e.target.value)}
-                                className="h-7 text-xs"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="space-y-1">
-                          <label htmlFor={`story-${i}-sticker-label`} className="text-2xs text-muted-foreground">
-                            Texte du sticker
-                          </label>
-                          <Input
-                            id={`story-${i}-sticker-label`}
-                            aria-label={`Texte du sticker de la story ${i + 1}`}
-                            value={story.sticker.label || ""}
-                            onChange={(e) => updateStickerText(i, null, e.target.value)}
-                            className="h-7 text-xs"
-                            placeholder="Texte du sticker"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {frames[i] && story.visual && (
-                    <div className="space-y-1.5 pt-1">
-                      <div className="flex items-center gap-1.5" role="group" aria-label="Fond de la story">
-                        <span className="text-2xs text-muted-foreground">Fond :</span>
-                        {([
-                          ["photo", "📷 Photo"],
-                          ["fond_couleur", "Couleur"],
-                        ] as const).map(([value, label]) => {
-                          const active = (story.visual?.background || "fond_couleur") === value;
-                          return (
-                            <Button
-                              key={value}
-                              type="button"
-                              variant={active ? "secondary" : "ghost"}
-                              size="sm"
-                              className="h-6 px-2 text-2xs"
-                              aria-pressed={active}
-                              data-story-background={value}
-                              onClick={() => setBackground(i, value)}
-                            >
-                              {label}
-                            </Button>
-                          );
-                        })}
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-wrap" role="group" aria-label="Emplacement du texte">
-                        <span className="text-2xs text-muted-foreground">Texte :</span>
-                        {([["top", "Haut"], ["middle", "Milieu"], ["bottom", "Bas"]] as const).map(([value, label]) => (
-                          <Button key={value} type="button" size="sm"
-                            variant={!Number.isFinite(story.visual.text_position_y) && (story.visual.text_position || "middle") === value ? "secondary" : "ghost"}
-                            className="h-6 px-2 text-2xs"
-                            aria-pressed={!Number.isFinite(story.visual.text_position_y) && (story.visual.text_position || "middle") === value}
-                            onClick={() => setTextPosition(i, value)}>{label}</Button>
-                        ))}
-                      </div>
-                      <StoryTextSizeControl value={story.visual.text_size} onChange={(text_size) => updateVisualViewport(i, { text_size })} />
-                      {story.visual.face_avoidance_applied && (
-                        <p className="text-2xs text-muted-foreground">
-                          Le fond semble montrer une personne : le texte a été placé en bas pour dégager le visage. Tu peux le déplacer sur l'aperçu.
-                        </p>
-                      )}
-                      {story.visual.gabarit === "citation" ? (
-                        <>
-                          <div className="space-y-1">
-                            <label htmlFor={`story-${i}-quote`} className="text-2xs text-muted-foreground">
-                              Citation mise en avant
-                            </label>
-                            <Input
-                              id={`story-${i}-quote`}
-                              value={story.visual.quote ?? ""}
-                              onChange={(e) => updateVisualPill(i, "quote", e.target.value)}
-                              className="h-7 text-xs"
-                              aria-label="Citation mise en avant"
-                              placeholder="La citation exacte"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label htmlFor={`story-${i}-citation-footer`} className="text-2xs text-muted-foreground">
-                              Petit texte sous la citation (optionnel)
-                            </label>
-                            <Input
-                              id={`story-${i}-citation-footer`}
-                              value={story.visual.body_pill ?? ""}
-                              onChange={(e) => updateVisualPill(i, "body_pill", e.target.value)}
-                              className="h-7 text-xs"
-                              aria-label="Petit texte sous la citation"
-                              placeholder="Ex. Avis laissé par Camille"
-                            />
-                          </div>
-                        </>
-                      ) : story.visual.gabarit === "liste" ? (
-                        <>
-                          {typeof story.visual.title_pill === "string" && (
-                            <div className="space-y-1">
-                              <label htmlFor={`story-${i}-list-title`} className="text-2xs text-muted-foreground">Titre</label>
-                              <Input
-                                id={`story-${i}-list-title`}
-                                value={story.visual.title_pill}
-                                onChange={(e) => updateVisualPill(i, "title_pill", e.target.value)}
-                                className="h-7 text-xs"
-                                aria-label="Titre de la liste"
-                              />
-                            </div>
-                          )}
-                          {Array.isArray(story.visual.list_pills) && story.visual.list_pills.map((item: string, itemIndex: number) => (
-                            <div key={itemIndex} className="space-y-1">
-                              <label htmlFor={`story-${i}-list-item-${itemIndex}`} className="text-2xs text-muted-foreground">
-                                Élément {itemIndex + 1}
-                              </label>
-                              <Input
-                                id={`story-${i}-list-item-${itemIndex}`}
-                                value={item}
-                                onChange={(e) => updateVisualListPill(i, itemIndex, e.target.value)}
-                                className="h-7 text-xs"
-                                aria-label={`Élément ${itemIndex + 1} de la liste`}
-                              />
-                            </div>
-                          ))}
-                        </>
-                      ) : (
-                        <>
-                          {typeof story.visual.title_pill === "string" && (
-                            <div className="space-y-1">
-                              <label htmlFor={`story-${i}-title-pill`} className="text-2xs text-muted-foreground">Titre</label>
-                              <Input
-                                id={`story-${i}-title-pill`}
-                                value={story.visual.title_pill}
-                                onChange={(e) => updateVisualPill(i, "title_pill", e.target.value)}
-                                className="h-7 text-xs"
-                                aria-label="Titre affiché"
-                                placeholder="Titre"
-                              />
-                            </div>
-                          )}
-                          {typeof story.visual.body_pill === "string" && story.visual.body_pill_edited && getDisplayedBody(story) !== getStoryText(story) && (
-                            <div className="space-y-1">
-                              <label htmlFor={`story-${i}-body-pill`} className="text-2xs text-muted-foreground">Texte affiché</label>
-                              <Textarea
-                                id={`story-${i}-body-pill`}
-                                value={getDisplayedBody(story)}
-                                onChange={(e) => updateVisualPill(i, "body_pill", e.target.value)}
-                                className="min-h-[64px] resize-y text-xs"
-                                aria-label="Texte affiché"
-                                placeholder="Texte affiché sur la story"
-                              />
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
+              </div>
+              <StoryEditorPanel
+                story={story} index={i} narration={getStoryText(story)} displayedBody={getDisplayedBody(story)}
+                photoEnabled={story.visual?.background === "photo" && Boolean(getStoryPhotoUrl(story, i))}
+                {...textSetters(i, story)}
+                setSticker={(optionIndex, value) => updateStickerText(i, optionIndex, value)}
+                setTextPosition={(position) => setTextPosition(i, position)}
+                setTextSize={(text_size) => updateVisualViewport(i, { text_size })}
+                setBackground={(background) => setBackground(i, background)}
+                setPhotoZoom={(zoom) => updateVisualViewport(i, { photo_zoom: zoom })}
+                resetViewport={(mode) => resetStoryViewport(i, mode)}
+                photoTools={<>
                   {story.visual?.photo_id && libraryUrls.has(story.visual.photo_id) && !story.visual?.photo_url ? (
                     <p className="text-xs text-primary">
-                      📸 Photo de ta bibliothèque
-                      {story.visual.photo_library_description
-                        ? ` — ${story.visual.photo_library_description}`
-                        : ""}
+                      📸 Photo de ta bibliothèque{story.visual.photo_library_description ? ` — ${story.visual.photo_library_description}` : ""}
                     </p>
                   ) : story.visual?.photo_stock_credit?.photographer ? (
                     <p className="text-xs text-muted-foreground">
                       Photo :{" "}
                       {story.visual.photo_stock_credit.source_url ? (
-                        <a
-                          href={story.visual.photo_stock_credit.source_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="underline hover:text-foreground"
-                        >
+                        <a href={story.visual.photo_stock_credit.source_url} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
                           {story.visual.photo_stock_credit.photographer}
                         </a>
-                      ) : (
-                        story.visual.photo_stock_credit.photographer
-                      )}{" "}
-                      · Pexels
+                      ) : story.visual.photo_stock_credit.photographer}{" "}· Pexels
                     </p>
                   ) : story.visual?.photo_directive && !story.visual?.photo_url ? (
                     <p className="text-xs text-muted-foreground">📷 {story.visual.photo_directive}</p>
@@ -972,22 +798,18 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                       queryEn={story.visual?.photo_query_en ?? null}
                       appliedUrl={getStoryPhotoUrl(story, i)}
                       appliedPhotoId={story.visual?.photo_id ?? null}
-                      autoApply={
-                        !story.visual?.photo_id &&
-                        !story.visual?.photo_url &&
-                        !attachedByStory.has(i)
-                      }
+                      autoApply={!story.visual?.photo_id && !story.visual?.photo_url && !attachedByStory.has(i)}
                       libraryStrip={stripPourStory(story)}
                       onApply={(photo, opts) => applyStoryPhoto(i, photo, opts)}
                       onApplyLibrary={(row) => applyLibraryPhoto(i, row)}
                       onOpenLibrary={() => setPickerFor(i)}
                     />
                   )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                </>}
+              />
+            </div>
+          ))}
+        </div>
       </div>
       {/* Après la story (chantier 3, 12/11/2026) : avant, cet encadré cachait la story 1 sur téléphone. */}
       {result?.personal_tip && stories.length > 0 && (
