@@ -158,7 +158,7 @@ function Studio({
     activeBranchChoice, references, activeIds, attachedReferences, hasExtraTools, photosOpen,
     setPhotosOpen, toolsOpen, setToolsOpen, selectedReference, premiumBlocked, insufficientSeries,
     generating, editDraft, setAutoSend, openPhoto, mutate, syncAttachments, sceneAttachments,
-    updateSelection, addReferencePhotos, addLocalFiles, send, setSessionArchived,
+    updateSelection, addReferencePhotos, addLocalFiles, send, setSessionArchived, pendingMessage,
   } = useStudioSession({ role, userId, workspaceId, sessionId, photoId, carouselReturnId, navigate, cache, studioPath });
   const { saveVersion } = useStudioLibrarySync({
     current, sessionId, workspaceId, writable, cache,
@@ -361,6 +361,7 @@ function Studio({
                   references={references}
                   writable={writable}
                   busy={busy}
+                  pendingMessage={pendingMessage}
                   generating={generating}
                   mutate={mutate}
                   onRetryVersion={(id) => void retryFailedVersion(id)}

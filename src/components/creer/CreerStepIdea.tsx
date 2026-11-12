@@ -141,8 +141,22 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
                 {/* Dès qu'elle écrit, les idées s'effacent : elles poussaient « Continuer » hors de l'écran du téléphone (audit du 01/11). */}
                 {isMobile && !idea.trim() && ideaPicks}
                 {onPhotosNext && (
-                  <button type="button" onClick={() => setShowPhotosMode(true)} className="inline-flex items-center gap-2 text-sm text-primary underline underline-offset-4 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4">
-                    <Camera size={17} aria-hidden="true" /> Partir de photos{localPhotos.length > 0 ? ` (${localPhotos.length})` : ""}
+                  // Vraie entrée visible (passe Auriana du 12/11 : le petit lien souligné
+                  // ne se voyait pas, « où je mets mes photos ? »).
+                  <button
+                    type="button"
+                    onClick={() => setShowPhotosMode(true)}
+                    data-testid="creer-start-photos"
+                    className="group flex w-full items-center gap-4 rounded-xl border-2 border-dashed border-primary/40 bg-rose-pale/60 px-4 py-3.5 text-left text-primary transition-colors hover:border-primary hover:bg-rose-pale focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                      <Camera size={19} aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold"><span>Partir de photos</span>{localPhotos.length > 0 ? <span className="font-normal"> ({localPhotos.length} ajoutée{localPhotos.length > 1 ? "s" : ""})</span> : null}</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">Ajoute tes photos, le texte s’écrit autour.</span>
+                    </span>
+                    <ArrowRight size={17} aria-hidden="true" className="shrink-0 transition-transform group-hover:translate-x-0.5" />
                   </button>
                 )}
                 <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">

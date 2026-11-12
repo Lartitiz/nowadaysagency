@@ -173,8 +173,8 @@ export default function CarouselEditor({
     // L'aperçu remonte sous l'en-tête pour rester visible au-dessus du tiroir.
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       const preview = window.document.querySelector<HTMLElement>("[data-canvas-sticky]");
-      if (preview && preview.getBoundingClientRect().top > 60)
-        window.scrollBy({ top: preview.getBoundingClientRect().top - 52, behavior: "smooth" });
+      if (preview && preview.getBoundingClientRect().top > 96) // sous la barre d'outils collée (88 px)
+        window.scrollBy({ top: preview.getBoundingClientRect().top - 88, behavior: "smooth" });
     }
   }, [selected]);
   const history = useRef<{
@@ -738,7 +738,7 @@ export default function CarouselEditor({
       )}
       <div ref={grid} className={EDITOR_GRID} style={roomStyle(fit)}>
       {/* Téléphone : la rangée des vignettes sous la slide laisse sa place aux réglages dès qu'un élément est choisi. */}
-      <div className={`order-2 min-w-0 md:sticky md:top-28 md:order-none ${mode === "simple" && element && element.role !== "background" ? "hidden md:block" : ""}`}>
+      <div className={`order-2 min-w-0 md:sticky md:top-28 lg:top-32 md:order-none ${mode === "simple" && element && element.role !== "background" ? "hidden md:block" : ""}`}>
       <SlideStrip channel={channel} simple={mode === "simple"} active={active} add={add} changeSlide={changeSlide} commit={commit} current={current} document={document}
         dragSlide={dragSlide} dropAt={dropAt} justDragged={justDragged} move={move} reorder={reorder} setActive={setActive} setDragSlide={setDragSlide}
         setDropAt={setDropAt} setSelected={setSelected} slide={slide} thumbDrag={thumbDrag} thumbIndexAt={thumbIndexAt} />
@@ -750,7 +750,7 @@ export default function CarouselEditor({
           className={
             fullscreen
               ? "fixed inset-0 z-50 flex flex-col items-center justify-center gap-2 overflow-auto bg-background p-4"
-              : "sticky top-12 z-30 order-1 min-w-0 w-full bg-background pb-1 md:top-28 md:order-none md:bg-transparent md:pb-0"
+              : "sticky top-[5.5rem] z-20 order-1 min-w-0 w-full bg-background pb-1 md:top-28 lg:top-32 md:order-none md:bg-transparent md:pb-0"
           }
           data-canvas-sticky
           onKeyDown={(e) => {
@@ -814,7 +814,7 @@ export default function CarouselEditor({
           </div>
         </div>
         {/* Panneau sous la slide sur téléphone ; à côté (avec son propre défilement, à la hauteur de la slide) sur ordinateur. */}
-        <div className="order-3 min-w-0 space-y-4 md:sticky md:top-28 md:order-none md:max-h-[var(--editor-room,calc(100vh-15rem))] md:overflow-y-auto md:rounded-xl md:border md:bg-card md:p-4">
+        <div className="order-3 min-w-0 space-y-4 md:sticky md:top-28 lg:top-32 md:order-none md:max-h-[var(--editor-room,calc(100vh-15rem))] md:overflow-y-auto md:rounded-xl md:border md:bg-card md:p-4">
           {mode === "simple" ? (
             <SimplePanel applyCarouselTheme={applyCarouselTheme} canvasApi={canvasApi} changeLayout={changeLayout} changeSlide={changeSlide} commit={commit} css={css} document={document} documentFonts={documentFonts} element={element} elements={elements} fill={fill} fillAlpha={fillAlpha} fillHex={fillHex} filterValue={filterValue} fontQuery={fontQuery} layoutPreviews={layoutPreviews} onAddPhoto={onAddPhoto} onMore={() => setMode("complet")} palette={palette} pickFont={pickFont} selectOne={selectOne} setFilter={setFilter} setFitId={setFitId} setFontQuery={setFontQuery} setPhotoOpen={setPhotoOpen} slide={slide} style={style} themes={themes} />
           ) : (<>

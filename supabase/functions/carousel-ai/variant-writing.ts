@@ -101,16 +101,32 @@ Chaque slide contient slide_number (entier depuis 1), role, title, body, visual_
 Caption : hook (entrée dans le sujet, pas de nouvelle anecdote), body (complément ou résumé fidèle), cta (vide si inutile), hashtags (liste de trois mots-clés pertinents maximum). Aucun minimum de longueur et aucune posture d'expert ajoutée au ton demandé.`;
 }
 
+/** Carrousel MIXTE sur LinkedIn (passe Auriana du 12/11/2026 : 50 à 70 mots par
+ * slide, « c'est un article, pas un carrousel ») : repère court par slide. Le
+ * mixte Instagram garde sa longueur libre. */
+export const LINKEDIN_MIX_SLIDE_WORDS = 30;
+/** Au-delà, une slide du mixte LinkedIn est redemandée plus courte (marge sur le repère). */
+export const LINKEDIN_MIX_LONG_WORDS = LINKEDIN_MIX_SLIDE_WORDS + 10;
+export const isLinkedInMix = (body: any) => body?.channel === "linkedin" && /mix/i.test(String(body?.carousel_type || ""));
+export const LINKEDIN_MIX_LENGTH = `LINKEDIN, CARROUSEL MIXTE : chaque slide se lit en quelques secondes. ${LINKEDIN_MIX_SLIDE_WORDS} mots au plus par slide (title et body ensemble, ou overlay_text), en phrases courtes ; une idée par slide, pas un article découpé. Ce qui ne tient pas passe dans caption.body, sans perdre d'idée.`;
+export const LINKEDIN_MIX_RECIT_LENGTH = `LINKEDIN, CARROUSEL MIXTE : chaque paragraphe tient en ${LINKEDIN_MIX_SLIDE_WORDS} mots au plus (il se lit en quelques secondes sur sa slide), en phrases courtes ; une idée par paragraphe, pas un article découpé. Les détails secondaires passent dans caption.body, sans perdre d'idée.`;
+const wordCount = (text: unknown) => typeof text === "string" ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+/** Numéros (depuis 1) des passages du mixte LinkedIn trop longs ; [] hors mixte LinkedIn. Mesure seulement. */
+export function linkedinMixLongPassages(passages: unknown[], body: any): number[] {
+  if (!isLinkedInMix(body)) return [];
+  return passages.flatMap((p, i) => wordCount(p) > LINKEDIN_MIX_LONG_WORDS ? [i + 1] : []);
+}
+
 export function mixWritingPrompt(body: any, isLinkedIn: boolean, confirmed: string, textFirst: string): string {
   return `Rédige un carrousel MIXTE : photos et slides design participent au même propos.
 ${brief(body, isLinkedIn, confirmed)}
 ${PHOTO_NARRATIVE_CONTRACT}
 CONTRAT DE COMPOSITION
-Types : photo_full (photo plein écran, overlay_text généralement 15-45 mots selon la matière ; sur la couverture : l'accroche seule, 10 mots maximum, sous-titre facultatif dans detail), photo_integrated (photo et texte, title/body), text_only (title/body, sans photo).
+Types : photo_full (photo plein écran, overlay_text généralement ${isLinkedIn ? `10-${LINKEDIN_MIX_SLIDE_WORDS}` : "15-45"} mots selon la matière ; sur la couverture : l'accroche seule, 10 mots maximum, sous-titre facultatif dans detail), photo_integrated (photo et texte, title/body), text_only (title/body, sans photo).
 ${MIX_LAYOUT_AFTER_WRITING}
 Sans répartition imposée : commence en photo_full (la couverture est une photo plein cadre), termine en text_only, ${body.text_first ? "deux à quatre slides photo au maximum (pas de ratio imposé en texte-d'abord)" : "au moins la moitié des slides avec photo"} ; alterne les types sans trois slides identiques consécutives. Une photo peut se répéter et on conserve les photos pertinentes. Une répartition confirmée prime sur ces préférences. La fin en text_only n'impose pas de CTA.
 Les photos sont numérotées depuis 1. Respecte les photo_index confirmés. photo_index:null sur text_only. Le changement de type de slide ne change pas de mode d'écriture : overlay_text poursuit la même explication que les title/body voisins. Rédige d'abord cette prose continue, puis répartis-la dans les champs. Une description visible n'est utile que si elle explique ce que cet exemple apporte au propos en cours ; nommer les objets, couleurs ou motifs sans ce lien ne constitue pas une étape du récit. visual_anchor garde la description technique pour la composition, il ne remplace pas le passage public. Le texte peut expliquer ce que la photo ne montre pas sans inventer une scène. Une pause visuelle brute demandée reste sans texte.
-body : longueur adaptée au développement, sans minimum ni plafond universel ; conserve les détails et nuances utiles. Un titre n'est pas nécessairement une mini-accroche. ${NO_SCHEMA_IN_WRITING}
+${isLinkedIn ? LINKEDIN_MIX_LENGTH : "body : longueur adaptée au développement, sans minimum ni plafond universel ; conserve les détails et nuances utiles."} Un titre n'est pas nécessairement une mini-accroche. ${NO_SCHEMA_IN_WRITING}
 ${textFirst}
 Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = proposition précise développée, pas thème ou parcours de photos ; etapes = chemin qui la fait comprendre), puis carousel_type:"mix", chosen_angle:{title,description}, slides et caption.
 Chaque slide : slide_number, slide_type, photo_index, role, puis les champs propres au type. photo_full : overlay_text (et detail, sous-titre facultatif, sur la couverture seulement). photo_integrated : title,body. text_only : title,body,visual_schema (null). Pour les slides photo : visual_anchor et note, ainsi que photo_directive/photo_query_en/library_photo_index/news_entity quand le mode texte-d'abord le demande. Aucun placeholder ni auto-note de qualité.

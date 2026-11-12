@@ -346,7 +346,7 @@ it("sending only interprets; explicit confirmation is locked against duplicate c
       ],
     }),
   );
-  await screen.findByText("Création en cours.");
+  await screen.findByText("Création en cours : compte environ 1 minute par image.");
 });
 it("a lost message acknowledgement preserves the text and request ID for retry", async () => {
   const start = original();
@@ -924,6 +924,18 @@ it("« Réessayer cette image seulement » relance directement la même demande 
  await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'generate',proposal_id:'retry-proposal'})));
  const actions=mock.request.mock.calls.map(([p])=>p.action).filter((a)=>a==='retry'||a==='generate');
  expect(actions).toEqual(['retry','generate']);
+});
+it("une image déjà relancée n'offre plus « Réessayer » (pas de 2e création décomptée)",async()=>{
+ const state=original();state.versions=[
+  {id:'failed-1',status:'failed',created_at:'',url:null,library_photo_id:null,error_message:'Échec A',proposal},
+  {id:'failed-2',status:'failed',created_at:'',url:null,library_photo_id:null,error_message:'Échec B',proposal:{...proposal,id:'p2',retry_of:'failed-1'}},
+  {id:'failed-3',status:'failed',created_at:'',url:null,library_photo_id:null,error_message:'Échec C',proposal},
+  {id:'ready-1',status:'ready',created_at:'',url:'https://x/y.png',library_photo_id:null,error_message:null,proposal:{...proposal,id:'p4',retry_of:'failed-3'}},
+ ] as any;
+ mock.request.mockResolvedValue(state);mount();
+ const retries=await screen.findAllByRole('button',{name:'Réessayer cette image seulement'});
+ expect(retries).toHaveLength(1);fireEvent.click(retries[0]);
+ await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'retry',version_id:'failed-2'})));
 });
 it("« Réessayer » s'arrête à la confirmation quand le solde ne suffit pas",async()=>{
  const failed=original();failed.versions=[{id:'failed-1',status:'failed',created_at:'',url:null,library_photo_id:null,error_message:'Échec',proposal} as any];

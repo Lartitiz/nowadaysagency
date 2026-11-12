@@ -189,12 +189,13 @@ export default function ResultActions(p: ResultActionsProps) {
     <Link
       to="/idees"
       data-testid="auto-saved-to-ideas"
-      className={`flex-1 min-w-0 h-10 ${oneLine ? "hidden sm:inline-flex" : "inline-flex"} items-center justify-center gap-1.5 rounded-md px-2 sm:px-3 text-sm text-muted-foreground hover:text-foreground`}
+      title="Enregistré dans Mes idées"
+      className={`min-w-0 h-10 ${oneLine ? "shrink hidden sm:inline-flex" : "flex-1 inline-flex"} items-center justify-center gap-1.5 rounded-md px-2 sm:px-3 text-sm text-muted-foreground hover:text-foreground`}
     >
-      <Check className="h-4 w-4 text-primary shrink-0" /> <span className="truncate"><span className="hidden sm:inline">Enregistré dans </span><span className="sm:hidden">Dans </span>Mes idées</span>
+      <Check className="h-4 w-4 text-primary shrink-0" /> <span className="truncate">{/* Barre sur une ligne : libellé court, la place va à « Publier ». */}<span className={oneLine ? "hidden" : "hidden sm:inline"}>Enregistré dans </span><span className={oneLine ? "" : "sm:hidden"}>Dans </span>Mes idées</span>
     </Link>
   ) : p.onSave ? (
-    <Button onClick={p.onSave} disabled={p.savingContent} variant="outline" data-testid="save-as-idea" className={`flex-1 min-w-0 gap-2 h-10 px-2 sm:px-4 ${oneLine ? "max-sm:hidden" : ""}`}>
+    <Button onClick={p.onSave} disabled={p.savingContent} variant="outline" data-testid="save-as-idea" className={`min-w-0 gap-2 h-10 px-2 sm:px-4 ${oneLine ? "shrink max-sm:hidden" : "flex-1"}`}>
       <Lightbulb className="h-4 w-4 shrink-0" /> <span className="truncate">{p.savingContent ? "Enregistrement…" : <>Garder <span className="hidden sm:inline">dans mes idées</span><span className="sm:hidden">en idée</span></>}</span>
     </Button>
   ) : null;
@@ -204,6 +205,63 @@ export default function ResultActions(p: ResultActionsProps) {
   const currentAngleLabel = p.currentAngle ? angleList.find((a) => a.id === p.currentAngle)?.label : null;
   const canRedo = !!result && (isCarousel || !!p.onChangeAngle);
   const transformTargets = p.sourceIdea && p.sourceIdea.trim().length > 0 ? TRANSFORM_TARGETS.filter((t) => t.id !== format) : [];
+
+  // « Refaire une version » : les choix (même angle, autre angle), partagés entre le
+  // bouton visible du carrousel et le sous-menu des autres formats.
+  const redoItems = (
+    <>
+      <DropdownMenuLabel className="text-2xs text-muted-foreground font-normal">
+        Chaque nouvelle version compte pour {cost} du mois.
+        {currentAngleLabel ? ` Angle actuel : ${currentAngleLabel}.` : ""}
+      </DropdownMenuLabel>
+      {isCarousel && (
+        <DropdownMenuItem onClick={p.onRegenerate} className="gap-2">
+          <RefreshCw className="h-4 w-4 text-primary shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs font-semibold">Même sujet, même angle</p>
+            <p className="text-2xs text-muted-foreground">Une autre proposition</p>
+          </div>
+        </DropdownMenuItem>
+      )}
+      {p.onChangeAngle && (
+        <>
+          <DropdownMenuItem onClick={() => p.onChangeAngle!(null)} className="gap-2">
+            <Sparkles className="h-4 w-4 text-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold">Laisser l'IA choisir l'angle</p>
+              <p className="text-2xs text-muted-foreground">Selon ton idée et ta voix</p>
+            </div>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-2xs text-muted-foreground font-normal">Avec un autre angle</DropdownMenuLabel>
+          {angleList.map((a) => (
+            <DropdownMenuItem key={a.id} onClick={() => p.onChangeAngle!(a.id)} disabled={a.id === p.currentAngle} className="gap-2">
+              <span className="text-base shrink-0">{a.emoji}</span>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold">{a.label}</p>
+                <p className="text-2xs text-muted-foreground line-clamp-2">{a.principle}</p>
+              </div>
+            </DropdownMenuItem>
+          ))}
+        </>
+      )}
+    </>
+  );
+  // Carrousel : bouton visible dans la barre (passe Auriana du 12/11 : caché dans
+  // « Plus d'options », personne ne le trouvait).
+  const redoVisible = canRedo && isCarousel;
+  const redoButton = redoVisible && (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" data-testid="redo-version" aria-label="Refaire une version" title="Refaire une version (1 carrousel)" className="h-10 shrink-0 gap-1.5 px-2.5 lg:px-3">
+          <RefreshCw className="h-4 w-4 shrink-0" /> <span className="hidden lg:inline">Refaire une version</span> <ChevronDown className="hidden h-3 w-3 shrink-0 lg:inline" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-72 max-h-96 overflow-y-auto">
+        {redoItems}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   const moreMenu = (
     <DropdownMenu>
@@ -245,48 +303,14 @@ export default function ResultActions(p: ResultActionsProps) {
             </div>
           </DropdownMenuItem>
         )}
-        {canRedo && (
+        {canRedo && !redoVisible && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="gap-2">
               <RefreshCw className="h-4 w-4" /> Refaire une version
               <span className="ml-auto text-2xs text-muted-foreground">{cost}</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="w-72 max-h-96 overflow-y-auto">
-              <DropdownMenuLabel className="text-2xs text-muted-foreground font-normal">
-                Chaque nouvelle version compte pour {cost} du mois.
-                {currentAngleLabel ? ` Angle actuel : ${currentAngleLabel}.` : ""}
-              </DropdownMenuLabel>
-              {isCarousel && (
-                <DropdownMenuItem onClick={p.onRegenerate} className="gap-2">
-                  <RefreshCw className="h-4 w-4 text-primary shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold">Même sujet, même angle</p>
-                    <p className="text-2xs text-muted-foreground">Une autre proposition</p>
-                  </div>
-                </DropdownMenuItem>
-              )}
-              {p.onChangeAngle && (
-                <>
-                  <DropdownMenuItem onClick={() => p.onChangeAngle!(null)} className="gap-2">
-                    <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold">Laisser l'IA choisir l'angle</p>
-                      <p className="text-2xs text-muted-foreground">Selon ton idée et ta voix</p>
-                    </div>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-2xs text-muted-foreground font-normal">Avec un autre angle</DropdownMenuLabel>
-                  {angleList.map((a) => (
-                    <DropdownMenuItem key={a.id} onClick={() => p.onChangeAngle!(a.id)} disabled={a.id === p.currentAngle} className="gap-2">
-                      <span className="text-base shrink-0">{a.emoji}</span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold">{a.label}</p>
-                        <p className="text-2xs text-muted-foreground line-clamp-2">{a.principle}</p>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
+              {redoItems}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
         )}
@@ -358,6 +382,7 @@ export default function ResultActions(p: ResultActionsProps) {
           <div className="flex items-center gap-2">
             {first}
             {second}
+            {redoButton}
             {saveBlock}
             {moreMenu}
           </div>
@@ -366,6 +391,7 @@ export default function ResultActions(p: ResultActionsProps) {
           {first}
           <div className="flex gap-2">
             {second}
+            {redoButton}
             {saveBlock}
             {moreMenu}
           </div>

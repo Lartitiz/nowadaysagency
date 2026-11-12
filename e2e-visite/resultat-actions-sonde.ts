@@ -36,7 +36,7 @@ export async function sondeResultatActions(page: Page, label: string) {
         const bar = document.querySelector('[data-testid="result-actions"]');
         if (!bar) return null;
         const shown = [...bar.querySelectorAll("button, a")].filter(
-          (b) => (b as HTMLElement).offsetParent && b.getAttribute("data-testid") !== "more-actions",
+          (b) => (b as HTMLElement).offsetParent && !["more-actions", "redo-version"].includes(b.getAttribute("data-testid") || ""),
         );
         const first = shown[0] as HTMLElement | undefined;
         const box = first?.getBoundingClientRect();

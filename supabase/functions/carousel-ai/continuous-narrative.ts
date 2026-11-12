@@ -11,7 +11,7 @@ import {
   progressionReceipt,
   type ProgressionSource,
 } from "../_shared/carousel-progression.ts";
-import { newsWriting } from "./variant-writing.ts";
+import { isLinkedInMix, LINKEDIN_MIX_RECIT_LENGTH, LINKEDIN_MIX_SLIDE_WORDS, linkedinMixLongPassages, newsWriting } from "./variant-writing.ts";
 import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
 import { findRecentEchoes, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { angleFamily, type AngleFamily } from "../_shared/angle-families.ts";
@@ -310,6 +310,7 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     hasNews ? newsWriting(body).trim() : "",
     RECIT_CONTINU_COUVERTURE,
     recitContinuLongueur(exact),
+    isLinkedInMix(body) ? LINKEDIN_MIX_RECIT_LENGTH : "",
     carouselLengthPrompt(body),
     recitContinuFamille(narrativeAngleFamily(body)),
     photoReadingContract(body),
@@ -390,6 +391,18 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
         narrative,
       );
       if (shorter.paragraphs.length <= autoMax) narrative = shorter;
+    } catch { /* le premier texte reste */ }
+  }
+  // Mixte LinkedIn (passe du 12/11/2026) : UNE réécriture si des paragraphes
+  // dépassent nettement le repère ; gardée seulement si elle fait mieux.
+  const long = linkedinMixLongPassages(narrative.paragraphs, body);
+  if (long.length && remaining() >= 150000) {
+    try {
+      const shorter = await draft(
+        `Paragraphes trop longs pour un carrousel LinkedIn : ${long.join(", ")}. Ramène chacun à ${LINKEDIN_MIX_SLIDE_WORDS} mots au plus, phrases courtes, sans perdre d'idée ; déplace les détails dans caption.body. Garde le même nombre de paragraphes.`,
+        narrative,
+      );
+      if (shorter.paragraphs.length === narrative.paragraphs.length && linkedinMixLongPassages(shorter.paragraphs, body).length < long.length) narrative = shorter;
     } catch { /* le premier texte reste */ }
   }
   // Redite des contenus récents de la marque (bilan hebdo 05/10/2026) : mesure

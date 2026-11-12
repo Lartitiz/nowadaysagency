@@ -30,6 +30,7 @@ export function StudioMessageList({
   onEditComposition,
   onOpenExistingTool,
   proposalCard,
+  pendingMessage,
   children,
 }: {
   current: StudioState | undefined;
@@ -50,6 +51,8 @@ export function StudioMessageList({
   onEditComposition: (message: StudioMessage) => void;
   onOpenExistingTool: (message: StudioMessage) => void;
   proposalCard: ReactNode;
+  /** Message envoyé, pas encore confirmé par le serveur : affiché tout de suite. */
+  pendingMessage?: string;
   children?: ReactNode;
 }) {
   return (
@@ -146,6 +149,21 @@ export function StudioMessageList({
         </div>
       )}
 
+      {/* QA du 12/11/2026 : la réponse met ~25 s ; sans ça, rien ne bouge
+          après l'envoi et on croit que le message n'est pas parti. */}
+      {pendingMessage && (
+        <>
+          <div className="studio-message mine">
+            <span className="block text-xs font-semibold mb-1">Toi</span>
+            <p className="whitespace-pre-wrap">{pendingMessage}</p>
+          </div>
+          <div className="studio-message" role="status">
+            <span className="block text-xs font-semibold mb-1">Studio</span>
+            <p><Loader2 className="h-4 w-4 animate-spin inline mr-2" />Je lis ta demande…</p>
+          </div>
+        </>
+      )}
+
       <section aria-label="État de la création">
         {generating && (
           <div
@@ -153,7 +171,8 @@ export function StudioMessageList({
             className="rounded-xl border bg-card p-4 my-4 text-sm"
           >
             <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-            Création en cours.
+            {/* QA du 12/11/2026 : ~1 min réelle, sans durée annoncée on ferme la page. */}
+            Création en cours : compte environ 1 minute par image.
             <p className="mt-2">
               Tu peux quitter le Studio et retrouver le résultat dans
               « Mes sessions ».
@@ -161,7 +180,10 @@ export function StudioMessageList({
           </div>
         )}
         {current?.versions
-          .filter((v) => v.status === "failed")
+          // Une image déjà relancée n'affiche plus son échec : le bloc de la
+          // relance (en cours, prête ou ratée à son tour) prend le relais.
+          // Sinon un 2e clic recréait l'image et la décomptait une 2e fois.
+          .filter((v) => v.status === "failed" && !current.versions.some((o) => o.proposal?.retry_of === v.id))
           .map((v) => (
             <div
               key={v.id}

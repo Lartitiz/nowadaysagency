@@ -23,6 +23,7 @@ import {
 } from "../_shared/socle.ts";
 import { COMMON } from "../_shared/carousel-editorial-contract.ts";
 import { photoMatchReserveMs } from "./final-photo-match.ts";
+import { LINKEDIN_MIX_RECIT_LENGTH, linkedinMixLongPassages } from "./variant-writing.ts";
 const original = {
   idea: "Le temps de réparation change le choix d'un objet",
   hook: "Un objet se choisit aussi après l'achat",
@@ -401,4 +402,44 @@ Deno.test("réserve d'association à 3 photos : la rédaction Max garde ses 140 
   assertEquals(caps[0], 140000);
   // L'ancienne réserve fixe coupait cette rédaction à ~122 s.
   assert(270000 - 95000 - 13000 - 40000 < 125000);
+});
+
+// Passe Auriana du 12/11/2026 : le mixte LinkedIn faisait 50 à 70 mots par slide
+// (« c'est un article, pas un carrousel »). Repère de 30 mots, mixte LinkedIn seulement.
+Deno.test("mixte LinkedIn : repère de 30 mots par paragraphe, absent ailleurs", async () => {
+  const linkedin = await systemFor({ carousel_type: "mix", channel: "linkedin" });
+  assert(linkedin.includes(LINKEDIN_MIX_RECIT_LENGTH));
+  assert(linkedin.includes("30 mots au plus"));
+  for (const body of [{ carousel_type: "mix" }, { carousel_type: "photo", channel: "linkedin" }, { carousel_type: "mix", channel: "instagram" }]) {
+    assert(!(await systemFor(body)).includes("LINKEDIN, CARROUSEL MIXTE"), JSON.stringify(body));
+  }
+});
+
+Deno.test("mixte LinkedIn : des paragraphes trop longs sont réécrits une fois, gardés s'ils raccourcissent", async () => {
+  const wordy = "Une idée développée avec beaucoup de mots pour montrer comment un carrousel LinkedIn finit par ressembler à un article entier découpé en morceaux, alors que chaque slide devrait se lire en quelques secondes, avec une seule idée nette, posée simplement, sans détour ni liste de détails secondaires.";
+  const long = { ...original, paragraphs: [wordy, original.paragraphs[1], wordy] };
+  const feedbacks: string[] = [];
+  let writes = 0;
+  const result = await createContinuousNarrative({
+    ...base,
+    body: { ...base.body, carousel_type: "mix", channel: "linkedin" },
+    usage: {},
+    write: async (o) => {
+      writes++;
+      const sent = JSON.parse((o.messages[0].content as any)[0].text);
+      if (sent.feedback) feedbacks.push(sent.feedback);
+      return JSON.stringify(writes === 1 ? long : original);
+    },
+  });
+  assertEquals(writes, 2);
+  assert(feedbacks[0].includes("Paragraphes trop longs pour un carrousel LinkedIn : 1, 3"));
+  assertEquals(linkedinMixLongPassages(result!.doc.slides.slice(1).map((s: any) => [s.title, s.body, s.overlay_text].filter(Boolean).join(" ")), { carousel_type: "mix", channel: "linkedin" }), []);
+});
+
+Deno.test("mixte LinkedIn : mesure des passages trop longs, rien hors mixte LinkedIn", () => {
+  const p40 = Array.from({ length: 40 }, () => "mot").join(" ");
+  const p41 = p40 + " mot";
+  assertEquals(linkedinMixLongPassages([p40, p41, ""], { carousel_type: "mix", channel: "linkedin" }), [2]);
+  assertEquals(linkedinMixLongPassages([p41], { carousel_type: "mix" }), []);
+  assertEquals(linkedinMixLongPassages([p41], { carousel_type: "photo", channel: "linkedin" }), []);
 });

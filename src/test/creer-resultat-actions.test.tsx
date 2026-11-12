@@ -39,12 +39,12 @@ const renderResult = (format: string, result: any, extra: Record<string, unknown
     </MemoryRouter>,
   );
 
-/** Boutons et liens visibles de la barre, menu « Plus d'options » à part. */
+/** Boutons et liens visibles de la barre, menus « Plus d'options » et « Refaire une version » à part. */
 const barActions = () =>
   within(screen.getByTestId("result-actions"))
     .getAllByRole("button")
     .concat(within(screen.getByTestId("result-actions")).queryAllByRole("link"))
-    .filter((b) => b.getAttribute("data-testid") !== "more-actions");
+    .filter((b) => !["more-actions", "redo-version"].includes(b.getAttribute("data-testid") || ""));
 
 const openMore = () => {
   const trigger = screen.getByTestId("more-actions");
@@ -92,10 +92,22 @@ describe("écran du résultat : barre d'actions courte", () => {
     expect(screen.queryByTestId("save-as-idea")).toBeNull();
   });
 
-  it("le coût d'une nouvelle version est écrit sans survol", () => {
+  it("carrousel : « Refaire une version » est un bouton visible de la barre, coût écrit dans son menu (passe du 12/11)", () => {
+    const onRegenerate = vi.fn();
+    renderResult("carousel", { slides: [{ title: "a" }] }, { onRegenerate });
+    const trigger = within(screen.getByTestId("result-actions")).getByTestId("redo-version");
+    expect(trigger).toHaveAccessibleName("Refaire une version");
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "Enter" });
+    expect(screen.getByText(/Chaque nouvelle version compte pour 1 carrousel du mois/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Même sujet, même angle/ }));
+    expect(onRegenerate).toHaveBeenCalledTimes(1);
+  });
+
+  it("carrousel : plus de doublon « Refaire une version » dans « Plus d'options »", () => {
     renderResult("carousel", { slides: [{ title: "a" }] });
     openMore();
-    expect(screen.getByRole("menuitem", { name: /Refaire une version.*1 carrousel/ })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Refaire une version/ })).toBeNull();
   });
 
   it("post : refaire avec un autre angle coûte 1 crédit, écrit en clair", () => {
