@@ -10,6 +10,7 @@ import { friendlyError } from "@/lib/error-messages";
 export default function PromoCodeInput() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hint, setHint] = useState(false);
   const [result, setResult] = useState<{ plan: string; expires_at: string | null; code: string; coachingSetupFailed?: boolean; warning?: string } | null>(null);
   const { refresh } = useUserPlan();
 
@@ -22,6 +23,10 @@ export default function PromoCodeInput() {
       }, 30000);
       if (error) throw new Error(error.message);
       if (data?.error) {
+        // Un code de réduction (ex. tarif partenaire) ne vit pas ici mais sur la
+        // page de paiement : le dire, sinon « invalide » laisse croire qu'il ne marche pas.
+        const unknownCode = /invalide/i.test(data.error);
+        setHint(unknownCode);
         toast.error("Erreur", { description: data.error });
       } else if (data?.success) {
         setResult(data);
@@ -82,7 +87,7 @@ export default function PromoCodeInput() {
         <Input
           placeholder="MONCODE"
           value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          onChange={(e) => { setCode(e.target.value.toUpperCase()); setHint(false); }}
           className="rounded-[10px] h-10 uppercase tracking-wider font-mono"
           onKeyDown={(e) => e.key === "Enter" && handleRedeem()}
         />
@@ -94,6 +99,11 @@ export default function PromoCodeInput() {
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Activer"}
         </Button>
       </div>
+      {hint && (
+        <p className="text-sm text-muted-foreground" role="status">
+          Ce code n'ouvre pas d'accès ici. Si c'est un code de réduction sur l'abonnement, lance ton abonnement Premium : tu le saisiras sur la page de paiement, dans « Ajouter un code promotionnel ».
+        </p>
+      )}
     </div>
   );
 }
