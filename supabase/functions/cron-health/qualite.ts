@@ -7,6 +7,7 @@ import { construireEchantillon } from "./echantillon.ts";
 import { filStats } from "./fil-reparations.ts";
 import { dureesStats } from "./durees-carrousels.ts";
 import { reelsTropLongs } from "./reels-trop-longs.ts";
+import { photosFondStats } from "./photos-fond.ts";
 import { planStats } from "./plan-carrousels.ts";
 import { CAROUSEL_PLAN_FORMAT } from "../_shared/carousel-plan-format.ts";
 import { fetchAllRows } from "./lecture.ts";
@@ -83,7 +84,9 @@ export async function lireQualite({ supabase, since35d, isClient, curFrom, curTo
     cqAll = cqRows;
     cqEvents = cqRows.filter((e: any) => isClient(e.user_id));
   } catch (_) { /* table absente : repli sur les brouillons */ }
-  return { carCur, carPrev, cqEvents, cqAll, planAll, planClients };
+  // Tous les comptes (internes compris) : la sonde « Tes photos en fond » compte aussi les essais internes.
+  const carAll = carRows;
+  return { carCur, carPrev, carAll, cqEvents, cqAll, planAll, planClients };
 }
 
 const scoreStats = (rows: any[]) => {
@@ -97,9 +100,10 @@ const scoreStats = (rows: any[]) => {
   };
 };
 
-export function blocQualite({ carCur, carPrev, cqEvents, cqAll, planAll, planClients, internalIds, cal, curFrom, curTo, prevFrom, prevTo }: {
+export function blocQualite({ carCur, carPrev, carAll = [], cqEvents, cqAll, planAll, planClients, internalIds, cal, curFrom, curTo, prevFrom, prevTo }: {
   carCur: any[];
   carPrev: any[];
+  carAll?: any[];
   cqEvents: any[] | null;
   cqAll: any[];
   planAll: any[];
@@ -200,6 +204,12 @@ export function blocQualite({ carCur, carPrev, cqEvents, cqAll, planAll, planCli
           comptes_internes_7j: reelsTropLongs(cqAll.filter((e: any) => internalIds.has(e.user_id)), (d) => inWindow(d, curFrom, curTo)),
         }
       : null,
+    // « Tes photos en fond » trop chargés (12/11/2026, cf. photos-fond.ts) :
+    // carrousels photo gardés, slides > 40 mots et mélange « je » / « nous ».
+    photos_fond: {
+      cette_semaine: photosFondStats(carCur, (d) => inWindow(d, curFrom, curTo)),
+      comptes_internes_7j: photosFondStats(carAll.filter((c: any) => internalIds.has(c.user_id)), (d) => inWindow(d, curFrom, curTo)),
+    },
     // Plan des carrousels (12/10/2026) : durée, second appel, plans vides ou de
     // mauvaise longueur, au-delà des 170 s de l'écran (cf. plan-carrousels.ts).
     plan_carrousels: planClients

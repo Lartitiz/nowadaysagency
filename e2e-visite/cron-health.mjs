@@ -428,6 +428,16 @@ try {
         const c = rtl.cette_semaine, i = rtl.comptes_internes_7j;
         console.log(`   reels > 55 s : ${c.au_dela_55s} sur ${c.mesures} mesuré(s)${c.max_s ? `, max ${c.max_s} s` : ""}${c.alerte ? `  🔴 ${c.alerte}` : " ✅ (alerte si ≥ 3)"}${i?.mesures ? ` ; comptes internes : ${i.au_dela_55s} sur ${i.mesures}` : ""}`);
       }
+      // « Tes photos en fond » (12/11/2026, #1892) : carrousels photo gardés,
+      // slides de plus de 40 mots (repère 30) et mélange « je » / « nous ».
+      // Seuils de lecture : alerte si ≥ 3 slides > 40 mots ou ≥ 2 carrousels mêlant je/nous.
+      const pfond = q.photos_fond;
+      if (pfond === undefined) {
+        console.log("   « Tes photos en fond » : non mesuré (edge cron-health pas redéployée)");
+      } else if (pfond) {
+        const c = pfond.cette_semaine, i = pfond.comptes_internes_7j;
+        console.log(`   « Tes photos en fond » (carrousels gardés) : ${c.au_dela_40_mots} slide(s) > 40 mots sur ${c.slides}${c.max_mots ? ` (max ${c.max_mots})` : ""}, ${c.narrateur_mixte} je/nous mêlés sur ${c.carrousels} carrousel(s)${c.alerte ? `  🔴 ${c.alerte}` : " ✅ (alerte si ≥ 3 slides ou ≥ 2 carrousels je/nous)"}${i?.carrousels ? ` ; comptes internes : ${i.au_dela_40_mots} slide(s) > 40 mots, ${i.narrateur_mixte} je/nous sur ${i.carrousels}` : ""}`);
+      }
       // Plan des carrousels (12/10/2026) : gratuit, gardé en base depuis
       // (format carousel_plan). L'écran attend 170 s, le second appel part à 80 s.
       const plan = q.plan_carrousels;
