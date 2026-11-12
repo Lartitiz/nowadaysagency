@@ -419,6 +419,15 @@ try {
           for (const [label, d] of internes) console.log(ligne(label, d));
         }
       }
+      // Reels trop longs (12/11/2026, PR de suite de #1854) : le montage
+      // s'arrête à 60 s, les scripts visent 55 s. Alerte à partir de 3.
+      const rtl = q.reels_trop_longs;
+      if (rtl === undefined) {
+        console.log("   reels > 55 s : non mesurés (edge cron-health pas redéployée)");
+      } else if (rtl) {
+        const c = rtl.cette_semaine, i = rtl.comptes_internes_7j;
+        console.log(`   reels > 55 s : ${c.au_dela_55s} sur ${c.mesures} mesuré(s)${c.max_s ? `, max ${c.max_s} s` : ""}${c.alerte ? `  🔴 ${c.alerte}` : " ✅ (alerte si ≥ 3)"}${i?.mesures ? ` ; comptes internes : ${i.au_dela_55s} sur ${i.mesures}` : ""}`);
+      }
       // Plan des carrousels (12/10/2026) : gratuit, gardé en base depuis
       // (format carousel_plan). L'écran attend 170 s, le second appel part à 80 s.
       const plan = q.plan_carrousels;

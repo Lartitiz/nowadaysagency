@@ -6,7 +6,7 @@
 import { analyzeTextRedac, textRedacViolations } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { storiesAuditableText } from "../_shared/correction-pass.ts";
-import { reelAuditableText } from "../_shared/reel-postprocess.ts";
+import { countReelSpokenWords, reelAuditableText } from "../_shared/reel-postprocess.ts";
 import { type UsageSink } from "../_shared/anthropic.ts";
 import { gateNumbers } from "./shared.ts";
 import type { StoriesGateResult } from "./formats/stories.ts";
@@ -52,7 +52,7 @@ export async function logGenerationQualityTelemetry(parsed: any, params: {
       typeof newsContext === "string" ? newsContext : "",
       fullContext || "",
     ], researchSource);
-  const logTextQuality = async (format: string, text: string, previewDoc: unknown, gate?: StoriesGateResult | null, hookEchoesBefore?: number) => {
+  const logTextQuality = async (format: string, text: string, previewDoc: unknown, gate?: StoriesGateResult | null, hookEchoesBefore?: number, durees?: Record<string, unknown>) => {
     try {
       let score: number, violations: number, repassed = false;
       if (gate) {
@@ -73,6 +73,8 @@ export async function logGenerationQualityTelemetry(parsed: any, params: {
         finalUsage.model,
         workspace_id ?? undefined,
         typeof context === "string" ? context : undefined,
+        undefined,
+        durees,
       );
     } catch (e) {
       console.error(`[creative-flow] log qualité ${format} ignoré (génération intacte):`, (e as any)?.message || e);
@@ -83,7 +85,11 @@ export async function logGenerationQualityTelemetry(parsed: any, params: {
     // Texte audité = texte des stories (les pastilles en sont des extraits depuis le 04/10/2026), même mesure que la passe.
     await logTextQuality("stories", storiesAuditableText(parsed.stories), { stories: parsed.stories }, storiesGate);
   } else if (isReel && Array.isArray(parsed?.script)) {
-    await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script }, null, echoesBefore);
+    // Durée du script (12/11/2026) : le bilan du lundi compte les reels de plus
+    // de 55 s (le montage s'arrête à 60 s). Sans `label` : hors des durées carrousel.
+    const secondes = Number(/(\d+)/.exec(String(parsed?.duree_cible ?? ""))?.[1]);
+    const durees = Number.isFinite(secondes) && secondes > 0 ? { reel_secondes: secondes, reel_mots: countReelSpokenWords(parsed) } : undefined;
+    await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script }, null, echoesBefore, durees);
   } else if (isLinkedIn && typeof parsed?.content === "string" && parsed.content.trim()) {
     // Sans `subject` : l'accroche enregistrée est la 1re ligne du POST (avec
     // `subject`, c'était le sujet lui-même, inutile à la garde anti-redite qui

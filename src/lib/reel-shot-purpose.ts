@@ -31,6 +31,19 @@ export function shotTypeLabel(type: unknown): string {
  * « Voix off + B-roll », « Hook loop » s'affichaient tels quels, QA du
  * 12/11/2026). Couvre la clé technique et les reels déjà enregistrés.
  */
+/**
+ * Indication de plan d'un passage (« Face cam, regard caméra… ») : les anciens
+ * reels gardent l'anglicisme du modèle, on le traduit à l'affichage.
+ */
+export function readableVisualCue(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  return raw
+    .replace(/\bface[\s_-]*cam(?![a-zà-ÿ])/gi, (m) => (m[0] === "F" ? "Face caméra" : "face caméra"))
+    .replace(/\bb[\s_-]*roll\b/gi, "images d'illustration")
+    .replace(/\bplans? de coupe\b/gi, (m) => (/s de/i.test(m) ? "images d'illustration" : "image d'illustration"))
+    .trim();
+}
+
 export function readableReelFormat(raw: unknown): string {
   if (typeof raw !== "string" || !raw.trim()) return "";
   const s = raw.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();

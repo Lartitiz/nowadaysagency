@@ -6,6 +6,7 @@ import { gardeRediteStats } from "./garde-redite.ts";
 import { construireEchantillon } from "./echantillon.ts";
 import { filStats } from "./fil-reparations.ts";
 import { dureesStats } from "./durees-carrousels.ts";
+import { reelsTropLongs } from "./reels-trop-longs.ts";
 import { planStats } from "./plan-carrousels.ts";
 import { CAROUSEL_PLAN_FORMAT } from "../_shared/carousel-plan-format.ts";
 import { fetchAllRows } from "./lecture.ts";
@@ -190,6 +191,13 @@ export function blocQualite({ carCur, carPrev, cqEvents, cqAll, planAll, planCli
           cette_semaine: dureesStats(cqEvents, (d) => inWindow(d, curFrom, curTo)),
           semaine_precedente: dureesStats(cqEvents, (d) => inWindow(d, prevFrom, prevTo)),
           comptes_internes_7j: dureesStats(cqAll.filter((e: any) => internalIds.has(e.user_id)), (d) => inWindow(d, curFrom, curTo)),
+        }
+      : null,
+    // Reels trop longs pour le montage (12/11/2026, cf. reels-trop-longs.ts).
+    reels_trop_longs: cqEvents
+      ? {
+          cette_semaine: reelsTropLongs(cqEvents, (d) => inWindow(d, curFrom, curTo)),
+          comptes_internes_7j: reelsTropLongs(cqAll.filter((e: any) => internalIds.has(e.user_id)), (d) => inWindow(d, curFrom, curTo)),
         }
       : null,
     // Plan des carrousels (12/10/2026) : durée, second appel, plans vides ou de
