@@ -725,7 +725,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                       ) : (
                         <>
                           <Camera className="h-3.5 w-3.5" />
-                          Me filmer<span className="hidden min-[400px]:inline"> à la place</span>
+                          <span>Me filmer<span className="hidden min-[400px]:inline"> à la place</span></span>
                         </>
                       )}
                     </Button>
