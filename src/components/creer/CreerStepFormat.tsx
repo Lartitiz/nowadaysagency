@@ -4,6 +4,9 @@ import FormatChoiceCards, { type FormatChoice } from "./FormatChoiceCards";
 import FormatMoreOptions from "./FormatMoreOptions";
 import MultiSubjectChoice from "./MultiSubjectChoice";
 import CreerSubjectLine from "./CreerSubjectLine";
+import ChannelFormatChip from "./ChannelFormatChip";
+import ReelFromPhotosNote from "./ReelFromPhotosNote";
+import { photoCapForFormat } from "@/lib/format-photo-cap";
 import { multiSubjectChoicePending } from "../../../supabase/functions/_shared/multi-subject";
 import { recommendContentFormat } from "@/lib/format-recommendation";
 import { useState, useEffect, useRef } from "react";
@@ -62,7 +65,7 @@ function getPhotoToggleCopy(format: string): { title: string; subtitle: string }
     case "post":
       return { title: "📸 J'accompagne une photo", subtitle: "Ta photo illustre ton idée : le texte parle de ton sujet, pas de l'image" };
     case "reel":
-      return { title: "📸 Mon Reel s'appuie sur une image", subtitle: "Référence visuelle pour l'accroche et le script : ton idée reste le sujet" };
+      return { title: "📸 Mon Reel s'appuie sur mes photos", subtitle: "Elles inspirent l'accroche et le script : ton idée reste le sujet" };
     case "story":
       return { title: "📸 J'ai des photos précises à utiliser", subtitle: "Optionnel : sans rien ajouter, chaque story sera illustrée automatiquement (ta bibliothèque d'abord, banques d'images sinon)" };
     case "linkedin":
@@ -208,8 +211,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
   useEffect(() => {
     if (!initialPhotos || initialPhotos.length === 0) return;
     if (!formatAcceptsSinglePhoto(selectedFormat)) return;
-    const cap = selectedFormat === "linkedin" ? 10 : 1;
-    const target = initialPhotos.slice(0, cap);
+    const target = initialPhotos.slice(0, photoCapForFormat(selectedFormat));
     if (target.length > postPhoto.length) {
       setPostPhoto(target);
     }
@@ -231,13 +233,15 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
 
   const handleFormatSelect = (id: string, opts?: { keepCarouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides" }) => {
     if (CONTENT_TYPE_SPECS[id]?.comingSoon) return;
-    const isFirstSelectionWithPhotos = !hasUserChangedFormat.current && (initialPhotos?.length ?? 0) > 0;
+    // Photos de départ : celles gardées par « Changer de format », sinon celles déjà chargées.
+    const startPhotos = carriedPhotos.current ?? initialPhotos ?? []; carriedPhotos.current = null;
+    const isFirstSelectionWithPhotos = !hasUserChangedFormat.current && startPhotos.length > 0;
     hasUserChangedFormat.current = true;
     setSelectedFormat(id);
     setSelectedAngle(undefined);
     if (isFirstSelectionWithPhotos) {
       // Restore photos from initialPhotos (may have been reset by handleChangeChannel)
-      setUploadedPhotos(initialPhotos!);
+      setUploadedPhotos(startPhotos);
       setPhotoDescription(initialPhotoDescription ?? "");
       if (id === "carousel") {
         // Type conseillé déjà choisi (photos présentes → « Tes photos en fond »), modifiable en un clic.
@@ -246,7 +250,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
       } else if (formatAcceptsSinglePhoto(id)) {
         setCarouselSubMode(null);
         setPhotoMode(true);
-        setPostPhoto(initialPhotos!.slice(0, id === "linkedin" ? 10 : 1));
+        setPostPhoto(startPhotos.slice(0, photoCapForFormat(id)));
         setPostPhotoDescription(initialPhotoDescription ?? "");
       } else {
         setCarouselSubMode(null);
@@ -265,6 +269,10 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
       setPostPhotoDescription("");
     }
   };
+
+  // « Changer de format » : retour aux cartes de format du même canal, photos gardées.
+  const carriedPhotos = useRef<PhotoItem[] | null>(null);
+  const handleChangeFormat = () => { carriedPhotos.current = postPhoto.length > 0 ? postPhoto : uploadedPhotos; hasUserChangedFormat.current = false; setSelectedFormat(null); setSelectedAngle(undefined); setCarouselSubMode(null); setLinkedinSubMode(null); setPinterestSubMode(null); };
 
   const handleChannelSelect = (channelId: ChannelId) => {
     setSelectedChannel(channelId);
@@ -323,7 +331,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
   const pageOneChoices: FormatChoice[] =
     selectedChannel === "instagram"
       ? typeEntries
-          .filter(([id, spec]) => spec.channel === "instagram" && (multiPhotos ? id === "carousel" : !hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel"))
+          .filter(([id, spec]) => spec.channel === "instagram" && (multiPhotos ? id === "carousel" || id === "reel" : !hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel"))
           .map(([id, spec]) => ({ id, label: spec.label, preview: id, comingSoon: spec.comingSoon, desc: id === "carousel" ? "Plusieurs slides à faire défiler" : id === "reel" ? "Une vidéo verticale, avec ton script" : id === "story" ? "Une séquence de visuels verticaux" : "Une photo et sa légende" }))
       : selectedChannel === "linkedin"
         ? [
@@ -542,27 +550,9 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
         </div>
       )}
 
-      {/* Persistent channel chip — visible once channel is chosen */}
-      {selectedChannel && (() => {
-        const ch = CHANNELS.find((c) => c.id === selectedChannel);
-        if (!ch) return null;
-        const Icon = ch.icon;
-        return (
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Icon className="h-4 w-4 text-bordeaux shrink-0" />
-              <span className="text-sm font-semibold text-foreground truncate">{ch.label}</span>
-            </div>
-            <button
-              type="button"
-              onClick={handleChangeChannel}
-              className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 shrink-0"
-            >
-              <ArrowLeft className="h-3 w-3" /> Changer de canal
-            </button>
-          </div>
-        );
-      })()}
+      {/* Rappel du canal et du format choisi, chacun modifiable (12/11/2026). */}
+      {selectedChannel && (() => { const ch = CHANNELS.find((c) => c.id === selectedChannel); return ch && <ChannelFormatChip icon={ch.icon} channelLabel={ch.label} onChangeChannel={handleChangeChannel} onChangeFormat={handleChangeFormat}
+        formatLabel={selectedFormat && pageOneChoices.length > 0 ? (pageOneChoices.find((c) => c.id === selectedFormat)?.label ?? CONTENT_TYPE_SPECS[selectedFormat]?.label ?? selectedFormat) : null} />; })()}
 
       {/* Photos preloaded: discreet hint that some formats are filtered out */}
       {selectedChannel && (initialPhotos?.length ?? 0) > 0 && !selectedFormat && (
@@ -570,7 +560,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
           {hasPreloadedPhotos ? (
             <>
               {multiPhotos
-                ? "Avec plusieurs photos, on part forcément sur un carrousel. Choisis le type ci-dessous."
+                ? "Avec plusieurs photos, on te propose le carrousel ou le Reel."
                 : "Quelques formats sont masqués car ils n'utilisent pas tes photos."}{" "}
               <button
                 type="button"
@@ -605,8 +595,6 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
           onPick={pickPageOneFormat}
         />
       )}
-
-      {/* Channel back button removed — chip at the top now handles it */}
 
       {/* Preloaded photos: incompatible format warning */}
       {(initialPhotos?.length ?? 0) > 0 && selectedFormat &&
@@ -653,7 +641,6 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
 
       )}
 
-
       {/* Avertissement explicite : photo chargée mais toggle OFF → l'IA ne la verra pas */}
       {formatAcceptsSinglePhoto(selectedFormat) && postPhoto.length > 0 && !photoMode && (
         <div className="p-3 rounded-lg bg-warning-bg border border-warning/30 flex items-start gap-2 animate-fade-in">
@@ -664,9 +651,6 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
         </div>
       )}
 
-      {/* Single-photo formats — preloaded photo confirmation banner — REMOVED.
-          The toggle "📸 J'accompagne une photo" + the PhotoUploadZone below already convey the state. */}
-
       {multiSubjectFormat && onIdeaChange && singleSubjectIdea !== idea && (
         <MultiSubjectChoice idea={idea} format={selectedFormat} onIdeaChange={onIdeaChange} onSingleSubject={() => setSingleSubjectIdea(idea)} />
       )}
@@ -676,7 +660,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
       {formatAcceptsSinglePhoto(selectedFormat) && photoMode && (
         <div className="animate-fade-in space-y-2">
           <PhotoUploadZone
-            maxPhotos={selectedFormat === "linkedin" || selectedFormat === "story" ? 10 : 1}
+            maxPhotos={photoCapForFormat(selectedFormat)}
             initialPhotos={postPhoto.length > 0 ? postPhoto : undefined}
             initialDescription={postPhotoDescription}
             onPhotosChange={setPostPhoto}
@@ -694,6 +678,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
               💡 Jusqu'à <strong>10 photos</strong> : l'IA place <strong>une photo par story</strong>, là où elle raconte le mieux. Une seule photo = fil visuel de toute la séquence.
             </p>
           )}
+          {selectedFormat === "reel" && postPhoto.length > 0 && <ReelFromPhotosNote photoCount={postPhoto.length} />}
         </div>
       )}
 
