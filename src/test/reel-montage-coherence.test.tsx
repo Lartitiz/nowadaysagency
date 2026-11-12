@@ -1,5 +1,5 @@
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "test-user" } }) }));
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useState } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
@@ -21,6 +21,7 @@ function Page({ initial, onSaved }: { initial: any; onSaved: (r: any) => void })
   const [result, setResult] = useState(initial);
   return <ReelResult result={result} onResultChange={(r) => { setResult(r); onSaved(r); }} />;
 }
+beforeEach(() => localStorage.clear());
 const tab = (name: RegExp) => fireEvent.click(screen.getByRole("tab", { name }));
 const silentChosen = () => screen.getByText("Sans voix").closest("button")!.className.includes("border-primary");
 
@@ -49,5 +50,27 @@ describe("Montage du reel — photo de départ transmise par la page", () => {
     tab(/Montage/);
     fireEvent.click(screen.getByText("Je ne me montre pas"));
     expect(await screen.findByText("Ta photo de départ")).toBeTruthy();
+  });
+});
+
+describe("Montage du reel — le dernier choix de voix sert de départ au reel suivant", () => {
+  it("« Sans voix » choisi sur un reel → le reel suivant s'ouvre sur « Sans voix », un montage enregistré garde le sien", async () => {
+    localStorage.clear();
+    const first = render(<ReelResult result={reel} />);
+    tab(/Montage/);
+    fireEvent.click(screen.getByText("Je ne me montre pas"));
+    fireEvent.click(await screen.findByText("Sans voix"));
+    first.unmount();
+
+    const next = render(<ReelResult result={{ ...reel, sections: [{ ...section, texte_parle: "Autre reel." }], script: [{ ...section, texte_parle: "Autre reel." }] }} />);
+    tab(/Montage/);
+    fireEvent.click(screen.getByText("Je ne me montre pas"));
+    expect(silentChosen()).toBe(true);
+    next.unmount();
+
+    const saved = { ...reel, montage_project: { version: 1, sectionTexts: [section.texte_parle], montageMode: "cache", voiceMode: "recorded", clips: [null], voiceClips: [null], cutaways: [null] } };
+    render(<ReelResult result={saved} />);
+    tab(/Montage/);
+    expect(silentChosen()).toBe(false);
   });
 });

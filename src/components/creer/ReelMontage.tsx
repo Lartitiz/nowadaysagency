@@ -27,6 +27,7 @@ import { useReelMyVideos } from "@/features/reel-montage/use-reel-my-videos";
 import { useReelStudioReturn } from "@/features/reel-montage/use-reel-studio-return";
 import { MontagePassageCard } from "@/features/reel-montage/MontagePassageCard";
 import { useReelRender } from "@/features/reel-montage/use-reel-render";
+import { lastVoiceMode, rememberVoiceMode } from "@/features/reel-montage/voice-preference";
 import { useReelStartPhoto } from "@/features/reel-montage/use-reel-start-photo";
 import { MontageResult } from "@/features/reel-montage/MontageResult";
 import { type MontageMode, type Phase, type ReelMontageProject, type Section, type SelectedClip, type StudioCutaway } from "@/features/reel-montage/types";
@@ -78,7 +79,9 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
   // Voix : « recorded » = voix off de la créatrice ; « silent » = montage
   // muet avec texte à l'écran. La voix synthétique n'est pas proposée.
-  const [voiceMode, setVoiceMode] = useState<"recorded" | "silent">(initialProject?.voiceMode || "recorded");
+  // Nouveau reel : part du dernier choix fait dans ce navigateur (voice-preference.ts).
+  const [voiceMode, setVoiceModeState] = useState<"recorded" | "silent">(() => initialProject?.voiceMode || lastVoiceMode());
+  const setVoiceMode = (mode: "recorded" | "silent") => { rememberVoiceMode(mode); setVoiceModeState(mode); };
   // Prises de voix : URL publique ET durée réelle. La durée cale la scène.
   const [voiceClips, setVoiceClips] = useState<(VoiceClip | null)[]>(() => initialProject?.voiceClips?.length === spoken.length ? initialProject.voiceClips : spoken.map(() => null));
   const voiceUrls = voiceClips.map((c) => c?.url ?? null);
