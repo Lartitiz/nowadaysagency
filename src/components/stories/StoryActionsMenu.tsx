@@ -11,11 +11,10 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MAX_STORIES } from "@/lib/story-sequence-ops";
 import StoryRedo from "@/components/stories/StoryRedo";
-import StoryStructureControls from "@/components/stories/StoryStructureControls";
 
 type RedoProps = Omit<ComponentProps<typeof StoryRedo>, "renderTrigger">;
 
-export function StoryActionsMenu({ index, count, redo, onDelete, onMove, onDuplicate, onAdd }: {
+export function StoryActionsMenu({ index, count, redo, onDelete, onMove, onDuplicate, onAdd, hideDelete }: {
   index: number;
   count: number;
   redo: RedoProps;
@@ -23,12 +22,14 @@ export function StoryActionsMenu({ index, count, redo, onDelete, onMove, onDupli
   onMove: (to: number) => void;
   onDuplicate: () => void;
   onAdd: () => void;
+  /** Ordi : « Supprimer la story » est sous les vignettes (stories comme le carrousel). */
+  hideDelete?: boolean;
 }) {
   const isMobile = useIsMobile();
   if (!isMobile) {
     return (
       <>
-        {count > 1 && (
+        {count > 1 && !hideDelete && (
           <Button
             variant="ghost"
             size="sm"
@@ -92,10 +93,4 @@ export function StoryActionsMenu({ index, count, redo, onDelete, onMove, onDupli
       )}
     />
   );
-}
-
-/** Ligne Avant / Après / Dupliquer / Ajouter : sur ordi seulement (sur téléphone, elle est dans le menu « … »). */
-export function StoryStructureRow(props: ComponentProps<typeof StoryStructureControls>) {
-  const isMobile = useIsMobile();
-  return isMobile ? null : <StoryStructureControls {...props} />;
 }

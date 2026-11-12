@@ -19,11 +19,25 @@ vi.mock("@/components/RedFlagsChecker", () => ({
 }));
 vi.mock("@/components/creer/formatRenderers/StoryPhotoSuggestions", () => ({ default: () => null }));
 vi.mock("@/components/photos/PhotoLibraryPickerDialog", () => ({ PhotoLibraryPickerDialog: () => null }));
+// jsdom ne mesure rien : les boîtes des textes de l'aperçu sont données par le test.
+const textBoxes = vi.hoisted(() => ({ list: [] as any[] }));
+vi.mock("@/components/stories/story-text-hit", async (orig) => ({
+  ...(await orig<typeof import("@/components/stories/story-text-hit")>()),
+  storyTextBoxes: () => textBoxes.list,
+}));
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  textBoxes.list = [];
 });
+
+/** Geste sur l'aperçu (300 px de large = échelle 300/1080). */
+function pointer(target: Element, type: string, clientX: number, clientY: number) {
+  const event = new Event(type, { bubbles: true });
+  Object.defineProperties(event, { pointerId: { value: 1 }, clientX: { value: clientX }, clientY: { value: clientY }, pointerType: { value: "mouse" } });
+  fireEvent(target, event);
+}
 
 function sequence(text: string, visual = {}): any {
   return { stories: [{ text, face_cam: false, visual: {
@@ -92,28 +106,74 @@ describe("Stories : édition et remplacement du résultat", () => {
     expect(screen.getByLabelText("Ce que tu as vraiment pensé, vu ou dit")).toHaveValue("");
   });
 
-  it("permet de placer librement le texte depuis l’aperçu", () => {
+  it("glisse le texte sur l’aperçu pour le déplacer, comme sur une slide", () => {
     const onStoriesUpdate = vi.fn();
     render(<StoryResult result={sequence("Déplace-moi")} onStoriesUpdate={onStoriesUpdate} />);
+    // Texte au milieu de la story (boîte en px de la story 1080×1920).
+    textBoxes.list = [{ role: "body", index: 0, x: 200, y: 900, w: 680, h: 120 }];
     const control = screen.getByRole("button", { name: "Déplacer le texte de la story 1" });
     Object.defineProperty(control, "setPointerCapture", { value: vi.fn() });
     Object.defineProperty(control, "getBoundingClientRect", {
-      value: () => ({ left: 0, top: 0, width: 170, height: 302, right: 170, bottom: 302, x: 0, y: 0, toJSON: () => ({}) }),
+      value: () => ({ left: 0, top: 0, width: 300, height: 533.33, right: 300, bottom: 533.33, x: 0, y: 0, toJSON: () => ({}) }),
     });
-
-    const pointerDown = new Event("pointerdown", { bubbles: true });
-    Object.defineProperties(pointerDown, {
-      pointerId: { value: 1 },
-      clientX: { value: 119 },
-      clientY: { value: 75.5 },
-    });
-    fireEvent(control, pointerDown);
+    pointer(control, "pointerdown", 150, 266);
+    pointer(control, "pointermove", 210, 133);
+    pointer(control, "pointerup", 210, 133);
     const visual = onStoriesUpdate.mock.lastCall?.[0][0].visual;
     expect(visual.text_position_x).toBe(70);
-    expect(visual.text_position_y).toBe(25);
+    expect(Math.round(visual.text_position_y)).toBe(25);
     expect(visual.text_position_edited).toBe(true);
     expect(previewHtml()).toContain("left:70%");
-    expect(previewHtml()).toContain("top:25%");
+    // Un glissé n'ouvre pas l'écriture.
+    expect(document.querySelector("[data-story-inline-editor]")).toBeNull();
+  });
+
+  it("touche le texte sur l’aperçu pour l’écrire directement sur la story", () => {
+    const onStoriesUpdate = vi.fn();
+    render(<StoryResult result={sequence("Écris-moi", { title_pill: "UN TITRE" })} onStoriesUpdate={onStoriesUpdate} />);
+    textBoxes.list = [
+      { role: "title", index: 0, x: 300, y: 820, w: 480, h: 70 },
+      { role: "body", index: 0, x: 200, y: 920, w: 680, h: 120 },
+    ];
+    const control = screen.getByRole("button", { name: "Déplacer le texte de la story 1" });
+    Object.defineProperty(control, "getBoundingClientRect", {
+      value: () => ({ left: 0, top: 0, width: 300, height: 533.33, right: 300, bottom: 533.33, x: 0, y: 0, toJSON: () => ({}) }),
+    });
+    // Toucher le corps du texte (sans glisser).
+    pointer(control, "pointerdown", 150, 270);
+    pointer(control, "pointerup", 150, 270);
+    const editor = screen.getByLabelText("Texte sur la story");
+    expect(editor).toHaveValue("Écris-moi");
+    fireEvent.change(editor, { target: { value: "Écrit sur la story" } });
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].text).toBe("Écrit sur la story");
+    expect(screen.getByLabelText("Texte complet de la story 1")).toHaveValue("Écrit sur la story");
+    expect(previewHtml()).toContain("Écrit sur la story");
+    // Toucher le titre : la case passe au titre.
+    pointer(control, "pointerdown", 150, 237);
+    pointer(control, "pointerup", 150, 237);
+    fireEvent.change(screen.getByLabelText("Titre sur la story"), { target: { value: "NOUVEAU TITRE" } });
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].visual.title_pill).toBe("NOUVEAU TITRE");
+    // Toucher à côté du texte referme l'écriture.
+    pointer(control, "pointerdown", 20, 20);
+    pointer(control, "pointerup", 20, 20);
+    expect(document.querySelector("[data-story-inline-editor]")).toBeNull();
+  });
+
+  it("Annuler et Rétablir défont et refont la dernière modification", () => {
+    const onStoriesUpdate = vi.fn();
+    render(<StoryResult result={sequence("Avant")} onStoriesUpdate={onStoriesUpdate} />);
+    const undo = screen.getByRole("button", { name: "Annuler la modification" });
+    expect(undo).toBeDisabled();
+    editNarration("Après");
+    fireEvent.click(screen.getByRole("button", { name: "Bas" }));
+    fireEvent.click(undo);
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].visual.text_position).not.toBe("bottom");
+    expect(screen.getByLabelText("Texte complet de la story 1")).toHaveValue("Après");
+    fireEvent.click(undo);
+    expect(screen.getByLabelText("Texte complet de la story 1")).toHaveValue("Avant");
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].text).toBe("Avant");
+    fireEvent.click(screen.getByRole("button", { name: "Rétablir la modification" }));
+    expect(screen.getByLabelText("Texte complet de la story 1")).toHaveValue("Après");
   });
 
   it("met à jour le contexte complet visible d’une citation", () => {
@@ -264,7 +324,8 @@ describe("Stories : édition et remplacement du résultat", () => {
     render(<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} />);
 
     // Une story à la fois (chantier D) : les 3 sont dans la page, on va sur la 2e puis on la supprime.
-    expect(screen.getAllByRole("button", { name: "Supprimer la story", hidden: true })).toHaveLength(3);
+    // Un seul bouton, sous les vignettes, pour la story ouverte (comme « Supprimer la slide »).
+    expect(screen.getAllByRole("button", { name: "Supprimer la story", hidden: true })).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Voir la story 2" }));
     fireEvent.click(screen.getByRole("button", { name: "Supprimer la story" }));
 
@@ -295,17 +356,17 @@ describe("Stories : édition et remplacement du résultat", () => {
     expect(screen.getByText("Deuxième story")).toBeInTheDocument();
   });
 
-  it("montre une story à la fois, avec les numéros et précédente / suivante (chantier D)", () => {
+  it("montre une story à la fois, choisie dans les vignettes (comme les slides)", () => {
     const result = { stories: [sequence("Première story").stories[0], sequence("Deuxième story").stories[0], sequence("Troisième story").stories[0]] };
     render(<StoryResult result={result} />);
     const visibleTexts = () => screen.getAllByRole("textbox", { name: /Texte complet de la story/ }).map((t) => (t as HTMLTextAreaElement).value);
     expect(visibleTexts()).toEqual(["Première story"]);
-    expect(screen.getByRole("button", { name: "Story précédente" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Story suivante" }));
+    expect(screen.getByRole("button", { name: "Voir la story 1" })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByTitle("Vignette story 3")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Voir la story 2" }));
     expect(visibleTexts()).toEqual(["Deuxième story"]);
     fireEvent.click(screen.getByRole("button", { name: "Voir la story 3" }));
     expect(visibleTexts()).toEqual(["Troisième story"]);
-    expect(screen.getByRole("button", { name: "Story suivante" })).toBeDisabled();
     // Les autres stories restent dans la page (export, lecture de la séquence).
     expect(screen.getByTitle("Aperçu story 1")).toBeInTheDocument();
   });
