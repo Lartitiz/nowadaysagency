@@ -185,7 +185,7 @@ export async function handleSlideRedoRequest(reqCtx: CarouselRequestContext): Pr
     if (attempt === 1 && defects.every((d) => d.startsWith("Texte trop long pour poser le schéma"))) break;
     next = null;
   }
-  if (!next) return json(422, { error: "Claude n'a pas réussi à refaire cette slide sans inventer de chiffre ou d'histoire. Rien n'a été débité : reformule ta consigne." }, corsHeaders);
+  if (!next) return json(422, { error: "L'Assistant Com' n'a pas réussi à refaire cette slide sans inventer de chiffre ou d'histoire. Rien n'a été débité : reformule ta consigne." }, corsHeaders);
 
   // 2. MISE EN FORME — schéma demandé, gabarits photo revérifiés, dessin de la slide.
   emitStatus("visuals");

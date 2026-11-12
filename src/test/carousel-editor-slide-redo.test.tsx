@@ -56,7 +56,9 @@ async function askRedo(instruction: string) {
   expect(within(dialog).getByText("Refaire la slide 3")).toBeTruthy();
   expect(within(dialog).getByText("Les autres slides restent telles quelles.")).toBeTruthy();
   expect(within(dialog).getByText("Il te reste 22 crédits ce mois-ci.")).toBeTruthy();
-  fireEvent.change(within(dialog).getByLabelText("Dis à Claude ce que tu veux changer sur cette slide"), { target: { value: instruction } });
+  // QA du 12/11/2026 : le nom du modèle (« Dis à Claude… ») ne s'affiche plus.
+  expect(dialog.outerHTML).not.toMatch(/Claude/);
+  fireEvent.change(within(dialog).getByLabelText("Dis ce que tu veux changer sur cette slide"), { target: { value: instruction } });
   fireEvent.click(within(dialog).getByRole("button", { name: "Refaire cette slide · 1 crédit" }));
 }
 
@@ -122,7 +124,7 @@ describe("Refaire cette slide dans l'éditeur", () => {
     api.request = (body) => new Promise((resolve) => { release = () => resolve(answer(body)); });
     render(<Harness api={api} />);
     await askRedo("plus court");
-    expect(await screen.findByText("Claude refait ta slide…")).toBeTruthy();
+    expect(await screen.findByText("L'Assistant Com' refait ta slide…")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Fermer" }));
     await waitFor(() => expect(screen.queryByTestId("slide-redo-dialog")).toBeNull());
     release();
@@ -130,7 +132,7 @@ describe("Refaire cette slide dans l'éditeur", () => {
   });
 
   it("une erreur s'affiche et ne touche à rien", async () => {
-    render(<Harness api={fakeApi({ request: async () => ({ data: null, error: "Claude n'a pas réussi à refaire cette slide sans inventer de chiffre ou d'histoire. Rien n'a été débité : reformule ta consigne." }) })} />);
+    render(<Harness api={fakeApi({ request: async () => ({ data: null, error: "L'Assistant Com' n'a pas réussi à refaire cette slide sans inventer de chiffre ou d'histoire. Rien n'a été débité : reformule ta consigne." }) })} />);
     const before = saved();
     await askRedo("ajoute une statistique frappante");
     expect((await screen.findByRole("alert")).textContent).toMatch(/Rien n'a été débité/);
