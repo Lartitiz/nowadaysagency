@@ -63,7 +63,7 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
   reel: [
     "Écriture de l'accroche d'ouverture…",
     "Construction du script scène par scène…",
-    "Calibrage du rythme (30-60s)…",
+    "Calibrage du rythme (30-55 s)…",
     "Ajout des indications visuelles…",
   ],
   story: [

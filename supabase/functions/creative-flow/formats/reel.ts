@@ -242,31 +242,69 @@ export function clampHookDuration(raw: unknown, effectiveObjective?: string | nu
 }
 
 /**
- * Coupe dédiée quand le texte parlé dépasse le plafond après la relecture.
- * Gardée seulement si le nombre de mots baisse ; le hook choisi est reverrouillé
- * ensuite par finalizeReelScript. Jamais bloquante.
+ * Budget de mots par passage pour tenir `target` mots au total : l'accroche
+ * (section 1) reste telle quelle, les autres passages sont réduits à
+ * proportion (8 mots au moins). Une consigne « 51 → 38 mots » par passage est
+ * bien mieux suivie qu'un total global (QA du 12/11/2026 : 184 → 144 mots
+ * pour un plafond de 130 avec la seule consigne globale).
  */
-export async function enforceReelMaxWords(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string }): Promise<void> {
+export function reelSectionBudgets(parsed: any, target: number): { section: number; words: number; max: number }[] {
+  const sections: any[] = Array.isArray(parsed?.script) ? parsed.script : Array.isArray(parsed?.sections) ? parsed.sections : [];
+  const counts = sections.map((s) => String(s?.texte_parle ?? "").split(/\s+/).filter(Boolean).length);
+  const hook = counts[0] ?? 0;
+  const rest = counts.slice(1).reduce((a, b) => a + b, 0);
+  if (rest <= 0) return [];
+  const ratio = Math.max(0, target - hook) / rest;
+  return counts
+    .map((words, i) => ({ section: i + 1, words, max: Math.max(8, Math.floor(words * ratio)) }))
+    .filter((b) => b.section > 1 && b.words > b.max);
+}
+
+/** Nombre maximal de passes de coupe (chacune un appel Haiku court). */
+export const REEL_CUT_MAX_ATTEMPTS = 2;
+
+/**
+ * Coupe dédiée quand le texte parlé dépasse le plafond après la relecture.
+ * Vise un peu sous le plafond (la coupe IA s'arrête souvent au-dessus de sa
+ * cible), avec un budget par passage, et recommence une fois si le texte
+ * dépasse encore. Chaque passe n'est gardée que si le nombre de mots baisse ;
+ * le hook choisi est reverrouillé ensuite par finalizeReelScript. Jamais
+ * bloquante.
+ */
+export async function enforceReelMaxWords(parsed: any, params: {
+  body: any;
+  effectiveObjective?: string | null;
+  fullContext: string;
+  /** Pour les tests : remplace la passe IA. */
+  pass?: typeof applyCorrectionPassReel;
+}): Promise<void> {
   const cap = reelSpokenWordCap(params.effectiveObjective);
-  const before = countReelSpokenWords(parsed);
-  if (before <= cap) return;
-  try {
-    const corrected = await applyCorrectionPassReel(parsed, {
-      logger: (msg) => console.log(msg),
-      authoredText: authoredContentSource(params.body),
-      sourceContext: params.fullContext,
-      model: HAIKU_MODEL,
-      extraInstructions: `REEL TROP LONG : ${before} mots parlés, plafond ${cap} (${REEL_MAX_SECONDS} secondes au plus, le montage s'arrête à 60 s). COUPE les [SECTION n - PARLE] pour arriver à ${cap} mots au total : supprime les redites, la mise en contexte et les exemples secondaires, garde le POURQUOI et la chute. Ne touche PAS à [SECTION 1 - PARLE] (l'accroche) ni aux autres balises. C'est une exception explicite à la règle "±10 %".`,
-      abortTimeoutMs: CORRECTION_ABORT_MS,
-    });
-    if (!corrected || typeof corrected !== "object") return;
-    const after = countReelSpokenWords(corrected);
-    if (after > 0 && after < before) {
+  const target = cap - 10;
+  const pass = params.pass ?? applyCorrectionPassReel;
+  for (let attempt = 1; attempt <= REEL_CUT_MAX_ATTEMPTS; attempt++) {
+    const before = countReelSpokenWords(parsed);
+    if (before <= cap) return;
+    const budgets = reelSectionBudgets(parsed, target)
+      .map((b) => `- [SECTION ${b.section} - PARLE] : ${b.words} mots → ${b.max} mots au plus`)
+      .join("\n");
+    try {
+      const corrected = await pass(parsed, {
+        logger: (msg) => console.log(msg),
+        authoredText: authoredContentSource(params.body),
+        sourceContext: params.fullContext,
+        model: HAIKU_MODEL,
+        extraInstructions: `REEL TROP LONG : ${before} mots parlés, plafond ${cap} (${REEL_MAX_SECONDS} secondes au plus, le montage s'arrête à 60 s). COUPE les [SECTION n - PARLE] pour arriver à ${target} mots au total, en respectant ce budget par passage (compte les mots) :\n${budgets}\nSupprime les redites, la mise en contexte et les exemples secondaires, garde le POURQUOI et la chute. Raccourcis en enlevant des phrases entières plutôt qu'en résumant en style télégraphique. Ne touche PAS à [SECTION 1 - PARLE] (l'accroche) ni aux autres balises. C'est une exception explicite à la règle "±10 %".`,
+        abortTimeoutMs: CORRECTION_ABORT_MS,
+      });
+      if (!corrected || typeof corrected !== "object") return;
+      const after = countReelSpokenWords(corrected);
+      if (!(after > 0 && after < before)) return;
       Object.assign(parsed, corrected);
-      console.log(JSON.stringify({ event: "reel_coupe", before, after, cap }));
+      console.log(JSON.stringify({ event: "reel_coupe", attempt, before, after, cap, target }));
+    } catch (e) {
+      console.error("[creative-flow] coupe du reel ignorée (script intact) :", e);
+      return;
     }
-  } catch (e) {
-    console.error("[creative-flow] coupe du reel ignorée (script intact) :", e);
   }
 }
 
