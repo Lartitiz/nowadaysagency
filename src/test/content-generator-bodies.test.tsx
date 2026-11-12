@@ -103,6 +103,8 @@ describe("generate — stories (creative-flow)", () => {
   it("mode photo avec 12 photos : 10 identifiants au plus", async () => {
     const call = await bodyOf({ format: "story", subject: "Sujet", photoMode: true, photos: photos(12) });
     expect(call.body.preferred_photo_ids).toHaveLength(10);
+    // Le serveur sait qu'elle a ses photos : pas d'autres photos de la bibliothèque.
+    expect(call.body.attached_photo_count).toBe(10);
     expect(call).toMatchSnapshot();
   });
 });

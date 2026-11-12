@@ -37,6 +37,10 @@ export async function buildStoryGenerateBody(params: GenerateParams, ctx: BodyCo
             .map((p) => p.userPhotoId)
             .filter((id): id is string => !!id)
             .slice(0, 10),
+          // Photos chargées ici, pas encore dans la bibliothèque : réparties
+          // ensuite sur les stories par l'écran. Le serveur ne doit pas leur
+          // préférer d'autres photos de la bibliothèque (QA du 12/11/2026).
+          attached_photo_count: Math.min(params.photos.length, 10),
         }
       : {}),
     ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
