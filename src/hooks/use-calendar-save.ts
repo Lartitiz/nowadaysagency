@@ -532,7 +532,7 @@ export function useCalendarSave({
   const pushRetouchToCalendar = (postId: string, options?: { force?: boolean }): Promise<CalendarFollowOutcome> => {
     const run = async (): Promise<CalendarFollowOutcome> => {
       const userId = session?.user?.id;
-      if (!userId || !result?.raw || selectedFormat !== "carousel") return { kind: "skipped" };
+      if (!userId || !result?.raw || (selectedFormat !== "carousel" && selectedFormat !== "story")) return { kind: "skipped" };
       const { data: post, error: readError } = await supabase.from("calendar_posts")
         .select("status,publish_status,auto_publish,scheduled_publish_at,story_sequence_detail,updated_at,canal")
         .eq("id", postId).maybeSingle();
@@ -593,10 +593,10 @@ export function useCalendarSave({
     return next;
   };
   const followVersion = useRef<Record<string, string>>({});
-  const followEnabled = enabled && !!carouselAutosave?.enabled && selectedFormat === "carousel";
+  const followEnabled = enabled && !!carouselAutosave?.enabled && (selectedFormat === "carousel" || selectedFormat === "story");
   // Ce qui part au calendrier : visuels + texte. Calculé seulement quand ça change.
   const followSignature = useMemo(
-    () => (followEnabled ? JSON.stringify([visualSlides, extractContentForCalendar().contentDraft]) : ""),
+    () => (followEnabled ? JSON.stringify(selectedFormat === "story" ? extractContentForCalendar().storyDetail?.stories : [visualSlides, extractContentForCalendar().contentDraft]) : ""),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [followEnabled, visualSlides, result?.raw],
   );

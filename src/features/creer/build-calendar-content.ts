@@ -168,8 +168,10 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
       amplification_stories: r.amplification_stories,
     };
   } else if (selectedFormat === "story" && storySequence) {
+    // Les marqueurs de la sauvegarde continue (versions comprises) restent dans Mes idées.
+    const { _carousel_cloud: _cloud, _carousel_document_id: _doc, _carousel_base_updated_at: _base, ...rest } = r;
     storyDetail = {
-      ...r,
+      ...rest,
       type: "stories",
       stories,
       structure_type: r.structure_type,

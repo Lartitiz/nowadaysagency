@@ -7,6 +7,7 @@ import { Sparkles, Copy, Loader2, MoreHorizontal, CheckCircle2 } from "lucide-re
 import type { CalendarPost } from "@/lib/calendar-constants";
 import { downloadVisualUrls } from "@/lib/download-visual-urls";
 import { toast } from "sonner";
+import { isCalendarStories } from "@/lib/calendar-stories-resume";
 
 interface Props {
   editingPost: CalendarPost | null;
@@ -121,6 +122,16 @@ export function CalendarPostContent({
             className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
           >
             🎬 Reprendre le reel
+          </Button>
+        )}
+        {isCalendarStories(ssd) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenAtelier}
+            className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
+          >
+            ✏️ Modifier les stories
           </Button>
         )}
         {isCarousel && (
