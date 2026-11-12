@@ -63,6 +63,8 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
   const [isSaving, setIsSaving] = useState(false);
   // Échec qui reste affiché (12/11/2026) : le toast seul disparaissait.
   const [failure, setFailure] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   // Reset + chargement de la source à chaque ouverture
   useEffect(() => {
@@ -75,18 +77,28 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
     setResultPhotoId(null);
     setIsSaving(false);
     setFailure(null);
+  }, [open, photo]);
+
+  // Chargement de la photo source, relançable (12/11/2026) : s'il ratait, seul
+  // un toast le disait et « Générer » restait grisé sans autre issue.
+  useEffect(() => {
+    if (!open || !photo) return;
+    setLoadError(null);
     let cancelled = false;
     userPhotoToRawBase64(photo)
       .then((b64) => {
         if (!cancelled) setSourceBase64(b64);
       })
       .catch((e: any) => {
-        if (!cancelled) toast.error(e?.message || "Impossible de charger la photo.");
+        if (cancelled) return;
+        const message = e?.message || "Impossible de charger la photo.";
+        setLoadError(message);
+        toast.error(message);
       });
     return () => {
       cancelled = true;
     };
-  }, [open, photo]);
+  }, [open, photo, loadAttempt]);
 
   if (!photo) return null;
 
@@ -312,6 +324,14 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
 
         {/* 4 boutons ne tiennent pas dans max-w-2xl : Annuler disparaît après
             génération (le X ferme) et le footer peut wrapper au besoin. */}
+{loadError && !sourceBase64 && (
+          <GenerationFailedNotice
+            message={loadError}
+            onRetry={() => setLoadAttempt((n) => n + 1)}
+            title="Ta photo n'a pas pu être ouverte"
+            retryLabel="Recharger la photo"
+          />
+        )}
         {failure && !busy && (
           <GenerationFailedNotice
             message={failure}

@@ -122,6 +122,8 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
   const [isSaving, setIsSaving] = useState(false);
   // Échec affiché dans la fenêtre (le toast seul disparaît) + relance de la même demande.
   const [failure, setFailure] = useState<{ message: string; retry: () => void } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   // Reset + chargement source/charte à chaque ouverture
   useEffect(() => {
@@ -141,13 +143,6 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     setIsSaving(false);
     setFailure(null);
     let cancelled = false;
-    userPhotoToRawBase64(photo)
-      .then((b64) => {
-        if (!cancelled) setSourceBase64(b64);
-      })
-      .catch((e: any) => {
-        if (!cancelled) toast.error(e?.message || "Impossible de charger la photo.");
-      });
     const col = photo.workspace_id ? "workspace_id" : "user_id";
     const val = photo.workspace_id ?? user?.id;
     if (val) {
@@ -167,6 +162,27 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
       cancelled = true;
     };
   }, [open, photo, user?.id]);
+
+  // Chargement de la photo source, relançable (12/11/2026) : s'il ratait, seul
+  // un toast le disait et « Générer » restait grisé sans autre issue.
+  useEffect(() => {
+    if (!open || !photo) return;
+    setLoadError(null);
+    let cancelled = false;
+    userPhotoToRawBase64(photo)
+      .then((b64) => {
+        if (!cancelled) setSourceBase64(b64);
+      })
+      .catch((e: any) => {
+        if (cancelled) return;
+        const message = e?.message || "Impossible de charger la photo.";
+        setLoadError(message);
+        toast.error(message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, photo, loadAttempt]);
 
   if (!photo) return null;
 
@@ -503,6 +519,14 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
               1 crédit photo. L'image ira toute seule dans Mes photos, ta photo d'origine reste intacte.
             </p>
 
+            {loadError && !sourceBase64 && (
+              <GenerationFailedNotice
+                message={loadError}
+                onRetry={() => setLoadAttempt((n) => n + 1)}
+                title="Ta photo n'a pas pu être ouverte"
+                retryLabel="Recharger la photo"
+              />
+            )}
             {failure && !busy && (
               <GenerationFailedNotice message={failure.message} onRetry={failure.retry} />
             )}
