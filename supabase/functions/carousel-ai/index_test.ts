@@ -16,6 +16,7 @@ import {
 import { AnthropicError, HAIKU_MODEL } from "../_shared/anthropic.ts";
 import { progressionReceipt, progressionJudgeCallMs, PROGRESSION_FORMAT_RETRY_MS } from "../_shared/carousel-progression.ts";
 import { handleRequest, _deps, normalizeSlideType, writerTimeoutMs } from "./index.ts";
+import { QUESTIONS_ADDRESS_OVERRIDE } from "./questions-address.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
 
 Deno.test("prose continue : photos directes observées et refus photo conservé sans débit",async()=>{
@@ -1102,6 +1103,44 @@ for (const subject of ["Découverte des céramiques après onboarding", "Histoir
     assert(writerPrompt.includes("sans illustrer chaque phrase"));assert(writerPrompt.includes("Sources à vérifier contre le brief et la marque"));
     assertEquals(judged,1);
   }finally{globalThis.fetch=oldFetch;}
+});
+
+// QA du 12/11/2026 : LinkedIn → Partir de photos, les questions disaient
+// « votre méthode ». Elles parlent à l'utilisatrice : tutoiement, relance sinon.
+Deno.test("questions photo LinkedIn : consigne de tutoiement en dernier et relance si vouvoiement", async () => {
+  resetDeps(); const calls: any[] = [];
+  _deps.callAnthropic = (async (o: any) => {
+    calls.push(o);
+    return calls.length === 1
+      ? JSON.stringify({ questions: [{ question: "Quelle est votre méthode ?", placeholder: "Ce que vous avez réellement rénové" }] })
+      : JSON.stringify({ questions: [{ question: "Quelle est ta méthode ?", placeholder: "Ce que tu as réellement rénové" }] });
+  }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type: "photo", channel: "linkedin", subject: "Rénovation d'une longère", photos: [{ base64: "aGVsbG8=" }] }));
+  assertEquals(res.status, 200);
+  const questions = JSON.parse((await res.json()).content).questions;
+  assertEquals(questions[0].question, "Quelle est ta méthode ?");
+  assertEquals(calls.length, 2);
+  // Les règles de vouvoiement des slides restent, la consigne des questions passe après.
+  const system: string = calls[0].system;
+  assert(/vouvoiement/i.test(system));
+  assert(system.trimEnd().endsWith(QUESTIONS_ADDRESS_OVERRIDE.trim()));
+  assert(JSON.stringify(calls[1].messages).includes("Réécris exactement les mêmes questions"));
+});
+
+Deno.test("questions photo : pas de relance quand les questions tutoient déjà", async () => {
+  resetDeps(); let n = 0;
+  _deps.callAnthropic = (async () => { n++; return JSON.stringify({ questions: [{ question: "Qu'as-tu changé ? Tes clientes disent « votre accueil »", placeholder: "Ex. : le sol" }] }); }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type: "photo", channel: "linkedin", subject: "Rénovation", photos: [{ base64: "aGVsbG8=" }] }));
+  assertEquals(res.status, 200);
+  assertEquals(n, 1);
+});
+
+for (const carousel_type of ["storytelling", "photo"]) Deno.test(`questions ${carousel_type} sans pixels LinkedIn : consigne de tutoiement en dernier`, async () => {
+  resetDeps(); let system = "";
+  _deps.callAnthropic = (async (o: any) => { system = o.system; return JSON.stringify({ questions: [] }); }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type, channel: "linkedin", subject: "Rénovation" }));
+  assertEquals(res.status, 200);
+  assert(system.trimEnd().endsWith(QUESTIONS_ADDRESS_OVERRIDE.trim()));
 });
 
 for (const subject of ["", "Carrousel basé sur les photos uploadées"]) Deno.test(`photos seules : aucun objectif demandé (${subject || "vide"})`, async () => {
