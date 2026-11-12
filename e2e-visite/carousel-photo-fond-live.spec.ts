@@ -19,6 +19,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { tapCarouselSse, watchWaitingScreen } from "./carousel-wait-probe";
+import { skipPhotoContextStep } from "./photo-context-step";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/carousel-photo-fond");
@@ -112,6 +113,7 @@ test("carrousel « Tes photos en fond » : plan, brouillons sur photo, texte sur
   ]).catch(() => {});
   if (await genDir.isVisible().catch(() => false)) await genDir.click();
   else await genBtn.click();
+  await skipPhotoContextStep(page);
   console.log("🚀 Générer cliqué");
   watchWaitingScreen(page, path.join(SHOTS, "fond-attente"));
 

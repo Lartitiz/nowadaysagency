@@ -247,6 +247,13 @@ export async function expectZoneMatches(page: Page, locator: Locator, name: stri
   if (missingFonts.length) console.log(`⚠️ ${name} : police(s) pas chargée(s) avant la photo : ${missingFonts.join(" ; ")}`);
   // Le texte se remet en page avec la vraie police : une image pour finir.
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  // Photo prise page remontée en haut (12/11/2026) : la capture « page entière » remet
+  // les éléments collés (sticky) à leur place d'origine, alors que la zone était
+  // mesurée page défilée. Depuis que la ligne d'outils et la slide de l'éditeur se
+  // collent sous le menu (#1859), quelques px de défilement suffisaient à prendre la
+  // ligne d'outils sur la photo et à couper le bas de la slide.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   // La slide de l'éditeur prend la place mesurée sur la page (W élargi, 18/10/2026) : au
   // chargement à froid elle peut encore s'ajuster de 1 ou 2 px. On attend une taille stable.
   let box = await locator.boundingBox();
@@ -266,8 +273,16 @@ export async function expectZoneMatches(page: Page, locator: Locator, name: stri
   // La barre d'actions du résultat est collée en bas de l'écran (chantier C,
   // 15/10/2026) : sans ça, elle recouvre le bas de la zone sur l'image.
   // Masquée le temps de la photo seulement (la suite de la spec s'en sert).
-  const hide = await page.addStyleTag({ content: '[data-testid="result-actions"]{visibility:hidden !important}' });
+  // Idem pour le menu de l'app collé en haut (12/11/2026) : une zone plus haute que
+  // l'écran (script du reel) passait dessous, et un changement du menu (« Créer » →
+  // « Accueil ») rendait la zone rouge sans que le contenu ait bougé.
+  const hide = await page.addStyleTag({ content: '[data-testid="result-actions"],[data-fige-hide]{visibility:hidden !important}' });
+  await page.evaluate(() => document.querySelectorAll("header").forEach((h) => {
+    const pos = getComputedStyle(h).position;
+    if (pos === "sticky" || pos === "fixed") h.setAttribute("data-fige-hide", "");
+  }));
   const shot = await page.screenshot({ clip, fullPage: true, animations: "disabled", mask: [page.locator("canvas")] });
+  await page.evaluate(() => document.querySelectorAll("[data-fige-hide]").forEach((h) => h.removeAttribute("data-fige-hide")));
   await hide.evaluate((el) => el.remove());
   expect(shot, message).toMatchSnapshot(name, { maxDiffPixelRatio: 0.01 });
 }

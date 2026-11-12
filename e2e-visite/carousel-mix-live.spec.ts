@@ -20,6 +20,7 @@ import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { exportAndCheckPptx } from "./pptx-export-check";
 import { tapCarouselSse, watchWaitingScreen } from "./carousel-wait-probe";
+import { skipPhotoContextStep } from "./photo-context-step";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/carousel-mix");
@@ -119,6 +120,7 @@ test("carrousel mixte réel : upload → génération → export PPTX composé v
   ]).catch(() => {});
   if (await genDir.isVisible().catch(() => false)) await genDir.click();
   else await genBtn.click();
+  await skipPhotoContextStep(page);
   console.log("🚀 Générer cliqué (mixte)");
   watchWaitingScreen(page, path.join(SHOTS, "mix-attente"));
 
