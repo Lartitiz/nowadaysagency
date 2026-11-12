@@ -29,6 +29,7 @@ import { runGenerationAndRespond } from "./steps/generate.ts";
 import { handleMixCarouselRequest } from "./modes/mix.ts";
 import { handlePhotoCarouselRequest } from "./modes/photo.ts";
 import { handleSlideRedoRequest } from "./modes/slide-redo.ts";
+import { investmentSolicitationBlock } from "../_shared/investment-solicitation.ts";
 export { emptySlidesText } from "./modes/photo.ts";
 
 // Fiche 2 (docs/robustesse/gros-fichiers.md) : déplacés à l'identique, réexportés pour les tests.
@@ -312,6 +313,8 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       body.subject, body.photo_description, currentAuthoredText,
       typeof body.news_context === "string" ? body.news_context : "",
     ].filter(Boolean).join("\n"));
+    // Appel à investir (QA 12/11/2026) : même règle ferme que creative-flow, seulement si la demande en parle.
+    systemPrompt += investmentSolicitationBlock(body.subject, body.subject_details, body.photo_description, body.deepening_answers, newsContext);
 
     // Inject SERIES context if the post belongs to a series
     if (series_id && (type === "express_full" || type === "hooks" || type === "slides" || type === "structure_proposal")) {

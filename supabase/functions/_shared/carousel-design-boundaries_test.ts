@@ -36,7 +36,7 @@ const WRITING = new Set([
   "angle-families", "audience-address", "audience-address-pass", "base-prompts", "carousel-cover",
   "carousel-draft-stream", "carousel-editorial-contract", "carousel-editorial-review", "carousel-editorial-snapshot",
   "carousel-length", "carousel-model", "carousel-plan-format", "carousel-progression", "carousel-thread",
-  "content-clarity", "content-quality", "copywriting-prompts", "correction-pass", "depth-research", "editorial-voice",
+  "content-clarity", "content-quality", "copywriting-prompts", "correction-pass", "depth-research", "editorial-voice", "investment-solicitation",
   "lived-case", "previous-hooks", "recent-briefs", "recent-passages", "redac-gate", "reel-postprocess",
   "series-context", "socle", "text-structure-guard", "user-context",
 ]);
