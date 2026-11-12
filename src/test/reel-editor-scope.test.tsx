@@ -24,3 +24,13 @@ it('actual editor rehydrates MP4 under StrictMode; caption keeps it, script inva
  act(()=>oldReady(video));expect(result.current.reelMp4Url).toBeNull();
  const late=result.current.setReelMp4Url;unmount();saveFlowState.mockClear();act(()=>late(video));expect(saveFlowState).not.toHaveBeenCalled();
 });
+
+it('reel repris du calendrier : la vidéo montée revient si le script est le même, jamais pour un autre script',()=>{
+ const saveFlowState=vi.fn();
+ const resumed={...raw,_reel_resume:{mp4:video,source:reelSourceKey(raw)}};
+ const {result}=renderHook(p=>useActualEditor(p),{initialProps:{result:{raw:resumed},workspaceId:'A',creationId:'c1',ps:null,saveFlowState},wrapper:StrictMode});
+ expect(result.current.reelMp4Url).toBe(video);
+ const other={sections:[{texte_parle:'Script B'}],_reel_resume:{mp4:video,source:reelSourceKey(raw)}};
+ const {result:r2}=renderHook(p=>useActualEditor(p),{initialProps:{result:{raw:other},workspaceId:'A',creationId:'c2',ps:null,saveFlowState}});
+ expect(r2.current.reelMp4Url).toBeNull();
+});

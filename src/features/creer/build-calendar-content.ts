@@ -152,6 +152,7 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
   } else if (selectedFormat === "reel" && (r?.sections || r?.script)) {
     storyDetail = {
       ...r,
+      _reel_resume: undefined, // marque de reprise (calendar-reel-resume.ts), jamais réenregistrée
       type: "reel",
       format_type: r.format_type,
       format_label: r.format_label,

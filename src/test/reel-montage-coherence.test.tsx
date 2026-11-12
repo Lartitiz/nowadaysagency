@@ -74,3 +74,13 @@ describe("Montage du reel — le dernier choix de voix sert de départ au reel s
     expect(silentChosen()).toBe(false);
   });
 });
+
+describe("Montage du reel — vidéo montée arrivée après l'ouverture (reprise du calendrier)", () => {
+  it("ReelResult la prend en compte : le montage compte comme fait", async () => {
+    const onStepChange = vi.fn();
+    const view = render(<ReelResult result={reel} initialMp4Url={null} onStepChange={onStepChange} />);
+    await waitFor(() => expect(onStepChange).toHaveBeenLastCalledWith(expect.objectContaining({ montageDone: false })));
+    view.rerender(<ReelResult result={reel} initialMp4Url="https://stockage.test/reel.mp4" onStepChange={onStepChange} />);
+    await waitFor(() => expect(onStepChange).toHaveBeenLastCalledWith(expect.objectContaining({ montageDone: true })));
+  });
+});

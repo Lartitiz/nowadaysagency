@@ -113,6 +113,16 @@ export function CalendarPostContent({
             {mediaUrls.length === 1 ? "Télécharger le visuel" : `Télécharger les ${mediaUrls.length} visuels`}
           </Button>
         )}
+        {ssd?.type === "reel" && (Array.isArray(ssd.sections) || Array.isArray(ssd.script)) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenAtelier}
+            className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
+          >
+            🎬 Reprendre le reel
+          </Button>
+        )}
         {isCarousel && (
           <Button
             variant="ghost"
