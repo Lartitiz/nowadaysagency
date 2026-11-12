@@ -15,7 +15,7 @@ export function photoFormatHintText(channel: string, photoCount: number): { text
   const multi = photoCount >= 2;
   if (channel === "instagram") {
     return multi
-      ? { text: "Avec plusieurs photos, on te propose le carrousel ou le Reel.", canFilter: true }
+      ? { text: "Avec plusieurs photos, on te propose le carrousel, le Reel ou la Story.", canFilter: true }
       : { text: "Quelques formats sont masqués car ils n'utilisent pas tes photos.", canFilter: true };
   }
   if (channel === "linkedin") {
