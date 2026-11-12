@@ -252,6 +252,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 | `formats/recycle.ts` | `buildRecycleSystemPrompt`, `handleRecycleStep` | le recyclage |
 | `formats/carousel.ts` | contrôle tu / vous d'un carrousel, réponse 410 du streaming retiré | le recyclage en carrousel, l'ajustement carrousel |
 | `postprocess.ts` (questions) | `QUESTIONS_ADDRESS_FIELDS` : les questions d'avant création (`questions`, `follow-up`) sont toujours au tu, quel que soit le réglage tu / vous de la marque (QA du 12/11/2026). L'exemple de réponse n'est pas touché. Test : `questions_tutoiement_test.ts` | tous les formats de creative-flow |
+| `user-tip-address.ts` | `tutoieUserTip` : le conseil `personal_tip` (stories, reel) s'adresse à l'utilisatrice, donc toujours au tu, même quand la marque vouvoie son public ; repère aussi l'impératif en « -ez » sans pronom (« Montrez… »), que le détecteur commun ne compte pas (QA du 12/11/2026). Appelé par `postprocess.ts` à l'étape `generate`. Test : `questions_tutoiement_test.ts` | stories, reel |
 
 `index.ts` réexporte tout ce qui était exporté avant : les tests et les
 appelants n'ont pas changé d'import. Découpage d'`index.ts` en cours (fiche 3

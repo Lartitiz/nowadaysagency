@@ -17,6 +17,7 @@ import { enforceAudienceAddressInFields } from "../_shared/audience-address-fiel
 import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
 import { adoptStructuredStories, finalizeStoriesLayout, stripStoriesWriterLayout } from "../_shared/story-formatting.ts";
 import { addrOpts, POST_ADDRESS_FIELDS } from "./shared.ts";
+import { tutoieUserTip } from "./user-tip-address.ts";
 import { applyNewsletterCorrectionPass } from "./formats/newsletter.ts";
 import { isFactualFictionalLinkedInBrief, alignFactualLinkedInHook, applyLinkedInCorrectionPass } from "./formats/linkedin.ts";
 import { STORIES_ADDRESS_FIELDS, type StoriesGateResult, applyStoriesCorrectionPass } from "./formats/stories.ts";
@@ -70,6 +71,11 @@ export async function finishGenerated(parsed: any, params: {
   // question est contrôlée : l'exemple de réponse est écrit dans sa voix à elle.
   if ((step === "questions" || step === "follow-up") && parsed && typeof parsed === "object") {
     await enforceAudienceAddressInFields(parsed, QUESTIONS_ADDRESS_FIELDS, "tu", addrOpts("questions", 20_000));
+  }
+
+  // Le conseil d'incarnation (personal_tip) parle à l'utilisatrice : tutoiement, comme les questions.
+  if (step === "generate" && parsed && typeof parsed === "object") {
+    await tutoieUserTip(parsed, { logger: (m) => console.log(`[creative-flow tip] ${m}`) });
   }
 
   // Ajustement : le contenu réécrit suit le réglage tu/vous.

@@ -53,3 +53,29 @@ Deno.test("questions : tutoiement forcé sur la question, quel que soit le régl
     _deps.audienceAddressPass = original;
   }
 });
+
+Deno.test("personal_tip : le conseil adressé à l'utilisatrice est tutoyé, même sur une marque qui vouvoie", async () => {
+  const { _deps } = await import("./shared.ts");
+  const { finishGenerated } = await import("./postprocess.ts");
+  const { tipVouvoie } = await import("./user-tip-address.ts");
+  assertEquals(tipVouvoie("Montrez le détail du meuble sous l'évier encore ouvert."), true);
+  assertEquals(tipVouvoie("Ajoutez votre réaction en story 1."), true);
+  assertEquals(tipVouvoie("Montre le détail du meuble sous l'évier."), false);
+  assertEquals(tipVouvoie("Chez toi, filme le geste en story 2."), false);
+  const original = _deps.audienceAddressPass;
+  const seen: string[] = [];
+  // deno-lint-ignore no-explicit-any
+  _deps.audienceAddressPass = (async (c: string, addr: string, ..._r: any[]) => { seen.push(addr); return c.replace("Montrez", "Montre").replace("votre", "ta"); }) as typeof original;
+  try {
+    const parsed: any = { stories: [], personal_tip: "Montrez le détail du meuble sous l'évier, c'est ce genre de photo brute qui rend le point chantier crédible." };
+    await finishGenerated(parsed, { ...BASE, isReel: false, isStories: true, step: "generate", audienceAddress: "vous" } as any);
+    assertEquals(parsed.personal_tip, "Montre le détail du meuble sous l'évier, c'est ce genre de photo brute qui rend le point chantier crédible.");
+    assertEquals(seen.includes("tu"), true);
+    // Déjà au tu : aucune passe.
+    const n = seen.length;
+    await finishGenerated({ stories: [], personal_tip: "Montre ton geste en story 1." }, { ...BASE, isReel: false, isStories: true, step: "generate", audienceAddress: "vous" } as any);
+    assertEquals(seen.length, n);
+  } finally {
+    _deps.audienceAddressPass = original;
+  }
+});
