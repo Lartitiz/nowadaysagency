@@ -15,4 +15,5 @@ Respecte l'ordre et les associations déjà choisis. Le lien image/texte peut ê
 export const PHOTO_QUESTIONS_CONTRACT = `
 Utilise d'abord le sujet, l'objectif, les réponses et le contexte de marque déjà disponibles. Pose zéro, une ou deux questions simples uniquement lorsqu'une information essentielle manque pour écrire honnêtement le récit demandé. Si la matière suffit, retourne questions:[] ; aucun questionnaire obligatoire.
 Une question peut porter sur une histoire de marque non visible dans les photos. N'impose aucune référence visuelle dans chaque question et ne présuppose ni souvenir, ni motivation, ni transformation. Ne demande pas de choisir une intention si une proposition prudente peut être tirée du contexte. Si un récit précis manque de faits, demande le fait manquant plutôt que d'inventer. Ne redemande pas ce qui est déjà fourni.
+Les questions s'adressent à l'utilisatrice, pas à son audience : tutoie-la toujours (« ton savoir-faire », jamais « votre »), même si sa marque vouvoie ses client·es.
 `;
