@@ -2,6 +2,7 @@
 // src/components/calendar/CalendarPostDialog.tsx à l'identique (fiche 13 de
 // docs/robustesse/gros-fichiers.md, lot 1). Aucun appel, aucun état.
 import { reelScriptDraft, reelSectionsOf } from "../../../supabase/functions/_shared/reel-caption";
+import { calendarPublishCaption } from "../../../supabase/functions/_shared/calendar-caption";
 import { ANGLES } from "@/lib/calendar-constants";
 
 /** ISO → valeur d'un <input type="datetime-local"> (heure locale, "YYYY-MM-DDTHH:mm"). */
@@ -73,3 +74,15 @@ export function reelDraftWithoutCodes(draft: unknown, detail: any): string | nul
   const legacy = sections.map((s: any) => `[${s.timing || ""}] ${(s.label || s.section || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}${s.format_visuel ? `\n📹 ${s.format_visuel}` : ""}`).join("\n\n");
   return draft.trim() === legacy.trim() ? reelScriptDraft(sections) : draft;
 }
+
+/**
+ * Texte montré sous l'aperçu du réseau. Pour un reel, « ✍️ Contenu » garde le
+ * script : l'aperçu montre la légende qui partira à la publication (il
+ * affichait « [0-5 sec] ACCROCHE… », vu le 12/11/2026). Sans légende
+ * enregistrée, le texte du contenu reste affiché.
+ */
+export function previewCaptionOf(contentDraft: string | null, detail: any): string | null {
+  if (detail?.type !== "reel") return contentDraft;
+  return calendarPublishCaption(contentDraft, detail) || contentDraft;
+}
+

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { angleLabelOf, draftFromPost, isoToLocalInput, ANGLE_TO_CAROUSEL, CANAL_META } from "@/features/calendar/post-dialog-helpers";
+import { angleLabelOf, draftFromPost, previewCaptionOf, isoToLocalInput, ANGLE_TO_CAROUSEL, CANAL_META } from "@/features/calendar/post-dialog-helpers";
 
 /* Fiche 13 de docs/robustesse/gros-fichiers.md (lot 1) : les fonctions pures
    sorties de CalendarPostDialog.tsx. */
@@ -46,4 +46,17 @@ describe("fonctions de la fenêtre d'un post du calendrier", () => {
     expect(draftFromPost({ content_draft: legacy + "\nma retouche", story_sequence_detail: { type: "reel", sections } })).toBe(legacy + "\nma retouche");
     expect(draftFromPost({ content_draft: legacy, story_sequence_detail: { type: "carousel", slides: [] } })).toBe(legacy);
   });
+
+  // Aperçu Instagram d'un reel au calendrier : la légende, pas le script.
+  it("aperçu d'un reel : la légende qui sera publiée ; sinon le texte du contenu", () => {
+    const sections = [{ section: "hook", timing: "0-5 sec", texte_parle: "Ce salon." }];
+    const detail = { type: "reel", sections, caption: { text: "Ma légende", cta: "Abonne-toi" }, hashtags: ["#renovation"] };
+    const script = draftFromPost({ content_draft: "[0-5 sec] HOOK\nCe salon.", story_sequence_detail: detail });
+    expect(previewCaptionOf(script, detail)).toBe("Ma légende\n\nAbonne-toi\n\n#renovation");
+    expect(previewCaptionOf("Ma légende retouchée", detail)).toBe("Ma légende retouchée");
+    expect(previewCaptionOf(script, { type: "reel", sections })).toBe(script);
+    expect(previewCaptionOf("Texte du carrousel", { type: "carousel" })).toBe("Texte du carrousel");
+    expect(previewCaptionOf(null, null)).toBeNull();
+  });
 });
+
