@@ -1,7 +1,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   clipSection, generateHiggsfieldImageSync, MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL, MARKETING_PROMPT_MAX,
-  type SyncImageRequest,
+  providerFailureDetail, type SyncImageRequest,
 } from "./higgsfield-image-api.ts";
 
 const ID = "11111111-2222-3333-4444-555555555555";
@@ -159,4 +159,16 @@ Deno.test("clipSection shortens only the optional section, then drops it", () =>
   const dropped = clipSection(prompt, brand, 60);
   assertEquals(dropped, "SCENE: keep.\n\nADJUSTMENT REQUESTED: warmer");
   assertEquals(clipSection(prompt, brand, 10_000), prompt);
+});
+
+Deno.test("providerFailureDetail keeps the provider's reason, never the prompt or image URLs", () => {
+  const d = providerFailureDetail({
+    request_id: "x", status: "failed", error: "Insufficient credits", prompt: "secret brief",
+    images: [{ url: "https://cdn/x.png" }],
+  });
+  assertEquals(d.detail, "Insufficient credits");
+  assertEquals(d.fields.includes("prompt") || d.fields.includes("images"), false);
+  assertEquals(providerFailureDetail({ status: "failed", error: { code: 402 } }).detail, '{"code":402}');
+  assertEquals(providerFailureDetail(null), { fields: [] });
+  assertEquals(providerFailureDetail({ status: "nsfw" }).detail, undefined);
 });

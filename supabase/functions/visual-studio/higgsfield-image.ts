@@ -8,7 +8,7 @@ import { refineStudioResult } from "./product-fidelity-studio.ts";
 import {
   higgsfieldApi as api, higgsfieldCredentials as credentials, higgsfieldImagesEnabled, higgsfieldUpload as upload,
   marketingPayload, marketingReserveUsd, MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL, MARKETING_PROMPT_MAX,
-  MARKETING_RESERVE_BASIS, ProviderHttpError, publicUrl,
+  MARKETING_RESERVE_BASIS, ProviderHttpError, providerFailureDetail, publicUrl,
 } from "../_shared/higgsfield-image-api.ts";
 // Shared with carousel-slide-image and product-on-model (hosting cannot import sibling functions).
 export { higgsfieldImagesEnabled, marketingReserveUsd, MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL, MARKETING_PROMPT_MAX, MARKETING_RESERVE_BASIS };
@@ -233,6 +233,9 @@ export async function reconcileHiggsfieldImage(
   ]);
   if (saved.error) throw saved.error;
   if (["failed", "nsfw", "canceled"].includes(result.status)) {
+    console.error("[studio:higgsfield-failed]", JSON.stringify({
+      version_id: versionId, request_id: requestId, status: result.status, ...providerFailureDetail(result),
+    }));
     await failHiggsfieldImage(db, versionId);
     return;
   }
