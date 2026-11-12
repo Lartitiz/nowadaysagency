@@ -2,7 +2,7 @@
 // « Refaire cette slide » : un champ libre facultatif, puis « Ta version » /
 // « Nouvelle version » côte à côte. On peut fermer pendant l'attente : la
 // proposition rouvre la fenêtre. Seul le texte de la story change.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Loader2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,7 +27,10 @@ function WorkspaceIdReader({ target }: { target: { current: string } }) {
 
 const FAILED = "La nouvelle version n'est pas arrivée. Rien n'a été débité : réessaie.";
 
-export default function StoryRedo({ number, total, role, text, previous, next, listNote, onKeep }: {
+/** Ce qu'il faut pour dessiner son propre bouton (menu « … » sur téléphone). */
+export type StoryRedoTrigger = { label: string; loading: boolean; disabled: boolean; open: () => void };
+
+export default function StoryRedo({ number, total, role, text, previous, next, listNote, onKeep, renderTrigger }: {
   number: number;
   total: number;
   role?: string | null;
@@ -37,6 +40,8 @@ export default function StoryRedo({ number, total, role, text, previous, next, l
   /** Gabarit liste : les éléments affichés ne viennent pas du texte. */
   listNote?: boolean;
   onKeep: (text: string) => void;
+  /** Remplace le bouton « Refaire cette story » ; la fenêtre reste ici, hors du menu. */
+  renderTrigger?: (trigger: StoryRedoTrigger) => ReactNode;
 }) {
   const workspaceId = useRef("");
   const [opened, setOpened] = useState(false);
@@ -98,6 +103,7 @@ export default function StoryRedo({ number, total, role, text, previous, next, l
   return (
     <>
       {opened && <WorkspaceIdReader target={workspaceId} />}
+      {renderTrigger ? renderTrigger({ label, loading: state.status === "loading", disabled: empty && !pending, open: () => setOpen(true) }) : (
       <span title={empty && !pending ? "Écris d'abord un texte dans cette story" : undefined}>
         <Button
           type="button"
@@ -112,6 +118,7 @@ export default function StoryRedo({ number, total, role, text, previous, next, l
           {label}
         </Button>
       </span>
+      )}
       <Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : state.status === "result" ? close() : setOpen(false))}>
         <DialogContent className="max-w-lg" data-testid="story-redo-dialog">
           {state.status === "result" ? (

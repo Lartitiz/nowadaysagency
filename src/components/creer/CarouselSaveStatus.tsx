@@ -17,7 +17,7 @@ export default function CarouselSaveStatus({
   if (!save.enabled) return null;
   const label =
     save.status === "saved" && !typing
-      ? "Tout est enregistré dans ton compte"
+      ? <>Tout est enregistré<span className="hidden sm:inline"> dans ton compte</span></>
       : save.status === "saving" || (typing && save.status === "saved")
         ? "Enregistrement en cours…"
         : save.status === "offline"
@@ -29,7 +29,7 @@ export default function CarouselSaveStatus({
               : "Sauvegarde automatique en préparation…";
   return (
     <div
-      className="rounded-xl border px-3 py-2 space-y-1 text-xs"
+      className="rounded-xl border px-3 py-1.5 sm:py-2 space-y-1 text-xs"
       aria-label="Sauvegarde automatique"
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
