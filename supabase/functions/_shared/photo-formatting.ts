@@ -64,8 +64,13 @@ function validateElement(e: any, source: string): MotifElement | null {
     return { k: "line", x1: e.x1, y1: e.y1, x2: e.x2, y2: e.y2, tone: e.tone, width: num(e.width, 1, 12) ? e.width : 4 };
   }
   if (e.k === "text" && num(e.x, 0, 1000) && num(e.y, 0, 320) && isAllowedMotifText(e.text, source)) {
-    return { k: "text", x: e.x, y: e.y, text: e.text.trim(), tone: e.tone, size: Math.min(64, Math.max(40, num(e.size, 1, 200) ? e.size : 44)),
+    const t: MotifElement = { k: "text", x: e.x, y: e.y, text: e.text.trim(), tone: e.tone, size: Math.min(64, Math.max(40, num(e.size, 1, 200) ? e.size : 44)),
       font: e.font === "title" ? "title" : "body", anchor: e.anchor === "middle" || e.anchor === "end" ? e.anchor : "start" };
+    // Le mot entier doit tenir en largeur, pas seulement son point d'accroche
+    // (vu en live le 12/11/2026 : « marge qui part dans les finitions » posé à
+    // droite débordait de la carte de lecture).
+    const b = motifBox(t);
+    return b.x0 >= 0 && b.x1 <= 1000 ? t : null;
   }
   return null;
 }
