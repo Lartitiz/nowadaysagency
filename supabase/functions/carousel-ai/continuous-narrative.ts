@@ -12,6 +12,7 @@ import {
   type ProgressionSource,
 } from "../_shared/carousel-progression.ts";
 import { isLinkedInMix, LINKEDIN_MIX_RECIT_LENGTH, LINKEDIN_MIX_SLIDE_WORDS, linkedinMixLongPassages, newsWriting } from "./variant-writing.ts";
+import { isPhotoOverlay, PHOTO_OVERLAY_RECIT_LENGTH, PHOTO_OVERLAY_SLIDE_WORDS, photoNarratorCheck, photoNarratorFix, photoNarratorRule, photoOverlayLongPassages } from "./photo-narrative.ts";
 import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
 import { findRecentEchoes, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { angleFamily, type AngleFamily } from "../_shared/angle-families.ts";
@@ -237,6 +238,8 @@ export async function createContinuousNarrative(options: {
   audienceAddress?: AudienceAddress | null;
   /** Textes des derniers contenus de la marque (_shared/recent-passages.ts) : à ne pas redire. */
   recentTexts?: string[];
+  /** Textes de ton écrits par la personne (fiche de marque) : « je » ou « nous » du carrousel photo. */
+  brandVoiceText?: string;
   startedAt: number;
   reserveMs?: number;
   usage: UsageSink;
@@ -311,6 +314,8 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     RECIT_CONTINU_COUVERTURE,
     recitContinuLongueur(exact),
     isLinkedInMix(body) ? LINKEDIN_MIX_RECIT_LENGTH : "",
+    isPhotoOverlay(body) ? PHOTO_OVERLAY_RECIT_LENGTH : "",
+    photoNarratorRule(body, options.brandVoiceText),
     carouselLengthPrompt(body),
     recitContinuFamille(narrativeAngleFamily(body)),
     photoReadingContract(body),
@@ -403,6 +408,28 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
         narrative,
       );
       if (shorter.paragraphs.length === narrative.paragraphs.length && linkedinMixLongPassages(shorter.paragraphs, body).length < long.length) narrative = shorter;
+    } catch { /* le premier texte reste */ }
+  }
+  // « Tes photos en fond » (test LinkedIn du 12/11/2026) : UNE réécriture si des
+  // paragraphes dépassent nettement le repère ou si la marque passe de « nous »
+  // à « je » ; gardée seulement si elle fait mieux sans rien aggraver.
+  const photoDefects = (n: Narrative) => ({
+    long: photoOverlayLongPassages(n.paragraphs, body),
+    voice: photoNarratorCheck([n.hook, ...n.paragraphs], body, options.brandVoiceText),
+  });
+  const before = photoDefects(narrative);
+  if ((before.long.length || before.voice) && remaining() >= 150000) {
+    try {
+      const asks = [
+        before.long.length ? `Paragraphes trop longs pour être posés sur une photo : ${before.long.join(", ")}. Ramène chacun à ${PHOTO_OVERLAY_SLIDE_WORDS} mots au plus, phrases courtes, sans perdre d'idée ; déplace les détails dans caption.body.` : "",
+        before.voice ? `Narrateur incohérent (passages ${before.voice.offenders.join(", ")}, la couverture compte pour 1). ${photoNarratorFix(before.voice.target)}` : "",
+      ].filter(Boolean);
+      const fixed = await draft(`${asks.join("\n")}\nGarde le même nombre de paragraphes.`, narrative);
+      const after = photoDefects(fixed);
+      const offenders = (v: typeof before.voice) => v?.offenders.length || 0;
+      const noWorse = after.long.length <= before.long.length && offenders(after.voice) <= offenders(before.voice);
+      const better = after.long.length < before.long.length || offenders(after.voice) < offenders(before.voice);
+      if (fixed.paragraphs.length === narrative.paragraphs.length && noWorse && better) narrative = fixed;
     } catch { /* le premier texte reste */ }
   }
   // Redite des contenus récents de la marque (bilan hebdo 05/10/2026) : mesure
