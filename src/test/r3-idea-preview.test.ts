@@ -13,3 +13,16 @@ it('real list preview prefers the edited newsletter text, including an explicit 
   expect(renderIdeaDraft(JSON.stringify(idea.content_data),'newsletter')).toBe(edited_text);
  }
 });
+
+it('never shows raw JSON in the list preview (QA 12/11/2026)', () => {
+  const inner = { carousel_type: 'photo', chosen_angle: { title: 'La valeur invisible d\'un salon', description: 'On part du résultat final.' }, slides: [] };
+  // Encodé deux fois.
+  expect(preview({ preview_data: JSON.stringify(JSON.stringify(inner)) })).toEqual({ title: 'La valeur invisible d\'un salon', text: 'On part du résultat final.' });
+  // Coupé par l'extrait de la base : le titre reste, jamais le JSON.
+  const cut = JSON.stringify(inner).slice(0, 90);
+  expect(preview({ preview_data: cut })).toEqual({ title: 'La valeur invisible d\'un salon' });
+  // JSON rangé dans un champ texte.
+  expect(preview({ content_data: { content: JSON.stringify(inner) }, accroche_short: '{"x":1}' }).text).toBeUndefined();
+  // Texte normal inchangé.
+  expect(preview({ content_draft: 'Un vrai texte' }).text).toBe('Un vrai texte');
+});
