@@ -234,7 +234,11 @@ export async function loadStoriesPhotoCatalog(params: { supabase: any; userId: s
     // bibliothèque (QA du 12/11/2026 : « Point chantier » illustré par le
     // salon d'un autre bien). Une story sans photo choisie garde le repli
     // habituel (photo libre de droits ou « à prendre plus tard »).
-    const otherRows = preferredRows.length > 0 ? [] : rows
+    // Même règle pour les photos chargées dans Créer sans passer par la
+    // bibliothèque (attached_photo_count) : l'écran les pose sur les stories
+    // sans photo ; une photo de bibliothèque choisie par l'IA leur prendrait la place.
+    const attachedCount = Number((body as Record<string, unknown>).attached_photo_count) || 0;
+    const otherRows = preferredRows.length > 0 || attachedCount > 0 ? [] : rows
       .filter(
         (r) =>
           !preferredIds.includes(r.id) &&

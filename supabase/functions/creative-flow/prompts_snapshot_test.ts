@@ -536,6 +536,17 @@ Deno.test("buildGeneratePrompt — stories objectif vente : garde-fou 3 séquenc
   await assertSnapshot(t, JSON.stringify(r.storiesPhotoCatalog, null, 2));
 });
 
+Deno.test("stories : photos chargées dans Créer (hors bibliothèque) → aucune autre photo de la bibliothèque proposée", async () => {
+  const photos = [
+    { id: "photo-atelier", description: "Mains dans la terre sur le tour, lumière chaude d'atelier" },
+    { id: "photo-bols", description: "Étagère de bols émaillés bleu nuit, rangés par taille" },
+  ];
+  const sans = await loadStoriesGenerateData({ supabase: fakeSupabaseStories({ venteCount: 0, photos }), userId: "test-user-id", workspace_id: null, body: {} });
+  assertEquals(sans.storiesPhotoCatalog.length, 2);
+  const avec = await loadStoriesGenerateData({ supabase: fakeSupabaseStories({ venteCount: 0, photos }), userId: "test-user-id", workspace_id: null, body: { attached_photo_count: 3 } });
+  assertEquals(avec.storiesPhotoCatalog, []);
+});
+
 // ── Prise de position (04/10/2026, même contrat que le carrousel depuis #1292) ──
 const OPINION_ANGLE = {
   title: "Montrer son visage, le nouveau souris ?",

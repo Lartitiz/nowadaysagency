@@ -944,6 +944,7 @@ exports[`generate — stories (creative-flow) > mode photo avec 12 photos : 10 i
 {
   "body": {
     "answers": [],
+    "attached_photo_count": 10,
     "contentType": "stories",
     "context": "Sujet",
     "editorial_angle": "<undefined>",
