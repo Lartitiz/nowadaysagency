@@ -1672,6 +1672,15 @@ Réponds UNIQUEMENT en JSON :
   ]
 }
 
+══ FORME DES QUESTIONS (PRIORITAIRE : LISIBILITÉ) ══
+L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup, sans relire.
+- Une seule phrase de 20 mots au plus.
+- Une seule chose demandée par question : pas deux options reliées par « ou », pas deux demandes reliées par « et ».
+- Mots de tous les jours. Pas de parenthèses. Reprends un mot du sujet si besoin, jamais le titre entier du sujet.
+- L'exemple de réponse (placeholder) tient en 15 mots au plus.
+Trop lourd : « Ce post doit-il rester sur le principe général (la saison fixe le prix) ou s'appuyer sur un cas réel que tu as vécu, avec ses chiffres ? »
+Lisible : « Tu as un cas réel à raconter pour illustrer ça ? »
+
 ── USER PROMPT ──
 Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "Pourquoi je ne fais plus de remises sur mes créations" (angle "Le mythe du talent").\`
 `;
@@ -1752,6 +1761,15 @@ Réponds UNIQUEMENT en JSON :
     }
   ]
 }
+
+══ FORME DES QUESTIONS (PRIORITAIRE : LISIBILITÉ) ══
+L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup, sans relire.
+- Une seule phrase de 20 mots au plus.
+- Une seule chose demandée par question : pas deux options reliées par « ou », pas deux demandes reliées par « et ».
+- Mots de tous les jours. Pas de parenthèses. Reprends un mot du sujet si besoin, jamais le titre entier du sujet.
+- L'exemple de réponse (placeholder) tient en 15 mots au plus.
+Trop lourd : « Ce post doit-il rester sur le principe général (la saison fixe le prix) ou s'appuyer sur un cas réel que tu as vécu, avec ses chiffres ? »
+Lisible : « Tu as un cas réel à raconter pour illustrer ça ? »
 
 ── USER PROMPT ──
 Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "Pourquoi je ne fais plus de remises sur mes créations" (angle "Le mythe du talent").\`
@@ -1834,6 +1852,15 @@ Réponds UNIQUEMENT en JSON :
   ]
 }
 
+══ FORME DES QUESTIONS (PRIORITAIRE : LISIBILITÉ) ══
+L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup, sans relire.
+- Une seule phrase de 20 mots au plus.
+- Une seule chose demandée par question : pas deux options reliées par « ou », pas deux demandes reliées par « et ».
+- Mots de tous les jours. Pas de parenthèses. Reprends un mot du sujet si besoin, jamais le titre entier du sujet.
+- L'exemple de réponse (placeholder) tient en 15 mots au plus.
+Trop lourd : « Ce post doit-il rester sur le principe général (la saison fixe le prix) ou s'appuyer sur un cas réel que tu as vécu, avec ses chiffres ? »
+Lisible : « Tu as un cas réel à raconter pour illustrer ça ? »
+
 ── USER PROMPT ──
 Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "Pourquoi je ne fais plus de remises sur mes créations" (angle "Le mythe du talent").\`
 `;
@@ -1914,6 +1941,15 @@ Réponds UNIQUEMENT en JSON :
     }
   ]
 }
+
+══ FORME DES QUESTIONS (PRIORITAIRE : LISIBILITÉ) ══
+L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup, sans relire.
+- Une seule phrase de 20 mots au plus.
+- Une seule chose demandée par question : pas deux options reliées par « ou », pas deux demandes reliées par « et ».
+- Mots de tous les jours. Pas de parenthèses. Reprends un mot du sujet si besoin, jamais le titre entier du sujet.
+- L'exemple de réponse (placeholder) tient en 15 mots au plus.
+Trop lourd : « Ce post doit-il rester sur le principe général (la saison fixe le prix) ou s'appuyer sur un cas réel que tu as vécu, avec ses chiffres ? »
+Lisible : « Tu as un cas réel à raconter pour illustrer ça ? »
 
 ── USER PROMPT ──
 Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "Pourquoi je ne fais plus de remises sur mes créations" (angle "Le mythe du talent").\`
