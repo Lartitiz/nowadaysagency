@@ -37,7 +37,8 @@ import ConfirmResetDialog from "@/components/creer/ConfirmResetDialog";
 import RedoVisualsDialog, { useRedoVisualsConfirm } from "@/components/creer/RedoVisualsDialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Loader2, Sparkles, Undo2, Redo2 } from "lucide-react";
+import { Loader2, Undo2, Redo2 } from "lucide-react";
+import { creerStepCredits } from "@/components/creer/creer-step-credits";
 import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -1554,12 +1555,7 @@ function CreerWorkspace() {
               // « Mes slides » : le « brief », c'est l'écran de saisie du texte.
               else if (key === "brief" && (step === "result" || step === "edit")) setStep(carouselSubMode === "user_slides" ? "user_slides" : "questions");
             };
-            const credits =
-              !planLoading && remainingWithBonus() < 9000 ? (
-                <span className="text-2xs text-muted-foreground whitespace-nowrap inline-flex items-center gap-1">
-                  <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} /> {remainingWithBonus()} crédit{remainingWithBonus() > 1 ? "s" : ""} restant{remainingWithBonus() > 1 ? "s" : ""}
-                </span>
-              ) : null;
+            const credits = creerStepCredits({ loading: planLoading, plan, totalLimit: usage?.total?.limit, remaining: remainingWithBonus() });
             return (
               <CreerStepper
                 current={stepperKey}
