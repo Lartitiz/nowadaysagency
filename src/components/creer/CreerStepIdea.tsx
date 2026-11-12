@@ -145,7 +145,12 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
                   // ne se voyait pas, « où je mets mes photos ? »).
                   <button
                     type="button"
-                    onClick={() => setShowPhotosMode(true)}
+                    onClick={() => {
+                      // L'idée déjà tapée devient le sujet des photos : elle se perdait
+                      // au clic (test LinkedIn d'Auriana, 12/11/2026).
+                      if (idea.trim() && !localPhotoSubject.trim()) setLocalPhotoSubject(idea.trim());
+                      setShowPhotosMode(true);
+                    }}
                     data-testid="creer-start-photos"
                     className="group flex w-full items-center gap-4 rounded-xl border-2 border-dashed border-primary/40 bg-rose-pale/60 px-4 py-3.5 text-left text-primary transition-colors hover:border-primary hover:bg-rose-pale focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
                   >
