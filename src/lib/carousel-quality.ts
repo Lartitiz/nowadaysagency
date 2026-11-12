@@ -15,6 +15,15 @@ function rgb(value: string): RGB | null {
   if (!parts || (parts[4] !== undefined && Number(parts[4]) < 1)) return null;
   return [Number(parts[1]), Number(parts[2]), Number(parts[3])];
 }
+// Fond de lecture presque opaque (carte à 93 % posée sur la photo) : on mesure
+// le contraste sur sa couleur, l'écart dû à la photo dessous reste minime.
+function surfaceRgb(value: string): RGB | null {
+  const parts = value.match(
+    /^rgba\(\s*([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)\s*[,/]\s*([\d.]+)\s*\)$/,
+  );
+  if (parts && Number(parts[4]) >= 0.9) return [Number(parts[1]), Number(parts[2]), Number(parts[3])];
+  return rgb(value);
+}
 // WCAG contrast formula; this is not a claim of full WCAG conformance.
 // https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html
 export function contrastRatio(a: RGB, b: RGB): number {
@@ -253,6 +262,7 @@ export function inspectSlide(doc: Document, slide: number): QualityIssue[] {
         { "font-size": `${ESSENTIAL_TARGET_PX}px` },
       );
     let background: RGB | null = null;
+    let backgroundEl: HTMLElement | null = null;
     let uncertain = false;
     for (let p: HTMLElement | null = el; p; p = p.parentElement) {
       const s = view.getComputedStyle(p);
@@ -265,8 +275,11 @@ export function inspectSlide(doc: Document, slide: number): QualityIssue[] {
         uncertain = true;
         break;
       }
-      background = rgb(s.backgroundColor);
-      if (background) break;
+      background = surfaceRgb(s.backgroundColor);
+      if (background) {
+        backgroundEl = p;
+        break;
+      }
       if (
         s.backgroundColor !== "rgba(0, 0, 0, 0)" &&
         s.backgroundColor !== "transparent"
@@ -275,10 +288,12 @@ export function inspectSlide(doc: Document, slide: number): QualityIssue[] {
         break;
       }
     }
-    // A photo can be a sibling layer, not an ancestor. Do not guess its pixels.
+    // A photo can be a sibling layer, not an ancestor. Do not guess its pixels,
+    // unless the text sits on its own opaque surface (reading panel, card)
+    // laid over that photo: the surface guarantees the background measured.
     if (
-      !rgb(style.backgroundColor) &&
       photos.some((photo) => {
+        if (backgroundEl && !backgroundEl.contains(photo)) return false;
         const r = photo.getBoundingClientRect();
         return (
           r.left < rect.right &&
@@ -295,7 +310,7 @@ export function inspectSlide(doc: Document, slide: number): QualityIssue[] {
       // impossible (photo, transparence, dégradé).
       add(
         "manual",
-        "Contraste sur photo, transparence ou effet : vérifie visuellement la lisibilité.",
+        "Texte posé sur une photo ou un fond travaillé : regarde sur ton téléphone s'il se lit bien. Sinon, change sa couleur ou déplace-le sur une zone plus calme.",
       );
     else {
       background ||= [255, 255, 255];
@@ -312,7 +327,7 @@ export function inspectSlide(doc: Document, slide: number): QualityIssue[] {
             : "#ffffff";
         add(
           "contrast",
-          "Contraste peut-être faible sur fond uni : vérifie la lisibilité à l'œil.",
+          "Le texte ressort peu sur son fond : il risque d'être difficile à lire sur téléphone. « Appliquer la correction » le passe en noir ou en blanc.",
           "warning",
           { color },
         );
