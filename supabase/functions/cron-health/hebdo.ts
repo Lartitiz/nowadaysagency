@@ -61,7 +61,7 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
   const { activeThisWeek, cohorts } = cohortes({ profiles, ai, cal, now, curFrom, curTo });
   const { publishedCur, publishedPrev } = publications(cal, { curFrom, curTo, prevFrom, prevTo });
 
-  const { carCur, carPrev, cqEvents, cqAll, planAll, planClients } = await lireQualite({
+  const { carCur, carPrev, carAll, cqEvents, cqAll, planAll, planClients } = await lireQualite({
     supabase, since35d, isClient, curFrom, curTo, prevFrom, prevTo,
   });
 
@@ -70,7 +70,7 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
   const top_consommatrices_7j = topConsommatrices({ profiles, ai, cqEvents, aiCur, curFrom, curTo });
   const { internalIds, comptes_internes_7j } = comptesInternes({ profiles, aiRows, cqAll, curFrom, curTo });
   const qualite = blocQualite({
-    carCur, carPrev, cqEvents, cqAll, planAll, planClients, internalIds, cal, curFrom, curTo, prevFrom, prevTo,
+    carCur, carPrev, carAll, cqEvents, cqAll, planAll, planClients, internalIds, cal, curFrom, curTo, prevFrom, prevTo,
   });
 
   // Appels sans crédit (compte de recette, inscription, étapes gratuites,

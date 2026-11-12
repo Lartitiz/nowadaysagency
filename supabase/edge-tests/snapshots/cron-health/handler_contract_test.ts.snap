@@ -1051,6 +1051,24 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
         publies: 1,
       },
     },
+    photos_fond: {
+      cette_semaine: {
+        alerte: null,
+        au_dela_40_mots: 0,
+        carrousels: 0,
+        max_mots: null,
+        narrateur_mixte: 0,
+        slides: 0,
+      },
+      comptes_internes_7j: {
+        alerte: null,
+        au_dela_40_mots: 0,
+        carrousels: 0,
+        max_mots: null,
+        narrateur_mixte: 0,
+        slides: 0,
+      },
+    },
     plan_carrousels: {
       cette_semaine: {},
       comptes_internes_7j: {},
@@ -1360,6 +1378,24 @@ snapshot[`weekly qualité : colonne content_preview absente → relecture sans e
         publies: 1,
       },
     },
+    photos_fond: {
+      cette_semaine: {
+        alerte: null,
+        au_dela_40_mots: 0,
+        carrousels: 0,
+        max_mots: null,
+        narrateur_mixte: 0,
+        slides: 0,
+      },
+      comptes_internes_7j: {
+        alerte: null,
+        au_dela_40_mots: 0,
+        carrousels: 0,
+        max_mots: null,
+        narrateur_mixte: 0,
+        slides: 0,
+      },
+    },
     plan_carrousels: {
       cette_semaine: {},
       comptes_internes_7j: {},
@@ -1540,6 +1576,24 @@ snapshot[`weekly qualité : table content_quality_events absente → repli sur l
         publies: 1,
       },
     },
+    photos_fond: {
+      cette_semaine: {
+        alerte: null,
+        au_dela_40_mots: 0,
+        carrousels: 0,
+        max_mots: null,
+        narrateur_mixte: 0,
+        slides: 0,
+      },
+      comptes_internes_7j: {
+        alerte: null,
+        au_dela_40_mots: 0,
+        carrousels: 0,
+        max_mots: null,
+        narrateur_mixte: 0,
+        slides: 0,
+      },
+    },
     plan_carrousels: null,
     reels_trop_longs: null,
     retravail: {
@@ -1689,6 +1743,24 @@ snapshot[`weekly qualité : table complète sans aucun événement 1`] = `
         au_calendrier: 2,
         generes: 2,
         publies: 1,
+      },
+    },
+    photos_fond: {
+      cette_semaine: {
+        alerte: null,
+        au_dela_40_mots: 0,
+        carrousels: 0,
+        max_mots: null,
+        narrateur_mixte: 0,
+        slides: 0,
+      },
+      comptes_internes_7j: {
+        alerte: null,
+        au_dela_40_mots: 0,
+        carrousels: 0,
+        max_mots: null,
+        narrateur_mixte: 0,
+        slides: 0,
       },
     },
     plan_carrousels: {
