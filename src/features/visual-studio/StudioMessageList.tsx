@@ -20,6 +20,7 @@ export function StudioMessageList({
   busy,
   generating,
   mutate,
+  onRetryVersion,
   readyFollowUp,
   identitySheet,
   productName,
@@ -38,6 +39,8 @@ export function StudioMessageList({
   busy: string;
   generating: boolean | undefined;
   mutate: (action: string, extra?: Record<string, unknown>) => Promise<unknown>;
+  /** Relance une image en échec (voir retry-direct.ts). */
+  onRetryVersion: (versionId: string) => void;
   readyFollowUp: string | null;
   identitySheet: boolean;
   productName: string;
@@ -168,12 +171,7 @@ export function StudioMessageList({
               <Button
                 variant="link"
                 disabled={!writable || !!busy || !!generating}
-                onClick={() => {
-                  void mutate("retry", {
-                    version_id: v.id,
-                    revision: current!.session.revision,
-                  });
-                }}
+                onClick={() => onRetryVersion(v.id)}
               >
                 Réessayer cette image seulement
               </Button>

@@ -75,6 +75,7 @@ Deno.test("Soul2 activation is separate from the legacy Higgsfield image switch"
 });
 
 import { getServiceClient } from "../_shared/plan-limiter.ts";
+import { PROVIDER_FAILED_MESSAGE } from "../_shared/higgsfield-image-api.ts";
 import {
   reconcileHiggsfieldImage,
   submitHiggsfieldImage,
@@ -102,7 +103,9 @@ function lifecycle(model: string = "marketing-studio/image/flare") {
     submits = 0,
     submittedInput: Record<string, unknown> | null = null,
     loseSubmit = false,
-    pollStatus = 200;
+    pollStatus = 200,
+    providerStatus = "completed",
+    errorMessage: string | null = null;
   const json = (x: unknown, status = 200) =>
     new Response(JSON.stringify(x), {
       status,
@@ -137,6 +140,7 @@ function lifecycle(model: string = "marketing-studio/image/flare") {
     if (url.pathname === "/rest/v1/visual_studio_versions") {
       if (method === "PATCH" && versionStatus === "processing") {
         versionStatus = body.status;
+        if (body.error_message) errorMessage = body.error_message;
       }
       return json({ status: versionStatus, result_path: "result.jpg" });
     }
@@ -163,7 +167,7 @@ function lifecycle(model: string = "marketing-studio/image/flare") {
       return pollStatus === 200
         ? json({
           request_id: providerId,
-          status: "completed",
+          status: providerStatus,
           images: [{ url: "https://cdn.higgsfield.ai/image.png" }],
         })
         : json({ error: "temporary" }, pollStatus);
@@ -201,6 +205,10 @@ function lifecycle(model: string = "marketing-studio/image/flare") {
     poll: (status: number) => {
       pollStatus = status;
     },
+    providerAnswers: (status: string) => {
+      providerStatus = status;
+    },
+    errorMessage: () => errorMessage,
     counts: () => ({
       submits,
       charges,
@@ -299,4 +307,23 @@ Deno.test("Soul identity i2i accepts exactly one identity image, never product o
   assertThrows(() => imageInput(p, ["https://example.com/person.jpg", "https://example.com/place.jpg"]));
   assertThrows(() => imageInput({ ...p, references: [{ ...p.references[0], role: "product" }] }, ["https://example.com/product.jpg"]));
   assertThrows(() => imageInput({ ...p, exact_text: ["Atelier"] }, ["https://example.com/person.jpg"]));
+});
+
+Deno.test("provider 'failed' (12/11/2026 hiccup) tells the user to retry; a refused picture (nsfw) keeps the generic message", async () => {
+  for (const [status, expected] of [
+    ["failed", PROVIDER_FAILED_MESSAGE],
+    ["canceled", PROVIDER_FAILED_MESSAGE],
+    ["nsfw", "La création a échoué. Aucune image décomptée."],
+  ]) {
+    const f = lifecycle();
+    try {
+      f.providerAnswers(status);
+      await submitHiggsfieldImage(f.db, f.version, []);
+      assertEquals(f.counts().versionStatus, "failed");
+      assertEquals(f.counts().charges, 0);
+      assertEquals(f.errorMessage(), expected);
+    } finally {
+      f.restore();
+    }
+  }
 });

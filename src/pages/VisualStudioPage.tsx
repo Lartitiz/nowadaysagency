@@ -36,6 +36,7 @@ import { StudioProposalCard } from "@/features/visual-studio/StudioProposalCard"
 import { StudioToolsSheet } from "@/features/visual-studio/StudioToolsSheet";
 import { StudioImageStream } from "@/features/visual-studio/StudioImageStream";
 import { StudioMessageList } from "@/features/visual-studio/StudioMessageList";
+import { retryCanGenerateNow } from "@/features/visual-studio/retry-direct";
 import { StudioComposer } from "@/features/visual-studio/StudioComposer";
 import { useStudioSession } from "@/features/visual-studio/useStudioSession";
 import { StudioToolDialogs } from "@/features/visual-studio/StudioToolDialogs";
@@ -43,7 +44,7 @@ import { useStudioLibrarySync } from "@/features/visual-studio/useStudioLibraryS
 import { useReopenLastSession } from "@/features/visual-studio/useReopenLastSession";
 import { useStudioFit } from "@/features/visual-studio/useStudioFit";
 import { createLinkRenewer, downloadImage } from "@/features/visual-studio/studio-image-actions";
-import type { StudioVersion } from "@/features/visual-studio/api";
+import type { StudioState, StudioVersion } from "@/features/visual-studio/api";
 
 export default function VisualStudioPage() {
   const { user } = useAuth(),
@@ -294,6 +295,14 @@ function Studio({
       document.querySelector(".studio-stage")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
+  // « Réessayer cette image seulement » : remet la demande ratée puis la relance
+  // directement, sauf si la confirmation a quelque chose à dire (retry-direct.ts).
+  async function retryFailedVersion(versionId: string) {
+    if (!current) return;
+    const prepared = await mutate("retry", { version_id: versionId, revision: current.session.revision }) as StudioState | null;
+    if (!prepared || !alive.current || !retryCanGenerateNow(prepared, draft)) return;
+    await mutate("generate", { proposal_id: prepared.session.proposal!.id, viewed_version_id: selectedId });
+  }
   async function resumeComposition(entry: StudioCompositionEntry) {
     setBusy("composition_read");
     setError("");
@@ -354,6 +363,7 @@ function Studio({
                   busy={busy}
                   generating={generating}
                   mutate={mutate}
+                  onRetryVersion={(id) => void retryFailedVersion(id)}
                   readyFollowUp={readyFollowUp}
                   identitySheet={identitySheet}
                   productName={productName}
