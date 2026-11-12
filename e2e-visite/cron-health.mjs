@@ -69,6 +69,8 @@ function printHiggsfield(h) {
   console.log(`   rythme 7 j                     : ${h.rythme_7j_usd_par_jour} $/j (${h.reserve_7j_usd} $ sur 7 j) — ${proj}`);
   console.log(`   refus « budget »               : ${h.refus_budget ?? `non comptés (${h.refus_budget_note || "non journalisé"})`}`);
   console.log(h.alerte ? `   🔴 ${h.alerte}` : "   ✅ pas d'alerte (seuils : > 80 % ou < 10 j avant le reset)");
+  const ec = h.echecs;
+  if (ec) console.log(`   images 7 j                     : ${ec.reussies_7j} réussie(s), ${ec.echecs_7j} échec(s)${ec.alerte ? `  🔴 ${ec.alerte}` : " ✅ (alerte si ≥ 2 échecs et 0 réussie)"}`);
 }
 
 try {
