@@ -322,6 +322,8 @@ describe("ReelMontage — recherche manuelle dans la banque libre", () => {
     render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent", clips: [mine(1), null] })} />);
     await settle();
     await waitFor(() => expect(m.suggest).toHaveBeenCalledOnce());
+    // Un mot-clé par passage (au plus 10), sinon les derniers passages héritent tous du même.
+    expect(m.suggest.mock.calls[0][1]).toEqual({ count: SECTIONS.filter((s) => s.texte_parle?.trim()).length });
     m.search.mockResolvedValue([video]);
     const champ = () => screen.getByPlaceholderText("ce qu'on voit (ex. : mains savon atelier)");
     fireEvent.change(champ(), { target: { value: "savon" } });

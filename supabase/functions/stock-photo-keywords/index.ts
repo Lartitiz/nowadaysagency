@@ -118,7 +118,12 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown) :
           { role: "user", content: prompt },
         ],
         temperature: 0.6,
-        max_tokens: 600,
+        // 4000 et non 600 : la passerelle sert désormais un modèle qui « réfléchit »
+        // avant de répondre (gemini-3.8-flash, 11/2026) et ces jetons de réflexion
+        // comptent dans le plafond. À 600, le JSON sortait coupé (« "primary_fr": "dém »),
+        // la fonction répondait 502 et le montage d'un reel mettait le même clip
+        // hors sujet sur tous les passages.
+        max_tokens: 4000,
       }),
     });
   } catch (e) {
