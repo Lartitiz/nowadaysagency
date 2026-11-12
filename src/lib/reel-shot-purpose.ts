@@ -25,3 +25,17 @@ export function readableShotPurpose(raw: string): string {
 export function shotTypeLabel(type: unknown): string {
   return type === "face_cam" ? "🎤 Face caméra" : type === "insert" ? "🔍 Gros plan" : "🎬 Plan d'illustration";
 }
+
+/**
+ * Nom de la structure du reel, sans anglicisme (« Face cam confession »,
+ * « Voix off + B-roll », « Hook loop » s'affichaient tels quels, QA du
+ * 12/11/2026). Couvre la clé technique et les reels déjà enregistrés.
+ */
+export function readableReelFormat(raw: unknown): string {
+  if (typeof raw !== "string" || !raw.trim()) return "";
+  const s = raw.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  if (/hook[\s_-]*loop|boucle/.test(s)) return "Boucle courte";
+  if (/voix[\s_-]*off|b[\s_-]*roll/.test(s)) return "Voix off sur images";
+  if (/face[\s_-]*cam/.test(s)) return "Face caméra";
+  return raw.trim();
+}

@@ -43,7 +43,7 @@ describe("HookSelectionStep", () => {
     expect(screen.getByText("Vécu perso")).toBeTruthy();
     expect(screen.getByText(/Un savon qui mousse beaucoup/)).toBeTruthy();
     expect(screen.getByText(/LA MOUSSE MENT/)).toBeTruthy();
-    expect(screen.getByText(/Voix off \+ B-roll · ~30 sec/)).toBeTruthy();
+    expect(screen.getByText(/Voix off sur images · ~30 sec/)).toBeTruthy();
   });
 
   it("le CTA est désactivé tant qu'aucun hook n'est choisi, puis renvoie le hook cliqué", () => {

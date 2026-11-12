@@ -28,7 +28,7 @@ export function resultCopyText(format: string, result: any, reelStepKey?: string
     if (reelStepKey === "tournage" && Array.isArray(result?.plan_tournage) && result.plan_tournage.length > 0) {
       const shots = result.plan_tournage
         .map((s: any, i: number) => {
-          const type = s?.type === "face_cam" ? "Face cam" : s?.type === "insert" ? "Insert" : "B-roll";
+          const type = s?.type === "face_cam" ? "Face caméra" : s?.type === "insert" ? "Gros plan" : "Plan d'illustration";
           return [`${i + 1}. [${type}${s?.duree ? ` · ${s.duree}` : ""}] ${s?.plan || ""}`, s?.conseil ? `   💡 ${s.conseil}` : ""]
             .filter(Boolean)
             .join("\n");

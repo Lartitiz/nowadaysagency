@@ -310,13 +310,20 @@ describe("ReelResult — correctifs de la passe live", () => {
 
   it("affiche le libellé LISIBLE du format, pas la clé technique", () => {
     render(<ReelResult result={{ ...baseResult, format_label: "Face cam confession" }} />);
-    expect(screen.getByText("Face cam confession")).toBeTruthy();
+    expect(screen.getByText("Face caméra")).toBeTruthy();
     expect(screen.queryByText("face_cam_confession")).toBeNull();
+    expect(screen.queryByText("Face cam confession")).toBeNull();
   });
 
-  it("retombe sur format_type quand le libellé lisible manque (anciens contenus)", () => {
+  it("traduit la structure voix off (QA du 12/11/2026)", () => {
+    render(<ReelResult result={{ ...baseResult, format_label: "Voix off + B-roll" }} />);
+    expect(screen.getByText("Voix off sur images")).toBeTruthy();
+  });
+
+  it("retombe sur format_type quand le libellé lisible manque (anciens contenus), traduit", () => {
     render(<ReelResult result={baseResult} />);
-    expect(screen.getByText("face_cam_confession")).toBeTruthy();
+    expect(screen.getByText("Face caméra")).toBeTruthy();
+    expect(screen.queryByText("face_cam_confession")).toBeNull();
   });
 
   it("n'ouvre PAS d'étape montage quand aucune section n'a de texte parlé", () => {

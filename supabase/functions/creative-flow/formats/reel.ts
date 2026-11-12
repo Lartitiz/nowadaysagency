@@ -21,8 +21,8 @@ import { CORRECTION_ABORT_MS, addrOpts, gateNumbers } from "../shared.ts";
 // tombe en fallback « Continuer sans choisir » alors que les hooks existent.
 // Mute `parsed` en place ; retourne une Response à court-circuiter si aucun
 // hook n'est récupérable (« 200 menteur »), sinon null pour continuer.
-export function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: string; corsHeaders: Record<string, string> }): Response | null {
-  const { body, rawContent, corsHeaders } = params;
+export function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: string; corsHeaders: Record<string, string>; effectiveObjective?: string | null }): Response | null {
+  const { body, rawContent, corsHeaders, effectiveObjective } = params;
   // Forme reçue AVANT normalisation : c'est la seule trace exploitable le
   // jour où l'écran des angles retombe à zéro (03/08 : aucun log ne disait
   // par quelle branche le tableau s'était vidé).
@@ -47,6 +47,10 @@ export function normalizeHooksResponse(parsed: any, params: { body: any; rawCont
   // verrouillé tel quel sur le script (enforceSelectedReelHook) — une
   // coquille née ici se propagerait partout (vécu 21/07 : « qu'on marchand »).
   for (const h of parsed.hooks) fixElisionsInFields(h, ["text", "text_overlay"]);
+  // Durée annoncée sous l'accroche : jamais plus que ce que le script tiendra
+  // (55 s, 30 s en visibilité). Une accroche « ~60 s » promettait un reel
+  // impossible à monter (QA du 12/11/2026).
+  for (const h of parsed.hooks) h.duree_cible = clampHookDuration(h.duree_cible, effectiveObjective);
 
   // ZÉRO angle récupérable = échec, pas un succès. Un 200 avec `hooks: []`
   // est un « 200 menteur » : le front le lisait comme une réponse valide et
@@ -138,9 +142,7 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
     // au re-test post-#527, la visibilité sortait encore à ~95 mots (cible
     // 40-80). La durée affichée est honnête (recalibrage), mais un reel
     // reach doit rester court → coupe pilotée par la passe de correction.
-    const reelWordCap = effectiveObjective === "visibilite" ? 80
-      : (effectiveObjective === "confiance" || effectiveObjective === "vente" || effectiveObjective === "credibilite") ? 190
-      : 150;
+    const reelWordCap = reelSpokenWordCap(effectiveObjective);
     const reelWords = countReelSpokenWords(parsed);
     if (reelWords > reelWordCap) {
       extras.push(`TROP LONG POUR L'OBJECTIF "${effectiveObjective || "standard"}" : ${reelWords} mots parlés, plafond ${reelWordCap}. COUPE le texte parlé à ${reelWordCap} mots maximum : supprime les redites, la mise en contexte longue et les exemples secondaires. Ne touche PAS à la couche mécanisme (le POURQUOI) ni au hook. C'est une exception explicite à la règle "±10 %".`);
@@ -185,6 +187,10 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
   } catch (corrErr) {
     console.error("[creative-flow] correction-pass reel failed:", corrErr);
   }
+  // Borne de durée (12/11/2026) : la relecture ci-dessus coupe souvent trop peu
+  // (scripts de 62 à 75 s mesurés sur le compte de démo). Une passe dédiée à la
+  // coupe, gardée seulement si le texte raccourcit.
+  await enforceReelMaxWords(parsed, { body, effectiveObjective, fullContext });
   // Filets déterministes TOUJOURS appliqués, même si la correction a échoué :
   // - le hook choisi reste verrouillé (l'instruction de la passe est probabiliste) ;
   // - lecture_test = concat des texte_parle FINAUX (sinon le monologue affiché
@@ -197,7 +203,71 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
   // test et les durées suivent le texte final).
   await enforceReelAudienceAddress(parsed, params.audienceAddress);
   finalizeReelScript(parsed, body.selected_hook);
+  // Encore trop long après les deux coupes : trace lisible dans les journaux
+  // (l'écran de montage refuse déjà en français au-delà de 60 s).
+  const finalSeconds = reelScriptSeconds(parsed);
+  if (finalSeconds > REEL_MAX_SECONDS) {
+    console.warn(JSON.stringify({ event: "reel_trop_long", seconds: finalSeconds, max: REEL_MAX_SECONDS, words: countReelSpokenWords(parsed), objective: effectiveObjective ?? null }));
+  }
   return echoesBefore;
+}
+
+// ═══ DURÉE MAXIMALE DU REEL (12/11/2026) ═══
+// Le montage automatique (JSON2Video) s'arrête à 60 s. Laetitia a choisi de
+// raccourcir les scripts plutôt que de payer une formule supérieure : 55 s au
+// plus, avec une marge pour l'arrondi par section (2,5 mots/s, 2 s minimum).
+
+/** Durée maximale d'un script de reel, en secondes. */
+export const REEL_MAX_SECONDS = 55;
+
+/** Plafond de mots parlés selon l'objectif (2,5 mots/s, marge d'arrondi comprise). */
+export function reelSpokenWordCap(effectiveObjective?: string | null): number {
+  return effectiveObjective === "visibilite" ? 75 : 130;
+}
+
+/** Durée du script telle que recalculée par finalizeReelScript (« 0-52 sec » du dernier passage). */
+export function reelScriptSeconds(parsed: any): number {
+  const fromLabel = /(\d+)/.exec(String(parsed?.duree_cible ?? ""));
+  return fromLabel ? Number(fromLabel[1]) : 0;
+}
+
+/** Durée annoncée par une accroche, bornée : jamais plus que ce que le script tiendra. */
+export function clampHookDuration(raw: unknown, effectiveObjective?: string | null): string {
+  const fallback = effectiveObjective === "visibilite" ? "~25 s" : "~45 s";
+  if (typeof raw !== "string" || !raw.trim()) return fallback;
+  const nums = (raw.match(/\d+/g) || []).map(Number).filter((n) => n > 0);
+  if (!nums.length) return fallback;
+  const max = effectiveObjective === "visibilite" ? 30 : REEL_MAX_SECONDS;
+  return Math.max(...nums) > max ? fallback : raw;
+}
+
+/**
+ * Coupe dédiée quand le texte parlé dépasse le plafond après la relecture.
+ * Gardée seulement si le nombre de mots baisse ; le hook choisi est reverrouillé
+ * ensuite par finalizeReelScript. Jamais bloquante.
+ */
+export async function enforceReelMaxWords(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string }): Promise<void> {
+  const cap = reelSpokenWordCap(params.effectiveObjective);
+  const before = countReelSpokenWords(parsed);
+  if (before <= cap) return;
+  try {
+    const corrected = await applyCorrectionPassReel(parsed, {
+      logger: (msg) => console.log(msg),
+      authoredText: authoredContentSource(params.body),
+      sourceContext: params.fullContext,
+      model: HAIKU_MODEL,
+      extraInstructions: `REEL TROP LONG : ${before} mots parlés, plafond ${cap} (${REEL_MAX_SECONDS} secondes au plus, le montage s'arrête à 60 s). COUPE les [SECTION n - PARLE] pour arriver à ${cap} mots au total : supprime les redites, la mise en contexte et les exemples secondaires, garde le POURQUOI et la chute. Ne touche PAS à [SECTION 1 - PARLE] (l'accroche) ni aux autres balises. C'est une exception explicite à la règle "±10 %".`,
+      abortTimeoutMs: CORRECTION_ABORT_MS,
+    });
+    if (!corrected || typeof corrected !== "object") return;
+    const after = countReelSpokenWords(corrected);
+    if (after > 0 && after < before) {
+      Object.assign(parsed, corrected);
+      console.log(JSON.stringify({ event: "reel_coupe", before, after, cap }));
+    }
+  } catch (e) {
+    console.error("[creative-flow] coupe du reel ignorée (script intact) :", e);
+  }
 }
 
 // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
@@ -249,8 +319,8 @@ export const HOOKS_TOOL = {
             text: { type: "string", description: "le hook PARLÉ, 8-20 mots, 1-2 phrases, tension immédiate" },
             text_overlay: { type: "string", description: "texte à l'écran en muet : extrait de 3 à 8 mots du hook parlé (text), recopié tel quel, qui se comprend seul ; casse normale, pas de majuscules imposées" },
             format_recommande: { type: "string", description: "face_cam_confession | voix_off_broll | hook_loop" },
-            format_label: { type: "string", description: "label lisible de la structure, ex. « Voix off + B-roll »" },
-            duree_cible: { type: "string", description: "durée estimée du reel avec ce hook, ex. « ~30 sec »" },
+            format_label: { type: "string", description: "nom de la structure en français simple : « Face caméra », « Voix off sur images » ou « Boucle courte »" },
+            duree_cible: { type: "string", description: "durée estimée du reel avec ce hook, 55 s au plus, ex. « ~45 s »" },
           },
           required: ["type", "type_label", "text", "text_overlay", "format_recommande", "format_label", "duree_cible"],
         },
@@ -314,10 +384,13 @@ RÈGLES ABSOLUES :
    jamais « le avant/après ») et homophones (« qu'UN marchand de biens, ça… », jamais
    « qu'on marchand de biens ») ; le hook choisi part TEL QUEL dans le script final.
 6. format_recommande = la structure que ce hook appelle naturellement
-   (face_cam_confession / voix_off_broll / hook_loop) et duree_cible = durée estimée
-   cohérente avec l'objectif (visibilité → court ~20-30 s ; confiance/vente → ~40-60 s).${noFaceCam ? `
+   (face_cam_confession / voix_off_broll / hook_loop) ; format_label = son nom en
+   français simple (« Face caméra », « Voix off sur images », « Boucle courte »),
+   jamais « face cam », « B-roll », « hook loop » ni « confession » ; duree_cible =
+   durée estimée cohérente avec l'objectif (visibilité → court ~20-30 s ; sinon
+   ~40-55 s). Jamais plus de 55 s : le montage automatique s'arrête à 60 s.${noFaceCam ? `
 7. L'UTILISATRICE NE VEUT PAS SE MONTRER : format_recommande ≠ face_cam_confession
-   pour les 3 hooks (voix off + b-roll ou hook loop uniquement).` : ""}${recapLine ? `
+   pour les 3 hooks (voix_off_broll ou hook_loop uniquement).` : ""}${recapLine ? `
 8. REEL RÉCAP (prime sur les règles 1 à 6) : chacun des 3 hooks ouvre la SÉRIE de sujets (ce qu'ils ont en commun, ou l'annonce de leur nombre), jamais un seul des sujets. Les types restent différents.` : ""}${excludeBlock}`;
   const userPrompt = `SUJET DU REEL : "${context || "?"}"
 Objectif : ${effectiveObjective || objective || "non précisé"}${answersBlock}

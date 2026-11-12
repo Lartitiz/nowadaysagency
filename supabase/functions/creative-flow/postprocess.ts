@@ -23,6 +23,9 @@ import { STORIES_ADDRESS_FIELDS, type StoriesGateResult, applyStoriesCorrectionP
 import { HOOKS_ADDRESS_FIELDS, normalizeHooksResponse, applyReelQualityPass } from "./formats/reel.ts";
 import { enforceCarouselObjectAudienceAddress } from "./formats/carousel.ts";
 
+/** Questions d'avant création (étapes « questions » et « follow-up ») : la question seule. */
+export const QUESTIONS_ADDRESS_FIELDS = ["questions[].question", "follow_up_questions[].question"];
+
 export async function finishGenerated(parsed: any, params: {
   step: string;
   isLinkedIn: boolean;
@@ -55,10 +58,18 @@ export async function finishGenerated(parsed: any, params: {
 
   // ═══ NORMALISATION HOOKS (lot 7) ═══
   if (step === "hooks" && parsed && typeof parsed === "object") {
-    const hooksEarlyExit = normalizeHooksResponse(parsed, { body, rawContent, corsHeaders });
+    const hooksEarlyExit = normalizeHooksResponse(parsed, { body, rawContent, corsHeaders, effectiveObjective });
     if (hooksEarlyExit) return { earlyExit: hooksEarlyExit, storiesGate: null, textEchoesBefore: undefined };
     // Tu ou vous : le hook choisi part tel quel dans le script final.
     await enforceAudienceAddressInFields(parsed, HOOKS_ADDRESS_FIELDS, audienceAddress, addrOpts("hooks", 20_000));
+  }
+
+  // Questions posées AVANT le contenu : elles s'adressent à l'utilisatrice, que
+  // l'outil tutoie partout, quel que soit son réglage pour SON public (QA du
+  // 12/11/2026 : « votre savoir-faire » sur une marque qui vouvoie). Seule la
+  // question est contrôlée : l'exemple de réponse est écrit dans sa voix à elle.
+  if ((step === "questions" || step === "follow-up") && parsed && typeof parsed === "object") {
+    await enforceAudienceAddressInFields(parsed, QUESTIONS_ADDRESS_FIELDS, "tu", addrOpts("questions", 20_000));
   }
 
   // Ajustement : le contenu réécrit suit le réglage tu/vous.

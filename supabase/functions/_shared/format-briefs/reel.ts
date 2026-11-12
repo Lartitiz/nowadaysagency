@@ -36,17 +36,17 @@ export function reelBrief(arg: string | null | ReelBriefParams = null): string {
   const params: ReelBriefParams =
     arg && typeof arg === "object" ? arg : { effectiveObjective: arg as string | null };
   const effectiveObjective = params.effectiveObjective ?? null;
-  const base = `FORMAT : SCRIPT REEL (30-60 secondes)
+  const base = `FORMAT : SCRIPT REEL (30-55 secondes, jamais plus de 55)
 
 ══ AVANT D'ÉCRIRE : UN REEL = UNE SEULE IDÉE ══
 
 Le reel n'est pas un carrousel raccourci ni un post filmé. C'est UNE idée 
-percutante, développée à l'oral, en 30-60 secondes.
+percutante, développée à l'oral, en 30-55 secondes.
 
 ══ PROFONDEUR DE RÉFLEXION OBLIGATOIRE ══
 
 Un reel n'est PAS une liste de constats filmée. C'est une réflexion qui CREUSE
-un sujet en 30-60s, comme une amie qui prend le temps de t'expliquer ce qu'elle
+un sujet en 30-55 s, comme une amie qui prend le temps de t'expliquer ce qu'elle
 a compris. La densité de pensée doit être COMPARABLE à celle d'un carrousel,
 mais dite à l'oral, pas écrite.
 
@@ -96,7 +96,7 @@ vu ça comme ça".
    creuser le pourquoi.
 ❌ Conseil parachuté sans explication du mécanisme ("la solution c'est X" →
    mais pourquoi ça marche ? d'où vient le problème vraiment ?).
-❌ Schéma "hook constat → body conseil → CTA" : c'est plat. Il manque le
+❌ Schéma "accroche constat → conseil → appel à l'action" : c'est plat. Il manque le
    "POURQUOI personne ne le voit".
 ❌ Phrases qui sonnent comme des slogans LinkedIn ("Le secret c'est X",
    "Voilà la vérité", "Spoiler : ça marche pas").
@@ -114,13 +114,13 @@ L'utilisatrice va lire ce script FACE CAM, en une prise, comme si elle parlait
 mais le texte parlé doit s'enchaîner comme UN SEUL monologue continu.
 
 CONTINUITÉ ENTRE SECTIONS, règle stricte :
-- Le texte_parle de chaque section body poursuit la section précédente.
+- Le texte_parle de chaque passage du développement poursuit le précédent.
   Utilise un connecteur seulement s’il aide à suivre le raisonnement ;
   la continuité peut aussi venir du sens.
 - Première phrase de chaque section ≠ phrase autonome qu'on pourrait poster.
   C'est la SUITE de la phrase précédente.
-- Hook + body 1 = paire question/réponse (ou affirmation/preuve), pas 2
-  affirmations indépendantes.
+- L'accroche et le 1er passage du développement = paire question/réponse
+  (ou affirmation/preuve), pas 2 affirmations indépendantes.
 - Si tu peux supprimer une section sans casser le sens du reste → elle est
   mal écrite, elle ne s'enchaîne pas.
 
@@ -165,9 +165,9 @@ STRUCTURE :
   PRÉFÉRENCE FORTE : commencer par "Je" ou "Ma/Mon" (vécu personnel).
   ❌ "Une com' complète en une minute" → ✅ "J'ai créé une com' complète en une minute"
 - Corps (3-45s) : développe avec une SCÈNE CONCRÈTE + le MÉCANISME.
-  Chaque section body = 25-50 mots de texte parlé (oral dense, pas
+  Chaque section body = 20-40 mots de texte parlé (oral dense, pas
   télégraphique). Au moins UNE section body explique le POURQUOI (mécanisme).
-- CTA (45-60s) : reformulation finale. Pas de répétition du hook.
+- CTA (45-55s) : reformulation finale. Pas de répétition du hook.
 
 ${UNE_IDEE_REEL}
 
@@ -189,18 +189,20 @@ Le rythme parlé naturel est ~150 mots/minute, soit 2,5 mots par seconde.
 La durée affichée DOIT découler du texte : secondes = total de mots ÷ 2,5.
 
 - Reel court (15-30s) : 40-75 mots. La couche mécanisme reste obligatoire (en condensé).
-- Reel moyen (30-60s) : 75-150 mots (marqueurs d'oralité inclus).
-- Reel long (60-90s) : 150-220 mots. Profondeur pleine sur les 3 couches étalées.
+- Reel moyen (30-55s) : 75-130 mots (marqueurs d'oralité inclus).
+- PLAFOND ABSOLU : 130 mots parlés au total, soit 55 secondes. Le montage
+  automatique de l'application s'arrête à 60 secondes : un script plus long ne
+  peut pas être monté. Pas de reel long.
 
 AVANT de fixer "duree_cible" : compte les mots de TOUS les texte_parle, divise
 par 2,5, et vérifie que le résultat correspond à la durée annoncée. Un script
-de 200 mots annoncé "50 sec" est un MENSONGE : il dure 80 secondes en vrai, et
-au-delà de 90 secondes l'algo pénalise la distribution.
+de 150 mots annoncé "45 sec" est un MENSONGE : il dure 60 secondes en vrai, et
+ne passe plus au montage automatique.
 
 Si tu dépasses le plafond de mots → COUPE les redites et les détails secondaires ; conserve le sujet, les faits de départ et les attributions,
 jamais dans la couche "mécanisme". Si tu es sous le plancher → DÉVELOPPE la
 couche "mécanisme", ne resserre PAS le reste.
-Une section body de 8 mots = slogan, pas du parlé. Vise 25-50 mots par section body.
+Une section body de 8 mots = slogan, pas du parlé. Vise 20-40 mots par section body.
 
 ══ EXEMPLE AVANT / APRÈS ══
 
@@ -227,7 +229,7 @@ CTA   : "Donc avant de toucher à tes prix, regarde plutôt comment tu les dis.
          Tout se joue à cet endroit-là."
 → Symptôme (galère à tarifer) → Mécanisme (l'hésitation perçue) → Reformulation
    (regarde comment tu les dis). Connecteurs oraux variés, sans cheville répétée.
-   ~140 mots ≈ 56 secondes. Profondeur + monologue continu.
+   ~120 mots ≈ 48 secondes. Profondeur + monologue continu.
 
 INTERDITS :
 - Script qui LISTE des conseils au lieu de RACONTER + EXPLIQUER LE POURQUOI
@@ -249,18 +251,18 @@ vers les non-followers les Reels avec un FORT COMPLETION RATE (% de viewers qui
 regardent jusqu'au bout). Donc : court = mieux.
 
 CONTRAINTES SPÉCIFIQUES :
-- DURÉE CIBLE : 15-25 secondes (PAS 30-60s comme le format standard).
-- TEXTE PARLÉ : 40-80 mots maximum (25 secondes × 2,5 mots/s = 62 mots : reste sous la barre).
+- DURÉE CIBLE : 20-30 secondes (PAS 30-55 s comme le format standard).
+- TEXTE PARLÉ : 40-75 mots maximum (30 secondes × 2,5 mots/s = 75 mots : reste sous la barre).
 - STRUCTURE RAMASSÉE :
   • Hook (0-3s) : 1 phrase ultra-directe, overlay autoporteur.
   • Corps (3-18s) : UNE seule scène ou UN seul déplacement de perspective.
     Pas de mise en contexte longue. On entre direct dans le vif.
   • CTA (18-25s) : 1 phrase de chute. Question courte ou affirmation finale.
 - AUCUNE digression. Aucune nuance. UNE idée, UN angle, UN punch.
-- Le viewer doit pouvoir tout consommer en moins de 25 secondes.
+- Le viewer doit pouvoir tout consommer en moins de 30 secondes.
 
-Privilégier la structure REEL FACE CAM ramassée OU REEL HOOK LOOP court.
-Éviter REEL VOIX OFF + B-ROLL (trop long pour ce format).`;
+Privilégier face_cam_confession ramassée OU hook_loop court.
+Éviter voix_off_broll (trop long pour ce format).`;
   } else if (effectiveObjective === "confiance" || effectiveObjective === "vente" || effectiveObjective === "credibilite") {
     calibrage = `
 
@@ -271,17 +273,17 @@ Pour ce Reel, l'objectif est de NOURRIR la relation avec l'audience existante
 quand la rétention tient. On peut développer la scène et le récit.
 
 CONTRAINTES SPÉCIFIQUES :
-- DURÉE CIBLE : 45-75 secondes (storytelling assumé).
-- TEXTE PARLÉ : 110-190 mots (rythme parlé naturel ~150 mots/min).
+- DURÉE CIBLE : 40-55 secondes (storytelling assumé, mais serré).
+- TEXTE PARLÉ : 100-130 mots (rythme parlé naturel ~150 mots/min).
 - STRUCTURE NARRATIVE DÉVELOPPÉE :
   • Hook (0-3s) : ouvre une boucle de curiosité forte.
-  • Corps (3-60s) : développe la SCÈNE COMPLÈTE, contexte, déclic, déplacement,
+  • Corps (3-45s) : développe la SCÈNE, contexte, déclic, déplacement,
     résolution. Le viewer doit ressentir une progression émotionnelle.
-  • CTA (60-75s) : invitation cohérente avec l'objectif (dialogue / offre / approfondissement).
-- ATTENTION : ne JAMAIS dépasser 90 secondes (au-delà = pénalité de distribution).
-- Si le sujet ne porte pas 60s de contenu dense, RACCOURCIR plutôt que diluer.
+  • CTA (45-55s) : invitation cohérente avec l'objectif (dialogue / offre / approfondissement).
+- ATTENTION : ne JAMAIS dépasser 55 secondes, soit 130 mots (le montage automatique s'arrête à 60 s).
+- Si le sujet ne porte pas 45 s de contenu dense, RACCOURCIR plutôt que diluer.
 
-Toutes les structures Reel sont possibles (FACE CAM, VOIX OFF + B-ROLL, HOOK LOOP).`;
+Toutes les structures sont possibles (face_cam_confession, voix_off_broll, hook_loop).`;
   }
 
   // ── Bloc personnel (pre_gen_answers) ──
@@ -393,14 +395,17 @@ CONTEXTE GÉNÉRATION :
   Idéal pour montrer le process, l'atelier, le concret.
 - hook_loop : boucle courte et percutante, la fin renvoie au début (replays).
 Ne choisis PAS face_cam_confession par réflexe : "duree_justification" doit dire
-en 1 phrase pourquoi CETTE structure sert CE sujet.${params.face_cam === "non" ? `
+en 1 phrase pourquoi CETTE structure sert CE sujet.
+"format_label" = le nom de la structure en français simple, sans anglicisme :
+"Face caméra" (face_cam_confession), "Voix off sur images" (voix_off_broll),
+"Boucle courte" (hook_loop). JAMAIS "face cam", "B-roll", "hook loop", "confession".${params.face_cam === "non" ? `
 
 ⚠️ CONTRAINTE ABSOLUE : FACE CAM = NON. L'utilisatrice NE VEUT PAS se montrer
 en train de parler à la caméra.
 - format_type INTERDIT : face_cam_confession (et toute variante face cam).
 - Structure imposée : voix_off_broll (ou hook_loop porté par les plans).
-- "format_visuel" de CHAQUE section : plans b_roll/insert de son activité,
-  JAMAIS "face cam".
+- "format_visuel" de CHAQUE section : images de son activité ou gros plans,
+  JAMAIS face caméra.
 - "plan_tournage" : AUCUN plan de type "face_cam". Que du b_roll et des inserts.
 - Le message passe par la VOIX OFF + les overlays + les sous-titres.` : ""}`;
 
@@ -413,8 +418,8 @@ Chaque section body DOIT inclure une indication de CUT (changement de plan).
 Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
 {
   "format_type": "LA STRUCTURE CHOISIE : face_cam_confession | voix_off_broll | hook_loop",
-  "format_label": "le label lisible de la structure choisie",
-  "duree_cible": "durée RÉELLE calculée : total mots parlés ÷ 2,5 = secondes (ex: '45 sec')",
+  "format_label": "Face caméra | Voix off sur images | Boucle courte (selon la structure choisie)",
+  "duree_cible": "durée RÉELLE calculée : total mots parlés ÷ 2,5 = secondes, 55 au plus (ex: '45 sec')",
   "duree_justification": "1 phrase : pourquoi CETTE structure et CETTE durée servent CE sujet",
   "objectif": "${effectiveObjective || "non précisé"}",
   "editorial_angle_used": "${params.editorial_angle || "auto"}",
@@ -426,7 +431,7 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
     {
       "section": "hook",
       "timing": "0-3 sec",
-      "format_visuel": "Face cam, regarde la caméra, ton direct",
+      "format_visuel": "Face caméra, ton direct",
       "texte_parle": "${selectedHook.text}",
       "texte_overlay": "${selectedHook.text_overlay}",
       "cut": null,
@@ -435,10 +440,10 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
     {
       "section": "body",
       "timing": "3-15 sec",
-      "format_visuel": "Face cam + plans de coupe",
+      "format_visuel": "Face caméra + images d'illustration",
       "texte_parle": "...",
       "texte_overlay": null,
-      "cut": "capture ecran ou plan de coupe",
+      "cut": "capture d'écran ou image d'illustration",
       "tip": null
     },
     {
@@ -453,7 +458,7 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
     {
       "section": "cta",
       "timing": "35-45 sec",
-      "format_visuel": "Retour face cam",
+      "format_visuel": "Retour face caméra",
       "texte_parle": "...",
       "texte_overlay": "la chute de CE texte_parle, extrait de 3 à 8 mots recopié tel quel (JAMAIS le mot 'SAUVEGARDE' seul)",
       "cut": null,
@@ -496,15 +501,16 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
   ],
   "plan_tournage": [
     ${params.face_cam === "non"
-      ? `{ "plan": "Tes mains en train de [geste précis du métier], plan fixe posé sur la table", "type": "b_roll", "sert_pour": "hook + body (la voix off se pose dessus)", "duree": "20 sec de rush", "conseil": "Téléphone calé contre un objet stable, lumière de la fenêtre" },`
-      : `{ "plan": "Toi face caméra, assise à ton poste de travail habituel, lumière de la fenêtre sur le visage", "type": "face_cam", "sert_pour": "hook + cta", "duree": "1 prise de 60 sec (tout le monologue)", "conseil": "Téléphone calé à hauteur des yeux, pas en contre-plongée" },`}
-    { "plan": "Gros plan sur tes mains en train de [geste précis du métier]", "type": "b_roll", "sert_pour": "plan de coupe section body 1", "duree": "10 sec de rush", "conseil": null },
+      ? `{ "plan": "Tes mains en train de [geste précis du métier], plan fixe posé sur la table", "type": "b_roll", "sert_pour": "l'accroche et le développement (la voix off se pose dessus)", "duree": "20 sec de rush", "conseil": "Téléphone calé contre un objet stable, lumière de la fenêtre" },`
+      : `{ "plan": "Toi face caméra, assise à ton poste de travail habituel, lumière de la fenêtre sur le visage", "type": "face_cam", "sert_pour": "l'accroche et la fin", "duree": "1 prise de 60 sec (tout le monologue)", "conseil": "Téléphone calé à hauteur des yeux, pas en contre-plongée" },`}
+    { "plan": "Gros plan sur tes mains en train de [geste précis du métier]", "type": "b_roll", "sert_pour": "illustrer le 1er passage du développement", "duree": "10 sec de rush", "conseil": null },
     { "plan": "…", "type": "insert", "sert_pour": "…", "duree": "…", "conseil": null }
   ],
   "garde_fou_alerte": null
 }
 
 IMPORTANT :
+- Total des texte_parle : 130 mots au plus (55 secondes). Au-delà, le reel ne peut pas être monté.
 - Le tableau "script" doit avoir entre ${REEL_SECTIONS.min} et ${REEL_SECTIONS.max} sections (hook + body segments + cta), une idée par section
 - DUPLIQUE le contenu de "script" dans un champ "sections" (même structure) pour compat UI
 - Chaque section body a une indication de cut
@@ -513,7 +519,7 @@ IMPORTANT :
 - La caption ne répète PAS le script, elle offre un angle complémentaire
 - Les hashtags : 3-5 max, mix large + niche
 - Les amplification_stories : 2 stories à poster dans l'heure
-- "plan_tournage" = la SHOT LIST du reel : 3 à 6 plans à tourner AU TÉLÉPHONE, listés dans l'ordre de TOURNAGE le plus simple (toutes les prises face cam d'abord, puis les plans de coupe). Chaque "plan" est CONCRET et ancré dans l'activité RÉELLE de la marque (son lieu, ses gestes, ses objets — d'après le contexte de marque fourni ; JAMAIS un "plan de coupe générique" ni un décor qu'elle n'a probablement pas). Types : "face_cam" (elle parle), "b_roll" (elle fait, sans parler), "insert" (gros plan objet/écran/détail). Cohérence : chaque cut du script doit correspondre à un plan de cette liste ("sert_pour" le dit). Si le format est face cam pur, prévois quand même 1-2 plans de coupe b_roll pour faire respirer le montage. Bonus malin : indique quand un plan b_roll est RÉUTILISABLE pour de futurs reels.
+- "plan_tournage" = la SHOT LIST du reel : 3 à 6 plans à tourner AU TÉLÉPHONE, listés dans l'ordre de TOURNAGE le plus simple (toutes les prises face cam d'abord, puis les plans de coupe). Chaque "plan" est CONCRET et ancré dans l'activité RÉELLE de la marque (son lieu, ses gestes, ses objets — d'après le contexte de marque fourni ; JAMAIS un "plan de coupe générique" ni un décor qu'elle n'a probablement pas). Types : "face_cam" (elle parle), "b_roll" (elle fait, sans parler), "insert" (gros plan objet/écran/détail). Cohérence : chaque cut du script doit correspondre à un plan de cette liste ("sert_pour" le dit, en français simple : "l'accroche", "le 2e passage", "la fin" ; JAMAIS les mots techniques hook, body, cta, section, B-roll, plan de coupe). Si le format est face cam pur, prévois quand même 1-2 plans de coupe b_roll pour faire respirer le montage. Bonus malin : indique quand un plan b_roll est RÉUTILISABLE pour de futurs reels.
 - Pas de markdown dans les valeurs JSON`;
 
   return base + calibrage + metaBlock + inspirationBlock + hookBlock + subjectBlock + recapBlock + angleBlock + numberingBlock + personalBlock + jsonBlock;
