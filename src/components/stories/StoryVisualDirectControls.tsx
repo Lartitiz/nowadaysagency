@@ -3,6 +3,7 @@ import { Crop, Move, RotateCcw, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StoryFramePreview from "@/components/stories/StoryFramePreview";
 import { resolveStoryViewport, type StoryVisualPlan } from "@/lib/story-visual";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type Mode = "text" | "photo";
 
@@ -15,7 +16,16 @@ interface Props {
   onPhotoMove: (x: number, y: number) => void;
   onPhotoZoom: (zoom: number) => void;
   onReset: (mode: Mode) => void;
+  /** Placement dans la mise en page de l'atelier (grille de StoryResult). */
+  className?: string;
 }
+
+/**
+ * Taille de l'aperçu (chantier 3 des stories, 12/11/2026) : 170 px de large
+ * était trop petit sur ordi. 250 px sur ordi, 200 px sur téléphone (l'aperçu
+ * y est posé juste sous la case de texte, il ne doit pas tout repousser).
+ */
+const PREVIEW_WIDTH = { desktop: 250, mobile: 200 } as const;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -29,7 +39,9 @@ export default function StoryVisualDirectControls({
   onPhotoMove,
   onPhotoZoom,
   onReset,
+  className = "",
 }: Props) {
+  const width = useIsMobile() ? PREVIEW_WIDTH.mobile : PREVIEW_WIDTH.desktop;
   const [mode, setMode] = useState<Mode>("text");
   const drag = useRef<{
     pointerId: number;
@@ -40,7 +52,6 @@ export default function StoryVisualDirectControls({
   } | null>(null);
   const viewport = resolveStoryViewport(visual);
   const defaultTextY = visual.text_position === "top" ? 28 : visual.text_position === "bottom" ? 72 : 50;
-  const handleX = Number.isFinite(visual.text_position_x) ? viewport.textX : 50;
   const handleY = Number.isFinite(visual.text_position_y) ? viewport.textY : defaultTextY;
 
   useEffect(() => {
@@ -89,32 +100,37 @@ export default function StoryVisualDirectControls({
   };
 
   return (
-    <div className="w-[170px] shrink-0 space-y-2" data-story-direct-controls={storyIndex + 1}>
-      <div className="relative overflow-hidden rounded-lg" style={{ aspectRatio: "9 / 16" }}>
-        <StoryFramePreview html={html} title={`Aperçu story ${storyIndex + 1}`} width={170} />
+    <div className={`shrink-0 space-y-2 ${className}`} style={{ width }} data-story-direct-controls={storyIndex + 1}>
+      {/* Pas d'overflow-hidden ici : la poignée déborde à gauche du cadre au lieu de cacher le texte. */}
+      <div className="relative rounded-lg" style={{ aspectRatio: "9 / 16" }}>
+        <StoryFramePreview html={html} title={`Aperçu story ${storyIndex + 1}`} width={width} />
         <button
           type="button"
           aria-label={mode === "text" ? `Déplacer le texte de la story ${storyIndex + 1}` : `Recadrer la photo de la story ${storyIndex + 1}`}
-          className={`absolute inset-0 z-10 touch-none select-none ${mode === "text" ? "cursor-crosshair" : "cursor-grab active:cursor-grabbing"}`}
+          className={`absolute inset-0 z-10 touch-none select-none rounded-lg ${mode === "text" ? "cursor-crosshair" : "cursor-grab active:cursor-grabbing"}`}
           onPointerDown={begin}
           onPointerMove={move}
           onPointerUp={end}
           onPointerCancel={end}
         >
-          <span className="absolute left-2 right-2 top-2 rounded-full bg-black/60 px-2 py-1 text-center text-[10px] font-medium text-white backdrop-blur-sm">
-            {mode === "text" ? "Glisse le texte" : "Fais glisser la photo"}
-          </span>
           {mode === "text" && (
+            // Poignée posée sur le bord gauche, à la hauteur du texte : elle montre
+            // où est le bloc sans recouvrir de mots (elle était au milieu du texte).
             <span
               aria-hidden="true"
-              className="absolute grid h-7 w-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-primary text-white shadow-lg"
-              style={{ left: `${handleX}%`, top: `${handleY}%` }}
+              data-story-text-handle
+              className="absolute left-0 grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-primary text-white shadow-lg"
+              style={{ top: `${handleY}%` }}
             >
-              <Move className="h-3.5 w-3.5" />
+              <Move className="h-3 w-3" />
             </span>
           )}
         </button>
       </div>
+      {/* Consigne sous l'aperçu, plus par-dessus (elle cachait le haut de la story). */}
+      <p className="text-center text-2xs text-muted-foreground">
+        {mode === "text" ? "Glisse le texte sur l'aperçu" : "Fais glisser la photo sur l'aperçu"}
+      </p>
 
       <div className="grid grid-cols-2 gap-1">
         <Button
