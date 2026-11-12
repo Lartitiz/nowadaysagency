@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import GenerationFailedNotice from "./GenerationFailedNotice";
 import { supabase } from "@/integrations/supabase/client";
 import {
   useGeneratePortraitPro,
@@ -84,6 +85,9 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
   const [adjustingKey, setAdjustingKey] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  // Échec qui reste affiché avec « Réessayer » (12/11/2026) : le toast seul
+  // disparaissait pendant que l'utilisatrice regardait ailleurs.
+  const [failure, setFailure] = useState<{ title: string; retryLabel: string; message: string; retry: () => void } | null>(null);
 
   const { ambiances, isLoading, isError, regenerate, isRegenerating } = usePortraitAmbiances(open);
   const { mutate: generate, isPending: isGenerating } = useGeneratePortraitPro();
@@ -99,6 +103,7 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
     setResult(null);
     setResultUrl(null);
     setSourceUrl(null);
+    setFailure(null);
     let cancelled = false;
     const srcPath = photo.original_storage_path || photo.storage_path;
     getSignedPhotoUrl(srcPath).then((u) => {
@@ -134,12 +139,13 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
     }
   };
 
-  const handleGenerate = async () => {
-    const chosen = activePrompt();
+  const handleGenerate = async (retryWith?: { prompt: string; title?: string }) => {
+    const chosen = retryWith ?? activePrompt();
     if (!chosen) {
       toast.error("Choisis une ambiance ou décris ton fond.");
       return;
     }
+    setFailure(null);
     try {
       const { photoId } = await generate({
         sourcePhoto: photo,
@@ -153,7 +159,10 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
           action: { label: "Voir les plans", onClick: () => navigate("/abonnement") },
         });
       } else {
-        toast.error(e?.message || "La génération a échoué, réessaie.");
+        const message = e?.message || "La génération a échoué, réessaie.";
+        // Relance avec le même fond, même si le choix a bougé entre-temps.
+        setFailure({ title: "Ton portrait n'a pas abouti", retryLabel: "Réessayer mon portrait", message, retry: () => void handleGenerate(chosen) });
+        toast.error(message);
       }
     }
   };
@@ -161,12 +170,15 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
   const handleAdjust = async (chip: (typeof ADJUST_CHIPS)[number]) => {
     if (!result) return;
     setAdjustingKey(chip.key);
+    setFailure(null);
     try {
       const base = result.background_prompt ?? activePrompt()?.prompt ?? "";
       await adjust({ photo: result, backgroundPrompt: `${base} ${chip.directive}`.trim() });
       await refreshResult(result.id);
     } catch (e: any) {
-      toast.error(e?.message || "L'ajustement a échoué, réessaie.");
+      const message = e?.message || "L'ajustement a échoué, réessaie.";
+      setFailure({ title: "L'ajustement n'a pas abouti", retryLabel: "Réessayer l'ajustement", message, retry: () => void handleAdjust(chip) });
+      toast.error(message);
     } finally {
       setAdjustingKey(null);
     }
@@ -295,9 +307,12 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
               disabled={busy}
             />
 
+            {failure && !busy && (
+              <GenerationFailedNotice message={failure.message} onRetry={failure.retry} title={failure.title} retryLabel={failure.retryLabel} />
+            )}
             <DialogFooter className="items-center gap-2 sm:justify-between">
               <span className="text-xs rounded-full bg-primary/10 text-primary px-2.5 py-1">1 crédit</span>
-              <Button onClick={handleGenerate} disabled={busy || isLoading}>
+              <Button onClick={() => void handleGenerate()} disabled={busy || isLoading}>
                 {isGenerating ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération… (~15 s)
@@ -353,6 +368,9 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
               Déjà rangé dans Mes photos
             </p>
 
+            {failure && !busy && (
+              <GenerationFailedNotice message={failure.message} onRetry={failure.retry} title={failure.title} retryLabel={failure.retryLabel} />
+            )}
             <DialogFooter className="flex-col sm:flex-row gap-2 sm:justify-between items-center">
               <button
                 type="button"

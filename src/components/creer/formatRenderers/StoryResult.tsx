@@ -695,16 +695,14 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
         </div>
       </div>
 
-      {result?.personal_tip && stories.length > 0 && (
-        <StoryPersonalAnchor tip={result.personal_tip} value={personalAnchor} onChange={setPersonalAnchor} onInsert={() => { insertPersonalAnchor(); setCurrentStory(0); }} />
-      )}
       <StoryNav count={stories.length} current={shownStory} onChange={setCurrentStory} />
       <div className="space-y-2" data-selection-enabled="true">
         {stories.map((story: any, i: number) => (
           <Card key={structure.keys[i] ?? i} className="border-border" hidden={i !== shownStory}>
             <CardContent className="p-3">
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <div className="flex-1 min-w-0 space-y-1.5">
+              {/* Téléphone : texte, puis aperçu juste dessous, puis le reste. Ordi : aperçu à droite, qui suit le défilement. */}
+              <div className="grid gap-x-3 gap-y-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:grid-rows-[auto_1fr] sm:gap-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="secondary" className="font-mono text-2xs">
                       Story {i + 1}
@@ -765,6 +763,18 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                       placeholder="Écris ici tout ce que tu veux dire dans cette story"
                     />
                   </div>
+                </div>
+                {frames[i] && story.visual && (
+                  <StoryVisualDirectControls
+                    className="justify-self-center sm:sticky sm:top-24 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:self-start"
+                    storyIndex={i} html={frames[i]!} visual={story.visual}
+                    photoEnabled={story.visual.background === "photo" && Boolean(getStoryPhotoUrl(story, i))}
+                    onTextMove={(x, y) => moveStoryText(i, x, y)}
+                    onPhotoMove={(x, y) => updateVisualViewport(i, { photo_position_x: x, photo_position_y: y })}
+                    onPhotoZoom={(zoom) => updateVisualViewport(i, { photo_zoom: zoom })} onReset={(mode) => resetStoryViewport(i, mode)}
+                  />
+                )}
+                <div className="min-w-0 space-y-1.5 sm:col-start-1 sm:row-start-2">
                   {story.sticker && (
                     <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2">
                       <div className="flex items-center gap-1.5">
@@ -984,25 +994,15 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                     />
                   )}
                 </div>
-                {frames[i] && story.visual && (
-                  <div className="self-center sm:self-start">
-                    <StoryVisualDirectControls
-                      storyIndex={i}
-                      html={frames[i]!}
-                      visual={story.visual}
-                      photoEnabled={story.visual.background === "photo" && Boolean(getStoryPhotoUrl(story, i))}
-                      onTextMove={(x, y) => moveStoryText(i, x, y)}
-                      onPhotoMove={(x, y) => updateVisualViewport(i, { photo_position_x: x, photo_position_y: y })}
-                      onPhotoZoom={(zoom) => updateVisualViewport(i, { photo_zoom: zoom })}
-                      onReset={(mode) => resetStoryViewport(i, mode)}
-                    />
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+      {/* Après la story (chantier 3, 12/11/2026) : avant, cet encadré cachait la story 1 sur téléphone. */}
+      {result?.personal_tip && stories.length > 0 && (
+        <StoryPersonalAnchor tip={result.personal_tip} value={personalAnchor} onChange={setPersonalAnchor} onInsert={() => { insertPersonalAnchor(); setCurrentStory(0); }} />
+      )}
 
       <PhotoLibraryPickerDialog
         open={pickerFor !== null}
