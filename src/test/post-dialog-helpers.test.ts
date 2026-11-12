@@ -30,4 +30,20 @@ describe("fonctions de la fenêtre d'un post du calendrier", () => {
     expect(ANGLE_TO_CAROUSEL["Mythe à déconstruire"]).toBe("mythe_realite");
     expect(CANAL_META.linkedin).toEqual({ emoji: "💼", label: "LinkedIn" });
   });
+
+  // Contenu du 30/11 sur le compte d'Auriana (12/11/2026) : enregistré avant la
+  // correction, il gardait « HOOK », « BODY », « CTA » à l'ouverture.
+  it("reel enregistré avec l'ancien script : passages en français, texte retouché intact", () => {
+    const sections = [
+      { section: "hook", timing: "0-5 sec", texte_parle: "Ce salon.", texte_overlay: "personne n'en voulait" },
+      { section: "body", timing: "5-16 sec", texte_parle: "Le cœur.", format_visuel: "Plan large" },
+      { section: "cta", timing: "16-20 sec", texte_parle: "Abonne-toi." },
+    ];
+    const legacy = "[0-5 sec] HOOK\nCe salon.\n📝 personne n'en voulait\n\n[5-16 sec] BODY\nLe cœur.\n📹 Plan large\n\n[16-20 sec] CTA\nAbonne-toi.";
+    const shown = draftFromPost({ content_draft: legacy, story_sequence_detail: { type: "reel", sections } });
+    expect(shown).not.toMatch(/HOOK|BODY|\bCTA\b/);
+    expect(shown).toContain("[0-5 sec] ACCROCHE\nCe salon.");
+    expect(draftFromPost({ content_draft: legacy + "\nma retouche", story_sequence_detail: { type: "reel", sections } })).toBe(legacy + "\nma retouche");
+    expect(draftFromPost({ content_draft: legacy, story_sequence_detail: { type: "carousel", slides: [] } })).toBe(legacy);
+  });
 });

@@ -1,6 +1,7 @@
 // Petites fonctions pures de la fenêtre d'un post du calendrier, sorties de
 // src/components/calendar/CalendarPostDialog.tsx à l'identique (fiche 13 de
 // docs/robustesse/gros-fichiers.md, lot 1). Aucun appel, aucun état.
+import { reelScriptDraft, reelSectionsOf } from "../../../supabase/functions/_shared/reel-caption";
 import { ANGLES } from "@/lib/calendar-constants";
 
 /** ISO → valeur d'un <input type="datetime-local"> (heure locale, "YYYY-MM-DDTHH:mm"). */
@@ -52,9 +53,23 @@ export function angleLabelOf(angle: string | null): string | null {
 /** Brouillon affiché à l'ouverture : content_draft > full_content > texte des stories > texte parlé du script reel. */
 export function draftFromPost(editingPost: any): string | null {
   const ssd = editingPost.story_sequence_detail as any;
-  return (editingPost as any).content_draft
+  return reelDraftWithoutCodes((editingPost as any).content_draft, ssd)
     || ssd?.full_content
     || (ssd?.stories ? ssd.stories.map((s: any) => `${s.text || ""}`).join("\n\n") : null)
     || (ssd?.script ? ssd.script.map((s: any) => s.texte_parle || "").join("\n\n") : null)
     || null;
+}
+
+/**
+ * Reel enregistré avant le 12/11/2026 : son script copié garde « HOOK », « BODY »,
+ * « CTA ». S'il n'a pas été retouché, on affiche le script aux passages nommés
+ * en français ; un texte retouché à la main reste tel quel.
+ */
+export function reelDraftWithoutCodes(draft: unknown, detail: any): string | null {
+  if (typeof draft !== "string" || !draft) return (draft as string) || null;
+  if (detail?.type !== "reel") return draft;
+  const sections = reelSectionsOf(detail);
+  if (!sections.length) return draft;
+  const legacy = sections.map((s: any) => `[${s.timing || ""}] ${(s.label || s.section || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}${s.format_visuel ? `\n📹 ${s.format_visuel}` : ""}`).join("\n\n");
+  return draft.trim() === legacy.trim() ? reelScriptDraft(sections) : draft;
 }
