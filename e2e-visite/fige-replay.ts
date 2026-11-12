@@ -31,6 +31,18 @@ export interface FigeEntry {
   status: number;
   contentType: string;
   body: string;
+  /**
+   * Morceau du corps de la REQUÊTE qui désigne cette réponse (12/11/2026).
+   * Quand un écran lance plusieurs appels à la même fonction en parallèle (une
+   * recherche photo par story), l'ordre d'arrivée change d'une passe à l'autre
+   * et un appel annulé en vol consomme quand même sa réponse : servie dans
+   * l'ordre, la story 2 recevait les photos de la story 3. Une entrée avec
+   * `match` est servie à toute requête qui contient ce texte, autant de fois
+   * que demandé ; les entrées sans `match` restent servies dans l'ordre.
+   */
+  match?: string;
+  /** Corps de la requête, gardé à l'enregistrement (pour poser `match` ensuite). */
+  req?: string;
 }
 
 export interface FigeFile {
@@ -51,10 +63,17 @@ export const fnOf = (url: string) => url.split("/functions/v1/")[1]?.split("?")[
  */
 export function makeReplayer(entries: FigeEntry[]) {
   const byFn = new Map<string, FigeEntry[]>();
-  for (const e of entries) byFn.set(`${e.method} ${e.fn}`, [...(byFn.get(`${e.method} ${e.fn}`) || []), e]);
+  const matched = new Map<string, FigeEntry[]>();
+  for (const e of entries) {
+    const k = `${e.method} ${e.fn}`;
+    const target = e.match ? matched : byFn;
+    target.set(k, [...(target.get(k) || []), e]);
+  }
   const served = new Map<string, number>();
-  return (method: string, fn: string): FigeEntry | null => {
+  return (method: string, fn: string, reqBody = ""): FigeEntry | null => {
     const key = `${method} ${fn}`;
+    const hit = matched.get(key)?.find((e) => reqBody.includes(e.match!));
+    if (hit) return hit;
     const list = byFn.get(key);
     if (!list?.length) return null;
     const i = served.get(key) || 0;
@@ -82,10 +101,10 @@ export async function installFigeReplay(page: Page, name: string) {
     if (recording) {
       const resp = await route.fetch();
       const body = await resp.text();
-      entries.push({ fn, method: req.method(), status: resp.status(), contentType: resp.headers()["content-type"] || "", body });
+      entries.push({ fn, method: req.method(), status: resp.status(), contentType: resp.headers()["content-type"] || "", body, req: req.postData() || "" });
       return route.fulfill({ response: resp, body });
     }
-    const hit = replay!(req.method(), fn);
+    const hit = replay!(req.method(), fn, req.postData() || "");
     if (!hit) {
       missing.add(fn);
       // Lectures sans IA : elles peuvent partir en vrai. Tout le reste est BLOQUÉ :
@@ -181,8 +200,49 @@ export async function waitZoneFonts(locator: Locator, timeoutMs = 20_000): Promi
   }, timeoutMs);
 }
 
+/**
+ * Attend que les aperçus (iframes de la zone) soient peints avec leurs images.
+ * Vu le 12/11/2026 sur les stories : une iframe en srcdoc qui vient d'être
+ * (re)chargée est encore blanche, et la photo de fond (background-image CSS,
+ * Pexels) n'est pas forcément arrivée → capture vide ou fond uni à tort.
+ * On attend : document chargé avec du contenu, puis chaque image (<img> et
+ * fonds CSS) décodée. Renvoie les images encore absentes (vide = tout est prêt).
+ */
+export async function waitZoneImages(locator: Locator, timeoutMs = 20_000): Promise<string[]> {
+  return locator.evaluate(async (el, timeout) => {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const frames = [...(el instanceof HTMLIFrameElement ? [el] : []), ...el.querySelectorAll("iframe")] as HTMLIFrameElement[];
+    const end = Date.now() + timeout;
+    const missing: string[] = [];
+    for (const f of frames) {
+      while (Date.now() < end) {
+        const doc = f.contentDocument;
+        if (doc && doc.readyState === "complete" && doc.body?.childElementCount) break;
+        await sleep(100);
+      }
+      const doc = f.contentDocument;
+      if (!doc?.body) { missing.push(`${f.title || "iframe"} : document vide`); continue; }
+      const urls = new Set<string>();
+      for (const img of doc.querySelectorAll("img")) if ((img as HTMLImageElement).currentSrc) urls.add((img as HTMLImageElement).currentSrc);
+      for (const n of doc.body.querySelectorAll("*")) {
+        const bg = doc.defaultView!.getComputedStyle(n).backgroundImage;
+        for (const m of bg.matchAll(/url\(["']?([^"')]+)["']?\)/g)) urls.add(m[1]);
+      }
+      await Promise.all([...urls].map(async (u) => {
+        const img = new (doc.defaultView as any).Image() as HTMLImageElement;
+        img.src = u;
+        const ok = await Promise.race([img.decode().then(() => true, () => false), sleep(Math.max(0, end - Date.now())).then(() => false)]);
+        if (!ok) missing.push(u.slice(0, 120));
+      }));
+    }
+    return missing;
+  }, timeoutMs);
+}
+
 export async function expectZoneMatches(page: Page, locator: Locator, name: string, message: string) {
   await locator.scrollIntoViewIfNeeded();
+  const missingImages = await waitZoneImages(locator);
+  if (missingImages.length) console.log(`⚠️ ${name} : image(s) pas chargée(s) avant la photo : ${missingImages.join(" ; ")}`);
   const missingFonts = await waitZoneFonts(locator);
   if (missingFonts.length) console.log(`⚠️ ${name} : police(s) pas chargée(s) avant la photo : ${missingFonts.join(" ; ")}`);
   // Le texte se remet en page avec la vraie police : une image pour finir.

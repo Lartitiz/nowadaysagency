@@ -201,6 +201,33 @@ test("contenus figés — carrousel mixte", async ({ page }) => {
   await compareZones(page, name, fige, await editorZones(page));
 });
 
+/**
+ * Stories : attendre que chaque fond photo soit posé avant les captures (12/11/2026).
+ * Les recherches Pexels des stories partent l'une après l'autre (délai de 0,7 s ×
+ * numéro, relancé chaque fois qu'une photo est posée) : la story 6 reçoit la
+ * sienne ~11 s après le résultat. Sans cette attente, la story 6 sortait sans
+ * photo (libellé « 📷 … » en plus du texte), et poser une photo pendant la
+ * capture d'une autre story rechargeait les aperçus (capture vide ou fond uni).
+ * Signal : plus aucun aperçu ne montre le libellé « 📷 » d'un fond photo vide,
+ * et les aperçus ne bougent plus pendant 1,5 s.
+ */
+async function storyPhotosApplied(page: Page) {
+  const frames = page.locator('iframe[title^="Aperçu story"]');
+  const snapshot = () => frames.evaluateAll((els) => els.map((e) => e.getAttribute("srcdoc") || ""));
+  const end = Date.now() + 60_000;
+  let last = await snapshot();
+  let stableSince = Date.now();
+  while (Date.now() < end) {
+    await page.waitForTimeout(250);
+    const now = await snapshot();
+    if (now.join("\u0000") !== last.join("\u0000")) { last = now; stableSince = Date.now(); continue; }
+    const empty = now.map((d, i) => (d.includes("📷 ") ? i + 1 : 0)).filter(Boolean);
+    if (!empty.length && Date.now() - stableSince >= 1500) return;
+  }
+  const empty = last.map((d, i) => (d.includes("📷 ") ? i + 1 : 0)).filter(Boolean);
+  console.log(`⚠️ story : fond photo toujours vide après 60 s sur la/les story(s) ${empty.join(", ") || "?"} (ou aperçus encore en mouvement)`);
+}
+
 test("contenus figés — story", async ({ page }) => {
   const name = "story";
   const fige = await start(page, name);
@@ -211,6 +238,7 @@ test("contenus figés — story", async ({ page }) => {
   await expect(page.getByText(/^Story 1$/).first()).toBeVisible({ timeout: 300000 });
   await page.waitForTimeout(2500);
   if (fige.recording) { await fige.save(); await dumpStructure(page, name); }
+  await storyPhotosApplied(page);
   // Une story à la fois (chantier D, 15/10/2026) : on affiche chaque story par son numéro avant de la comparer.
   const n = await page.locator('iframe[title^="Aperçu story"]').count();
   expect(n, "story : aucun aperçu rendu").toBeGreaterThan(0);
