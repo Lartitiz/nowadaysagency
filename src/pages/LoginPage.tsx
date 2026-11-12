@@ -175,8 +175,25 @@ export default function LoginPage() {
             </>
           ) : (
             <>
-              <h2 className="font-display text-2xl font-semibold text-center mb-2">Bon retour !</h2>
-              <p className="text-center text-muted-foreground text-sm mb-6">Ton atelier t'attend</p>
+              {chosenPremium ? (
+                // Arrivée par « S'abonner » sans être connectée : souvent une
+                // nouvelle venue. On lui montre d'abord comment créer son compte.
+                <>
+                  <h2 className="font-display text-2xl font-semibold text-center mb-2">Passer à Premium</h2>
+                  <p className="text-center text-muted-foreground text-sm mb-4">
+                    Il te faut d'abord un compte. Tu reviens au Premium juste après.
+                  </p>
+                  <Button asChild className="w-full h-12 rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux transition-colors text-base font-medium mb-6">
+                    <Link to="/?offer=outil#signup-section">Créer mon compte gratuit</Link>
+                  </Button>
+                  <p className="text-center text-sm font-medium text-foreground mb-4">Tu as déjà un compte ? Connecte-toi :</p>
+                </>
+              ) : (
+                <>
+                  <h2 className="font-display text-2xl font-semibold text-center mb-2">Bon retour !</h2>
+                  <p className="text-center text-muted-foreground text-sm mb-6">Ton atelier t'attend</p>
+                </>
+              )}
 
               <button
                 onClick={async () => {
