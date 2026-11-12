@@ -50,6 +50,8 @@ vi.mock("@/integrations/supabase/client", () => {
 
 import { PackshotDialog } from "@/components/photos/PackshotDialog";
 import { PortraitProDialog } from "@/components/photos/PortraitProDialog";
+import { MiseEnSceneDialog } from "@/components/photos/MiseEnSceneDialog";
+import * as storage from "@/lib/photo-storage";
 
 const photo = (over: Record<string, unknown> = {}) => ({
   id: "src", user_id: "u1", workspace_id: "w1", name: "Tasse", kind: "produit", status: "ready",
@@ -104,4 +106,20 @@ it("portrait : plus de crédits = pas de bouton Réessayer (ça ne servirait à 
   await waitFor(() => expect(m.generatePortrait).toHaveBeenCalledTimes(1));
   await new Promise((r) => setTimeout(r, 20));
   expect(screen.queryByRole("button", { name: "Réessayer mon portrait" })).not.toBeInTheDocument();
+});
+
+it.each([
+  ["fond blanc", (p: any) => <PackshotDialog photo={p} open onOpenChange={vi.fn()} />, /Générer le packshot/],
+  ["mise en scène", (p: any) => <MiseEnSceneDialog photo={p} open onOpenChange={vi.fn()} />, /Créer la mise en scène|Générer/],
+])("%s : une photo qui ne s'ouvre pas propose « Recharger la photo » au lieu d'un bouton grisé sans issue", async (_name, ui, go) => {
+  vi.mocked(storage.userPhotoToRawBase64).mockRejectedValueOnce(new Error("Réseau indisponible"));
+  wrap(ui(photo()));
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("Ta photo n'a pas pu être ouverte");
+  expect(alert).toHaveTextContent("Réseau indisponible");
+  expect(screen.getAllByRole("button", { name: go }).at(-1)).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Recharger la photo" }));
+  await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.getAllByRole("button", { name: go }).at(-1)).toBeEnabled());
+  expect(storage.userPhotoToRawBase64).toHaveBeenCalledTimes(2);
 });
