@@ -57,6 +57,14 @@ interface Props {
 const VISIBLE = 4;
 const EXPANDED = 8;
 const LIB_THUMBS = 3;
+/**
+ * Décalage de départ entre deux stories (12/11/2026 : 700 → 250 ms). Les 6
+ * recherches partent dans la même seconde et demie ; photo-describe accepte 40
+ * appels/min, stock-photo-search n'a pas de limite. Chaque story ne cherche
+ * qu'UNE fois : ses clés de carte restent stables quand la séquence revient du
+ * parent (#1887), sinon chaque photo posée relançait les recherches en attente.
+ */
+export const STOCK_STAGGER_MS = 250;
 
 export default function StoryPhotoSuggestions({
   storyIndex,
@@ -108,8 +116,8 @@ export default function StoryPhotoSuggestions({
       setSearching(true);
       setFailed(false);
       setSuggestions(null);
-      // Stagger : les stories chargent leurs suggestions l'une après l'autre
-      await new Promise((r) => setTimeout(r, storyIndex * 700));
+      // Stagger : départs légèrement décalés, pas en file (voir STOCK_STAGGER_MS)
+      await new Promise((r) => setTimeout(r, storyIndex * STOCK_STAGGER_MS));
       if (cancelled || requestId !== searchRequestId.current) return;
       try {
         const results = await searchStockPhotos(query, {

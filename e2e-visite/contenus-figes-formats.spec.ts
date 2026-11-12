@@ -208,9 +208,9 @@ test("contenus figés — carrousel mixte", async ({ page }) => {
 
 /**
  * Stories : attendre que chaque fond photo soit posé avant les captures (12/11/2026).
- * Les recherches Pexels des stories partent l'une après l'autre (délai de 0,7 s ×
- * numéro, relancé chaque fois qu'une photo est posée) : la story 6 reçoit la
- * sienne ~11 s après le résultat. Sans cette attente, la story 6 sortait sans
+ * Chaque story lance sa recherche Pexels une seule fois, 0,25 s × numéro après
+ * le résultat (avant #1887 et le 12/11 au soir : 0,7 s × numéro, relancé à chaque
+ * photo posée, story 6 servie ~11 s après). Sans cette attente, la story 6 sortait sans
  * photo (libellé « 📷 … » en plus du texte), et poser une photo pendant la
  * capture d'une autre story rechargeait les aperçus (capture vide ou fond uni).
  * Signal : plus aucun aperçu ne montre le libellé « 📷 » d'un fond photo vide,
