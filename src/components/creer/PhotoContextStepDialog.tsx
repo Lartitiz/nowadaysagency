@@ -62,7 +62,7 @@ export default function PhotoContextStepDialog({ open, previews, rows, onRowsCha
                   id={`photo-ctx-${i}`}
                   value={row.text}
                   maxLength={PHOTO_CONTEXT_TEXT_MAX}
-                  placeholder="Ex. : la cuisine avant les travaux"
+                  placeholder="Ex. : la façade côté rue"
                   onChange={(e) => update(i, { text: e.target.value, suggested: false })}
                 />
                 {row.suggested && (
