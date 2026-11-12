@@ -84,3 +84,21 @@ describe("Montage du reel — vidéo montée arrivée après l'ouverture (repris
     await waitFor(() => expect(onStepChange).toHaveBeenLastCalledWith(expect.objectContaining({ montageDone: true })));
   });
 });
+
+describe("Montage du reel — vidéo déjà montée retrouvée au rechargement de Créer", () => {
+  const saved = { ...reel, montage_project: { version: 1, sectionTexts: [section.texte_parle], montageMode: "cache", voiceMode: "silent", clips: [{ id: "c", url: "https://clips.test/c.mp4", thumbnail: null, duration: 5, source: "stock", label: "Fond", seek: 0 }], voiceClips: [null], cutaways: [null] } };
+
+  it("l'onglet Montage montre la vidéo rangée, sans réassembler", async () => {
+    const { container } = render(<ReelResult result={saved} initialMp4Url="https://stockage.test/reel.mp4" />);
+    tab(/Montage/);
+    await waitFor(() => expect(container.querySelector("video")?.getAttribute("src")).toBe("https://stockage.test/reel.mp4"));
+    expect(screen.getByText(/Rangée dans ta bibliothèque/)).toBeTruthy();
+  });
+
+  it("vidéo arrivée après l'ouverture de l'onglet Montage : elle s'affiche aussi", async () => {
+    const view = render(<ReelResult result={saved} initialMp4Url={null} />);
+    tab(/Montage/);
+    view.rerender(<ReelResult result={saved} initialMp4Url="https://stockage.test/reel.mp4" />);
+    await waitFor(() => expect(view.container.querySelector("video")?.getAttribute("src")).toBe("https://stockage.test/reel.mp4"));
+  });
+});

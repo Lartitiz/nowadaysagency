@@ -1,4 +1,5 @@
 import { planSavedIdea } from '@/lib/idea-calendar-persistence';
+import { reelSectionTitle } from "../../../supabase/functions/_shared/reel-caption";
 import { calendarSaveError } from '@/lib/calendar-persistence';
 import { resumeIdea } from '@/lib/resume-idea';
 import { useState, useEffect, useRef } from "react";
@@ -359,7 +360,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
           <div className="bg-muted/30 rounded-lg p-3 space-y-2 text-xs">
             {(idea as any).content_data.script.map((scene: any, i: number) => (
               <div key={i} className="border-b border-border/30 pb-2 last:border-0 last:pb-0">
-                <span className="font-semibold text-muted-foreground">[{scene.timing}] {scene.section?.toUpperCase()}</span>
+                <span className="font-semibold text-muted-foreground">[{scene.timing}] {reelSectionTitle(scene)}</span>
                 <p className="text-foreground mt-0.5">"{scene.texte_parle}"</p>
                 {scene.texte_overlay && (
                   <p className="text-muted-foreground mt-0.5">📝 {scene.texte_overlay}</p>
