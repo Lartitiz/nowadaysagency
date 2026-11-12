@@ -93,6 +93,8 @@ export const CreateCheckoutSchema = z.object({
   mode: z.enum(["subscription", "payment"]).optional(),
   successUrl: optionalUrl,
   cancelUrl: optionalUrl,
+  /** Code de réduction Stripe tapé dans l'app : appliqué d'office au paiement. */
+  promotionCode: z.string().trim().min(1).max(64).optional(),
 });
 
 /* ─── assistant-chat ─── */

@@ -4,6 +4,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { findActiveStripePromotionCode } from "../_shared/stripe-promotion-code.ts";
 import { validateInput, ValidationError, CreateCheckoutSchema } from "../_shared/input-validators.ts";
 import { subscriptionCheckout, CheckoutConflict } from "./subscription-checkout.ts";
 
@@ -43,7 +44,7 @@ export async function handleCreateCheckoutRequest(req: Request) {
     }
     log("User authenticated");
 
-    const { priceId, mode, successUrl, cancelUrl } = validateInput(await req.json(), CreateCheckoutSchema);
+    const { priceId, mode, successUrl, cancelUrl, promotionCode } = validateInput(await req.json(), CreateCheckoutSchema);
     try { checkoutOffer(priceId, mode || "payment", false); } catch { throw new ValidationError("Cette offre n’est pas disponible."); }
     log("Request body parsed", { priceId, mode });
 
@@ -92,6 +93,17 @@ export async function handleCreateCheckoutRequest(req: Request) {
         user_id: user.id,
       },
     };
+
+    // Code de réduction tapé dans l'app : appliqué d'office (Stripe interdit
+    // d'avoir à la fois une réduction posée et le champ « Ajouter un code »).
+    if (promotionCode) {
+      if (mode !== "subscription") throw new ValidationError("Ce code de réduction s'applique à un abonnement.");
+      const discount = await findActiveStripePromotionCode(promotionCode, stripeKey);
+      if (!discount) throw new ValidationError("Ce code de réduction n'est plus valable.");
+      delete sessionParams.allow_promotion_codes;
+      sessionParams.discounts = [{ promotion_code: discount.id }];
+      log("Promotion code applied", { promotionCodeId: discount.id });
+    }
 
     // Prix du plan Binôme de com (studio_monthly) : engagement 6 mois
     const isBinome = mode === "subscription" && checkoutOffer(priceId, "subscription").plan === "binome";

@@ -1,8 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
-// Un code de réduction (tarif partenaire, géré par la page de paiement) tapé
-// dans « Tu as un code d'accès ? » : on dit où le saisir au lieu d'un simple « invalide ».
+// « Tu as un code d'accès ? » : un code de réduction Stripe est reconnu et mène
+// au paiement avec la réduction posée ; un code inconnu dit quoi faire.
+// Les réponses imitent invokeWithTimeout : un refus 400 arrive avec `error`
+// ET le message du serveur dans `data`.
 
 const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: invoke }));
@@ -11,21 +13,51 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: v
 
 import PromoCodeInput from "@/components/PromoCodeInput";
 
-describe("PromoCodeInput — code inconnu", () => {
-  it("indique la page de paiement pour un code de réduction", async () => {
-    invoke.mockResolvedValueOnce({ data: { error: "Code invalide ou expiré." }, error: null });
-    render(<PromoCodeInput />);
-    fireEvent.change(screen.getByPlaceholderText("MONCODE"), { target: { value: "PARTENAIRE" } });
-    fireEvent.click(screen.getByRole("button", { name: "Activer" }));
+function submit(code: string) {
+  render(<PromoCodeInput />);
+  fireEvent.change(screen.getByPlaceholderText("MONCODE"), { target: { value: code } });
+  fireEvent.click(screen.getByRole("button", { name: "Activer" }));
+}
+
+describe("PromoCodeInput — codes de réduction", () => {
+  beforeEach(() => invoke.mockReset());
+
+  it("code inconnu (refus 400) : indique où saisir un code de réduction", async () => {
+    invoke.mockResolvedValueOnce({
+      data: { error: "Code invalide ou expiré." },
+      error: { code: "SERVER_ERROR", message: "Code invalide ou expiré." },
+    });
+    submit("FAUTEDEFRAPPE");
     await waitFor(() => expect(screen.getByRole("status").textContent).toContain("Ajouter un code promotionnel"));
   });
 
-  it("ne l'affiche pas pour un code déjà utilisé", async () => {
-    invoke.mockResolvedValueOnce({ data: { error: "Tu as déjà utilisé ce code." }, error: null });
-    render(<PromoCodeInput />);
-    fireEvent.change(screen.getByPlaceholderText("MONCODE"), { target: { value: "DEJA" } });
-    fireEvent.click(screen.getByRole("button", { name: "Activer" }));
-    await waitFor(() => expect(invoke).toHaveBeenCalledTimes(2));
+  it("code déjà utilisé : pas d'indice", async () => {
+    invoke.mockResolvedValueOnce({
+      data: { error: "Tu as déjà utilisé ce code." },
+      error: { code: "SERVER_ERROR", message: "Tu as déjà utilisé ce code." },
+    });
+    submit("DEJA");
+    await waitFor(() => expect(invoke).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("code de réduction Stripe : affiche la réduction puis ouvre le paiement avec le code", async () => {
+    invoke
+      .mockResolvedValueOnce({ data: { discount: { id: "promo_1", code: "PARTENAIRE", label: "-10 € par mois" } }, error: null })
+      .mockResolvedValueOnce({ data: { url: "https://checkout.stripe.test/x" }, error: null });
+    const assign = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, "location", { configurable: true, value: { ...original, pathname: "/pricing", origin: "https://app.test", set href(v: string) { assign(v); } } });
+    try {
+      submit("PARTENAIRE");
+      await screen.findByText(/Code de réduction reconnu : -10 € par mois/);
+      fireEvent.click(screen.getByRole("button", { name: "Passer au paiement avec cette réduction" }));
+      await waitFor(() => expect(assign).toHaveBeenCalledWith("https://checkout.stripe.test/x"));
+      const [fn, opts] = invoke.mock.calls[1];
+      expect(fn).toBe("create-checkout");
+      expect(opts.body).toMatchObject({ mode: "subscription", promotionCode: "PARTENAIRE", cancelUrl: "https://app.test/pricing?checkout=cancelled" });
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: original });
+    }
   });
 });

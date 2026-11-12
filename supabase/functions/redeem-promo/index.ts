@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { findActiveStripePromotionCode } from "../_shared/stripe-promotion-code.ts";
 
 // Code promo → cohorte vidéo Studio (table studio_video_cohort_access).
 export const COHORT_PROMO_CODES: Record<string, string> = { BDMMA: "bdmma" };
@@ -43,6 +44,15 @@ export async function handleRedeemPromoRequest(req: Request): Promise<Response> 
       .single();
 
     if (promoErr || !promo) {
+      // Pas un code d'accès : peut-être un code de réduction Stripe (tarif
+      // partenaire…). Il ne s'active pas ici, il s'applique au paiement.
+      const discount = await findActiveStripePromotionCode(upperCode);
+      if (discount) {
+        return new Response(JSON.stringify({ discount }), {
+          headers: { ...cors, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
       return new Response(JSON.stringify({ error: "Code invalide ou expiré." }), {
         headers: { ...cors, "Content-Type": "application/json" },
         status: 400,
