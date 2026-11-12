@@ -15,6 +15,7 @@ import { formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFall
 import { parseAudienceAddress } from "../_shared/audience-address.ts";
 import { livedCaseFromCreativeBody } from "../_shared/lived-case.ts";
 import { SYSTEM_CACHE_BREAK } from "../_shared/system-cache.ts";
+import { investmentSolicitationBlock } from "../_shared/investment-solicitation.ts";
 
 export function buildRequestContext(params: {
   body: any;
@@ -178,6 +179,10 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     );
     objectiveBlock = `\n${key ? objectiveGuidance[key] : `OBJECTIF DU CONTENU : ${effectiveObjective}\nAdapte le ton, la structure et le CTA pour atteindre cet objectif.`}\n`;
   }
+
+  // Appel à investir (QA du 12/11/2026) : règle ferme ajoutée SEULEMENT si la
+  // demande parle de faire investir ou prêter d'autres personnes, tous formats.
+  objectiveBlock += investmentSolicitationBlock(body.context, body.answers, body.followUpAnswers, body.news_context, body.sourceText);
 
   return { newsContextBlock, brandingContext, brandGuardText, audienceAddress, brandVocabBlock, preGenBlock, fullContext, activity, COMMON_PREFIX, QUESTIONS_PREFIX, calendarBlock, effectiveObjective, objectiveBlock };
 }
