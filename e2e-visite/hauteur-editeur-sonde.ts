@@ -25,6 +25,7 @@
  * régressé, 🟠.
  */
 import type { Page } from "@playwright/test";
+import { mesureBoutonBeta } from "./beta-bouton-sonde";
 
 // Seuils (au-delà = 🟠) : mesuré à cet endroit du test (titre de la slide 1 choisi) —
 // carrousel 1,85 / 2,22 écrans, 58 commandes (17/10/2026, slide qui tient au-dessus de la
@@ -53,6 +54,7 @@ export async function sondeHauteurEditeur(page: Page, label: keyof typeof SEUILS
     const avant = page.viewportSize();
     const ecrans: Record<string, number> = {};
     let commandes = -1;
+    let beta = { texte: "BÊTA non vérifié", ko: false };
     // Par taille : pixels de slide cachés sous la barre « Publier » (haut de page) et largeur ; null = non mesuré.
     const slides: { nom: string; cache: number | null; largeur: number }[] = [];
     for (const vp of VIEWPORTS) {
@@ -83,6 +85,8 @@ export async function sondeHauteurEditeur(page: Page, label: keyof typeof SEUILS
       ecrans[vp.nom] = r.ecrans;
       slides.push({ nom: vp.nom === "telephone" ? "téléphone" : vp.nom, cache: r.cache, largeur: r.largeur });
       if (vp.nom === "ordi") commandes = r.visibles;
+      // Bouton BÊTA (12/11/2026, après #1886) : à 390 px, il ne doit rien recouvrir.
+      if (vp.nom === "telephone") beta = await mesureBoutonBeta(page);
     }
     if (avant) await page.setViewportSize(avant);
     const s = SEUILS[label];
@@ -92,8 +96,8 @@ export async function sondeHauteurEditeur(page: Page, label: keyof typeof SEUILS
     const slide = label !== "carrousel" ? ""
       : ` · slide 1 : ${slides.map((x) => `${x.nom} ${x.cache === null ? "non vérifiée" : x.cache > 0 ? `coupée ${x.cache} px 🟠` : petite(x) ? `${x.largeur} px, trop petite 🟠` : `✅ ${x.largeur} px`}`).join(" · ")}`;
     const slideKo = label === "carrousel" && slides.some((x) => (x.cache ?? 0) > 0 || petite(x));
-    const alerte = ecrans.ordi > s.ordi || ecrans.telephone > s.telephone || commandes > s.commandes || slideKo ? " 🟠" : "";
-    console.log(`📏 Hauteur (${label}) : ordi ${fr(ecrans.ordi)} · téléphone ${fr(ecrans.telephone)} écrans · ${commandes} commandes visibles${slide}${alerte}`);
+    const alerte = ecrans.ordi > s.ordi || ecrans.telephone > s.telephone || commandes > s.commandes || slideKo || beta.ko ? " 🟠" : "";
+    console.log(`📏 Hauteur (${label}) : ordi ${fr(ecrans.ordi)} · téléphone ${fr(ecrans.telephone)} écrans · ${commandes} commandes visibles${slide} · ${beta.texte}${alerte}`);
   } catch (e) {
     console.log(`📏 Hauteur (${label}) : non vérifié (${e instanceof Error ? e.message.slice(0, 80) : "?"})`);
   }
