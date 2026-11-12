@@ -3,6 +3,10 @@ export const LIBRARY_PHOTOS_FOR_PHOTO_CAROUSEL = 3;
 
 export function recommendContentFormat(channel: string, photoCount: number, idea: string, libraryPhotoCount = 0) {
   if (channel === "newsletter") return { format: "newsletter", label: "Newsletter", reason: "Pour développer ton sujet dans un email." };
+  // Plusieurs photos chargées : l'écran annonce « on part forcément sur un
+  // carrousel », le conseil doit suivre (vu en live le 12/11/2026 : « Post »
+  // restait conseillé sur LinkedIn avec 4 photos).
+  if (channel === "linkedin" && photoCount > 1) return { format: "carousel", mode: "photo" as const, label: "Carrousel avec tes photos", reason: "Tu as plusieurs photos : une image et un texte court par slide permettent de les raconter." };
   if (channel === "linkedin") return { format: "linkedin", label: "Post LinkedIn", reason: "Pour partager une idée clairement, avec une photo si tu le souhaites." };
   if (channel === "pinterest") return { format: "pinterest", label: "Épingle", reason: "Pour présenter ton sujet et guider vers une page de ton site." };
   if (photoCount > 1) return { format: "carousel", mode: "photo" as const, label: "Carrousel avec tes photos", reason: "Tu as plusieurs photos : une image et un texte court par slide permettent de les raconter." };

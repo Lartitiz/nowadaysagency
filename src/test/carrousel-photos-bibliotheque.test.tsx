@@ -90,6 +90,8 @@ describe("suite du 17/10/2026", () => {
     expect(recommendContentFormat("instagram", 0, "Mon atelier", 2).format).toBe("post");
     expect(recommendContentFormat("instagram", 1, "Mon atelier", 5).format).toBe("post");
     expect(recommendContentFormat("linkedin", 0, "Mon atelier", 5).format).toBe("linkedin");
+    expect(recommendContentFormat("linkedin", 4, "Mon chantier")).toMatchObject({ format: "carousel", mode: "photo" });
+    expect(recommendContentFormat("linkedin", 1, "Mon chantier").format).toBe("linkedin");
   });
 
   it("écran « Quel format ? » : Suivant mène au carrousel photo quand Mes photos en a 4", () => {
