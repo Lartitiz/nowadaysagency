@@ -166,6 +166,8 @@ it("photo d'un lieu : « Retoucher avec mes mots » ouvre le Studio, « Changer 
   const onStudio = vi.fn();
   const p = photo({ kind: "ambiance", name: "Salon" });
   wrap(<PhotoDetailDialog photo={p} open onOpenChange={vi.fn()} onRetouche={vi.fn()} onStudio={onStudio} />);
+  // Pas de doublon : le bouton « Retravailler dans le Studio » mène au même endroit.
+  expect(screen.queryByRole("button", { name: /Retravailler dans le Studio/ })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /Préparer \/ modifier/ }));
   expect(screen.getByText("Autres outils…")).toBeVisible();
   expect(screen.getByRole("button", { name: /Changer le décor/ })).not.toBeVisible();
@@ -178,4 +180,5 @@ it("portrait : « Changer le décor » reste proposé directement", () => {
   fireEvent.click(screen.getByRole("button", { name: /Préparer \/ modifier/ }));
   expect(screen.getByRole("button", { name: /Changer le décor/ })).toBeVisible();
   expect(screen.queryByRole("button", { name: /Retoucher avec mes mots/ })).toBeNull();
+  expect(screen.getByRole("button", { name: /Retravailler dans le Studio/ })).toBeVisible();
 });
