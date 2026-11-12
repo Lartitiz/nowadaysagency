@@ -28,6 +28,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import GenerationFailedNotice from "./GenerationFailedNotice";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   discardPhotoAttempt,
@@ -60,6 +61,8 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
   // Id dans « Mes photos » du résultat affiché (null tant qu'il n'est pas rangé).
   const [resultPhotoId, setResultPhotoId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // Échec qui reste affiché (12/11/2026) : le toast seul disparaissait.
+  const [failure, setFailure] = useState<string | null>(null);
 
   // Reset + chargement de la source à chaque ouverture
   useEffect(() => {
@@ -71,6 +74,7 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
     setResultBase64(null);
     setResultPhotoId(null);
     setIsSaving(false);
+    setFailure(null);
     let cancelled = false;
     userPhotoToRawBase64(photo)
       .then((b64) => {
@@ -89,6 +93,7 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
   const handleGenerate = async () => {
     if (!sourceBase64 || isGenerating) return;
     setIsGenerating(true);
+    setFailure(null);
 
     const { data, error } = await invokeWithTimeout(
       "photoroom-edit",
@@ -106,9 +111,9 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
 
     if (error || !data?.image_base64) {
       setIsGenerating(false);
-      toast.error("Packshot impossible", {
-        description: error?.message || "Réessaie dans quelques instants.",
-      });
+      const message = error?.message || "Réessaie dans quelques instants.";
+      setFailure(message);
+      toast.error("Packshot impossible", { description: message });
       return;
     }
     // Image payée : rangée tout de suite, avant même qu'on la regarde.
@@ -307,6 +312,15 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
 
         {/* 4 boutons ne tiennent pas dans max-w-2xl : Annuler disparaît après
             génération (le X ferme) et le footer peut wrapper au besoin. */}
+        {failure && !busy && (
+          <GenerationFailedNotice
+            message={failure}
+            onRetry={() => void handleGenerate()}
+            disabled={!sourceBase64}
+            title="La photo sur fond blanc n'a pas abouti"
+            retryLabel="Réessayer le fond blanc"
+          />
+        )}
         <DialogFooter className="flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
           {!resultBase64 && (
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
