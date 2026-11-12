@@ -37,17 +37,16 @@ import StorySequenceReaderDialog from "@/components/stories/StorySequenceReaderD
 import StoryVisualDirectControls from "@/components/stories/StoryVisualDirectControls";
 import StoryNav from "@/components/stories/StoryNav";
 import StoryPersonalAnchor from "@/components/stories/StoryPersonalAnchor";
+import StoryStructureControls from "@/components/stories/StoryStructureControls";
+import StoryTextSizeControl from "@/components/stories/StoryTextSizeControl";
+import StoryRedo from "@/components/stories/StoryRedo";
+import { useStoryStructure } from "@/components/stories/use-story-structure";
+import { attachedPhotoSlots, attachedPhotoUrl, pinAttachedPhotos, type AttachedPhotoLike } from "@/lib/story-attached-photos";
 
 /** Photos signées d'avance, dans lesquelles chaque story pioche. */
 const LIBRARY_POOL = 12;
 /** Vignettes réellement montrées sous une story. */
 const LIBRARY_STRIP = 4;
-
-interface PhotoLike {
-  preview?: string;
-  base64?: string;
-  mimeType?: string;
-}
 
 /** Actions d'export remontées au panneau minimal (#608) quand des frames existent. */
 export interface StoryExportActions {
@@ -64,7 +63,7 @@ export interface StoryExportActions {
 interface Props {
   result: any;
   onStoriesUpdate?: (stories: any[]) => void;
-  photos?: PhotoLike[];
+  photos?: AttachedPhotoLike[];
   /**
    * Quand fourni, les exports vivent dans le panneau d'actions du parent
    * (héros Canva + menu « Autres actions ») et la rangée de boutons locale
@@ -151,46 +150,12 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
       }
     : null;
 
-  // Photos attachées à la création (lot D) : 1 photo = fil visuel de toute la
-  // séquence (comportement historique) ; 2+ photos = réparties UNE par story à
-  // fond photo, dans l'ordre. Les photos venues de la bibliothèque
-  // (userPhotoId) sont déjà placées par la génération (photo_id) — on ne
-  // distribue que les uploads frais, sans doublonner.
-  const attachedByStory = useMemo(() => {
-    const itemUrl = (ph: any): string | null =>
-      ph?.preview || (ph?.base64 ? `data:${ph.mimeType || "image/jpeg"};base64,${ph.base64}` : null);
-    const map = new Map<number, string>();
-    if (!photos?.length) return map;
-
-    if (photos.length === 1) {
-      const url = itemUrl(photos[0]);
-      if (url) {
-        stories.forEach((s: any, i: number) => {
-          if (s?.visual?.background === "photo") map.set(i, url);
-        });
-      }
-      return map;
-    }
-
-    const assignedLibraryIds = new Set(
-      stories.map((s: any) => s?.visual?.photo_id).filter(Boolean),
-    );
-    const pool = photos.filter(
-      (p: any) => !p.userPhotoId || !assignedLibraryIds.has(p.userPhotoId),
-    );
-    let k = 0;
-    stories.forEach((s: any, i: number) => {
-      const v = s?.visual;
-      if (!v || v.background !== "photo" || v.photo_id || v.photo_url) return;
-      if (k >= pool.length) return;
-      const url = itemUrl(pool[k]);
-      if (url) {
-        map.set(i, url);
-        k++;
-      }
-    });
-    return map;
-  }, [photos, stories]);
+  // Photos attachées à la création (lot D) : voir story-attached-photos.ts.
+  const attachedSlots = useMemo(() => attachedPhotoSlots(stories, photos), [photos, stories]);
+  const attachedByStory = useMemo(
+    () => new Map([...attachedSlots].map(([i, slot]) => [i, attachedPhotoUrl(photos?.[slot])!])),
+    [attachedSlots, photos],
+  );
 
   // Photos de bibliothèque assignées par la génération (visual.photo_id) :
   // résolues en URLs signées à l'affichage, jamais persistées (elles expirent).
@@ -670,7 +635,11 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
 
   // Suppression d'une story : confirmation obligatoire, jamais la dernière.
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  // Chantier 4 : déplacer, dupliquer, ajouter (sans IA), clés stables par story.
+  const structure = useStoryStructure({ stories, resetSignal: rawSignature, setStories, onStoriesUpdate, setCurrent: setCurrentStory,
+    prepare: (list) => pinAttachedPhotos(list, attachedSlots) });
   const removeStory = useCallback((index: number) => {
+    if (stories.length > 1) structure.forget(index);
     setStories((prev) => {
       if (prev.length <= 1) return prev;
       const updated = prev.filter((_, i) => i !== index);
@@ -680,7 +649,8 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     setPickerFor((prev) => (prev === null ? null : prev === index ? null : prev > index ? prev - 1 : prev));
     setDeleteTarget(null);
     toast.success("Story supprimée. Les suivantes ont été renumérotées.");
-  }, [onStoriesUpdate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onStoriesUpdate, stories.length]);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -731,7 +701,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
       <StoryNav count={stories.length} current={shownStory} onChange={setCurrentStory} />
       <div className="space-y-2" data-selection-enabled="true">
         {stories.map((story: any, i: number) => (
-          <Card key={i} className="border-border" hidden={i !== shownStory}>
+          <Card key={structure.keys[i] ?? i} className="border-border" hidden={i !== shownStory}>
             <CardContent className="p-3">
               <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="flex-1 min-w-0 space-y-1.5">
@@ -773,7 +743,15 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                         Supprimer la story
                       </Button>
                     )}
+                    <StoryRedo number={i + 1} total={stories.length} role={story.role ? formatSlideRole(story.role) : null} text={getStoryText(story)}
+                      previous={i > 0 ? getStoryText(stories[i - 1]) : null} next={i < stories.length - 1 ? getStoryText(stories[i + 1]) : null}
+                      listNote={story.visual?.gabarit === "liste"} onKeep={((key) => (text: string) => {
+                        const at = structure.indexOfKey(key);
+                        if (at < 0) toast.error("Cette story n'existe plus : rien n'a été changé."); else updateStoryText(at, text);
+                      })(structure.keys[i])} />
                   </div>
+                  <StoryStructureControls index={i} count={stories.length} onMove={(to) => structure.move(i, to)}
+                    onDuplicate={() => structure.duplicate(i)} onAdd={() => structure.add(i)} />
                   <div className="space-y-1 pt-1">
                     <label htmlFor={`story-${i}-full-text`} className="text-2xs font-medium text-muted-foreground">
                       Texte de la story
@@ -864,6 +842,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                             onClick={() => setTextPosition(i, value)}>{label}</Button>
                         ))}
                       </div>
+                      <StoryTextSizeControl value={story.visual.text_size} onChange={(text_size) => updateVisualViewport(i, { text_size })} />
                       {story.visual.face_avoidance_applied && (
                         <p className="text-2xs text-muted-foreground">
                           Le fond semble montrer une personne : le texte a été placé en bas pour dégager le visage. Tu peux le déplacer sur l'aperçu.

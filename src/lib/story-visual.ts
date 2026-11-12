@@ -43,6 +43,8 @@ export interface StoryVisualPlan {
   photo_position_x?: number | null;
   photo_position_y?: number | null;
   photo_zoom?: number | null;
+  /** Taille du texte choisie story par story (absente = moyen, rendu historique). */
+  text_size?: StoryTextSize | null;
   /** Une édition explicite ne doit pas être masquée par les gardes IA. */
   body_pill_edited?: boolean;
   gabarit?: StoryGabarit | string | null;
@@ -64,6 +66,15 @@ export interface StoryVisualPlan {
   photo_url?: string | null;
   /** Crédit stock si photo_url vient de Pexels (lot C). */
   photo_stock_credit?: { photographer?: string | null; source_url?: string | null } | null;
+}
+
+export type StoryTextSize = "petit" | "moyen" | "grand";
+
+/** Facteur appliqué à tous les textes de la story (aperçu, PNG et PPTX lisent le même HTML). */
+export const STORY_TEXT_SIZE_FACTOR: Record<StoryTextSize, number> = { petit: 0.82, moyen: 1, grand: 1.2 };
+
+export function storyTextSizeFactor(size: unknown): number {
+  return typeof size === "string" && size in STORY_TEXT_SIZE_FACTOR ? STORY_TEXT_SIZE_FACTOR[size as StoryTextSize] : 1;
 }
 
 export interface StoryStickerPlan {
@@ -201,6 +212,8 @@ interface RenderCtx {
   p: Palette;
   style: StoryStyleResolved;
   asm: StoryAssemblage;
+  /** Taille du texte choisie sur la story (1 = moyen). */
+  textScale: number;
 }
 
 type Role = "title" | "body" | "aside" | "quote" | "attribution" | "item";
@@ -243,7 +256,7 @@ function textBlock(text: string, st: StoryTextStyle, ctx: RenderCtx, role: Role,
   const base = [
     "display:inline",
     `font-family:${s.font}`,
-    `font-size:${Math.round(s.size)}px`,
+    `font-size:${Math.round(s.size * ctx.textScale)}px`,
     `font-weight:${s.weight}`,
     `line-height:${STORY_PILL.lineHeight}`,
     s.italic ? "font-style:italic" : "",
@@ -422,7 +435,7 @@ export function buildStoryFrameHtml(
   const style = resolveStoryStyle(branding);
   const asm = getStoryAssemblage(style.assemblage);
   const p = buildPalette(branding, style);
-  const ctx: RenderCtx = { p, style, asm };
+  const ctx: RenderCtx = { p, style, asm, textScale: storyTextSizeFactor(visual.text_size) };
   const preview = opts.preview !== false;
   const gabarit = (visual.gabarit || "fond_pills") as StoryGabarit;
   const justify = visual.text_position === "top" ? "flex-start"
