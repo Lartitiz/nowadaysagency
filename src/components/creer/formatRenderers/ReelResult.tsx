@@ -25,6 +25,7 @@ import { reelSourceKey } from "@/lib/reel-publication";
  * visiblement un SOUS-niveau, et rendent le saut direct vers « Légende »
  * évident au lieu de le cacher derrière une pastille « 4 ».
  */
+import { readableShotPurpose, shotTypeLabel } from "@/lib/reel-shot-purpose";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -345,8 +346,8 @@ function ScriptStep({
       {lectureTest && (
         <div className="rounded-lg bg-accent/30 border border-accent p-4 space-y-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-foreground uppercase tracking-wide">📖 Lecture face cam</span>
-            <Badge variant="secondary" className="text-2xs">monologue continu</Badge>
+            <span className="text-xs font-bold text-foreground uppercase tracking-wide">📖 Ton texte en entier</span>
+            <Badge variant="secondary" className="text-2xs">à lire d'une traite</Badge>
           </div>
           <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{lectureTest}</p>
           <p className="text-2xs text-muted-foreground italic">Lis ce texte d'une traite à voix haute. S'il sonne fluide → tu peux tourner. S'il sonne robotique → relance la génération.</p>
@@ -405,7 +406,9 @@ function TournageStep({ planTournage, personalTip }: { planTournage: any[]; pers
           <Badge variant="secondary" className="text-2xs">{planTournage.length} plans</Badge>
         </div>
         <p className="text-2xs text-muted-foreground">
-          Tout se tourne au téléphone, dans cet ordre — les prises face cam d'abord, les plans de coupe ensuite.
+          {planTournage.some((shot: any) => shot?.type === "face_cam")
+            ? "Tout se tourne au téléphone, dans cet ordre : d'abord les prises où tu parles face caméra, ensuite les plans d'illustration."
+            : "Tout se tourne au téléphone, dans cet ordre. Tu n'apparais pas : ta voix se posera sur ces plans."}
         </p>
         <div className="space-y-2">
           {planTournage.map((shot: any, i: number) => (
@@ -414,13 +417,13 @@ function TournageStep({ planTournage, personalTip }: { planTournage: any[]; pers
               <div className="min-w-0 space-y-0.5">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <Badge variant="secondary" className="text-2xs">
-                    {shot.type === "face_cam" ? "🎤 Face cam" : shot.type === "insert" ? "🔍 Insert" : "🎬 B-roll"}
+                    {shotTypeLabel(shot.type)}
                   </Badge>
                   {shot.duree && <span className="font-mono text-2xs text-muted-foreground">{shot.duree}</span>}
                 </div>
                 {shot.plan && <p className="text-sm text-foreground leading-snug">{shot.plan}</p>}
                 {shot.sert_pour && (
-                  <p className="text-2xs text-muted-foreground">Sert pour : {shot.sert_pour}</p>
+                  <p className="text-2xs text-muted-foreground">Sert pour : {readableShotPurpose(String(shot.sert_pour))}</p>
                 )}
                 {shot.conseil && <p className="text-xs text-muted-foreground">💡 {shot.conseil}</p>}
               </div>

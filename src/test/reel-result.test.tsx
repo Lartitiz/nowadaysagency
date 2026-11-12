@@ -139,8 +139,11 @@ describe("ReelResult — parcours en 4 étapes", () => {
     expect(screen.getByText("🎥 Ton plan de tournage")).toBeTruthy();
     expect(screen.getByText("2 plans")).toBeTruthy();
     expect(screen.getByText(/Toi face caméra dans ton atelier/)).toBeTruthy();
-    expect(screen.getByText("🎤 Face cam")).toBeTruthy();
-    expect(screen.getByText("🎬 B-roll")).toBeTruthy();
+    expect(screen.getByText("🎤 Face caméra")).toBeTruthy();
+    expect(screen.getByText("🎬 Plan d'illustration")).toBeTruthy();
+    // Identifiants internes traduits (QA du 12/11/2026) : plus de « hook + cta » ni « body 1 ».
+    expect(screen.getByText("Sert pour : l'accroche + la fin")).toBeTruthy();
+    expect(screen.getByText("Sert pour : plan de coupe passage 1")).toBeTruthy();
     // …et le script n'est plus là : une étape à la fois.
     expect(screen.queryByText(/On m'a dit que c'était un hobby/)).toBeNull();
   });
