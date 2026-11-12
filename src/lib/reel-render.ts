@@ -24,8 +24,35 @@ export type {
   CharterForSubtitles,
 } from "@/lib/reel-plan";
 
+/**
+ * Durée maximale d'un reel monté : celle de l'abonnement JSON2Video (60 s au
+ * 12/11/2026). Au-delà, le moteur refuse en anglais (« Movie duration (62s) is
+ * longer than your plan allowance (60s). Upgrade your plan ») après une minute
+ * d'attente. On refuse donc AVANT l'envoi, en français, avec quoi faire.
+ */
+export const MAX_REEL_SECONDS = 60;
+
+/** Durée totale du reel tel qu'il partira au montage, en secondes. */
+export function renderPlanSeconds(plan: Pick<RenderPlan, "sections">): number {
+  return plan.sections.reduce((total, s) => total + (Number.isFinite(s.duration) ? s.duration : 0), 0);
+}
+
+export function reelTooLongMessage(seconds: number, max = MAX_REEL_SECONDS): string {
+  return `Ton reel dure environ ${Math.ceil(seconds)} s, et le montage automatique s'arrête à ${max} s. `
+    + "Raccourcis le texte avec « Éditer le texte » (ou retire un passage), puis relance l'assemblage.";
+}
+
+/** Traduit les refus connus du moteur de montage ; renvoie le message tel quel sinon. */
+export function readableRenderMessage(message: string): string {
+  const tooLong = /movie duration \((\d+(?:\.\d+)?)s\) is longer than your plan allowance \((\d+)s\)/i.exec(message);
+  if (tooLong) return reelTooLongMessage(Number(tooLong[1]), Number(tooLong[2]));
+  return message;
+}
+
 /** Lance un rendu. Renvoie l'identifiant de projet. */
 export async function submitReelRender(plan: RenderPlan): Promise<string> {
+  const seconds = renderPlanSeconds(plan);
+  if (seconds > MAX_REEL_SECONDS) throw new Error(reelTooLongMessage(seconds));
   const { data, error } = await supabase.functions.invoke("reel-render", {
     body: { action: "submit", ...plan },
   });
@@ -69,7 +96,7 @@ export async function pollReelRender(
     const st = await fetchRenderStatus(project);
     if (st.status === "done" && st.url) return st.url;
     if (st.status === "error") {
-      throw new Error(st.message || "Le montage a échoué.");
+      throw new Error(st.message ? readableRenderMessage(st.message) : "Le montage a échoué.");
     }
   }
   throw new Error("Le montage prend plus de temps que prévu. Réessaie dans un instant.");
