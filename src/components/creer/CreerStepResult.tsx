@@ -21,6 +21,7 @@ import { CarouselDraftPreview, type DraftSlide } from "@/components/creer/Carous
 
 import ResultActions from "@/components/creer/ResultActions";
 import GenerationTimeHint from "@/components/creer/GenerationTimeHint";
+import { waitPhaseEnded, waitPhaseStarted } from "@/lib/generation-wait-clock";
 import { getIncludeLogoPref, setIncludeLogoPref } from "@/lib/export-logo";
 
 /**
@@ -366,6 +367,8 @@ export default function CreerStepResult({
   const [visualProgressIndex, setVisualProgressIndex] = useState(0);
   const [visualProgress, setVisualProgress] = useState(0);
   const startTimeRef = useRef(Date.now());
+  // « Déjà X s » : depuis le clic, plan des slides compris (generation-wait-clock).
+  const waitStartRef = useRef(Date.now());
   // Actions d'export des stories, remontées par StoryResult (null = pas de frame) :
   // le panneau minimal les affiche au même endroit que pour les carrousels.
   const [storyActions, setStoryActions] = useState<StoryExportActions | null>(null);
@@ -399,6 +402,7 @@ export default function CreerStepResult({
       return;
     }
     startTimeRef.current = Date.now();
+    waitStartRef.current = waitPhaseStarted(startTimeRef.current);
 
     const msgInterval = setInterval(() => {
       setMessageIndex((prev) => (prev + 1) % messages.length);
@@ -419,6 +423,7 @@ export default function CreerStepResult({
       clearInterval(msgInterval);
       clearInterval(tipInterval);
       clearInterval(progressInterval);
+      waitPhaseEnded();
     };
   }, [generating, messages.length]);
 
@@ -475,7 +480,7 @@ export default function CreerStepResult({
               <span className="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5" />
             </div>
             <p className="text-xs text-center text-muted-foreground">L'IA rédige en temps réel…</p>
-            <GenerationTimeHint format={format} startedAt={startTimeRef.current} afterPlan={step2of2} />
+            <GenerationTimeHint format={format} startedAt={waitStartRef.current} afterPlan={step2of2} />
           </div>
         );
       }
@@ -494,7 +499,7 @@ export default function CreerStepResult({
             </div>
           )}
           <CarouselDraftPreview slides={draftSlides ?? []} outline={outlineTitles} stage={generationStage} photos={photos} />
-          <GenerationTimeHint format={format} startedAt={startTimeRef.current} afterPlan={step2of2} />
+          <GenerationTimeHint format={format} startedAt={waitStartRef.current} afterPlan={step2of2} />
           {qualityMax && (
             <p className="text-xs text-center text-primary/80 font-medium">
               ✨ Rédaction la plus soignée activée — c'est plus long, mais ça en vaut la peine.
@@ -534,7 +539,7 @@ export default function CreerStepResult({
               style={{ width: `${displayedProgress}%` }}
             />
           </div>
-          <GenerationTimeHint format={format} startedAt={startTimeRef.current} afterPlan={step2of2} />
+          <GenerationTimeHint format={format} startedAt={waitStartRef.current} afterPlan={step2of2} />
           {qualityMax ? (
             <p className="text-xs text-center text-primary/80 font-medium">
               ✨ Rédaction la plus soignée activée — c'est plus long, mais ça en vaut la peine.
