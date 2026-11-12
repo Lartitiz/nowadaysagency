@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Camera, Clock3, Download, FileDown, ImageIcon, Loader2, Palette, Play, Trash2 } from "lucide-react";
+import { Camera, Clock3, Download, FileDown, ImageIcon, Loader2, Palette, Play } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,9 +37,8 @@ import StorySequenceReaderDialog from "@/components/stories/StorySequenceReaderD
 import StoryVisualDirectControls from "@/components/stories/StoryVisualDirectControls";
 import StoryNav from "@/components/stories/StoryNav";
 import StoryPersonalAnchor from "@/components/stories/StoryPersonalAnchor";
-import StoryStructureControls from "@/components/stories/StoryStructureControls";
+import { StoryActionsMenu, StoryStructureRow } from "@/components/stories/StoryActionsMenu";
 import StoryTextSizeControl from "@/components/stories/StoryTextSizeControl";
-import StoryRedo from "@/components/stories/StoryRedo";
 import { useStoryStructure } from "@/components/stories/use-story-structure";
 import { attachedPhotoSlots, attachedPhotoUrl, pinAttachedPhotos, type AttachedPhotoLike } from "@/lib/story-attached-photos";
 
@@ -726,29 +725,20 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                       ) : (
                         <>
                           <Camera className="h-3.5 w-3.5" />
-                          Me filmer à la place
+                          Me filmer<span className="hidden min-[400px]:inline"> à la place</span>
                         </>
                       )}
                     </Button>
-                    {stories.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2.5 text-2xs gap-1.5 font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteTarget(i)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Supprimer la story
-                      </Button>
-                    )}
-                    <StoryRedo number={i + 1} total={stories.length} role={story.role ? formatSlideRole(story.role) : null} text={getStoryText(story)}
-                      previous={i > 0 ? getStoryText(stories[i - 1]) : null} next={i < stories.length - 1 ? getStoryText(stories[i + 1]) : null}
-                      listNote={story.visual?.gabarit === "liste"} onKeep={((key) => (text: string) => {
-                        const at = structure.indexOfKey(key);
-                        if (at < 0) toast.error("Cette story n'existe plus : rien n'a été changé."); else updateStoryText(at, text);
-                      })(structure.keys[i])} />
+                    <StoryActionsMenu index={i} count={stories.length} onDelete={() => setDeleteTarget(i)} onMove={(to) => structure.move(i, to)}
+                      onDuplicate={() => structure.duplicate(i)} onAdd={() => structure.add(i)}
+                      redo={{ number: i + 1, total: stories.length, role: story.role ? formatSlideRole(story.role) : null, text: getStoryText(story),
+                        previous: i > 0 ? getStoryText(stories[i - 1]) : null, next: i < stories.length - 1 ? getStoryText(stories[i + 1]) : null,
+                        listNote: story.visual?.gabarit === "liste", onKeep: ((key) => (text: string) => {
+                          const at = structure.indexOfKey(key);
+                          if (at < 0) toast.error("Cette story n'existe plus : rien n'a été changé."); else updateStoryText(at, text);
+                        })(structure.keys[i]) }} />
                   </div>
-                  <StoryStructureControls index={i} count={stories.length} onMove={(to) => structure.move(i, to)}
+                  <StoryStructureRow index={i} count={stories.length} onMove={(to) => structure.move(i, to)}
                     onDuplicate={() => structure.duplicate(i)} onAdd={() => structure.add(i)} />
                   <div className="space-y-1 pt-1">
                     <label htmlFor={`story-${i}-full-text`} className="text-2xs font-medium text-muted-foreground">

@@ -17,7 +17,7 @@ export default function CarouselSaveStatus({
   if (!save.enabled) return null;
   const label =
     save.status === "saved" && !typing
-      ? "Tout est enregistré dans ton compte"
+      ? <>Tout est enregistré<span className="hidden sm:inline"> dans ton compte</span></>
       : save.status === "saving" || (typing && save.status === "saved")
         ? "Enregistrement en cours…"
         : save.status === "offline"
@@ -29,10 +29,11 @@ export default function CarouselSaveStatus({
               : "Sauvegarde automatique en préparation…";
   return (
     <div
-      className="rounded-xl border px-3 py-2 space-y-1 text-xs"
+      className="rounded-xl border px-3 py-1.5 sm:py-2 text-xs md:space-y-1 max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-2 max-md:gap-y-1"
       aria-label="Sauvegarde automatique"
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      {/* Téléphone : une seule ligne (statut, calendrier, versions) ; « Mes idées » est déjà dans la barre du bas. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 max-md:contents">
         <p role="status" aria-live="polite" className="flex items-center gap-1.5">
           {label}
           <HelpTip label="sauvegarde">
@@ -40,7 +41,7 @@ export default function CarouselSaveStatus({
             chaque jour précédent (8 au plus, selon leur taille). Restaurer garde d’abord la version actuelle.
           </HelpTip>
         </p>
-        <Link className="underline" to="/idees">
+        <Link className="underline max-md:hidden" to="/idees">
           Retrouver dans Mes idées
         </Link>
         {["error", "offline"].includes(save.status) && (
@@ -56,9 +57,9 @@ export default function CarouselSaveStatus({
       </div>
       {calendar && <CalendarFollowLine calendar={calendar} />}
       {!!save.history.length && (
-        <details className="text-xs">
+        <details className="text-xs max-md:open:basis-full">
           <summary className="cursor-pointer py-1 font-medium">
-            Historique des versions ({save.history.length})
+            <span className="max-md:hidden">Historique des versions</span><span className="md:hidden">Versions</span> ({save.history.length})
           </summary>
           <ul className="space-y-1.5 pt-1" aria-label="Versions précédentes">
             {save.history.map((v) => (
@@ -106,9 +107,14 @@ function CalendarFollowLine({ calendar }: { calendar: ReturnType<typeof useCalen
                 ? `Ton calendrier n’a pas été mis à jour. ${calendar.message}`
                 : null;
   if (!text) return null;
+  // Téléphone : version courte quand tout va bien (les alertes gardent leur phrase entière).
+  const short = { syncing: "Calendrier : mise à jour…", updated: "Calendrier à jour", following: "Suivi au calendrier", published: "Déjà publié au calendrier" }[
+    calendar.status === "syncing" || (calendar.pending && calendar.status !== "error" && calendar.status !== "blocked") ? "syncing" : calendar.status] as string | undefined;
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="calendar-follow-status">
-      <p role="status" aria-live="polite">{text}</p>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 max-md:contents" data-testid="calendar-follow-status">
+      <p role="status" aria-live="polite">
+        {short ? <><span className="max-md:hidden">{text}</span><span className="md:hidden">{short}</span></> : text}
+      </p>
       {calendar.status === "conflict" && (
         <Button size="sm" variant="outline" onClick={() => calendar.retry(true)}>
           Mettre à jour quand même

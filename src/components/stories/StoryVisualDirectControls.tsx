@@ -53,6 +53,9 @@ export default function StoryVisualDirectControls({
   const viewport = resolveStoryViewport(visual);
   const defaultTextY = visual.text_position === "top" ? 28 : visual.text_position === "bottom" ? 72 : 50;
   const handleY = Number.isFinite(visual.text_position_y) ? viewport.textY : defaultTextY;
+  // Texte poussé à gauche (il peut alors toucher le bord gauche) : la poignée passe
+  // sur le bord droit, toujours libre dans ce cas (largeur bornée dans story-visual).
+  const handleRight = viewport.textX < 50;
 
   useEffect(() => {
     if (!photoEnabled && mode === "photo") setMode("text");
@@ -114,12 +117,12 @@ export default function StoryVisualDirectControls({
           onPointerCancel={end}
         >
           {mode === "text" && (
-            // Poignée posée sur le bord gauche, à la hauteur du texte : elle montre
+            // Poignée posée sur un bord, à la hauteur du texte : elle montre
             // où est le bloc sans recouvrir de mots (elle était au milieu du texte).
             <span
               aria-hidden="true"
-              data-story-text-handle
-              className="absolute left-0 grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-primary text-white shadow-lg"
+              data-story-text-handle={handleRight ? "right" : "left"}
+              className={`absolute ${handleRight ? "right-0 translate-x-1/2" : "left-0 -translate-x-1/2"} grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-primary text-white shadow-lg`}
               style={{ top: `${handleY}%` }}
             >
               <Move className="h-3 w-3" />

@@ -34,8 +34,8 @@
       "any": 20
     },
     "src/components/creer/formatRenderers/StoryResult.tsx": {
-      "lignes": 1070,
-      "any": 18
+      "lignes": 1039,
+      "any": 13
     },
     "src/hooks/use-onboarding.ts": {
       "lignes": 902,
