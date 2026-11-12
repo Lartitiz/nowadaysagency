@@ -10,6 +10,7 @@ import { type UsageSink, getModelForAction } from "../../_shared/anthropic.ts";
 import { PHOTO_QUESTIONS_TOOL } from "../tools.ts";
 import { buildDeepeningQuestionsPrompt } from "../prompts.ts";
 import { runGenerationAndRespond } from "./generate.ts";
+import { QUESTIONS_ADDRESS_OVERRIDE, QUESTIONS_TUTOIEMENT_RETRY, questionsVouvoient } from "../questions-address.ts";
 
 // ── Photo / mix carousel: vision-informed questions ──
 export async function handleDeepeningQuestionsVisionRequest(reqCtx: CarouselRequestContext): Promise<Response> {
@@ -55,16 +56,27 @@ Réponds en JSON : {"questions":[{"question":"...","placeholder":"..."}]}. Table
   });
 
   const deepeningUsage: UsageSink = {};
-  const content = await _deps.callAnthropic({
+  const ask = (messages: any[]) => _deps.callAnthropic({
     model: getModelForAction("questions"),
-    system: systemPrompt,
-    messages: [{ role: "user", content: messageContent }],
+    // Consigne d'adresse en dernier : elle prime sur le vouvoiement des slides.
+    system: systemPrompt + QUESTIONS_ADDRESS_OVERRIDE,
+    messages,
     max_tokens: 4096,
     // Questions ancrées sur photos : borne chaque tentative à 60s pour
     // éviter le blocage indéfini d'un fetch qui traîne.
     abortTimeoutMs: 60000,
     tool: PHOTO_QUESTIONS_TOOL,
   }, deepeningUsage);
+  const firstMessages = [{ role: "user", content: messageContent }];
+  let content = await ask(firstMessages);
+  // Une question vouvoie quand même : une relance courte pour tutoyer. Si elle
+  // échoue, on garde les premières questions plutôt que de tout perdre.
+  if (questionsVouvoient(content)) {
+    try {
+      const retried = await ask([...firstMessages, { role: "assistant", content }, { role: "user", content: QUESTIONS_TUTOIEMENT_RETRY }]);
+      if (retried && !questionsVouvoient(retried)) content = retried;
+    } catch (_) { /* on garde la première version */ }
+  }
 
   // PAS de logUsage — les questions d'approfondissement sont gratuites
   // (arbitrage 10/07/2026 : un carrousel débite 2 crédits, rédaction +
@@ -100,5 +112,5 @@ ${PHOTO_QUESTIONS_CONTRACT}
 Réponds en JSON : {"questions":[{"question":"...","placeholder":"..."}]}. Tableau vide si aucune précision essentielle.`
     : buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock);
 
-  return runGenerationAndRespond("deepening_questions", userPrompt, reqCtx);
+  return runGenerationAndRespond("deepening_questions", userPrompt, { ...reqCtx, systemPrompt: reqCtx.systemPrompt + QUESTIONS_ADDRESS_OVERRIDE });
 }
