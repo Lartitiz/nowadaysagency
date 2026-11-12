@@ -185,18 +185,21 @@ export default function ResultActions(p: ResultActionsProps) {
     </Button>
   );
 
+  // « Refaire » (carrousel) prend place dans la même rangée sur téléphone : « ✓ Mes idées »
+  // en libellé court et un peu plus de largeur, pour que rien ne soit coupé dès 360 px.
+  const redoBeside = !oneLine && isCarousel && !!result;
   const saveBlock = p.autoSavedToIdeas ? (
     <Link
       to="/idees"
       data-testid="auto-saved-to-ideas"
       title="Enregistré dans Mes idées"
-      className={`min-w-0 h-10 ${oneLine ? "shrink hidden sm:inline-flex" : "flex-1 inline-flex"} items-center justify-center gap-1.5 rounded-md px-2 sm:px-3 text-sm text-muted-foreground hover:text-foreground`}
+      className={`min-w-0 h-10 ${oneLine ? "shrink hidden sm:inline-flex" : redoBeside ? "flex-[1.2] inline-flex" : "flex-1 inline-flex"} items-center justify-center gap-1.5 rounded-md px-2 sm:px-3 text-sm text-muted-foreground hover:text-foreground`}
     >
-      <Check className="h-4 w-4 text-primary shrink-0" /> <span className="truncate">{/* Barre sur une ligne : libellé court, la place va à « Publier ». */}<span className={oneLine ? "hidden" : "hidden sm:inline"}>Enregistré dans </span><span className={oneLine ? "" : "sm:hidden"}>Dans </span>Mes idées</span>
+      <Check className="h-4 w-4 text-primary shrink-0" /> <span className="truncate">{/* Barre sur une ligne : libellé court, la place va à « Publier ». */}<span className={oneLine ? "hidden" : "hidden sm:inline"}>Enregistré dans </span><span className={oneLine ? "" : redoBeside ? "hidden" : "sm:hidden"}>Dans </span>Mes idées</span>
     </Link>
   ) : p.onSave ? (
-    <Button onClick={p.onSave} disabled={p.savingContent} variant="outline" data-testid="save-as-idea" className={`min-w-0 gap-2 h-10 px-2 sm:px-4 ${oneLine ? "shrink max-sm:hidden" : "flex-1"}`}>
-      <Lightbulb className="h-4 w-4 shrink-0" /> <span className="truncate">{p.savingContent ? "Enregistrement…" : <>Garder <span className="hidden sm:inline">dans mes idées</span><span className="sm:hidden">en idée</span></>}</span>
+    <Button onClick={p.onSave} disabled={p.savingContent} variant="outline" data-testid="save-as-idea" aria-label={p.savingContent ? undefined : "Garder dans mes idées"} className={`min-w-0 gap-2 h-10 px-2 sm:px-4 ${oneLine ? "shrink max-sm:hidden" : redoBeside ? "flex-[1.2]" : "flex-1"}`}>
+      <Lightbulb className="h-4 w-4 shrink-0" /> <span className="truncate">{p.savingContent ? "Enregistrement…" : <>Garder <span className="hidden sm:inline">dans mes idées</span><span className={redoBeside ? "hidden" : "sm:hidden"}>en idée</span></>}</span>
     </Button>
   ) : null;
 
@@ -254,7 +257,7 @@ export default function ResultActions(p: ResultActionsProps) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" data-testid="redo-version" aria-label="Refaire une version" title="Refaire une version (1 carrousel)" className="h-10 shrink-0 gap-1.5 px-2.5 lg:px-3">
-          <RefreshCw className="h-4 w-4 shrink-0" /> <span className="hidden lg:inline">Refaire une version</span> <ChevronDown className="hidden h-3 w-3 shrink-0 lg:inline" />
+          <RefreshCw className="h-4 w-4 shrink-0" /> <span className="lg:hidden">Refaire</span><span className="hidden lg:inline">Refaire une version</span> <ChevronDown className="hidden h-3 w-3 shrink-0 lg:inline" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72 max-h-96 overflow-y-auto">

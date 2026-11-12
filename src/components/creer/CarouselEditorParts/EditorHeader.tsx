@@ -14,6 +14,7 @@ import type { CarouselDocument } from "@/lib/carousel-editor";
 import type { EditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
 import { useHideAppBreadcrumb } from "@/lib/app-breadcrumb";
 import { useMarkCarouselEditorShown } from "@/lib/carousel-editor-shown";
+import { useAppHeaderHeightVar } from "@/lib/app-header-height";
 
 // Sur PC, les raccourcis s'affichent avec Ctrl (et Maj) au lieu de ⌘ (et ⇧).
 const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -61,12 +62,15 @@ export function EditorHeader({ showInstagramPreview = true, active, count, histo
   useHideAppBreadcrumb();
   // Étapes repliées et barre « Publier » sur une ligne tant que l'éditeur est là.
   useMarkCarouselEditorShown();
+  // Hauteur réelle du menu de l'app, lue en direct (--app-header-h) : la ligne d'outils
+  // et la slide se collent dessous même si le menu change de hauteur.
+  useAppHeaderHeightVar();
   const tool = "h-8 gap-1.5 px-2 lg:px-3";
   return (
-      // Collée sous le menu de l'app (49 / 57 / 81 px selon l'écran) : « Refaire cette
+      // Collée sous le menu de l'app (hauteur mesurée, repli 49 / 57 / 81 px) : « Refaire cette
       // slide », Annuler et Rétablir restent à portée quand on fait défiler
       // (passe Auriana du 12/11). La slide se colle juste dessous (CarouselEditor.tsx).
-      <div role="group" aria-labelledby="carousel-editor-title" data-editor-toolbar className="sticky top-[49px] z-30 -mx-1 flex items-center justify-between gap-1.5 bg-background/95 px-1 py-1 backdrop-blur-sm md:top-[57px] lg:top-[81px]">
+      <div role="group" aria-labelledby="carousel-editor-title" data-editor-toolbar className="sticky top-[var(--app-header-h,49px)] z-30 -mx-1 flex items-center justify-between gap-1.5 bg-background/95 px-1 py-1 backdrop-blur-sm md:top-[var(--app-header-h,57px)] lg:top-[var(--app-header-h,81px)]">
         <h2 id="carousel-editor-title" className="sr-only 2xl:not-sr-only 2xl:shrink-0 2xl:whitespace-nowrap 2xl:font-display 2xl:text-base 2xl:text-primary">Personnaliser mon carrousel</h2>
         <p className="mr-auto flex min-w-0 shrink items-center gap-1 overflow-hidden whitespace-nowrap text-2xs text-muted-foreground md:text-xs">
           Slide {active + 1} / {count}<span className="hidden 2xl:inline"> · Double-clic : écrire · Glisser : déplacer</span>
