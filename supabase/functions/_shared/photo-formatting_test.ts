@@ -42,6 +42,16 @@ Deno.test("validation : motif = mots du texte ou repères courts, jamais de mot 
   assertEquals(validatePhotoFormatting("pas du JSON", SLIDES), { steps: [], motifs: [] });
 });
 
+Deno.test("validation : un mot de motif qui dépasse la zone en largeur retire tout le motif", () => {
+  // Vu en live le 12/11/2026 : le point d'accroche était dans la zone, la fin du mot débordait de la carte.
+  const wide = { ...MOTIF, elements: [{ k: "line", x1: 0, y1: 60, x2: 1000, y2: 60, tone: "soft" }, { k: "text", x: 560, y: 40, text: "les pages se remplissent", tone: "ink" }] };
+  assertEquals(validatePhotoFormatting({ steps: [], motifs: [wide] }, SLIDES).motifs, [], "texte aligné à gauche qui sort à droite");
+  const left = { ...MOTIF, elements: [{ k: "line", x1: 0, y1: 60, x2: 1000, y2: 60, tone: "soft" }, { k: "text", x: 100, y: 40, text: "les pages se remplissent", tone: "ink", anchor: "end" }] };
+  assertEquals(validatePhotoFormatting({ steps: [], motifs: [left] }, SLIDES).motifs, [], "texte aligné à droite qui sort à gauche");
+  const inside = { ...MOTIF, elements: [{ k: "line", x1: 0, y1: 60, x2: 1000, y2: 60, tone: "soft" }, { k: "text", x: 0, y: 40, text: "les pages se remplissent", tone: "ink" }] };
+  assertEquals(validatePhotoFormatting({ steps: [], motifs: [inside] }, SLIDES).motifs.length, 1, "même mot posé dans la zone : gardé");
+});
+
 Deno.test("validation : libellé d'étape court ; s'il répète le début du texte, l'étape s'affiche sans libellé", () => {
   const long = validatePhotoFormatting({ steps: [{ slide_number: 2, label: "Tout commence avant la forme, avec" }, STEPS[1], STEPS[2]], motifs: [] }, SLIDES);
   assertEquals(long.steps.map(s => s.label), ["", "le tournage", "L’émaillage"], "libellé de plus de 4 mots : étape gardée, sans libellé (jamais toute la suite perdue)");
