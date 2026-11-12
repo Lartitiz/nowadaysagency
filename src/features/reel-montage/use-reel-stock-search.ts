@@ -40,7 +40,7 @@ export function useReelStockSearch({ spoken, subject, montageMode, setClips, act
         const { keywords: k, primary, labels: l } = await suggestStockKeywords({
           subject: subject || spoken.map((s) => s.texte_parle).join(" ").slice(0, 120),
           slides: spoken.map((s) => s.texte_parle || ""),
-        });
+        }, { count: Math.min(Math.max(spoken.length, 1), 10) });
         labels.current = l ?? {};
         kws = spoken.map((_, i) => {
           const kw = k[i] || primary;
