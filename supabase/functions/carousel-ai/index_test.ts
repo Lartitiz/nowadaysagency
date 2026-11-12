@@ -2111,3 +2111,23 @@ for (const channel of ["instagram", "linkedin"]) {
     } finally { globalThis.fetch = oldFetch; resetDeps(); }
   });
 }
+
+// Appel à investir (QA du 12/11/2026, règle étendue au carrousel) : la règle
+// ferme de _shared/investment-solicitation.ts arrive à la rédaction seulement
+// si la demande parle de faire investir d'autres personnes.
+for (const [subject, expected] of [
+  ["je cherche des investisseurs pour cofinancer un immeuble, ticket à partir de 50 k€", true],
+  ["avant / après de la rénovation d'un salon", false],
+] as const) Deno.test(`carrousel : règle « appel à investir » ${expected ? "présente" : "absente"} (${subject.slice(0, 30)}…)`, async () => {
+  resetDeps();
+  let system = "";
+  _deps.callCarouselWriter = (async (options: any, sink: any) => {
+    system = JSON.stringify(options.system);
+    Object.assign(sink, { model: options.model, total_tokens: 1 });
+    return JSON.stringify({ hooks: [] });
+  }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "hooks", subject }));
+  await res.text();
+  assertEquals(res.status, 200);
+  assertEquals(system.includes("APPEL À INVESTIR"), expected);
+});
