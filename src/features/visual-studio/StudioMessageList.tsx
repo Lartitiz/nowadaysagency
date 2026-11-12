@@ -30,6 +30,7 @@ export function StudioMessageList({
   onEditComposition,
   onOpenExistingTool,
   proposalCard,
+  pendingMessage,
   children,
 }: {
   current: StudioState | undefined;
@@ -50,6 +51,8 @@ export function StudioMessageList({
   onEditComposition: (message: StudioMessage) => void;
   onOpenExistingTool: (message: StudioMessage) => void;
   proposalCard: ReactNode;
+  /** Message envoyé, pas encore confirmé par le serveur : affiché tout de suite. */
+  pendingMessage?: string;
   children?: ReactNode;
 }) {
   return (
@@ -144,6 +147,21 @@ export function StudioMessageList({
             </div>
           )}
         </div>
+      )}
+
+      {/* QA du 12/11/2026 : la réponse met ~25 s ; sans ça, rien ne bouge
+          après l'envoi et on croit que le message n'est pas parti. */}
+      {pendingMessage && (
+        <>
+          <div className="studio-message mine">
+            <span className="block text-xs font-semibold mb-1">Toi</span>
+            <p className="whitespace-pre-wrap">{pendingMessage}</p>
+          </div>
+          <div className="studio-message" role="status">
+            <span className="block text-xs font-semibold mb-1">Studio</span>
+            <p><Loader2 className="h-4 w-4 animate-spin inline mr-2" />Je lis ta demande…</p>
+          </div>
+        </>
       )}
 
       <section aria-label="État de la création">
