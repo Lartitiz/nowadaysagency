@@ -346,7 +346,7 @@ it("sending only interprets; explicit confirmation is locked against duplicate c
       ],
     }),
   );
-  await screen.findByText("Création en cours.");
+  await screen.findByText("Création en cours : compte environ 1 minute par image.");
 });
 it("a lost message acknowledgement preserves the text and request ID for retry", async () => {
   const start = original();
