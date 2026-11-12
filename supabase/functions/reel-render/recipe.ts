@@ -28,6 +28,8 @@ import { REEL_OVERLAY_MIN_FONT_PX } from "../_shared/socle.ts";
 export interface ReelSectionInput {
   /** URL publique du clip (banque libre ou vidéo de la créatrice). */
   clip_url: string;
+  /** "image" : une photo (celle de départ du reel) posée à la place d'un clip. Défaut : vidéo. */
+  clip_type?: "video" | "image";
   /** Seconde d'entrée dans le clip source (coupe). Défaut 0. */
   seek?: number;
   /** Durée de la section, en secondes. */
@@ -252,14 +254,17 @@ export function buildReelRecipe(input: ReelRenderInput): Record<string, unknown>
 
   const scenes = input.sections.map((s) => {
     const elements: Record<string, unknown>[] = [
-      {
-        type: "video",
-        src: s.clip_url,
-        seek: s.seek ?? 0,
-        duration: s.duration,
-        muted: mode === "cache",
-        resize: "cover",
-      },
+      s.clip_type === "image"
+        // Photo fixe : léger zoom pour qu'elle vive, centrée (sinon calée en haut à gauche).
+        ? { type: "image", src: s.clip_url, duration: s.duration, resize: "cover", position: "center-center", zoom: 2 }
+        : {
+          type: "video",
+          src: s.clip_url,
+          seek: s.seek ?? 0,
+          duration: s.duration,
+          muted: mode === "cache",
+          resize: "cover",
+        },
     ];
 
     // Keep the first video and its sound/voice for the entire scene. The

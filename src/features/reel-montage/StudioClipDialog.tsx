@@ -18,6 +18,16 @@ interface StudioClipDialogProps {
   setPendingCutaway: (pending: { index: number; job: StudioVideoJob }) => void;
 }
 
+/**
+ * Consigne préremplie du Studio vidéo. La phrase du script finit souvent par
+ * sa propre ponctuation : on la retire avant le guillemet fermant, sinon la
+ * consigne affichait « … maison. ». (double ponctuation).
+ */
+function studioCutawayPrompt(said: string): string {
+  const idea = said.slice(0, 680).trim().replace(/[\s.…!?;:,]+$/u, "");
+  return `Plan de coupe sans texte à l'écran : montrer concrètement l'idée « ${idea} ». Le plan doit pouvoir se placer sous la voix du Reel.`;
+}
+
 export function StudioClipDialog({ studioTarget, setStudioTarget, spoken, workspaceId, subject, sectionTexts, setPendingCutaway }: StudioClipDialogProps) {
   const { user } = useAuth();
   return (
@@ -31,7 +41,7 @@ export function StudioClipDialog({ studioTarget, setStudioTarget, spoken, worksp
         {studioTarget && workspaceId && <StudioVideoPanel workspaceId={workspaceId} writable={studioTarget.create}
           draftKey={user ? `studio-video:${user.id}:${workspaceId}:reel:${JSON.stringify([subject, sectionTexts, studioTarget.index])}` : undefined}
           showComposer={studioTarget.create} initialPrompt={studioTarget.create && spoken[studioTarget.index]?.texte_parle
-            ? `Plan de coupe sans texte à l'écran : montrer concrètement l'idée « ${spoken[studioTarget.index].texte_parle.slice(0, 680)} ». Le plan doit pouvoir se placer sous la voix du Reel.`
+            ? studioCutawayPrompt(spoken[studioTarget.index].texte_parle)
             : ""}
           onPickClip={job => { setPendingCutaway({ index: studioTarget.index, job }); setStudioTarget(null); }} />}
       </DialogContent>

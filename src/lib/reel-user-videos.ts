@@ -98,3 +98,25 @@ export async function listReelVideos(): Promise<UserReelVideo[]> {
     })
     .filter((v) => v.url);
 }
+
+/**
+ * Photo de départ d'un reel (créé à partir d'une photo) : rangée dans
+ * `calendar-media` sous `user.id/reel-photos/` pour que le moteur de montage
+ * puisse la lire. Accepte une image en data URL ; une URL http est rendue telle quelle.
+ */
+export async function uploadReelStartPhoto(photo: string): Promise<string> {
+  if (/^https?:\/\//.test(photo)) return photo;
+  const blob = await (await fetch(photo)).blob();
+  const mime = blob.type || "image/jpeg";
+  const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
+  const uid = await userId();
+  const path = `${uid}/reel-photos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await supabase.storage.from("calendar-media").upload(path, blob, { contentType: mime });
+  if (error) {
+    console.error("[uploadReelStartPhoto] upload échoué:", error);
+    throw new Error("Ta photo n'a pas pu être préparée pour le montage. Réessaie.");
+  }
+  const { data } = supabase.storage.from("calendar-media").getPublicUrl(path);
+  if (!data?.publicUrl) throw new Error("Ta photo n'a pas pu être préparée pour le montage. Réessaie.");
+  return data.publicUrl;
+}

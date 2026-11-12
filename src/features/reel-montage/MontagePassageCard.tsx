@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Upload } from "lucide-react";
+import { Image as ImageIcon, Loader2, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { sectionDuration, voiceSectionDuration } from "@/lib/reel-render";
 import type { StockVideo } from "@/lib/stock-videos";
@@ -41,10 +41,13 @@ interface MontagePassageCardProps {
   pendingCutaway: { index: number; job: StudioVideoJob } | null;
   setPendingCutaway: (pending: { index: number; job: StudioVideoJob } | null) => void;
   setStudioTarget: (target: { index: number; create: boolean } | null) => void;
+  canUseStartPhoto?: boolean;
+  placingStartPhoto?: number | null;
+  placeStartPhoto?: (i: number) => void;
   highlightedPassage: number | null;
 }
 
-export function MontagePassageCard({ s, i, total = 1, montageMode, clips, setClips, cutaways, setCutaways, voiceClips, keywords, setKeywords, results, loading, runSearch, uploadingSection, openFilePicker, myVideos, pickFromLibrary, workspaceId, pendingCutaway, setPendingCutaway, setStudioTarget, highlightedPassage }: MontagePassageCardProps) {
+export function MontagePassageCard({ s, i, total = 1, montageMode, clips, setClips, cutaways, setCutaways, voiceClips, keywords, setKeywords, results, loading, runSearch, uploadingSection, openFilePicker, myVideos, pickFromLibrary, workspaceId, pendingCutaway, setPendingCutaway, setStudioTarget, highlightedPassage, canUseStartPhoto, placingStartPhoto, placeStartPhoto }: MontagePassageCardProps) {
   return (
   <Card key={i} id={`studio-reel-passage-${i}`} className={i === highlightedPassage ? "border-primary ring-2 ring-primary/20" : "border-border"}>
     <CardContent className="p-3 space-y-2">
@@ -147,6 +150,13 @@ export function MontagePassageCard({ s, i, total = 1, montageMode, clips, setCli
             Ma vidéo · {clips[i]?.label}
           </Badge>
         )}
+        {canUseStartPhoto && clips[i]?.source !== "photo" && placeStartPhoto && (
+          <Button variant="outline" size="sm" className="h-7 text-2xs" onClick={() => placeStartPhoto(i)} disabled={placingStartPhoto != null}>
+            {placingStartPhoto === i ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5 mr-1" />}
+            Mettre ma photo de départ
+          </Button>
+        )}
+        {clips[i]?.source === "photo" && <Badge variant="secondary" className="text-2xs">Ta photo de départ</Badge>}
         {clips[i]?.source === "studio" && <Badge variant="secondary" className="text-2xs">Clip du Studio · {clips[i]?.label}</Badge>}
       </div>
 

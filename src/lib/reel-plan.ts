@@ -37,6 +37,8 @@ function clamp(n: number, lo: number, hi: number): number {
 
 export interface RenderSectionInput {
   clip_url: string;
+  /** "image" : la photo de départ du reel posée à la place d'un clip. */
+  clip_type?: "image";
   seek?: number;
   duration: number;
   voice_audio_url?: string;
@@ -101,7 +103,7 @@ export function videoSectionDuration(clipDuration: number): number {
  * jamais en voix synthétique à l'insu de la créatrice.
  */
 /** Clip choisi pour une section : URL + seconde d'entrée dans le clip source. */
-export type ClipChoice = string | { url: string; seek?: number } | null | undefined;
+export type ClipChoice = string | { url: string; seek?: number; kind?: "image" } | null | undefined;
 
 const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i;
 
@@ -183,6 +185,7 @@ export function buildRenderPlan(
     const url = typeof choice === "string" ? choice : choice?.url;
     if (!url) return;
     const seek = typeof choice === "object" && choice ? Math.max(0, choice.seek ?? 0) : 0;
+    const kind = typeof choice === "object" && choice?.kind === "image" ? { clip_type: "image" as const } : {};
 
     const withBroll = (duration: number): Pick<RenderSectionInput, "broll_url" | "broll_start" | "broll_duration" | "broll_seek"> => {
       const overlay = opts.brollBySection?.[i];
@@ -201,7 +204,7 @@ export function buildRenderPlan(
         typeof clipDuration === "number" && clipDuration > 0
           ? videoSectionDuration(clipDuration)
           : sectionDuration(s);
-      built.push({ clip_url: url, seek, duration, ...withBroll(duration) });
+      built.push({ clip_url: url, ...kind, seek, duration, ...withBroll(duration) });
       return;
     }
 
@@ -214,6 +217,7 @@ export function buildRenderPlan(
         : sectionDuration(s);
     built.push({
       clip_url: url,
+      ...kind,
       seek,
       duration,
       ...(voiceUrl ? { voice_audio_url: voiceUrl } : {}),

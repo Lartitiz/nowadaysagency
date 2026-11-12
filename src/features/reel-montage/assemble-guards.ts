@@ -5,10 +5,10 @@
 import { countSectionsWithoutVoice, sectionsWithVoiceButNoClip } from "@/lib/reel-render";
 import type { MontageMode, SelectedClip } from "./types";
 
-export type ChosenClip = { url: string; seek: number } | null;
+export type ChosenClip = { url: string; seek: number; kind?: "image" } | null;
 
 export function chosenClips(clips: (SelectedClip | null)[]): ChosenClip[] {
-  return clips.map((c) => (c ? { url: c.url, seek: c.seek } : null));
+  return clips.map((c) => (c ? { url: c.url, seek: c.seek, ...(c.source === "photo" ? { kind: "image" as const } : {}) } : null));
 }
 
 /** Refus avant tout rendu (texte à revérifier, clip Studio muet, aucun clip) : le message, ou null. */
@@ -17,6 +17,9 @@ export function assembleRefusal({ needsReview, montageMode, clips }:
   if (needsReview) return "Vérifie les passages après la modification du texte.";
   if (montageMode === "filme" && clips.some(clip => clip?.source === "studio")) {
     return "Un clip du Studio est muet. Choisis une prise face caméra pour porter ta voix, puis ajoute ce clip comme plan.";
+  }
+  if (montageMode === "filme" && clips.some(clip => clip?.source === "photo")) {
+    return "Ta photo de départ ne porte pas ta voix. Pour « Je me filme », remplace-la par une prise face caméra.";
   }
   if (!chosenClips(clips).some(Boolean)) return "Choisis au moins un clip avant d'assembler.";
   return null;

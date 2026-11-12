@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({
   submit: vi.fn(), poll: vi.fn(), archive: vi.fn(), suggest: vi.fn(), search: vi.fn(), readStudio: vi.fn(),
-  list: vi.fn(), duration: vi.fn(), upload: vi.fn(),
+  list: vi.fn(), duration: vi.fn(), upload: vi.fn(), uploadPhoto: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn() },
   charter: null as Record<string, string> | null,
   panelProps: [] as Record<string, unknown>[],
@@ -23,7 +23,7 @@ vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "test-u
 vi.mock("sonner", () => ({ toast: m.toast }));
 vi.mock("@/hooks/use-branding", () => ({ useBrandCharter: () => ({ data: m.charter }) }));
 vi.mock("@/lib/stock-videos", () => ({ suggestStockKeywords: m.suggest, searchStockVideos: m.search }));
-vi.mock("@/lib/reel-user-videos", () => ({ listReelVideos: m.list, loadVideoDuration: m.duration, uploadReelVideo: m.upload }));
+vi.mock("@/lib/reel-user-videos", () => ({ listReelVideos: m.list, loadVideoDuration: m.duration, uploadReelVideo: m.upload, uploadReelStartPhoto: m.uploadPhoto }));
 vi.mock("@/lib/reel-render", async () => ({ ...await vi.importActual("@/lib/reel-plan"), submitReelRender: m.submit, pollReelRender: m.poll, archiveReelMp4: m.archive }));
 vi.mock("@/features/studio-video/api", () => ({ readStudioVideo: m.readStudio }));
 vi.mock("@/features/studio-video/StudioVideoPanel", () => ({
@@ -68,6 +68,7 @@ beforeEach(() => {
   m.readStudio.mockResolvedValue({ job: { status: "ready", video_url: "https://clips.test/fresh.mp4" } });
   m.list.mockResolvedValue([]);
   m.duration.mockResolvedValue(5);
+  m.uploadPhoto.mockResolvedValue("https://stockage.test/photo-depart.jpg");
 });
 afterEach(() => { window.history.replaceState(null, "", "/"); sessionStorage.clear(); vi.restoreAllMocks(); });
 
@@ -410,5 +411,105 @@ describe("ReelMontage — un passage par page", () => {
     expect(screen.getByTestId("montage-assemble-bar").className).toContain("sticky");
     expect(screen.getByRole("button", { name: /Assembler mon reel/ })).toBeInTheDocument();
     expect(screen.queryByText(/bêta/i)).toBeNull();
+  });
+});
+
+describe("ReelMontage — message pendant l'assemblage, selon le mode", () => {
+  const rendering = async (p: Partial<ReelMontageProject>) => {
+    m.poll.mockReturnValue(new Promise(() => {}));
+    m.voices = [];
+    render(<ReelMontage sections={SECTIONS} initialProject={project(p)} />);
+    await settle();
+    assemble();
+    return screen.findByText(/Assemblage des clips/);
+  };
+
+  it("sans voix : parle du texte à l'écran, jamais de la voix ni des sous-titres", async () => {
+    const msg = await rendering({ voiceMode: "silent", clips: [stock(1), stock(2)] });
+    expect(msg.textContent).toMatch(/texte à l'écran/);
+    expect(msg.textContent).not.toMatch(/voix|sous-titres/);
+  });
+
+  it("ma voix : sous-titres et voix", async () => {
+    const msg = await rendering({ voiceMode: "recorded", clips: [stock(1), stock(2)], voiceClips: [voice(1), voice(2)] });
+    expect(msg.textContent).toMatch(/incrustation des sous-titres et de la voix/);
+  });
+
+  it("je me filme : sous-titres seulement (la voix est dans la prise)", async () => {
+    const msg = await rendering({ montageMode: "filme", clips: [mine(1), mine(2)] });
+    expect(msg.textContent).toMatch(/incrustation des sous-titres…/);
+    expect(msg.textContent).not.toMatch(/voix/);
+  });
+});
+
+describe("ReelMontage — consigne envoyée au Studio vidéo", () => {
+  it.each([
+    ["Je rénove une maison.", "Je rénove une maison"],
+    ["Pourquoi acheter ancien ?", "Pourquoi acheter ancien"],
+    ["Et après…", "Et après"],
+    ["Sans point final", "Sans point final"],
+  ])("« %s » : une seule ponctuation après le guillemet", async (said, idea) => {
+    const sections = [{ ...SECTIONS[0], texte_parle: said }, SECTIONS[1]];
+    render(<ReelMontage sections={sections} subject="Maison" workspaceId="space"
+      initialProject={project({ montageMode: "filme", sectionTexts: [said, TEXTS[1]] })} />);
+    await settle();
+    fireEvent.click(screen.getByRole("button", { name: "Créer un clip" }));
+    await screen.findByRole("button", { name: "Tester le clip Studio" });
+    expect(m.panelProps.at(-1)!.initialPrompt).toBe(`Plan de coupe sans texte à l'écran : montrer concrètement l'idée « ${idea} ». Le plan doit pouvoir se placer sous la voix du Reel.`);
+  });
+});
+
+describe("ReelMontage — photo de départ du reel", () => {
+  const PHOTO = "data:image/jpeg;base64,AAAA";
+  const chooseHidden = () => fireEvent.click(screen.getByText("Je ne me montre pas"));
+
+  it("proposée d'office sur le premier passage, même quand les clips libres arrivent", async () => {
+    m.suggest.mockResolvedValue({ keywords: ["maison", "chantier"], primary: "maison" });
+    m.search.mockResolvedValue([{ id: 9, url: "https://clips.test/pexels.mp4", thumbnail: "t.jpg", duration: 8 }]);
+    const onProjectChange = vi.fn();
+    render(<ReelMontage sections={SECTIONS} startPhoto={PHOTO} onProjectChange={onProjectChange} />);
+    chooseHidden();
+    expect(await screen.findByText("Ta photo de départ")).toBeInTheDocument();
+    await waitFor(() => expect(m.search).toHaveBeenCalledTimes(2));
+    await settle();
+    expect(m.uploadPhoto).toHaveBeenCalledOnce();
+    expect(m.uploadPhoto).toHaveBeenCalledWith(PHOTO);
+    const last = onProjectChange.mock.calls.at(-1)![0];
+    expect(last.clips[0]).toMatchObject({ source: "photo", url: "https://stockage.test/photo-depart.jpg" });
+    expect(last.clips[1]).toMatchObject({ source: "stock" });
+  });
+
+  it("part au moteur comme une image", async () => {
+    m.search.mockResolvedValue([]);
+    render(<ReelMontage sections={SECTIONS} startPhoto={PHOTO} />);
+    chooseHidden();
+    await screen.findByText("Ta photo de départ");
+    fireEvent.click(screen.getByText("Sans voix"));
+    assemble();
+    await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
+    expect(m.submit.mock.calls[0][0].sections[0]).toMatchObject({ clip_url: "https://stockage.test/photo-depart.jpg", clip_type: "image" });
+  });
+
+  it("au choix sur un autre passage ; reprise d'un montage enregistré : rien d'imposé", async () => {
+    render(<ReelMontage sections={SECTIONS} startPhoto={PHOTO} initialProject={project({ voiceMode: "silent", clips: [stock(1), null] })} />);
+    await settle();
+    expect(m.uploadPhoto).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Passage suivant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mettre ma photo de départ" }));
+    expect(await screen.findByText("Ta photo de départ")).toBeInTheDocument();
+  });
+
+  it("« Je me filme » : pas de photo proposée (elle ne porte pas la voix)", async () => {
+    render(<ReelMontage sections={SECTIONS} startPhoto={PHOTO} />);
+    fireEvent.click(screen.getByText("Je me filme"));
+    await settle();
+    expect(m.uploadPhoto).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Mettre ma photo de départ" })).toBeNull();
+  });
+
+  it("sans photo de départ : aucun bouton", async () => {
+    render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent" })} />);
+    await settle();
+    expect(screen.queryByRole("button", { name: "Mettre ma photo de départ" })).toBeNull();
   });
 });

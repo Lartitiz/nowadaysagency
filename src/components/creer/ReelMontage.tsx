@@ -27,6 +27,7 @@ import { useReelMyVideos } from "@/features/reel-montage/use-reel-my-videos";
 import { useReelStudioReturn } from "@/features/reel-montage/use-reel-studio-return";
 import { MontagePassageCard } from "@/features/reel-montage/MontagePassageCard";
 import { useReelRender } from "@/features/reel-montage/use-reel-render";
+import { useReelStartPhoto } from "@/features/reel-montage/use-reel-start-photo";
 import { MontageResult } from "@/features/reel-montage/MontageResult";
 import { type MontageMode, type Phase, type ReelMontageProject, type Section, type SelectedClip, type StudioCutaway } from "@/features/reel-montage/types";
 
@@ -50,9 +51,11 @@ interface Props {
    * `null` = plus de vidéo rattachable (nouveau rendu lancé, ou échec).
    */
   onMp4Ready?: (url: string | null) => void;
+  /** Photo de départ du reel (data URL ou URL), proposée sur le premier passage. */
+  startPhoto?: string | null;
 }
 
-export default function ReelMontage({ sections, subject, workspaceId, initialProject, onProjectChange, onPhaseChange, onMp4Ready }: Props) {
+export default function ReelMontage({ sections, subject, workspaceId, initialProject, onProjectChange, onPhaseChange, onMp4Ready, startPhoto }: Props) {
   const spoken = sections.filter((s) => typeof s.texte_parle === "string" && s.texte_parle.trim());
   const sectionTexts = spoken.map(s => s.texte_parle || "");
   const { data: charter } = useBrandCharter();
@@ -102,6 +105,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
   const { keywords, setKeywords, results, loading, runSearch } = useReelStockSearch({ spoken, subject, montageMode, setClips, activeRender });
   const { myVideos, uploadingSection, fileInputRef, openFilePicker, handleFileChosen, pickFromLibrary } = useReelMyVideos({ setClips });
+  const startPhotoTools = useReelStartPhoto({ startPhoto, montageMode, resumed: !!initialProject?.montageMode, setClips });
 
 
   const ready = clips.filter(Boolean).length;
@@ -158,7 +162,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
           <div className="space-y-2">
             {spoken.map((s, i) => i !== page ? null : (
-              <MontagePassageCard key={i} s={s} i={i} total={spoken.length} montageMode={montageMode} clips={clips} setClips={setClips} cutaways={cutaways} setCutaways={setCutaways} voiceClips={voiceClips} keywords={keywords} setKeywords={setKeywords} results={results} loading={loading} runSearch={runSearch} uploadingSection={uploadingSection} openFilePicker={openFilePicker} myVideos={myVideos} pickFromLibrary={pickFromLibrary} workspaceId={workspaceId} pendingCutaway={pendingCutaway} setPendingCutaway={setPendingCutaway} setStudioTarget={setStudioTarget} highlightedPassage={highlightedPassage} />
+              <MontagePassageCard key={i} s={s} i={i} total={spoken.length} montageMode={montageMode} clips={clips} setClips={setClips} cutaways={cutaways} setCutaways={setCutaways} voiceClips={voiceClips} keywords={keywords} setKeywords={setKeywords} results={results} loading={loading} runSearch={runSearch} uploadingSection={uploadingSection} openFilePicker={openFilePicker} myVideos={myVideos} pickFromLibrary={pickFromLibrary} workspaceId={workspaceId} pendingCutaway={pendingCutaway} setPendingCutaway={setPendingCutaway} setStudioTarget={setStudioTarget} highlightedPassage={highlightedPassage} {...startPhotoTools} />
             ))}
             {spoken.length > 1 && (
               <div className="flex items-center justify-between gap-2">
@@ -176,7 +180,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
             onChange={(e) => handleFileChosen(e.target.files)}
           />
 
-          <MontageResult spoken={spoken} ready={ready} phase={phase} archiving={archiving} needsReview={needsReview} handleAssemble={handleAssemble} setAssociationTexts={setAssociationTexts} sectionTexts={sectionTexts} setNeedsReview={setNeedsReview} montageMode={montageMode} clips={clips} tick={tick} errorMsg={errorMsg} mp4Url={mp4Url} downloading={downloading} handleDownload={handleDownload} downloadFailed={downloadFailed} archived={archived} archiveRetryAvailable={archiveRetryAvailable} handleArchiveRetry={handleArchiveRetry} />
+          <MontageResult spoken={spoken} ready={ready} phase={phase} archiving={archiving} needsReview={needsReview} handleAssemble={handleAssemble} setAssociationTexts={setAssociationTexts} sectionTexts={sectionTexts} setNeedsReview={setNeedsReview} montageMode={montageMode} voiceMode={voiceMode} clips={clips} tick={tick} errorMsg={errorMsg} mp4Url={mp4Url} downloading={downloading} handleDownload={handleDownload} downloadFailed={downloadFailed} archived={archived} archiveRetryAvailable={archiveRetryAvailable} handleArchiveRetry={handleArchiveRetry} />
         </>
       )}
       <StudioClipDialog studioTarget={studioTarget} setStudioTarget={setStudioTarget} spoken={spoken} workspaceId={workspaceId}

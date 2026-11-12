@@ -275,3 +275,13 @@ Deno.test("layoutOverlayText est pur, garde la casse et ne coupe rien", () => {
   assertEquals(l.fontSizePx, 58);
   assertEquals(OVERLAY_FONT_STEPS_PX[OVERLAY_FONT_STEPS_PX.length - 1], OVERLAY_MIN_FONT_PX);
 });
+
+Deno.test("photo de départ : élément image en cover, centré, à la durée de la scène, avec la voix", () => {
+  const r = buildReelRecipe({
+    voice_mode: "recorded",
+    sections: [{ clip_url: "https://x.test/photo.jpg", clip_type: "image", duration: 5, voice_audio_url: "voix1.mp3" }],
+  }) as any;
+  const [img, audio] = r.scenes[0].elements;
+  assertEquals(img, { type: "image", src: "https://x.test/photo.jpg", duration: 5, resize: "cover", position: "center-center", zoom: 2 });
+  assertEquals(audio, { type: "audio", src: "voix1.mp3" });
+});
