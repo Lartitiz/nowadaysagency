@@ -208,7 +208,7 @@ export function useStudioSession({
         }
       }
     }
-  }, [current?.session.messages.length, proposal]);
+  }, [current?.session.messages.length, proposal, busy === "message"]);
   useEffect(() => {
     const pending = sent.current;
     if (pending && current?.session.messages.some((m) => m.id === pending.id)) {
@@ -645,7 +645,14 @@ export function useStudioSession({
       setSessionAction(null);
     }
   }
+  // Le message part : on l'affiche tout de suite, avant la réponse du serveur.
+  const pendingId = sent.current?.id;
+  const pendingMessage = busy === "message" &&
+    !current?.session.messages.some((m) => m.id === pendingId)
+    ? sent.current?.text || draft.trim()
+    : "";
   return {
+    pendingMessage,
     roleWritable, compositionOpen, setCompositionOpen, compositionDraft, setCompositionDraft,
     selectedComposition, setSelectedComposition, olderCompositions, setOlderCompositions,
     moreCompositions, setMoreCompositions, olderCompositionsBusy, setOlderCompositionsBusy,
