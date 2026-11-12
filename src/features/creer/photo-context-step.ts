@@ -120,31 +120,39 @@ export function initialRows(photos: ContextStepPhoto[]): ContextStepRow[] {
   return normalizePair(rows);
 }
 
-/** Une seule paire : un seul « avant », un seul « après », sinon on n'en garde aucun. */
+// Plusieurs paires possibles (QA marchandes de biens du 12/11/2026 : une
+// rénovation montre souvent plusieurs pièces). Dans l'ordre des photos, le
+// 1er « avant » va avec le 1er « après », le 2e avec le 2e, etc. (même règle
+// côté serveur : carousel-ai/photo-pair.ts).
+
+/** Suggestions de départ : on garde les marques seulement si elles s'équilibrent. */
 export function normalizePair(rows: ContextStepRow[]): ContextStepRow[] {
   const befores = rows.filter((r) => r.role === "before").length;
   const afters = rows.filter((r) => r.role === "after").length;
-  if (befores <= 1 && afters <= 1) return rows;
+  if (befores === afters) return rows;
   return rows.map((r) => ({ ...r, role: null }));
 }
 
-/** Coche « avant » ou « après » sur une ligne (re-cliquer décoche). */
+/** Coche « avant » ou « après » sur une ligne (re-cliquer décoche). Les autres lignes ne bougent pas. */
 export function setPairRole(rows: ContextStepRow[], index: number, role: PairRole): ContextStepRow[] {
-  const turnOff = rows[index]?.role === role;
-  return rows.map((r, i) => {
-    if (i === index) return { ...r, role: turnOff ? null : role };
-    return !turnOff && r.role === role ? { ...r, role: null } : r;
-  });
+  return rows.map((r, i) => (i === index ? { ...r, role: r.role === role ? null : role } : r));
 }
 
-/** La paire est complète (un avant ET un après). */
+/** Les paires sont complètes : au moins un avant, et autant d'avants que d'après. */
 export function hasCompletePair(rows: ContextStepRow[]): boolean {
-  return rows.some((r) => r.role === "before") && rows.some((r) => r.role === "after");
+  const befores = rows.filter((r) => r.role === "before").length;
+  const afters = rows.filter((r) => r.role === "after").length;
+  return befores > 0 && befores === afters;
+}
+
+/** Nombre de paires formées (0 si incomplètes). */
+export function pairCount(rows: ContextStepRow[]): number {
+  return hasCompletePair(rows) ? rows.filter((r) => r.role === "before").length : 0;
 }
 
 /**
  * Applique les réponses aux photos (toutes, ambiance comprise, dans l'ordre).
- * Une paire incomplète n'est pas écrite.
+ * Des paires incomplètes (pas autant d'avants que d'après) ne sont pas écrites.
  */
 export function applyContextRows<T extends ContextStepPhoto>(photos: T[], rows: ContextStepRow[]): T[] {
   const pair = hasCompletePair(rows);

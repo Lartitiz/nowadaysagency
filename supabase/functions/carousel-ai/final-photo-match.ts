@@ -3,7 +3,7 @@ import { extractImagePayload } from "../_shared/image-utils.ts";
 import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts";
 import { progressionMaterial } from "../_shared/carousel-editorial-snapshot.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
-import { beforeAfterMatchRule, detectBeforeAfterPair } from "./photo-pair.ts";
+import { beforeAfterMatchRule, detectBeforeAfterPairs } from "./photo-pair.ts";
 
 export const PHOTO_MATCH_VERSION = "final-photo-match-v7";
 /** Plafond d'un appel d'association quand le temps le permet. */
@@ -183,7 +183,7 @@ export async function matchFinalPhotos(doc: any, options: {
   const photos = (options.body.photos || []).slice(0, 10).flatMap((p: any, i: number) => p?.base64 ? [{ ...p, id: i + 1 }] : []);
   const ids = new Set<number>(photos.map((p: any) => p.id));
   // Paire avant / après de la personne : numéros comptés sur TOUTES les photos envoyées (= p.id).
-  const pairRule = beforeAfterMatchRule(detectBeforeAfterPair((options.body.photos || []).slice(0, 10)));
+  const pairRule = beforeAfterMatchRule(detectBeforeAfterPairs((options.body.photos || []).slice(0, 10)));
   const remaining = () => 270000 - (Date.now() - options.startedAt);
   const passages = doc.slides.map((s: any, i: number) => ({
     slide: i + 1, type: s.slide_type,

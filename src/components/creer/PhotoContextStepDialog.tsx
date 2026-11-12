@@ -42,7 +42,7 @@ export default function PhotoContextStepDialog({ open, previews, rows, onRowsCha
 
         {canPair && (
           <p className="rounded-2xl bg-[#FFF4F8] px-4 py-3 text-sm text-foreground">
-            Deux de ces photos sont un avant/après ? Marque l'avant et l'après : je les place sur deux slides qui se suivent.
+            Des photos vont par deux, un avant et un après ? Marque chaque avant et chaque après : je mets chaque paire sur deux slides qui se suivent. S'il y en a plusieurs, le 1er avant va avec le 1er après, et ainsi de suite.
           </p>
         )}
 
@@ -93,7 +93,7 @@ export default function PhotoContextStepDialog({ open, previews, rows, onRowsCha
         </ol>
 
         {halfPair && (
-          <p className="text-xs text-muted-foreground">Marque aussi l'autre photo de la paire, sinon je ne les relie pas.</p>
+          <p className="text-xs text-muted-foreground">Il faut autant d'avants que d'après : marque l'autre photo de chaque paire, sinon je ne les relie pas.</p>
         )}
 
         <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">

@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { beforeAfterMatchRule, beforeAfterPairRule, detectBeforeAfterPair } from "./photo-pair.ts";
+import { beforeAfterMatchRule, beforeAfterPairRule, detectBeforeAfterPair, detectBeforeAfterPairs } from "./photo-pair.ts";
 import { buildPhotoContextRecap } from "./shared.ts";
 import { matchFinalPhotos } from "./final-photo-match.ts";
 
@@ -38,4 +38,24 @@ Deno.test("paire : l'association finale des photos reçoit la consigne", async (
   });
   assert(systems.length > 0);
   assert(systems[0].includes("PHOTO 1 = avant, PHOTO 2 = après"));
+});
+
+Deno.test("paires : plusieurs avant / après, associés dans l'ordre des photos", () => {
+  const photos = [{ context: "AVANT — chambre" }, { context: "APRÈS — chambre" }, { context: "façade" }, { context: "AVANT — couloir" }, { context: "APRÈS — couloir" }];
+  assertEquals(detectBeforeAfterPairs(photos), [{ before: 1, after: 2 }, { before: 4, after: 5 }]);
+  assertEquals(detectBeforeAfterPair(photos), null);
+  assertEquals(detectBeforeAfterPairs([{ context: "AVANT — a" }, { context: "AVANT — b" }, { context: "APRÈS — c" }]), []);
+  const rule = beforeAfterPairRule(detectBeforeAfterPairs(photos));
+  assert(rule.includes("2 PAIRES"));
+  assert(rule.includes("photo 1 (avant) et photo 2 (après) ; photo 4 (avant) et photo 5 (après)"));
+  assert(beforeAfterMatchRule(detectBeforeAfterPairs(photos)).includes("PHOTO 4 = avant et PHOTO 5 = après"));
+  // Une seule paire : texte identique à celui d'avant (snapshots inchangés).
+  const one = [{ context: "AVANT — cuisine" }, { context: "APRÈS — cuisine" }];
+  assertEquals(beforeAfterPairRule(detectBeforeAfterPairs(one)), beforeAfterPairRule(detectBeforeAfterPair(one)));
+  assertEquals(beforeAfterMatchRule(detectBeforeAfterPairs(one)), beforeAfterMatchRule(detectBeforeAfterPair(one)));
+});
+
+Deno.test("paires : le récapitulatif porte les deux paires", () => {
+  const recap = buildPhotoContextRecap([{ context: "AVANT — chambre" }, { context: "APRÈS — chambre" }, { context: "AVANT — couloir" }, { context: "APRÈS — couloir" }]);
+  assert(recap.includes("photo 3 (avant) et photo 4 (après)"));
 });
