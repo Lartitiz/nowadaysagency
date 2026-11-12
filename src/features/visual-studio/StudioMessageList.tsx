@@ -153,7 +153,8 @@ export function StudioMessageList({
             className="rounded-xl border bg-card p-4 my-4 text-sm"
           >
             <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-            Création en cours.
+            {/* QA du 12/11/2026 : ~1 min réelle, sans durée annoncée on ferme la page. */}
+            Création en cours : compte environ 1 minute par image.
             <p className="mt-2">
               Tu peux quitter le Studio et retrouver le résultat dans
               « Mes sessions ».
