@@ -22,7 +22,8 @@ export interface SelectedClip {
   thumbnail: string | null;
   /** Durée du clip source (pour la fenêtre), null si inconnue. */
   duration: number | null;
-  source: "stock" | "mine" | "studio";
+  /** "photo" : la photo de départ du reel (image fixe, sans durée propre). */
+  source: "stock" | "mine" | "studio" | "photo";
   studioJobId?: string;
   label: string;
   /** Seconde d'entrée dans le clip (fenêtre choisie). */
@@ -62,6 +63,11 @@ export function fromMine(v: UserReelVideo, duration: number | null): SelectedCli
     label: v.name,
     seek: 0,
   };
+}
+
+/** Photo de départ du reel (URL publique durable), posée comme une image. */
+export function fromStartPhoto(url: string): SelectedClip {
+  return { id: `photo-${url}`, url, thumbnail: url, duration: null, source: "photo", label: "Ta photo de départ", seek: 0 };
 }
 
 /**

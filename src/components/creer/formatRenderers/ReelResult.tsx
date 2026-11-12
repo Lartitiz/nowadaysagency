@@ -62,6 +62,8 @@ interface Props {
   onMp4Change?: (url: string | null) => void;
   /** Persiste les corrections locales dans la source de vérité du résultat. */
   onResultChange?: (result: any) => void;
+  /** Reel créé à partir d'une photo : elle est proposée au montage. */
+  startPhoto?: string | null;
 }
 
 function correctedSection(section: any) {
@@ -73,7 +75,7 @@ function correctedSection(section: any) {
   };
 }
 
-export default function ReelResult({ result, workspaceId, initialMp4Url, onStepChange, onMp4Change, onResultChange }: Props) {
+export default function ReelResult({ result, workspaceId, initialMp4Url, onStepChange, onMp4Change, onResultChange, startPhoto }: Props) {
   // `format_label` est le libellé LISIBLE produit par la génération (« Face cam
   // confession ») ; `format_type` est la clé technique (`face_cam_confession`).
   // On affichait la clé — même bug que #688 ailleurs dans l'app.
@@ -285,6 +287,7 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
             onProjectChange={project => onResultChange?.({ ...result, montage_project: project })}
             onPhaseChange={setMontagePhase}
             onMp4Ready={(url) => { setMp4Url(url); onMp4Change?.(url); }}
+            startPhoto={startPhoto}
           />
         </div>
       )}

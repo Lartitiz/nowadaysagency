@@ -7,6 +7,8 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 export const SectionSchema = z.object({
   clip_url: z.string().url(),
+  // Photo de départ du reel posée à la place d'un clip (élément image du moteur).
+  clip_type: z.enum(["video", "image"]).optional(),
   seek: z.number().min(0).optional(),
   duration: z.number().positive().max(90),
   voice_audio_url: z.string().url().optional(),

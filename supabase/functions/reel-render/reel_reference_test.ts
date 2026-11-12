@@ -167,3 +167,12 @@ Deno.test("Contrat d'entrée du rendu : overlay_text n'est plus retiré en silen
   });
   assertEquals(b2.sections[0].overlay_text, long);
 });
+
+Deno.test("Contrat d'entrée du rendu : clip_type « image » passe, une autre valeur est refusée", () => {
+  const ok = SubmitSchema.parse({ action: "submit", voice_mode: "silent",
+    sections: [{ clip_url: "https://x.test/photo.jpg", clip_type: "image", duration: 4 }] });
+  if (ok.sections[0].clip_type !== "image") throw new Error("clip_type retiré en silence");
+  const bad = SubmitSchema.safeParse({ action: "submit", voice_mode: "silent",
+    sections: [{ clip_url: "https://x.test/photo.jpg", clip_type: "gif", duration: 4 }] });
+  if (bad.success) throw new Error("clip_type inconnu accepté");
+});

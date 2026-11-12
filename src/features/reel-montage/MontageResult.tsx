@@ -18,6 +18,7 @@ interface MontageResultProps {
   sectionTexts: string[];
   setNeedsReview: (value: boolean) => void;
   montageMode: MontageMode;
+  voiceMode: "recorded" | "silent";
   clips: (SelectedClip | null)[];
   tick: number;
   errorMsg: string;
@@ -30,7 +31,15 @@ interface MontageResultProps {
   handleArchiveRetry: () => void;
 }
 
-export function MontageResult({ spoken, ready, phase, archiving, needsReview, handleAssemble, setAssociationTexts, sectionTexts, setNeedsReview, montageMode, clips, tick, errorMsg, mp4Url, downloading, handleDownload, downloadFailed, archived, archiveRetryAvailable, handleArchiveRetry }: MontageResultProps) {
+/** Ce que fait le moteur pendant l'assemblage, selon le mode : sans voix, pas de
+ * sous-titres (ils se calent sur une piste audio) mais le texte à l'écran. */
+function renderingMessage(montageMode: MontageMode, voiceMode: "recorded" | "silent"): string {
+  if (montageMode === "filme") return "Assemblage des clips, incrustation des sous-titres…";
+  if (voiceMode === "silent") return "Assemblage des clips et incrustation du texte à l'écran…";
+  return "Assemblage des clips, incrustation des sous-titres et de la voix…";
+}
+
+export function MontageResult({ spoken, ready, phase, archiving, needsReview, handleAssemble, setAssociationTexts, sectionTexts, setNeedsReview, montageMode, voiceMode, clips, tick, errorMsg, mp4Url, downloading, handleDownload, downloadFailed, archived, archiveRetryAvailable, handleArchiveRetry }: MontageResultProps) {
   return (
     <>
   {/* Toujours en vue : collée en bas de l'écran, au-dessus du menu du téléphone
@@ -63,7 +72,7 @@ export function MontageResult({ spoken, ready, phase, archiving, needsReview, ha
 
   {phase === "rendering" && (
     <p className="text-2xs text-muted-foreground text-center">
-      Assemblage des clips, incrustation des sous-titres{montageMode === "cache" ? " et de la voix" : ""}…
+      {renderingMessage(montageMode, voiceMode)}
       (≈ {Math.max(1, tick * 6)} s)
     </p>
   )}
