@@ -13,9 +13,19 @@ interface Props {
   message: string;
   onRetry: () => void;
   disabled?: boolean;
+  /** Titre du bloc (par défaut : la mise en scène). */
+  title?: string;
+  /** Texte du bouton (verbe + objet). */
+  retryLabel?: string;
 }
 
-export default function GenerationFailedNotice({ message, onRetry, disabled }: Props) {
+export default function GenerationFailedNotice({
+  message,
+  onRetry,
+  disabled,
+  title = "La mise en scène n'a pas abouti",
+  retryLabel = "Réessayer la mise en scène",
+}: Props) {
   return (
     <div
       role="alert"
@@ -24,13 +34,13 @@ export default function GenerationFailedNotice({ message, onRetry, disabled }: P
       <div className="flex items-start gap-2 flex-1 min-w-0">
         <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-destructive" />
         <div className="text-xs space-y-0.5">
-          <p className="font-medium text-foreground">La mise en scène n'a pas abouti</p>
+          <p className="font-medium text-foreground">{title}</p>
           <p className="text-muted-foreground">{message}</p>
         </div>
       </div>
       <Button type="button" size="sm" variant="outline" onClick={onRetry} disabled={disabled} className="self-start sm:self-center">
         <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-        Réessayer la mise en scène
+        {retryLabel}
       </Button>
     </div>
   );
