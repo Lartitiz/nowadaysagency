@@ -951,7 +951,7 @@ function CreerWorkspace() {
   };
 
   // ── Cœur de la génération de contenu (6 sous-flux selon format/sous-mode) ──
-  const { doGenerate } = useDoGenerate({
+  const { doGenerate, photoContextDialog } = useDoGenerate({
     firstProductCarousel: firstProductRef.current,
     selectedFormat,
     generating,
@@ -2071,7 +2071,7 @@ function CreerWorkspace() {
           setStep("format");
         }}
       />
-      <RedoVisualsDialog {...redoVisuals.dialog} />
+      <RedoVisualsDialog {...redoVisuals.dialog} />{photoContextDialog}
       <ConfirmResetDialog
         open={confirmResetOpen}
         onOpenChange={setConfirmResetOpen}

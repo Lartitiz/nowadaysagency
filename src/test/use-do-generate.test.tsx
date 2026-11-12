@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, render, screen, fireEvent } from "@testing-library/react";
+import { useState } from "react";
 
 // Cœur de la génération (doGenerate) : 6 sous-flux selon format/sous-mode.
 // Chaque mauvais routage part sur le mauvais moteur (streaming vs classique vs
@@ -610,5 +611,88 @@ describe("saved photo recovery before paid generation", () => {
     expect(mocks.invokeWithTimeout).not.toHaveBeenCalled();
     expect(p.generate).not.toHaveBeenCalled();
     expect(p.resultSetters.setVisualSlides).not.toHaveBeenCalled();
+  });
+});
+
+
+// « Que montre chaque photo ? » (QA du 12/11/2026, option A) : avant un
+// carrousel photo / mixte, une ligne par photo sans contexte, pré-remplie
+// gratuitement (nom du fichier, photothèque), et la paire avant / après écrite
+// dans le contexte (« AVANT — … » / « APRÈS — … ») qui va jusqu'au prompt.
+describe("étape « Que montre chaque photo ? »", () => {
+  beforeEach(() => vi.clearAllMocks());
+  const start = [
+    { id: "a", base64: "p1", name: "cuisine-avant.jpg", preview: "blob:a", mimeType: "image/jpeg" },
+    { id: "b", base64: "p2", name: "IMG_2041.jpg", preview: "blob:b", mimeType: "image/jpeg" },
+    { id: "c", base64: "p3", name: "cuisine_apres.jpg", preview: "blob:c", mimeType: "image/jpeg" },
+  ];
+  function mount(overrides: Record<string, any> = {}, initial: any[] = start) {
+    const box: { gen?: (a: Record<string, string>) => Promise<void>; p?: any } = {};
+    function Harness() {
+      const [photos, setPhotos] = useState<any[]>(initial);
+      const p = makeParams({ carouselSubMode: "mix", ...overrides, uploadedPhotos: photos, setUploadedPhotos: setPhotos });
+      box.p = p;
+      const { doGenerate, photoContextDialog } = useDoGenerate(p);
+      box.gen = doGenerate;
+      return <>{photoContextDialog}</>;
+    }
+    render(<Harness />);
+    return box;
+  }
+
+  it("ouvre l'étape au lieu de lancer la création, avec les suggestions gratuites", async () => {
+    const box = mount();
+    await act(async () => { await box.gen!({}); });
+    expect(box.p.generate).not.toHaveBeenCalled();
+    expect(mocks.invokeWithTimeout).not.toHaveBeenCalled();
+    expect(screen.getByText("Que montre chaque photo ?")).toBeTruthy();
+    const fields = screen.getAllByRole("textbox") as HTMLInputElement[];
+    expect(fields.map(f => f.value)).toEqual(["Cuisine", "", "Cuisine"]);
+    // Paire devinée d'après « avant » / « apres » dans les noms.
+    const pressed = screen.getAllByRole("button", { pressed: true }).map(b => b.textContent);
+    expect(pressed).toEqual(["C'est l'avant", "C'est l'après"]);
+  });
+
+  it("« Créer mon carrousel » écrit les contextes et la paire, puis lance la création", async () => {
+    const box = mount();
+    await act(async () => { await box.gen!({}); });
+    fireEvent.change(screen.getAllByRole("textbox")[1], { target: { value: "La façade de l'immeuble" } });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Créer mon carrousel" })); });
+    expect(box.p.generate).toHaveBeenCalledTimes(1);
+    expect(box.p.generate.mock.calls[0][0].photos.map((p: any) => p.context)).toEqual([
+      "AVANT — Cuisine", "La façade de l'immeuble", "APRÈS — Cuisine",
+    ]);
+    expect(mocks.savePhotos).toHaveBeenCalledTimes(1);
+  });
+
+  it("« Passer » lance la création sans rien changer, et ne redemande pas pour ces photos", async () => {
+    const box = mount();
+    await act(async () => { await box.gen!({}); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Passer" })); });
+    expect(box.p.generate).toHaveBeenCalledTimes(1);
+    expect(box.p.generate.mock.calls[0][0].photos.map((p: any) => p.context)).toEqual([undefined, undefined, undefined]);
+    await act(async () => { await box.gen!({}); });
+    expect(box.p.generate).toHaveBeenCalledTimes(2);
+  });
+
+  it("carrousel photo : les contextes partent dans la proposition de plan", async () => {
+    mocks.invokeWithTimeout.mockResolvedValue({ data: { result: { slides: [{ slide_number: 1 }] } }, error: null });
+    const box = mount({ carouselSubMode: "photo" });
+    await act(async () => { await box.gen!({}); });
+    expect(mocks.invokeWithTimeout).not.toHaveBeenCalled();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Créer mon carrousel" })); });
+    const body = mocks.invokeWithTimeout.mock.calls[0][1].body;
+    expect(body.type).toBe("structure_proposal");
+    expect(body.photos.map((p: any) => p.context)).toEqual(["AVANT — Cuisine", undefined, "APRÈS — Cuisine"]);
+  });
+
+  it("aucune étape quand chaque photo a déjà sa ligne, ni en texte d'abord, ni pour le premier contenu", async () => {
+    const filled = start.map((p, i) => ({ ...p, context: `photo ${i}` }));
+    for (const [overrides, photos] of [[{}, filled], [{ isTextFirstMix: true }, start], [{ firstProductCarousel: true, carouselSubMode: "photo" }, start]] as const) {
+      mocks.invokeWithTimeout.mockResolvedValue({ data: { result: { slides: [] } }, error: null });
+      const box = mount(overrides as any, photos as any);
+      await act(async () => { await box.gen!({}); });
+      expect(screen.queryByText("Que montre chaque photo ?")).toBeNull();
+    }
   });
 });
