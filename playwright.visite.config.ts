@@ -34,7 +34,12 @@ const SPECS_PAYANTES =
   /(fonctionnel-t1|perf-carousel|stories-visuelles|carousel-mix-live|carousel-photo-live|carousel-photo-fond-live|packshot-live|plan-carrousel-sonde)\.spec\.ts/;
 const estLundi = new Date().getDay() === 1;
 const sansSpecsPayantes = !!process.env.VISITE_SANS_CREDIT || (!estLundi && !process.env.VISITE_PAYANTE);
-const IGNORES = [/cold-smoke\.spec\.ts/, ...(sansSpecsPayantes ? [SPECS_PAYANTES] : [])];
+// Tests de vérification manuelle des stories (e2e-visite/qa/, 12/11/2026) : JAMAIS dans la
+// visite du matin (qa-stories-sauvegarde débite 1 crédit, qa-stories-calendrier écrit au
+// calendrier de Camille). Les lancer à la main : VISITE_QA=1 QA_STAMP=<n> npx playwright test
+// -c playwright.visite.config.ts e2e-visite/qa/<fichier> (voir e2e-visite/qa/LISEZMOI.md).
+const QA_MANUELS = /[\\/]qa[\\/]qa-[^/\\]+\.spec\.ts$/;
+const IGNORES = [/cold-smoke\.spec\.ts/, ...(sansSpecsPayantes ? [SPECS_PAYANTES] : []), ...(process.env.VISITE_QA ? [] : [QA_MANUELS])];
 
 export default defineConfig({
   testDir: "./e2e-visite",

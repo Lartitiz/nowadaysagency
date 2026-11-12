@@ -19,6 +19,7 @@ import { fileURLToPath } from "url";
 import { installFigeReplay, FIGES_DIR, LIVE_OK, expectZoneMatches } from "./fige-replay";
 import { sondeResultatActions } from "./resultat-actions-sonde";
 import { sondeGestesStories } from "./gestes-stories-sonde";
+import { sondeApercuStoryTelephone } from "./apercu-story-telephone-sonde";
 import { sondeHauteurEditeur } from "./hauteur-editeur-sonde";
 import { skipPhotoContextStep } from "./photo-context-step";
 
@@ -257,6 +258,8 @@ test("contenus figés — story", async ({ page }) => {
   await sondeResultatActions(page, "stories");
   // Boutons Dupliquer / Après / Ajouter / Taille / Refaire (chantier 4, #1865) : présence seulement.
   await sondeGestesStories(page);
+  // Aperçu de la story 1 entier sur le premier écran du téléphone (#1893) : ligne 📱.
+  await sondeApercuStoryTelephone(page);
   // Hauteur de la page et commandes visibles (chantier D, ligne 📏) : en tout dernier.
   await sondeHauteurEditeur(page, "stories");
 });
