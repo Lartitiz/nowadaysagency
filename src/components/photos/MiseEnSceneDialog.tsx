@@ -53,6 +53,7 @@ import {
 } from "@/lib/photo-auto-save";
 import { useRefreshUserPhotos } from "@/hooks/use-user-photos";
 import PhotoDetailComparison from "./PhotoDetailComparison";
+import GenerationFailedNotice from "./GenerationFailedNotice";
 
 interface MiseEnSceneDialogProps {
   photo: UserPhotoRow | null;
@@ -119,6 +120,8 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
   const [previousProposals, setPreviousProposals] = useState<Record<number, Proposal>>({});
   const [customAdjust, setCustomAdjust] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  // Échec affiché dans la fenêtre (le toast seul disparaît) + relance de la même demande.
+  const [failure, setFailure] = useState<{ message: string; retry: () => void } | null>(null);
 
   // Reset + chargement source/charte à chaque ouverture
   useEffect(() => {
@@ -136,6 +139,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     setSelectedIdx(0);
     setCustomAdjust("");
     setIsSaving(false);
+    setFailure(null);
     let cancelled = false;
     userPhotoToRawBase64(photo)
       .then((b64) => {
@@ -173,7 +177,9 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
   async function callEdge(
     adjustment: string | null,
     variants = false,
+    retry?: () => void,
   ): Promise<string[] | null> {
+    setFailure(null);
     const { data, error } = await invokeWithTimeout(
       "product-on-model",
       {
@@ -204,10 +210,10 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
       return null;
     }
     if (error || !Array.isArray(data?.images) || data.images.length === 0) {
-      toast.error("Mise en scène impossible", {
-        // Message du serveur en français tel quel, message technique traduit.
-        description: readableError(error ?? data?.error, "Réessaie dans quelques instants."),
-      });
+      // Message du serveur en français tel quel, message technique traduit.
+      const message = readableError(error ?? data?.error, "Réessaie dans quelques instants.");
+      toast.error("Mise en scène impossible", { description: message });
+      if (retry) setFailure({ message, retry });
       return null;
     }
     return data.images as string[];
@@ -241,7 +247,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
   const handleGenerate = async () => {
     if (busy) return;
     setIsGenerating(true);
-    const images = await callEdge(null);
+    const images = await callEdge(null, false, handleGenerate);
     const kept = images ? await keep(images) : null;
     setIsGenerating(false);
     if (kept) {
@@ -255,7 +261,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
   const handleMoreVariants = async () => {
     if (busy || !hasResult) return;
     setIsAddingVariants(true);
-    const images = await callEdge(null, true);
+    const images = await callEdge(null, true, handleMoreVariants);
     const kept = images?.length ? await keep(images) : null;
     setIsAddingVariants(false);
     if (kept) {
@@ -267,7 +273,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
   const handleAdjust = async (adjustPrompt: string) => {
     if (busy || !hasResult) return;
     setIsAdjusting(true);
-    const images = await callEdge(adjustPrompt);
+    const images = await callEdge(adjustPrompt, false, () => handleAdjust(adjustPrompt));
     const kept = images?.length ? await keep(images.slice(0, 1)) : null;
     setIsAdjusting(false);
     if (kept) {
@@ -497,6 +503,10 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
               1 crédit photo. L'image ira toute seule dans Mes photos, ta photo d'origine reste intacte.
             </p>
 
+            {failure && !busy && (
+              <GenerationFailedNotice message={failure.message} onRetry={failure.retry} />
+            )}
+
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
                 Annuler
@@ -636,6 +646,10 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
               Image générée par IA à partir de ta vraie photo produit. Instagram peut afficher
               un label « Info IA » sur ce type de visuel.
             </p>
+
+            {failure && !busy && (
+              <GenerationFailedNotice message={failure.message} onRetry={failure.retry} />
+            )}
 
             <DialogFooter className="flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
               {selected?.photoId ? (
