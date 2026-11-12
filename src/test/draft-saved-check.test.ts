@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createHash } from "node:crypto";
-import { draftHasCloudSave, draftMatchesSavedIdea } from "@/features/creer/draft-saved-check";
+import { draftLinkedToIdea, draftMatchesSavedIdea } from "@/features/creer/draft-saved-check";
 
 // Demande du 12/11/2026 : passer d'un carrousel à l'autre comme sur Canva,
 // sans « Tu as déjà un contenu en cours » quand rien ne peut se perdre.
@@ -40,18 +40,28 @@ describe("Ouvrir un autre contenu sans fenêtre quand le carrousel en cours est 
     expect(await draftMatchesSavedIdea(other, saved())).toBe(false);
   });
 
-  it("fiche introuvable ou contenu jamais enregistré : la fenêtre reste", async () => {
+  it("fiche introuvable ou contenu sans fiche : la fenêtre reste", async () => {
     expect(await draftMatchesSavedIdea(draft(), null)).toBe(false);
-    const neverSaved = draft({ result: { raw: raw() } });
-    expect(draftHasCloudSave(neverSaved)).toBe(false);
-    expect(await draftMatchesSavedIdea(neverSaved, saved())).toBe(false);
+    expect(draftLinkedToIdea(draft({ editingIdeaId: null }))).toBe(false);
+    expect(draftLinkedToIdea(draft({ step: "generating" }))).toBe(false);
+    expect(draftLinkedToIdea({ step: "idea", editingIdeaId: null, result: null })).toBe(false);
   });
 
-  it("post texte, génération en cours ou départ photo ne sont jamais concernés", () => {
-    expect(draftHasCloudSave({ step: "result", editingIdeaId: "i", result: { raw: { content: "Post", _carousel_cloud: {} } } })).toBe(false);
-    expect(draftHasCloudSave(draft({ step: "generating" }))).toBe(false);
-    expect(draftHasCloudSave(draft({ editingIdeaId: null }))).toBe(false);
-    expect(draftHasCloudSave({ step: "idea", editingIdeaId: null, result: null })).toBe(false);
+  // Extension du 12/11/2026 : contenu rouvert sans modification, même sans sauvegarde continue.
+  it("ancien carrousel sans visuels rouvert à l'identique : pas de fenêtre ; modifié : fenêtre", async () => {
+    const old = { carousel_type: "photo", slides: [{ title: "Avant" }] };
+    const reopened = { step: "result", editingIdeaId: "old-1", result: { raw: { ...old } }, visualSlides: [] };
+    expect(await draftMatchesSavedIdea(reopened, { ...old })).toBe(true);
+    const changed = { ...reopened, result: { raw: { ...old, slides: [{ title: "Après" }] } } };
+    expect(await draftMatchesSavedIdea(changed, { ...old })).toBe(false);
+  });
+
+  it("post rouvert : le texte retouché doit être celui de la fiche", async () => {
+    const post = { content: "Mon post", edited_text: "Ma version" };
+    const base = { step: "result", editingIdeaId: "p-1", result: { raw: { ...post } } };
+    expect(await draftMatchesSavedIdea({ ...base, editContent: "Ma version" }, { ...post })).toBe(true);
+    expect(await draftMatchesSavedIdea({ ...base, editContent: "Ma version retouchée" }, { ...post })).toBe(false);
+    expect(await draftMatchesSavedIdea(base, { content: "Mon post" })).toBe(false);
   });
 
   it("les stories enregistrées passent aussi", async () => {

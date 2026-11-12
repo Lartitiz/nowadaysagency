@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { draftHasCloudSave, draftMatchesSavedIdea } from "@/features/creer/draft-saved-check";
+import { draftLinkedToIdea, draftMatchesSavedIdea } from "@/features/creer/draft-saved-check";
 
 // Contenu en cours déjà enregistré dans Mes idées : on ouvre le contenu choisi
 // sans la fenêtre « Tu as déjà un contenu en cours » (draft-saved-check.ts).
@@ -12,7 +12,7 @@ export function useSilentDraftSwitch({ draftConflict, onSwitch }: {
   draftConflict: { draft: any } | null;
   onSwitch: () => void;
 }) {
-  const eligible = !!draftConflict && draftHasCloudSave(draftConflict.draft);
+  const eligible = !!draftConflict && draftLinkedToIdea(draftConflict.draft);
   const [checking, setChecking] = useState(eligible);
   const switchRef = useRef(onSwitch);
   switchRef.current = onSwitch;
@@ -28,7 +28,8 @@ export function useSilentDraftSwitch({ draftConflict, onSwitch }: {
     };
     (async () => {
       let same = await matches().catch(() => false);
-      if (!same && alive) {
+      // Seconde lecture seulement si une sauvegarde automatique peut être en route.
+      if (!same && alive && draft.result?.raw?._carousel_cloud) {
         await new Promise((r) => setTimeout(r, RETRY_MS));
         if (alive) same = await matches().catch(() => false);
       }
