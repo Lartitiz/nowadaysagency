@@ -361,7 +361,8 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
               <Sparkles className="h-4 w-4 mr-2 shrink-0" />
               <span className="truncate">Créer un contenu</span>
             </Button>
-            {onStudio && <Button variant="outline" onClick={() => { onOpenChange(false); onStudio(photo); }}>
+            {/* Photo d'un lieu : « Retoucher avec mes mots » (menu ci-dessous) fait la même chose. */}
+            {onStudio && !isPlace && <Button variant="outline" onClick={() => { onOpenChange(false); onStudio(photo); }}>
               <Sparkles className="h-4 w-4 mr-2" /> Retravailler dans le Studio
             </Button>}
             {retouchOptions.length > 0 && (
