@@ -123,7 +123,7 @@ Deno.test("étape 7 : reel branché (une idée par plan, texte à l'écran = ses
   }
   assert(b.includes('"cover_mot_cle"'));
   // Visibilité : le reel reste court (le calibrage qui coupe reste).
-  assert(reelBrief({ effectiveObjective: "visibilite", subject: "x" }).includes("DURÉE CIBLE : 15-25 secondes"));
+  assert(reelBrief({ effectiveObjective: "visibilite", subject: "x" }).includes("DURÉE CIBLE : 20-30 secondes"));
   assert(reelBrief({ subject: "3 erreurs de devis" }).includes(socle.numerotationConsigne(3, "sections")));
   assert(!reelBrief({ subject: "mon devis" }).includes("LISTE ANNONCÉE"));
 });

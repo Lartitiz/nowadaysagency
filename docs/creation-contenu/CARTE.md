@@ -245,11 +245,12 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 | `formats/linkedin.ts` | `runLinkedInTwoStep`, `applyLinkedInCorrectionPass`, `streamLinkedInPhotoVision`, brief fictif | LinkedIn |
 | `formats/newsletter.ts` | `runNewsletterTwoStep`, `applyNewsletterCorrectionPass` | la newsletter |
 | `formats/stories.ts` | `applyStoriesCorrectionPass`, `finalizeRecycledStories`, lectures en base du brief (`loadStoriesGenerateData` : garde-fou 3 séquences vente en 7 jours, catalogue photos) | les stories, y compris recyclées |
-| `formats/reel.ts` | `applyReelQualityPass`, `normalizeHooksResponse`, `enforceReelAudienceAddress`, étape `hooks` (`HOOKS_TOOL`, `buildHooksPrompt`) | le reel |
+| `formats/reel.ts` | `applyReelQualityPass`, `normalizeHooksResponse`, `enforceReelAudienceAddress`, étape `hooks` (`HOOKS_TOOL`, `buildHooksPrompt`). Durée maximale (12/11/2026) : `REEL_MAX_SECONDS` = 55 s, car le montage JSON2Video s'arrête à 60 s ; `reelSpokenWordCap` (75 mots en visibilité, 130 sinon), coupe dédiée `enforceReelMaxWords` si la relecture ne suffit pas, trace `reel_trop_long` dans les journaux sinon ; `clampHookDuration` borne la durée annoncée sous chaque accroche. Test : `reel_duree_test.ts` | le reel |
 | `formats/post.ts` | `streamDefaultPostSSE`, `correctPostStreamContent`, `POST_TOOL` | le post Instagram / la légende |
 | `formats/photo.ts` | `runVisionQuestions`, `runVisionGenerate` | le mode photo, tous formats |
 | `formats/recycle.ts` | `buildRecycleSystemPrompt`, `handleRecycleStep` | le recyclage |
 | `formats/carousel.ts` | contrôle tu / vous d'un carrousel, réponse 410 du streaming retiré | le recyclage en carrousel, l'ajustement carrousel |
+| `postprocess.ts` (questions) | `QUESTIONS_ADDRESS_FIELDS` : les questions d'avant création (`questions`, `follow-up`) sont toujours au tu, quel que soit le réglage tu / vous de la marque (QA du 12/11/2026). L'exemple de réponse n'est pas touché. Test : `questions_tutoiement_test.ts` | tous les formats de creative-flow |
 
 `index.ts` réexporte tout ce qui était exporté avant : les tests et les
 appelants n'ont pas changé d'import. Découpage d'`index.ts` en cours (fiche 3

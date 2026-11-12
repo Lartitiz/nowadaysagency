@@ -15,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import StickyStepBar from "./StickyStepBar";
+import { readableReelFormat } from "@/lib/reel-shot-purpose";
 
 // Lot 7 reels : l'utilisatrice choisit son angle d'attaque AVANT la génération
 // complète. La forme de ReelHook = celle du `selected_hook` que reelBrief
@@ -173,7 +174,7 @@ export default function HookSelectionStep({
                   )}
                   {(hook.format_label || hook.duree_cible) && (
                     <span className="text-xs text-muted-foreground">
-                      {[hook.format_label, hook.duree_cible].filter(Boolean).join(" · ")}
+                      {[readableReelFormat(hook.format_label), hook.duree_cible].filter(Boolean).join(" · ")}
                     </span>
                   )}
                 </div>
@@ -181,7 +182,7 @@ export default function HookSelectionStep({
               <p className="text-sm text-foreground leading-relaxed">« {hook.text} »</p>
               {hook.text_overlay && (
                 <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                  <span className="text-2xs uppercase tracking-wide text-muted-foreground">Écran muet</span>
+                  <span className="text-2xs uppercase tracking-wide text-muted-foreground">Texte à l'écran</span>
                   <Badge variant="secondary" className="text-2xs font-normal">📝 {hook.text_overlay}</Badge>
                 </div>
               )}

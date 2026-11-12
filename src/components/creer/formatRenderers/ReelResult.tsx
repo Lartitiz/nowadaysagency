@@ -25,7 +25,7 @@ import { reelSourceKey } from "@/lib/reel-publication";
  * visiblement un SOUS-niveau, et rendent le saut direct vers « Légende »
  * évident au lieu de le cacher derrière une pastille « 4 ».
  */
-import { readableShotPurpose, shotTypeLabel } from "@/lib/reel-shot-purpose";
+import { readableReelFormat, readableShotPurpose, shotTypeLabel } from "@/lib/reel-shot-purpose";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,7 +77,7 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
   // `format_label` est le libellé LISIBLE produit par la génération (« Face cam
   // confession ») ; `format_type` est la clé technique (`face_cam_confession`).
   // On affichait la clé — même bug que #688 ailleurs dans l'app.
-  const formatType = result?.format_label || result?.format_type || result?.format;
+  const formatType = readableReelFormat(result?.format_label || result?.format_type || result?.format);
   const dureeCible = result?.duree_cible || result?.duration;
   const sections = result?.sections || (Array.isArray(result?.script) ? result.script : result?.script?.sections) || [];
   const personalTip = result?.personal_tip || result?.conseil_personnalise;

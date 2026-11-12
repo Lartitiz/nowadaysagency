@@ -366,7 +366,7 @@ export function enforceReelNoFaceCam(parsed: any): boolean {
   let touched = false;
   if (mentionsFaceCam(parsed?.format_type)) {
     parsed.format_type = "voix_off_broll";
-    parsed.format_label = "Voix off + B-roll";
+    parsed.format_label = "Voix off sur images";
     touched = true;
   }
   for (const s of sectionsOf(parsed)) {
