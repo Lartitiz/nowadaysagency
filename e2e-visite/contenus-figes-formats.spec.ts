@@ -20,6 +20,7 @@ import { installFigeReplay, FIGES_DIR, LIVE_OK, expectZoneMatches } from "./fige
 import { sondeResultatActions } from "./resultat-actions-sonde";
 import { sondeGestesStories } from "./gestes-stories-sonde";
 import { sondeHauteurEditeur } from "./hauteur-editeur-sonde";
+import { skipPhotoContextStep } from "./photo-context-step";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PHOTOS = [path.join(__dirname, "fixtures-portrait-test.jpg"), path.join(__dirname, "fixtures-cover-test.jpg")];
@@ -175,6 +176,7 @@ test("contenus figés — carrousel photo", async ({ page }) => {
   if (await dump.isVisible({ timeout: 3000 }).catch(() => false) && (await dump.getAttribute("aria-checked")) === "true") await dump.click();
   await toStep3(page);
   await generate(page);
+  await skipPhotoContextStep(page);
   await waitResult(page);
   await editorReady(page);
   if (fige.recording) { await fige.save(); await dumpStructure(page, name); }
@@ -196,6 +198,7 @@ test("contenus figés — carrousel mixte", async ({ page }) => {
   await expect(page.locator('img[src^="blob:"], img[src^="data:"]').nth(1)).toBeVisible({ timeout: 20000 });
   await toStep3(page);
   await generate(page);
+  await skipPhotoContextStep(page);
   await waitResult(page);
   await editorReady(page);
   if (fige.recording) { await fige.save(); await dumpStructure(page, name); }
