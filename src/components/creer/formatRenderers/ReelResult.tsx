@@ -25,7 +25,7 @@ import { reelSourceKey } from "@/lib/reel-publication";
  * visiblement un SOUS-niveau, et rendent le saut direct vers « Légende »
  * évident au lieu de le cacher derrière une pastille « 4 ».
  */
-import { readableReelFormat, readableShotPurpose, shotTypeLabel } from "@/lib/reel-shot-purpose";
+import { readableReelFormat, readableShotPurpose, readableVisualCue, shotTypeLabel } from "@/lib/reel-shot-purpose";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -374,7 +374,7 @@ function ScriptStep({
                 )}
               </div>
               {section.format_visuel && (
-                <p className="text-xs italic text-muted-foreground">📹 {section.format_visuel}</p>
+                <p className="text-xs italic text-muted-foreground">📹 {readableVisualCue(section.format_visuel)}</p>
               )}
               {section.texte_parle && (
                 <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{section.texte_parle}</p>

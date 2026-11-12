@@ -157,7 +157,7 @@ serve(async (req) => {
     // Format labels (used by recycle, declared here for broader scope)
     const formatLabels: Record<string, string> = {
       carrousel: "Carrousel Instagram",
-      reel: "Script Reel (30-60 sec)",
+      reel: "Script Reel (30-55 sec)",
       stories: "Séquence Stories",
       linkedin: "Post LinkedIn",
       newsletter: "Email / Newsletter",

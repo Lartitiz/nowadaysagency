@@ -1056,6 +1056,20 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
       comptes_internes_7j: {},
       semaine_precedente: {},
     },
+    reels_trop_longs: {
+      cette_semaine: {
+        alerte: null,
+        au_dela_55s: 0,
+        max_s: null,
+        mesures: 0,
+      },
+      comptes_internes_7j: {
+        alerte: null,
+        au_dela_55s: 0,
+        max_s: null,
+        mesures: 0,
+      },
+    },
     retravail: {
       retravailles: 1,
       sujets_regeneres: 1,
@@ -1351,6 +1365,20 @@ snapshot[`weekly qualité : colonne content_preview absente → relecture sans e
       comptes_internes_7j: {},
       semaine_precedente: {},
     },
+    reels_trop_longs: {
+      cette_semaine: {
+        alerte: null,
+        au_dela_55s: 0,
+        max_s: null,
+        mesures: 0,
+      },
+      comptes_internes_7j: {
+        alerte: null,
+        au_dela_55s: 0,
+        max_s: null,
+        mesures: 0,
+      },
+    },
     retravail: {
       retravailles: 1,
       sujets_regeneres: 1,
@@ -1513,6 +1541,7 @@ snapshot[`weekly qualité : table content_quality_events absente → repli sur l
       },
     },
     plan_carrousels: null,
+    reels_trop_longs: null,
     retravail: {
       retravailles: 1,
       sujets_regeneres: 1,
@@ -1666,6 +1695,20 @@ snapshot[`weekly qualité : table complète sans aucun événement 1`] = `
       cette_semaine: {},
       comptes_internes_7j: {},
       semaine_precedente: {},
+    },
+    reels_trop_longs: {
+      cette_semaine: {
+        alerte: null,
+        au_dela_55s: 0,
+        max_s: null,
+        mesures: 0,
+      },
+      comptes_internes_7j: {
+        alerte: null,
+        au_dela_55s: 0,
+        max_s: null,
+        mesures: 0,
+      },
     },
     retravail: {
       retravailles: 1,
