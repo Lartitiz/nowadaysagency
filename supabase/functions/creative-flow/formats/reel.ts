@@ -292,7 +292,9 @@ export async function enforceReelMaxWords(parsed: any, params: {
         logger: (msg) => console.log(msg),
         authoredText: authoredContentSource(params.body),
         sourceContext: params.fullContext,
+        // Coupe seule : les faits ont été vérifiés par la relecture (Sonnet) juste avant.
         model: HAIKU_MODEL,
+        keepModelWithSource: true,
         extraInstructions: `REEL TROP LONG : ${before} mots parlés, plafond ${cap} (${REEL_MAX_SECONDS} secondes au plus, le montage s'arrête à 60 s). COUPE les [SECTION n - PARLE] pour arriver à ${target} mots au total, en respectant ce budget par passage (compte les mots) :\n${budgets}\nSupprime les redites, la mise en contexte et les exemples secondaires, garde le POURQUOI et la chute. Raccourcis en enlevant des phrases entières plutôt qu'en résumant en style télégraphique. Ne touche PAS à [SECTION 1 - PARLE] (l'accroche) ni aux autres balises. C'est une exception explicite à la règle "±10 %".`,
         abortTimeoutMs: CORRECTION_ABORT_MS,
       });

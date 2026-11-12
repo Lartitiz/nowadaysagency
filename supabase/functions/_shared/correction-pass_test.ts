@@ -172,6 +172,11 @@ Deno.test("relecture factuelle : modèle de contenu configuré, correction sans 
   assertEquals(correctionModel({ model: "claude-haiku-4-5", authoredText: "Voici mes propres mots." }), getModelForAction("content"));
 });
 
+Deno.test("coupe du reel : keepModelWithSource garde le modèle demandé malgré la source", () => {
+  assertEquals(correctionModel({ model: "claude-haiku-4-5", sourceContext: "Source.", keepModelWithSource: true }), "claude-haiku-4-5");
+  assertEquals(correctionModel({ sourceContext: "Source.", keepModelWithSource: true }), getModelForAction("content"));
+});
+
 Deno.test("newsletter : une enveloppe Markdown ne fuit jamais dans le dernier champ", () => {
   const draft = { subject: "Sujet", content: "Corps", cta_suggestion: "Voir le produit" };
   const block = extractNewsletterTexts(draft);
