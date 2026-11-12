@@ -37,6 +37,12 @@ export interface CorrectionOptions {
    */
   model?: AnthropicModel;
   /**
+   * true = garder `model` même avec une source (12/11/2026). Réservé aux passes
+   * mécaniques dont les faits ont déjà été vérifiés juste avant (coupe du reel
+   * sous 55 s) : la relecture factuelle, elle, reste sur le modèle "content".
+   */
+  keepModelWithSource?: boolean;
+  /**
    * Plafond (ms) de l'appel IA de la passe de correction. undefined = pas d'abort
    * (comportement historique conservé pour les appelants existants qui ne le
    * renseignent pas). À poser sur les appelants qui bornent déjà leur appel
@@ -56,6 +62,7 @@ export function unwrapCorrectionOutput(raw: string): string {
 
 /** Source fidelity is semantic work; use the configured content model within the existing timeout. */
 export function correctionModel(options: CorrectionOptions): AnthropicModel {
+  if (options.keepModelWithSource && options.model) return options.model;
   return options.sourceContext?.trim() || options.authoredText?.trim()
     ? getModelForAction("content")
     : options.model ?? getModelForAction("content");

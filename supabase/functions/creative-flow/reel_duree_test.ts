@@ -15,6 +15,8 @@ import {
   reelSpokenWordCap,
 } from "./formats/reel.ts";
 import { recalibrateReelTimings } from "../_shared/reel-postprocess.ts";
+import { correctionModel } from "../_shared/correction-pass.ts";
+import { HAIKU_MODEL } from "../_shared/anthropic.ts";
 
 Deno.test("reel : le plafond de mots tient sous 55 s, arrondi par section compris", () => {
   assertEquals(REEL_MAX_SECONDS, 55);
@@ -74,17 +76,21 @@ Deno.test("coupe : budget par passage, accroche intacte, total visé sous le pla
 
 Deno.test("coupe : une deuxième passe quand la première coupe trop peu", async () => {
   const consignes: string[] = [];
+  const modeles: string[] = [];
   // Fausse passe qui, comme Haiku en production, ne coupe que ~20 %.
   const pass: any = async (p: any, o: any) => {
     consignes.push(o.extraInstructions);
+    modeles.push(correctionModel(o));
     return { script: p.script.map((s: any, i: number) => ({ texte_parle: i === 0 ? s.texte_parle : mots(Math.ceil(s.texte_parle.split(" ").length * 0.8)) })) };
   };
   const r: any = reel184();
-  await enforceReelMaxWords(r, { body: {}, effectiveObjective: "credibilite", fullContext: "", pass });
+  await enforceReelMaxWords(r, { body: {}, effectiveObjective: "credibilite", fullContext: "Branding : photographe, ateliers en Bretagne.", pass });
   assertEquals(consignes.length, REEL_CUT_MAX_ATTEMPTS);
   assertEquals(nbMots(r) <= reelSpokenWordCap("credibilite"), true, `${nbMots(r)} mots`);
   assertEquals(r.script[0].texte_parle, mots(24));
   assertEquals(consignes[0].includes("[SECTION 3 - PARLE] : 70 mots →"), true);
+  // La coupe tourne sur Haiku, même avec la source (12/11/2026).
+  assertEquals(modeles, [HAIKU_MODEL, HAIKU_MODEL]);
 });
 
 Deno.test("coupe : rien si le script tient déjà, version gardée seulement si elle raccourcit", async () => {
