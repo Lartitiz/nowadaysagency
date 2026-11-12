@@ -15,12 +15,15 @@ type DraftLike = {
   editContent?: string;
 };
 
-/** Contenu qui a sa sauvegarde continue dans Mes idées (carrousel ou stories). */
-export function draftHasCloudSave(draft: DraftLike | null | undefined): boolean {
+/**
+ * Contenu rattaché à une fiche de Mes idées : carrousel ou stories avec
+ * sauvegarde continue, ou contenu rouvert depuis Mes idées / le calendrier
+ * (extension du 12/11/2026). Seule la comparaison décide ensuite.
+ */
+export function draftLinkedToIdea(draft: DraftLike | null | undefined): boolean {
   const raw = draft?.result?.raw;
   return !!draft && draft.step === "result" && typeof draft.editingIdeaId === "string" && !!draft.editingIdeaId
-    && !!raw && typeof raw === "object" && !!raw._carousel_cloud
-    && !!(raw.carousel_editor_version || raw.carousel_studio_version || raw.story_editor_version);
+    && !!raw && typeof raw === "object" && !Array.isArray(raw);
 }
 
 // Les grosses photos partent dans le stockage à l'enregistrement (carousel-media.ts) :
@@ -59,8 +62,9 @@ function comparable(raw: any) {
  * cours (texte des slides et, quand l'onglet les a, les visuels).
  */
 export async function draftMatchesSavedIdea(draft: DraftLike, savedRaw: any): Promise<boolean> {
-  if (!draftHasCloudSave(draft) || !savedRaw || typeof savedRaw !== "object") return false;
-  if (draft.editContent && draft.editContent.trim()) return false;
+  if (!draftLinkedToIdea(draft) || !savedRaw || typeof savedRaw !== "object") return false;
+  // Texte retouché à la main : il doit être celui de la fiche.
+  if (draft.editContent && draft.editContent.trim() && draft.editContent !== savedRaw.edited_text) return false;
   const local = draft.result!.raw;
   const [a, b] = await Promise.all([
     normalizeMedia(contentKey(comparable(local))),
