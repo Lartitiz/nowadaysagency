@@ -83,6 +83,9 @@ export function computeDraftConflict({
       photoSubject: d.photoSubject, photoDescription: d.photoDescription,
       forcedChannel: d.forcedChannel,
     },
-    newSubject,
+    // Reprise d'un contenu déjà écrit (calendrier, Mes idées) : la fenêtre
+    // parle d'ouvrir ce contenu, pas d'en démarrer un nouveau (QA du 12/11/2026).
+    resuming: !!locState.resumeIdea,
+    newSubject: newSubject || (locState.resumeIdea ? String(locState.theme || locState.resumeIdea.raw?.subject || "").trim() : ""),
   };
 }

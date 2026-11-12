@@ -1493,8 +1493,7 @@ function CreerWorkspace() {
       {conflictPending && draftConflict && (
         <DraftConflictDialog
           open
-          draft={draftConflict.draft}
-          newSubject={draftConflict.newSubject}
+          {...draftConflict}
           onResume={() => {
             // Retirer aussi l'état de navigation de la photo source : sinon
             // le dialogue peut réapparaître après le rechargement.

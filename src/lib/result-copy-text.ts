@@ -1,4 +1,5 @@
 import { newsletterCopyText } from "@/lib/newsletter-copy";
+import { reelSectionTitle } from "../../supabase/functions/_shared/reel-caption";
 
 /**
  * Texte brut à copier depuis l'écran du résultat de /creer, selon le format.
@@ -37,7 +38,7 @@ export function resultCopyText(format: string, result: any, reelStepKey?: string
       return `🎥 Plan de tournage\n\n${shots}`;
     }
     const reelSections = result.sections || result.script || [];
-    const scriptText = reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n");
+    const scriptText = reelSections.map((s: any) => `[${s.timing || ""}] ${reelSectionTitle(s).toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n");
     const tip = result.personal_tip ? `\n\n🎯 ${result.personal_tip}` : "";
     return `🎬 Script Reel (${result.duree_cible || ""})\n\n${scriptText}${tip}`;
   }

@@ -18,7 +18,26 @@ export function reelSectionsOf(detail: any): any[] {
  * plus reconnu et partirait en légende à la publication.
  */
 export function reelScriptDraft(sections: any[]): string {
-  return sections.map((s: any) => `[${s.timing || ""}] ${(s.label || s.section || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}${s.format_visuel ? `\n📹 ${s.format_visuel}` : ""}`).join("\n\n");
+  return scriptDraft(sections, (s) => reelSectionTitle(s).toUpperCase());
+}
+
+/** Nom lisible d'un passage : `section` est un code interne (hook, body, cta). */
+const SECTION_TITLES: Record<string, string> = {
+  hook: "Accroche", accroche: "Accroche",
+  body: "Développement", corps: "Développement", developpement: "Développement", development: "Développement",
+  cta: "Appel à l'action",
+};
+export function reelSectionTitle(s: any): string {
+  if (typeof s?.label === "string" && s.label.trim()) return s.label.trim();
+  const raw = typeof s?.section === "string" ? s.section.trim() : "";
+  const key = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (SECTION_TITLES[key]) return SECTION_TITLES[key];
+  const cleaned = raw.replace(/[_-]+/g, " ");
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+function scriptDraft(sections: any[], title: (s: any) => string): string {
+  return sections.map((s: any) => `[${s.timing || ""}] ${title(s)}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}${s.format_visuel ? `\n📹 ${s.format_visuel}` : ""}`).join("\n\n");
 }
 
 /** Historical calendar Reels store the script as content_draft. Only replace
@@ -29,8 +48,12 @@ export function reelCalendarCaption(draft: string, detail: any): string {
   // Ancien reel au script stocké en simple chaîne : c'est lui que le
   // calendrier a copié tel quel (build-calendar-content) — il n'est pas
   // davantage une légende.
-  const script = sections.length ? reelScriptDraft(sections) : typeof detail.script === "string" ? detail.script : "";
-  if (draft.trim() && draft.trim() !== script.trim()) return draft;
+  // Avant le 12/11/2026, le script copié gardait les codes (« HOOK »…) : un post
+  // enregistré avant reste reconnu comme script, donc remplacé par la légende.
+  const scripts = sections.length
+    ? [reelScriptDraft(sections), scriptDraft(sections, (s) => (s.label || s.section || "").toUpperCase())]
+    : [typeof detail.script === "string" ? detail.script : ""];
+  if (draft.trim() && !scripts.some((script) => draft.trim() === script.trim())) return draft;
   const cap = detail.caption;
   return [typeof cap === "string" ? cap : cap?.text || cap?.full || [cap?.hook,cap?.body].filter(Boolean).join("\n\n"),
     typeof cap === "object" ? cap?.cta : null,

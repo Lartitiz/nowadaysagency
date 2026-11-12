@@ -290,6 +290,7 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
             onPhaseChange={setMontagePhase}
             onMp4Ready={(url) => { setMp4Url(url); onMp4Change?.(url); }}
             startPhoto={startPhoto}
+            initialMp4Url={mp4Url}
           />
         </div>
       )}
