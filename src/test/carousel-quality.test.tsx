@@ -182,3 +182,53 @@ it("warns about dense photo copy without pretending to identify the subject", ()
   el.setAttribute("data-photo-editorial-text", "profonde");
   expect(inspectSlide(document, 1)).toContainEqual(expect.objectContaining({kind:"manual",severity:"warning",message:expect.stringContaining("grande partie de la photo")}));
 });
+
+// QA du 12/11/2026 : « Contraste… à vérifier » sur les 5 slides photo, en jargon,
+// même quand le texte est posé sur un panneau de lecture opaque.
+describe("texte sur photo : panneau de lecture ou photo nue", () => {
+  const photoSlide = (panelStyle: string | null) => {
+    const text = `<p data-editor-id="t" data-pptx-editable="body" style="font-size:48px;color:rgb(20,20,20)">Un texte</p>`;
+    document.body.innerHTML = `<div style="background-color:rgb(26,24,21)"><div data-pptx-photo="1"></div>${
+      panelStyle === null ? text : `<div data-photo-reading-panel="1" style="${panelStyle}">${text}</div>`
+    }</div>`;
+    const box = { left: 80, top: 100, right: 800, bottom: 250, width: 720, height: 150 } as DOMRect;
+    vi.spyOn(document.querySelector("p")!, "getBoundingClientRect").mockReturnValue(box);
+    vi.spyOn(document.querySelector("[data-pptx-photo]")!, "getBoundingClientRect").mockReturnValue(
+      { left: 0, top: 0, right: 1080, bottom: 1350, width: 1080, height: 1350 } as DOMRect,
+    );
+    vi.spyOn(document, "createRange").mockReturnValue({ selectNodeContents() {}, getBoundingClientRect: () => box } as any);
+    // jsdom ne calcule pas ces propriétés : mêmes valeurs par défaut qu'un navigateur.
+    const defaults: Record<string, string> = { opacity: "1", filter: "none", mixBlendMode: "normal", backgroundImage: "none", backgroundColor: "rgba(0, 0, 0, 0)" };
+    const original = window.getComputedStyle;
+    vi.spyOn(window, "getComputedStyle").mockImplementation((e) => {
+      const actual = original(e);
+      return new Proxy(actual, { get: (t, k) => (t as any)[k] || defaults[String(k)] || (t as any)[k] });
+    });
+  };
+
+  it("panneau opaque sur la photo : pas d'alerte, le contraste est mesuré", () => {
+    photoSlide("background-color:rgb(255,250,240)");
+    const issues = inspectSlide(document, 0);
+    expect(issues.some((i) => i.kind === "manual")).toBe(false);
+    expect(issues.some((i) => i.kind === "contrast")).toBe(false);
+  });
+
+  it("carte à 93 % : mesurée elle aussi", () => {
+    photoSlide("background-color:rgba(255,250,240,0.93)");
+    expect(inspectSlide(document, 0).some((i) => i.kind === "manual")).toBe(false);
+  });
+
+  it("panneau qui ressort mal : conseil mesuré, en mots simples", () => {
+    photoSlide("background-color:rgb(40,40,40)");
+    const contrast = inspectSlide(document, 0).find((i) => i.kind === "contrast");
+    expect(contrast?.message).toMatch(/ressort peu sur son fond/);
+    expect(contrast?.message).not.toMatch(/[Cc]ontraste/);
+  });
+
+  it("texte posé directement sur la photo : un conseil sans jargon", () => {
+    photoSlide(null);
+    const manual = inspectSlide(document, 0).find((i) => i.kind === "manual");
+    expect(manual?.message).toMatch(/regarde sur ton téléphone s'il se lit bien/);
+    expect(manual?.message).not.toMatch(/[Cc]ontraste/);
+  });
+});

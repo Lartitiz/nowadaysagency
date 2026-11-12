@@ -101,9 +101,9 @@ export function QualityPanel({ cloudTools, commit, current, document, quality, s
           )}
           <p className="text-xs text-muted-foreground">
             Bloquent la publication : textes coupés, textes trop petits pour le
-            mobile et images manquantes. Le contraste et les textes posés sur
-            une photo ou une transparence restent des conseils : vérifie-les à
-            l’œil.
+            mobile et images manquantes. Le reste, ce sont des conseils : un
+            texte qui ressort peu sur son fond ou posé sur une photo, regarde-le
+            sur ton téléphone.
           </p>
 
         </div>
