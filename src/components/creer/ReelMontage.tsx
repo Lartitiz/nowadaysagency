@@ -52,14 +52,16 @@ interface Props {
    * `null` = plus de vidéo rattachable (nouveau rendu lancé, ou échec).
    */
   onMp4Ready?: (url: string | null) => void;
+  /** Vidéo déjà montée et rangée pour ce script : remontrée telle quelle. */
+  initialMp4Url?: string | null;
   /** Photo de départ du reel (data URL ou URL), proposée sur le premier passage. */
   startPhoto?: string | null;
 }
 
-export default function ReelMontage({ sections, subject, workspaceId, initialProject, onProjectChange, onPhaseChange, onMp4Ready, startPhoto }: Props) {
+export default function ReelMontage({ sections, subject, workspaceId, initialProject, onProjectChange, onPhaseChange, onMp4Ready, startPhoto, initialMp4Url }: Props) {
   const spoken = sections.filter((s) => typeof s.texte_parle === "string" && s.texte_parle.trim());
   const sectionTexts = spoken.map(s => s.texte_parle || "");
-  const { data: charter } = useBrandCharter();
+  const { data: charter, isLoading: charterLoading } = useBrandCharter();
 
   const [montageMode, setMontageMode] = useState<MontageMode | null>(initialProject?.montageMode || null);
 
@@ -103,7 +105,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
   }, [montageMode, voiceMode, clips, voiceClips, cutaways, associationTexts]);
   const { phase, tick, mp4Url, archived, errorMsg, archiving, downloadFailed, downloading, archiveRetryAvailable,
     activeRender, handleAssemble, handleArchiveRetry, handleDownload } = useReelRender({
-    renderKey, onPhaseChange, onMp4Ready, needsReview, montageMode, voiceMode, spoken, clips, cutaways, voiceUrls, voiceDurations, charter, workspaceId,
+    initialMp4Url, renderKey, onPhaseChange, onMp4Ready, needsReview, montageMode, voiceMode, spoken, clips, cutaways, voiceUrls, voiceDurations, charter, workspaceId, inputsReady: !charterLoading,
   });
 
   const { keywords, setKeywords, results, loading, runSearch } = useReelStockSearch({ spoken, subject, montageMode, setClips, activeRender });

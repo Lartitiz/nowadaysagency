@@ -16,6 +16,7 @@ import {
 import { AnthropicError, HAIKU_MODEL } from "../_shared/anthropic.ts";
 import { progressionReceipt, progressionJudgeCallMs, PROGRESSION_FORMAT_RETRY_MS } from "../_shared/carousel-progression.ts";
 import { handleRequest, _deps, normalizeSlideType, writerTimeoutMs } from "./index.ts";
+import { QUESTIONS_ADDRESS_OVERRIDE } from "./questions-address.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
 
 Deno.test("prose continue : photos directes observées et refus photo conservé sans débit",async()=>{
@@ -1104,6 +1105,44 @@ for (const subject of ["Découverte des céramiques après onboarding", "Histoir
   }finally{globalThis.fetch=oldFetch;}
 });
 
+// QA du 12/11/2026 : LinkedIn → Partir de photos, les questions disaient
+// « votre méthode ». Elles parlent à l'utilisatrice : tutoiement, relance sinon.
+Deno.test("questions photo LinkedIn : consigne de tutoiement en dernier et relance si vouvoiement", async () => {
+  resetDeps(); const calls: any[] = [];
+  _deps.callAnthropic = (async (o: any) => {
+    calls.push(o);
+    return calls.length === 1
+      ? JSON.stringify({ questions: [{ question: "Quelle est votre méthode ?", placeholder: "Ce que vous avez réellement rénové" }] })
+      : JSON.stringify({ questions: [{ question: "Quelle est ta méthode ?", placeholder: "Ce que tu as réellement rénové" }] });
+  }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type: "photo", channel: "linkedin", subject: "Rénovation d'une longère", photos: [{ base64: "aGVsbG8=" }] }));
+  assertEquals(res.status, 200);
+  const questions = JSON.parse((await res.json()).content).questions;
+  assertEquals(questions[0].question, "Quelle est ta méthode ?");
+  assertEquals(calls.length, 2);
+  // Les règles de vouvoiement des slides restent, la consigne des questions passe après.
+  const system: string = calls[0].system;
+  assert(/vouvoiement/i.test(system));
+  assert(system.trimEnd().endsWith(QUESTIONS_ADDRESS_OVERRIDE.trim()));
+  assert(JSON.stringify(calls[1].messages).includes("Réécris exactement les mêmes questions"));
+});
+
+Deno.test("questions photo : pas de relance quand les questions tutoient déjà", async () => {
+  resetDeps(); let n = 0;
+  _deps.callAnthropic = (async () => { n++; return JSON.stringify({ questions: [{ question: "Qu'as-tu changé ? Tes clientes disent « votre accueil »", placeholder: "Ex. : le sol" }] }); }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type: "photo", channel: "linkedin", subject: "Rénovation", photos: [{ base64: "aGVsbG8=" }] }));
+  assertEquals(res.status, 200);
+  assertEquals(n, 1);
+});
+
+for (const carousel_type of ["storytelling", "photo"]) Deno.test(`questions ${carousel_type} sans pixels LinkedIn : consigne de tutoiement en dernier`, async () => {
+  resetDeps(); let system = "";
+  _deps.callAnthropic = (async (o: any) => { system = o.system; return JSON.stringify({ questions: [] }); }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type, channel: "linkedin", subject: "Rénovation" }));
+  assertEquals(res.status, 200);
+  assert(system.trimEnd().endsWith(QUESTIONS_ADDRESS_OVERRIDE.trim()));
+});
+
 for (const subject of ["", "Carrousel basé sur les photos uploadées"]) Deno.test(`photos seules : aucun objectif demandé (${subject || "vide"})`, async () => {
   resetDeps();
   _deps.callAnthropic = (async () => { throw new Error("Aucune clarification IA nécessaire"); }) as any;
@@ -2023,3 +2062,52 @@ for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carous
     }
   } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });
+
+// QA du 12/11/2026 (Auriana) : « Tes photos en fond » (carousel_type photo) est
+// son rendu préféré, sur Instagram ET LinkedIn. La paire avant/après marquée par
+// l'étape « Que montre chaque photo ? » doit arriver au plan (répartition des
+// photos) et à la rédaction du récit, avec le contexte de chaque photo.
+const PAIR_PHOTOS = [
+  { base64: "aGVsbG8=", mimeType: "image/jpeg", context: "AVANT — cuisine" },
+  { base64: "aGVsbG8=", mimeType: "image/jpeg", context: "Façade de l'immeuble" },
+  { base64: "aGVsbG8=", mimeType: "image/jpeg", context: "APRÈS — cuisine" },
+];
+const allText = (o: any) => [String(o?.system ?? ""), ...(o?.messages || []).flatMap((m: any) =>
+  typeof m.content === "string" ? [m.content] : (m.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text))].join("\n");
+for (const channel of ["instagram", "linkedin"]) {
+  Deno.test(`photos en fond (${channel}) : contexte et paire avant/après dans le plan`, async () => {
+    resetDeps();
+    const prompts: string[] = [];
+    _deps.callAnthropic = (async (o: any) => {
+      prompts.push(allText(o));
+      return JSON.stringify({ strategic_rationale: "ok", narrative_thread: "fil", total_slides: 3, carousel_type: "photo",
+        slides: [1, 2, 3].map(n => ({ slide_number: n, role: "content", title_suggestion: "T", strategic_note: "n", photo_index: n })) });
+    }) as any;
+    try {
+      const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", channel, slide_count: 3, photos: PAIR_PHOTOS }));
+      assertEquals(res.status, 200);
+      const p = prompts.join("\n");
+      assert(p.includes("Photo 2 — contexte fourni par la personne : Façade de l'immeuble"));
+      assert(p.includes("la photo 1 est l'avant, la photo 3 est l'après"));
+      assert(p.includes("deux slides photo qui se suivent"));
+    } finally { resetDeps(); }
+  });
+
+  Deno.test(`photos en fond (${channel}) : contexte et paire avant/après dans la rédaction du récit`, async () => {
+    resetDeps(); _deps.prepareNarrative = createContinuousNarrative;
+    const prompts: string[] = [];
+    _deps.callCarouselWriter = (async (o: any) => {
+      prompts.push(allText(o));
+      return JSON.stringify({ photo_mismatch: { reason: "arrêt du test après la lecture du prompt" } });
+    }) as any;
+    const oldFetch = globalThis.fetch;
+    globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+    try {
+      await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: "photo", channel, slide_count: 5, scenario_origin: "automatic", photos: PAIR_PHOTOS }));
+      const p = prompts.join("\n");
+      assert(prompts.length > 0, "la rédaction du récit doit être appelée");
+      assert(p.includes("Façade de l'immeuble"));
+      assert(p.includes("la photo 1 est l'avant, la photo 3 est l'après"), "consigne avant/après absente du récit");
+    } finally { globalThis.fetch = oldFetch; resetDeps(); }
+  });
+}

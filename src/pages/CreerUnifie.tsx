@@ -951,7 +951,7 @@ function CreerWorkspace() {
   };
 
   // ── Cœur de la génération de contenu (6 sous-flux selon format/sous-mode) ──
-  const { doGenerate } = useDoGenerate({
+  const { doGenerate, photoContextDialog } = useDoGenerate({
     firstProductCarousel: firstProductRef.current,
     selectedFormat,
     generating,
@@ -1493,8 +1493,7 @@ function CreerWorkspace() {
       {conflictPending && draftConflict && (
         <DraftConflictDialog
           open
-          draft={draftConflict.draft}
-          newSubject={draftConflict.newSubject}
+          {...draftConflict}
           onResume={() => {
             // Retirer aussi l'état de navigation de la photo source : sinon
             // le dialogue peut réapparaître après le rechargement.
@@ -2071,7 +2070,7 @@ function CreerWorkspace() {
           setStep("format");
         }}
       />
-      <RedoVisualsDialog {...redoVisuals.dialog} />
+      <RedoVisualsDialog {...redoVisuals.dialog} />{photoContextDialog}
       <ConfirmResetDialog
         open={confirmResetOpen}
         onOpenChange={setConfirmResetOpen}

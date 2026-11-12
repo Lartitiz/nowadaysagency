@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { usePhotoContextStep } from "@/hooks/use-photo-context-step";
 import { readableError } from "@/lib/error-messages";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -214,6 +215,12 @@ export function useDoGenerate({
   const { addDirective: addWishlistDirective } = usePhotoWishlistMutations();
 
   const restoringPhotos = useRef(false);
+  // « Que montre chaque photo ? » (QA du 12/11/2026) : relancée avec le
+  // doGenerate du rendu suivant, une fois les photos mises à jour.
+  const latestDoGenerate = useRef<(a: Record<string, string>, h?: ReelHook | null) => Promise<void>>();
+  const photoContextStep = usePhotoContextStep({
+    applyPhotos: (next) => { setUploadedPhotos(next); setGeneratedWithPhotos(next); savePhotos(next); },
+  });
   const doGenerate = async (ansInput: Record<string, string>, reelHookOverride?: ReelHook | null) => {
     if (!selectedFormat) return;
     // Hook choisi à l'étape hook_selection : l'override prime (setState async),
@@ -238,6 +245,12 @@ export function useDoGenerate({
       setUploadedPhotos(uploadedPhotos);
       setGeneratedWithPhotos(uploadedPhotos);
     }
+    // Une ligne de contexte par photo avant un carrousel photo / mixte (pas pour
+    // le premier contenu automatique, la démo, le mixte « texte d'abord » ni des
+    // photos relues dans un carrousel déjà fait).
+    if (selectedFormat === "carousel" && (carouselSubMode === "photo" || (carouselSubMode === "mix" && !isTextFirstMix))
+        && !firstProductCarousel && !isDemoMode && !recoveredPhotos && uploadedPhotos.length > 0
+        && photoContextStep.intercept(uploadedPhotos, () => { void latestDoGenerate.current?.(ansInput, reelHookOverride); })) return;
     // Régime texte d'abord : on fige les lignes bibliothèque correspondant au catalogue
     // envoyé, pour résoudre library_photo_index au retour même si la biblio a bougé.
     if (isTextFirstMix) textFirstRowsSnapshotRef.current = textFirstCatalogRows;
@@ -675,5 +688,6 @@ export function useDoGenerate({
     });
   };
 
-  return { doGenerate };
+  latestDoGenerate.current = doGenerate;
+  return { doGenerate, photoContextDialog: photoContextStep.dialog };
 }

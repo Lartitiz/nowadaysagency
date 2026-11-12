@@ -108,14 +108,16 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
   // en scène) reste un produit même si l'IA la classe ensuite « autre » ; et
   // « autre » (classement incertain) ne cache plus les outils produit. Seuls
   // portrait, ambiance et coulisses les rangent sous le repli.
+  const madeByProductTool =
+    photo?.background_preset_key === "packshot" ||
+    photo?.background_preset_key === "mise_en_scene" ||
+    !!photo?.tags?.some((t) => t === "packshot" || t === "mise-en-scene");
   const isProductPhoto =
     !photo?.kind ||
     photo.kind === "produit" ||
     photo.kind === "produit_porte" ||
     photo.kind === "autre" ||
-    photo.background_preset_key === "packshot" ||
-    photo.background_preset_key === "mise_en_scene" ||
-    !!photo.tags?.some((t) => t === "packshot" || t === "mise-en-scene");
+    madeByProductTool;
 
   useEffect(() => {
     if (!photo || !open) return;
@@ -229,7 +231,12 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
   // 12/11/2026 : salon réinventé, sol et murs changés). On propose d'abord le
   // Studio, où la personne dit avec ses mots ce qu'elle veut changer.
   const isPlace = photo.kind === "ambiance" && !isProductPhoto;
-  if (isPlace && onStudio) {
+  // Classement incertain (« autre ») : ce peut être une pièce comme un objet.
+  // Le Studio, qui marche pour tout, passe en premier ; les autres outils
+  // restent visibles juste en dessous (QA du 12/11/2026).
+  const isUncertain = photo.kind === "autre" && !madeByProductTool;
+  const studioInMenu = (isPlace || isUncertain) && !!onStudio;
+  if (studioInMenu) {
     retouchOptions.unshift({
       key: "studio",
       icon: Sparkles,
@@ -361,8 +368,8 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
               <Sparkles className="h-4 w-4 mr-2 shrink-0" />
               <span className="truncate">Créer un contenu</span>
             </Button>
-            {/* Photo d'un lieu : « Retoucher avec mes mots » (menu ci-dessous) fait la même chose. */}
-            {onStudio && !isPlace && <Button variant="outline" onClick={() => { onOpenChange(false); onStudio(photo); }}>
+            {/* Lieu ou classement incertain : « Retoucher avec mes mots » (menu ci-dessous) fait la même chose. */}
+            {onStudio && !studioInMenu && <Button variant="outline" onClick={() => { onOpenChange(false); onStudio(photo); }}>
               <Sparkles className="h-4 w-4 mr-2" /> Retravailler dans le Studio
             </Button>}
             {retouchOptions.length > 0 && (

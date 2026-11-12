@@ -14,6 +14,10 @@ import { buildMontagePlan } from "./build-montage-plan";
 import type { MontageMode, Phase, Section, SelectedClip, StudioCutaway } from "./types";
 
 interface ReelRenderArgs {
+  /** MP4 durable déjà monté pour ce script (rechargement, reprise). */
+  initialMp4Url?: string | null;
+  /** La charte est-elle arrivée ? Tant que non, la clé de rendu n'est pas définitive. */
+  inputsReady?: boolean;
   renderKey: string;
   onPhaseChange?: (phase: Phase) => void;
   onMp4Ready?: (url: string | null) => void;
@@ -29,12 +33,14 @@ interface ReelRenderArgs {
   workspaceId?: string;
 }
 
-export function useReelRender({ renderKey, onPhaseChange, onMp4Ready, needsReview, montageMode, voiceMode, spoken, clips, cutaways, voiceUrls, voiceDurations, charter, workspaceId }: ReelRenderArgs) {
-  const [phase, setPhase] = useState<Phase>("idle");
+export function useReelRender({ initialMp4Url = null, renderKey, onPhaseChange, onMp4Ready, needsReview, montageMode, voiceMode, spoken, clips, cutaways, voiceUrls, voiceDurations, charter, workspaceId, inputsReady = true }: ReelRenderArgs) {
+  // Vidéo déjà montée et rangée chez nous (rechargement de Créer, reprise du
+  // calendrier) : on la remontre au lieu de repartir de zéro (QA du 12/11/2026).
+  const [phase, setPhase] = useState<Phase>(initialMp4Url ? "done" : "idle");
   const [tick, setTick] = useState(0);
-  const [mp4Url, setMp4Url] = useState<string | null>(null);
+  const [mp4Url, setMp4Url] = useState<string | null>(initialMp4Url);
   // La vidéo est-elle bien rangée CHEZ NOUS (donc rattachable au contenu) ?
-  const [archived, setArchived] = useState(false);
+  const [archived, setArchived] = useState(!!initialMp4Url);
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [archiving, setArchiving] = useState(false);
   const [downloadFailed, setDownloadFailed] = useState(false);
@@ -51,6 +57,15 @@ export function useReelRender({ renderKey, onPhaseChange, onMp4Ready, needsRevie
     activeRender.current = { key: renderKey, generation: activeRender.current.generation + 1, mounted: true };
   }
   const renderBusy = useRef(false);
+  // Même vidéo arrivée après l'ouverture de l'onglet : seulement si rien n'est affiché.
+  const phaseNow = useRef(phase);
+  phaseNow.current = phase;
+  useEffect(() => {
+    if (!initialMp4Url || renderBusy.current || phaseNow.current !== "idle") return;
+    setMp4Url(url => url ?? initialMp4Url);
+    setArchived(true);
+    setPhase("done");
+  }, [initialMp4Url]);
   const mp4Callback = useRef(onMp4Ready);
   mp4Callback.current = onMp4Ready;
   useEffect(() => {
@@ -61,14 +76,17 @@ export function useReelRender({ renderKey, onPhaseChange, onMp4Ready, needsRevie
   // monté, ouvrir l'onglet « Montage » monte ce composant et effaçait le MP4
   // durable restauré. On n'invalide que sur un VRAI changement d'entrées.
   const seenRenderKey = useRef<string | null>(null);
+  // Idem tant que la charte charge : après un rechargement de page, son arrivée
+  // changeait la clé (réglages des sous-titres) et détachait la vidéo rangée.
   useEffect(() => {
+    if (!inputsReady) return;
     if (seenRenderKey.current === null) { seenRenderKey.current = renderKey; return; }
     if (seenRenderKey.current === renderKey) return;
     seenRenderKey.current = renderKey;
     setArchived(false);
     setPhase("idle");
     mp4Callback.current?.(null);
-  }, [renderKey]);
+  }, [renderKey, inputsReady]);
 
   async function handleAssemble() {
     if (renderBusy.current || archiveBusy.current) return;

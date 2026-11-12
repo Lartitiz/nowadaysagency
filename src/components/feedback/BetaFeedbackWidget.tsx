@@ -85,9 +85,11 @@ export default function BetaFeedbackWidget() {
       const baseBottom = window.matchMedia("(max-width: 767px)").matches ? 88 : 24;
       const x = rect.left + rect.width / 2;
       const y = window.innerHeight - baseBottom - rect.height / 2;
-      const top = document.elementFromPoint(x, y);
+      // elementsFromPoint : le premier élément SOUS le bouton (sinon la sonde tombe
+      // sur le bouton lui-même quand il est affiché à sa place de base).
+      const top = document.elementsFromPoint(x, y).find((el) => !fabRef.current?.contains(el)) ?? null;
       let lift: number | null = null;
-      if (top && !fabRef.current?.contains(top)) {
+      if (top) {
         for (let el: Element | null = top; el && el !== document.body; el = el.parentElement) {
           // « sticky » : la barre « Suivant » collée en bas de l'écran Format de /creer (chantier B).
           const pos = getComputedStyle(el).position;
@@ -239,14 +241,21 @@ export default function BetaFeedbackWidget() {
           ref={fabRef}
           onClick={handleOpen}
           className={cn(
-            "fixed bottom-6 right-6 max-md:bottom-[5.5rem] max-md:right-4 z-40 h-14 w-14 rounded-full bg-background border-2 border-primary shadow-lg flex items-center justify-center hover:scale-105 transition-all duration-300",
-            (hiddenByScroll || overlapsClickable) && "max-md:translate-y-4 max-md:opacity-0 max-md:pointer-events-none",
+            "fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-background border-2 border-primary shadow-lg flex items-center justify-center hover:scale-105 transition-all duration-300",
+            // Téléphone (12/11/2026) : le rond de 56 px passait sur le contenu (coin de
+            // l'aperçu des stories, titres du tableau de bord). Il devient une languette
+            // de 24 px collée au bord droit, dans la marge des cartes (16 px).
+            "max-md:bottom-[5.5rem] max-md:right-0 max-md:h-[4.5rem] max-md:w-6 max-md:rounded-none max-md:rounded-l-xl max-md:border-0 max-md:bg-primary max-md:shadow-md max-md:flex-col max-md:gap-1 max-md:hover:scale-100",
+            // Masqué par opacité seule, sans déplacement : un bouton déplacé ne se
+            // recouvre plus lui-même et réapparaîtrait aussitôt (clignotement).
+            (hiddenByScroll || overlapsClickable) && "max-md:opacity-0 max-md:pointer-events-none",
           )}
           style={liftTo !== null ? { bottom: liftTo } : undefined}
           aria-label="Donner un feedback"
+          data-testid="beta-feedback-fab"
         >
-          <MessageSquarePlus className="h-6 w-6 text-primary" />
-          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground font-mono text-2xs px-1.5 py-0.5 rounded-full leading-none">
+          <MessageSquarePlus className="h-6 w-6 text-primary max-md:h-3.5 max-md:w-3.5 max-md:text-primary-foreground" />
+          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground font-mono text-2xs px-1.5 py-0.5 rounded-full leading-none max-md:static max-md:p-0 max-md:rounded-none max-md:text-[0.5625rem] max-md:[writing-mode:vertical-rl] max-md:rotate-180">
             BÊTA
           </span>
         </button>

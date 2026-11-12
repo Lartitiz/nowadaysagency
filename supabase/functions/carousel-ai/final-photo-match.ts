@@ -3,6 +3,7 @@ import { extractImagePayload } from "../_shared/image-utils.ts";
 import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts";
 import { progressionMaterial } from "../_shared/carousel-editorial-snapshot.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
+import { beforeAfterMatchRule, detectBeforeAfterPair } from "./photo-pair.ts";
 
 export const PHOTO_MATCH_VERSION = "final-photo-match-v7";
 /** Plafond d'un appel d'association quand le temps le permet. */
@@ -181,6 +182,8 @@ export async function matchFinalPhotos(doc: any, options: {
   if (!expected.length) return doc;
   const photos = (options.body.photos || []).slice(0, 10).flatMap((p: any, i: number) => p?.base64 ? [{ ...p, id: i + 1 }] : []);
   const ids = new Set<number>(photos.map((p: any) => p.id));
+  // Paire avant / après de la personne : numéros comptés sur TOUTES les photos envoyées (= p.id).
+  const pairRule = beforeAfterMatchRule(detectBeforeAfterPair((options.body.photos || []).slice(0, 10)));
   const remaining = () => 270000 - (Date.now() - options.startedAt);
   const passages = doc.slides.map((s: any, i: number) => ({
     slide: i + 1, type: s.slide_type,
@@ -203,7 +206,7 @@ export async function matchFinalPhotos(doc: any, options: {
       { type: "image", source: { type: "base64", ...extractImagePayload(p.base64, p.mimeType) } },
     );
     try {
-      return await call({ model: SONNET_MODEL, system: RULES + "\nRéponds uniquement pour required_photo_slides, une ligne par numéro. reason et directive : UNE phrase courte chacune, 220 caractères maximum. Pas de reprise du texte des slides." + (verify
+      return await call({ model: SONNET_MODEL, system: RULES + pairRule + "\nRéponds uniquement pour required_photo_slides, une ligne par numéro. reason et directive : UNE phrase courte chacune, 220 caractères maximum. Pas de reprise du texte des slides." + (verify
         ? "\nContrôle indépendant : regarde chaque image retenue avec son texte. Refuse une association contradictoire ou une correspondance concrète non visible, même si la justification précédente la prétend correcte. accepted=false si la photo manque ou doit changer. Ne choisis pas une autre image et ne réécris pas le texte."
         : ""), messages: [{ role: "user", content }], tool: tool(verify, required, [...ids]), max_tokens: 6000,
         maxRetries: 0,

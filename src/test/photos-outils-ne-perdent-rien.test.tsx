@@ -175,6 +175,30 @@ it("photo d'un lieu : « Retoucher avec mes mots » ouvre le Studio, « Changer 
   expect(onStudio).toHaveBeenCalledWith(p);
 });
 
+// QA du 12/11/2026 : une pièce classée « autre » gardait l'ancien menu.
+it("classement incertain (« autre ») : le Studio passe en premier, les autres outils restent visibles", () => {
+  const onStudio = vi.fn();
+  const p = photo({ kind: "autre", name: "Chambre" });
+  wrap(<PhotoDetailDialog photo={p} open onOpenChange={vi.fn()} onPackshot={vi.fn()} onRetouche={vi.fn()} onStudio={onStudio} />);
+  expect(screen.queryByRole("button", { name: /Retravailler dans le Studio/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /Préparer \/ modifier/ }));
+  const options = screen.getAllByRole("button").map((b) => b.textContent || "");
+  const studio = options.findIndex((t) => t.includes("Retoucher avec mes mots"));
+  expect(studio).toBeGreaterThanOrEqual(0);
+  expect(studio).toBeLessThan(options.findIndex((t) => t.includes("Changer le décor")));
+  expect(screen.getByRole("button", { name: /Changer le décor/ })).toBeVisible();
+  expect(screen.getByRole("button", { name: /Une photo pour mon e-commerce/ })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: /Retoucher avec mes mots/ }));
+  expect(onStudio).toHaveBeenCalledWith(p);
+});
+
+it("un fond blanc classé « autre » garde son bouton Studio habituel", () => {
+  wrap(<PhotoDetailDialog photo={photo({ kind: "autre", background_preset_key: "packshot" })} open onOpenChange={vi.fn()} onRetouche={vi.fn()} onStudio={vi.fn()} />);
+  expect(screen.getByRole("button", { name: /Retravailler dans le Studio/ })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: /Préparer \/ modifier/ }));
+  expect(screen.queryByRole("button", { name: /Retoucher avec mes mots/ })).toBeNull();
+});
+
 it("portrait : « Changer le décor » reste proposé directement", () => {
   wrap(<PhotoDetailDialog photo={photo({ kind: "portrait" })} open onOpenChange={vi.fn()} onRetouche={vi.fn()} onStudio={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: /Préparer \/ modifier/ }));
