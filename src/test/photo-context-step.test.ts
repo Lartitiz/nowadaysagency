@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   readableFileName, suggestPhotoContext, splitPairMark, withPairMark, initialRows, setPairRole,
-  applyContextRows, needsContextStep, PHOTO_CONTEXT_MAX,
+  applyContextRows, needsContextStep, PHOTO_CONTEXT_MAX, hasCompletePair, pairCount,
 } from "@/features/creer/photo-context-step";
 
 // Étape « Que montre chaque photo ? » (QA du 12/11/2026) : suggestions
@@ -39,13 +39,31 @@ describe("marqueur de paire", () => {
     expect(splitPairMark("Avant de commencer")).toEqual({ role: null, text: "Avant de commencer" });
     expect(withPairMark("before", "x".repeat(400)).length).toBeLessThanOrEqual(PHOTO_CONTEXT_MAX);
   });
-  it("une seule paire : cocher un 2e « avant » déplace la marque, re-cliquer l'enlève", () => {
-    let rows = initialRows([{ id: "a" }, { id: "b" }, { id: "c" }]);
+  it("plusieurs paires : chaque clic ne touche que sa ligne, re-cliquer l'enlève", () => {
+    let rows = initialRows([{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }]);
     rows = setPairRole(rows, 0, "before");
-    rows = setPairRole(rows, 1, "before");
-    expect(rows.map(r => r.role)).toEqual([null, "before", null]);
-    rows = setPairRole(rows, 1, "before");
-    expect(rows.map(r => r.role)).toEqual([null, null, null]);
+    rows = setPairRole(rows, 1, "after");
+    rows = setPairRole(rows, 2, "before");
+    expect(hasCompletePair(rows)).toBe(false);
+    rows = setPairRole(rows, 3, "after");
+    expect(rows.map(r => r.role)).toEqual(["before", "after", "before", "after"]);
+    expect(hasCompletePair(rows)).toBe(true);
+    expect(pairCount(rows)).toBe(2);
+    rows = setPairRole(rows, 2, "before");
+    expect(rows.map(r => r.role)).toEqual(["before", "after", null, "after"]);
+    expect(hasCompletePair(rows)).toBe(false);
+  });
+  it("deux paires écrites dans le contexte de chaque photo", () => {
+    const photos: { id: string; context?: string }[] = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
+    let rows = initialRows(photos).map((r, i) => ({ ...r, text: ["chambre", "chambre", "couloir", "couloir"][i] }));
+    (["before", "after", "before", "after"] as const).forEach((role, i) => { rows = setPairRole(rows, i, role); });
+    expect(applyContextRows(photos, rows).map(p => p.context)).toEqual(["AVANT — chambre", "APRÈS — chambre", "AVANT — couloir", "APRÈS — couloir"]);
+  });
+  it("suggestions des noms de fichier : gardées si elles s'équilibrent, sinon aucune", () => {
+    const deux = initialRows([{ name: "cuisine-avant.jpg" }, { name: "cuisine-apres.jpg" }, { name: "salon-avant.jpg" }, { name: "salon-apres.jpg" }]);
+    expect(deux.map(r => r.role)).toEqual(["before", "after", "before", "after"]);
+    const bancal = initialRows([{ name: "cuisine-avant.jpg" }, { name: "salon-avant.jpg" }, { name: "salon-apres.jpg" }]);
+    expect(bancal.map(r => r.role)).toEqual([null, null, null]);
   });
   it("une paire incomplète n'est pas écrite ; les photos d'ambiance ne bougent pas", () => {
     const photos = [{ id: "a" }, { id: "s", stockAmbient: true, context: "ambiance" }, { id: "b" }];

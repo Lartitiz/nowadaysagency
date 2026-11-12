@@ -24,7 +24,7 @@ import { carouselLength } from "../_shared/carousel-length.ts";
 import { countCarouselSlides } from "../_shared/photo-slide-structure.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { type AudienceAddress } from "../_shared/audience-address.ts";
-import { beforeAfterPairRule, detectBeforeAfterPair } from "./photo-pair.ts";
+import { beforeAfterPairRule, detectBeforeAfterPairs } from "./photo-pair.ts";
 import { type CaptionEndingRule, type EchoContext } from "../_shared/redac-gate.ts";
 import { redesignSlide } from "./layout.ts";
 
@@ -100,7 +100,7 @@ export function buildPhotoContextRecap(photos: Array<{ context?: string; library
     p.context?.trim() ? `Photo ${i + 1} — contexte fourni par la personne : ${p.context.trim()}` : "",
     p.libraryContext?.trim() ? `Photo ${i + 1} — indications de bibliothèque, potentiellement déduites : ${p.libraryContext.trim()}` : "",
   ].filter(Boolean).join("\n")).filter(Boolean);
-  return lines.length ? `\nCONTEXTE PAR PHOTO :\n${lines.join("\n")}\nLes indications de bibliothèque aident à reconnaître l'image ; elles ne prouvent ni origine, fabrication, identité, chronologie, résultat ni vécu. Le contexte explicite de la personne prime.\n${beforeAfterPairRule(detectBeforeAfterPair(photos))}` : "";
+  return lines.length ? `\nCONTEXTE PAR PHOTO :\n${lines.join("\n")}\nLes indications de bibliothèque aident à reconnaître l'image ; elles ne prouvent ni origine, fabrication, identité, chronologie, résultat ni vécu. Le contexte explicite de la personne prime.\n${beforeAfterPairRule(detectBeforeAfterPairs(photos))}` : "";
 }
 
 export function pushPhotoWithContext(messageContent: any[], photo: { base64: string; context?: string; mimeType?: string }, index: number) {
