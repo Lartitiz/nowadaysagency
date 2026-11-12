@@ -24,6 +24,7 @@ const UNIVERSE_TOOL: AnthropicTool = {
 };
 import { fetchHotNews, evergreenPatternsForMode, type PerplexityActu } from "../_shared/perplexity.ts";
 import { garderActusSourcees, normaliserActus, pagesTrouvees } from "./sources.ts";
+import { tutoyerPertinences } from "./pertinence-tu.ts";
 
 // Perplexity insère parfois ses balises de citation (<cite index="40-3">…</cite>)
 // dans les champs texte. On les retire à la normalisation pour ne jamais les
@@ -891,9 +892,8 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       }
     }
 
-    if (parsed.actus.length === 0) {
-      parsed.message = parsed.message || "Pas d'actu avec une source vérifiable cette fois. Réessaie, ou colle le lien d'un article.";
-    }
+    if (parsed.actus.length === 0) parsed.message = parsed.message || "Pas d'actu avec une source vérifiable cette fois. Réessaie, ou colle le lien d'un article.";
+    else await tutoyerPertinences(parsed); // « 💡 » au tu (QA 12/11/2026, pertinence-tu.ts)
 
     // Mode élargi (macro/scoop) : ici le pont est une PISTE DE RÉACTION, pas une
     // citation littérale du métier (cf. macroBlock/scoopBlock). On tague les actus
