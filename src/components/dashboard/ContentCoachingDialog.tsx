@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { streamContentCoaching } from "@/lib/content-coaching-stream";
 import { useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,10 @@ export interface CoachingSelection { subject: string; format: string; objective:
 interface Props { open: boolean; onOpenChange: (open: boolean) => void; onSelect?: (data: CoachingSelection) => void; onNewsjackingRedirect?: () => void; initialChannel?: string | null; initialFormat?: string | null }
 interface Preferences { objectif: string; sujet: string; canal: string; format: string; activity: string; carouselSubMode: "text" | "photo" | "mix" | "pure_photo" }
 interface Card { id: string; idea: DeepIdea; saved?: boolean }
-interface Selection { cards: Card[]; preferences: Preferences; history: Array<{ subject: string; insight: string; feedback?: string }>; research_status?: string; needs_activity?: boolean }
+interface Selection { cards: Card[]; preferences: Preferences; history: Array<{ subject: string; insight: string; feedback?: string }>; research_status?: string; needs_activity?: boolean; incomplete?: string }
+/** Ideas shown while the selection is still being written (they arrive one by one). */
+interface Progress { stage: "preparation" | "research" | "writing"; cards: Card[] }
+const STAGE_LABELS: Record<Progress["stage"], string> = { preparation: "Je cherche des pistes dans ton activité…", research: "Je vérifie quelques points…", writing: "J'écris tes idées…" };
 const CHANNELS = [{ id: "instagram", label: "Instagram" }, { id: "linkedin", label: "LinkedIn" }, { id: "pinterest", label: "Pinterest" }, { id: "newsletter", label: "Newsletter" }];
 const FORMATS: Record<string, Array<{ id: string; label: string }>> = {
   instagram: [{ id: "post", label: "Post" }, { id: "carousel", label: "Carrousel" }, { id: "reel", label: "Reel" }, { id: "story", label: "Story" }],
@@ -44,6 +47,8 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
   const navigate = useNavigate();
   const queryKey = ["direct-content-ideas-v2", userId, workspace];
   const storageKey = queryKey.join(":");
+  const progressKey = [...queryKey, "progress"];
+  const progress = useQuery<Progress | null>({ queryKey: progressKey, queryFn: () => null, initialData: null, enabled: false, staleTime: Infinity, gcTime: 60 * 60 * 1000 }).data;
   const cached = queryClient.getQueryData<Selection>(queryKey) || (() => {
     try { const entry = JSON.parse(sessionStorage.getItem(storageKey) || "null"); return entry?.expires > Date.now() && Array.isArray(entry.data?.cards) ? entry.data as Selection : undefined; } catch { return undefined; }
   })();
@@ -64,23 +69,52 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
 
   const request = async (prefs: Preferences, previous?: Selection, card?: Card): Promise<Selection> => {
     const history = previous?.history || [];
-    const { data, error } = await invokeWithTimeout("content-coaching", { body: {
-      answers: { ...prefs, ton_envie: "auto", content_type: "auto" },
-      workspace_id: workspace !== userId ? workspace : undefined,
-      upcoming_marronniers: nextMarronniers(new Date(), 3).map(o => ({ label: o.marronnier.label, date: o.date.toISOString().slice(0, 10) })),
-      previous_ideas: history.slice(-24), deepen_idea: card?.idea, refinement: card ? precision : undefined,
-    } }, 200000); // preparation60 + research25 + parallel selection90 (+ rare reserve), with transport margin
-    if (error) throw new Error(error.message);
+    // Ideas are shown as soon as each one is written (kept in the query cache, so
+    // closing and reopening the window during the generation keeps them).
+    let streamed: Card[] = [];
+    const show = (next: Progress | null) => queryClient.setQueryData<Progress | null>(progressKey, next);
+    const current = () => queryClient.getQueryData<Progress | null>(progressKey)?.cards || streamed;
+    show({ stage: "preparation", cards: [] });
+    const savedIds = () => new Set(current().filter(c => c.saved).map(c => c.id));
+    const withHistory = (cards: Card[]) => [...history, ...cards.map(c => ({ subject: c.idea.subject, insight: c.idea.insight }))].slice(-24);
+    let data: any;
+    try {
+      data = await streamContentCoaching({
+        answers: { ...prefs, ton_envie: "auto", content_type: "auto" },
+        workspace_id: workspace !== userId ? workspace : undefined,
+        upcoming_marronniers: nextMarronniers(new Date(), 3).map(o => ({ label: o.marronnier.label, date: o.date.toISOString().slice(0, 10) })),
+        previous_ideas: history.slice(-24), deepen_idea: card?.idea, refinement: card ? precision : undefined,
+      }, event => {
+        if (event.type === "stage") { show({ stage: event.stage, cards: current() }); return; }
+        if (card) return;
+        const raw = event.idea as DeepIdea;
+        const idea = parseDeepIdea(raw, raw?.sources as IdeaSource[]);
+        if (!idea || current().some(c => c.idea.subject === idea.subject)) return;
+        streamed = [...current(), { id: crypto.randomUUID(), idea }];
+        show({ stage: "writing", cards: streamed });
+      }, 200000); // preparation60 + research25 + parallel selection90 (+ rare reserve), with transport margin
+    } catch (error) {
+      // Ideas already shown stay usable even if the rest of the selection failed.
+      const saved = savedIds();
+      const arrived = current().map(c => saved.has(c.id) ? { ...c, saved: true } : c);
+      show(null);
+      if (!card && arrived.length) return { cards: arrived, preferences: prefs, history: withHistory(arrived), incomplete: `Seulement ${arrived.length} idée${arrived.length > 1 ? "s" : ""} sur 4 a pu être préparée${arrived.length > 1 ? "s" : ""}. « D'autres idées » relance une sélection complète.` };
+      throw error;
+    }
+    const arrived = current(), saved = savedIds();
+    show(null);
     if (data?.needs_activity) return { cards: [], preferences: prefs, history, needs_activity: true };
     if (data?.version !== 2 || !Array.isArray(data.ideas)) throw new Error("La nouvelle sélection n'est pas disponible. Réessaie dans un instant.");
     const cards: Card[] = data.ideas.map((raw: DeepIdea) => {
       const idea = parseDeepIdea(raw, raw.sources as IdeaSource[]);
       if (!idea) throw new Error("Une idée reçue est incomplète. Réessaie.");
-      return { id: crypto.randomUUID(), idea };
+      // Same card (same id, same "Gardée" state) as the one already shown.
+      const id = arrived.find(c => c.idea.subject === idea.subject)?.id || crypto.randomUUID();
+      return saved.has(id) ? { id, idea, saved: true } : { id, idea };
     });
     if (cards.length !== (card ? 1 : 4)) throw new Error("La sélection reçue est incomplète. Tes idées précédentes sont conservées.");
     return { cards: card ? previous!.cards.map(c => c.id === card.id ? cards[0] : c) : cards, preferences: prefs,
-      history: [...history, ...cards.map(c => ({ subject: c.idea.subject, insight: c.idea.insight }))].slice(-24), research_status: data.research_status };
+      history: withHistory(cards), research_status: data.research_status };
   };
   const query = useQuery({ queryKey, queryFn: () => request(preferences), initialData: cached, enabled: open, staleTime: Infinity, gcTime: 60 * 60 * 1000,
     retry: false, retryOnMount: false, refetchOnWindowFocus: false, refetchOnReconnect: false, refetchOnMount: false });
@@ -116,6 +150,7 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
         if (receipt.error || !receipt.data || receipt.data.user_id !== userId || receipt.data.workspace_id !== payload.workspace_id || receipt.data.titre !== payload.titre || receipt.data.angle !== payload.angle || receipt.data.format !== payload.format || receipt.data.canal !== payload.canal || receipt.data.objectif !== payload.objectif || receipt.data.notes !== payload.notes || stableJson(receipt.data.personal_elements) !== stableJson(payload.personal_elements)) throw error;
       } else if (data?.id !== card.id) throw new Error("Sauvegarde non confirmée");
       queryClient.setQueryData<Selection>(queryKey, prev => prev ? { ...prev, cards: prev.cards.map(c => c.id === card.id ? { ...c, saved: true } : c) } : prev);
+      queryClient.setQueryData<Progress | null>(progressKey, prev => prev ? { ...prev, cards: prev.cards.map(c => c.id === card.id ? { ...c, saved: true } : c) } : prev);
       queryClient.invalidateQueries({ queryKey: ["saved-ideas"] });
       if (alive.current && visible.current) toast.success("Idée et analyse gardées dans Mes idées.");
     } catch { if (alive.current && visible.current) toast.error("La sauvegarde n'a pas été confirmée. Tu peux réessayer sans créer de doublon."); }
@@ -131,6 +166,10 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
     onOpenChange(false);
   };
   const error = failure || (query.error instanceof Error ? query.error.message : null);
+  // While a new selection is being written, its first ideas replace the previous ones.
+  const arriving = loading && busy !== null && busy !== "all" ? [] : loading ? progress?.cards || [] : [];
+  const cards = arriving.length ? arriving : selection?.cards || [];
+  const status = loading && <div role="status" className="rounded-xl bg-muted/40 p-4 flex gap-3 items-start"><Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" /><div><p className="text-sm font-medium">{busy && busy !== "all" ? "L'analyse de cette idée est en cours…" : arriving.length ? `${arriving.length} idée${arriving.length > 1 ? "s" : ""} sur 4 prête${arriving.length > 1 ? "s" : ""}, la suite arrive…` : STAGE_LABELS[progress?.stage || "preparation"]}</p><p className="text-xs text-muted-foreground mt-1">{arriving.length ? "Tu peux déjà créer ou garder les idées affichées." : "Chaque idée s'affiche dès qu'elle est prête. Tu peux refermer cette fenêtre et revenir."}</p></div></div>;
   const controlClass = "w-full min-w-0 rounded-lg border border-input bg-background px-3 py-2 text-sm";
   return <CoachingShell open={open} onOpenChange={onOpenChange} title="Trouver une idée" description="Des pistes pensées pour ton activité, avec de quoi les développer." emoji="💡">
     <div className="space-y-5">
@@ -150,12 +189,13 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
         </div>
       </details>
       {selection?.needs_activity && <div className="space-y-3"><p className="text-sm">Pour te proposer des idées adaptées, décris simplement ton activité et à qui tu t'adresses.</p><label className="block text-sm">Ton activité<Textarea value={preferences.activity} onChange={e => setPreferences(p => ({ ...p, activity: e.target.value }))} maxLength={500} rows={3} /></label><Button disabled={loading || !preferences.activity.trim()} onClick={() => generate()}>Trouver mes idées</Button></div>}
-      {loading && <div role="status" className="rounded-xl bg-muted/40 p-4 flex gap-3 items-start"><Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" /><div><p className="text-sm font-medium">{busy && busy !== "all" ? "L'analyse de cette idée est en cours…" : "La sélection de tes idées est en cours…"}</p><p className="text-xs text-muted-foreground mt-1">L'explication, les exemples et les nuances prennent un peu de temps. Tu peux refermer cette fenêtre et revenir.</p></div></div>}
+      {!arriving.length && status}
       {error && <div role="alert" className="rounded-xl border border-destructive/30 p-4 space-y-2"><p className="text-sm">{error}</p><Button variant="outline" disabled={loading} onClick={() => generate()}>Réessayer</Button></div>}
-      {!!selection?.cards.length && <>
-        <p className="text-sm text-muted-foreground">{selection.cards.length} idées pour commencer. Le format se choisit ensuite.</p>
-        {selection.research_status === "unavailable" && <p className="text-xs text-muted-foreground">La recherche externe n'a pas abouti. Les propositions s'appuient sur ton activité ; les points à vérifier sont indiqués.</p>}
-        <div className="space-y-4">{selection.cards.map(card => <article key={card.id} className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3">
+      {!!cards.length && <>
+        {!arriving.length && <p className="text-sm text-muted-foreground">{cards.length} idées pour commencer. Le format se choisit ensuite.</p>}
+        {!arriving.length && selection?.incomplete && <p className="text-xs text-muted-foreground">{selection.incomplete}</p>}
+        {!arriving.length && selection?.research_status === "unavailable" && <p className="text-xs text-muted-foreground">La recherche externe n'a pas abouti. Les propositions s'appuient sur ton activité ; les points à vérifier sont indiqués.</p>}
+        <div className="space-y-4">{cards.map(card => <article key={card.id} className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3">
           <h3 className="font-display text-lg leading-snug text-foreground break-words">{card.idea.subject}</h3>
           <p className="text-sm leading-relaxed">{card.idea.insight}</p>
           <p className="text-sm text-muted-foreground leading-relaxed">{card.idea.reader_benefit}</p>
@@ -167,11 +207,12 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
             {card.idea.sources.map(s => <p key={s.id} className="text-xs break-words"><a href={s.url} target="_blank" rel="noopener noreferrer" className="underline">{s.title}</a> — {s.claim}<br />Consultée le {s.accessed_at}</p>)}
             {!!card.idea.to_verify.length && <div><strong>À confirmer avant publication</strong><ul className="list-disc pl-5">{card.idea.to_verify.map((v, i) => <li key={i}>{v}</li>)}</ul></div>}
           </div></details>
-          <div className="flex flex-wrap gap-2 pt-1"><Button disabled={loading} onClick={() => create(card)} className="gap-2">Créer <ArrowRight className="h-4 w-4" /></Button>
+          <div className="flex flex-wrap gap-2 pt-1"><Button disabled={loading && !arriving.includes(card)} onClick={() => create(card)} className="gap-2">Créer <ArrowRight className="h-4 w-4" /></Button>
             <Button variant="outline" disabled={card.saved || saving === card.id} onClick={() => save(card)} className="gap-1.5">{saving === card.id ? <Loader2 className="h-4 w-4 animate-spin" /> : card.saved ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}{card.saved ? "Gardée" : "Garder"}</Button>
             <Button variant="ghost" disabled={loading} onClick={() => { setRefining(refining === card.id ? null : card.id); setPrecision(""); }}>Creuser</Button></div>
           {refining === card.id && <div className="space-y-2 border-t pt-3"><label className="block text-sm">Une précision à ajouter ? (facultatif)<Textarea value={precision} onChange={e => setPrecision(e.target.value)} maxLength={1000} rows={2} placeholder="Par exemple : montrer ce que cela change dans la pratique." /></label><Button variant="outline" disabled={loading} onClick={() => generate(card)}>Approfondir cette idée</Button></div>}
         </article>)}</div>
+        {!!arriving.length && status}
         <Button variant="outline" disabled={loading} onClick={() => generate()} className="w-full gap-2"><RefreshCw className="h-4 w-4" /> D'autres idées</Button>
         <p className="text-xs text-muted-foreground">Une nouvelle sélection ou un approfondissement utilise 1 crédit. Rouvrir ces idées et les garder ne consomme pas de crédit.</p>
       </>}

@@ -8,7 +8,10 @@ export interface IdeaInput {
   context: string; history: string; subject?: string; objective?: string; channel?: string; format?: string;
   previous?: Array<{ subject: string; insight: string; feedback?: string }>;
   deepen?: DeepIdea; refinement?: string;
+  /** Progress for a streamed response: stages, then each idea as soon as it is accepted. */
+  onEvent?: (event: IdeaProgressEvent) => void;
 }
+export type IdeaProgressEvent = { type: "stage"; stage: "research" | "writing" } | { type: "idea"; idea: DeepIdea; ready: number; total: number };
 export const IDEA_EDITORIAL_RULES = `Tu prépares des idées de contenu pour une professionnelle indépendante, dans SA voix et SON métier.
 Une idée aboutie permet de dire : le lecteur comprendra QUE… PARCE QUE… et pourra ainsi…
 Cherche une explication causale prudente, une distinction négligée, une nuance utile, un détail révélateur ou une analogie explicative. Ce répertoire n'est pas une liste de cases obligatoires.
@@ -34,11 +37,14 @@ export async function generateDeepIdeas(input: IdeaInput, deps: { call: typeof c
   if (!Array.isArray(prep?.candidates) || !prep.candidates.length) throw new Error("La préparation des idées n'a pas abouti. Réessaie.");
   const queries = (Array.isArray(prep.research_queries) ? prep.research_queries : []).filter((v: unknown) => typeof v === "string" && v.length <= 250).slice(0, 2);
   const researchUsage: UsageSink = {}; usages.push(researchUsage);
+  const emit = (event: IdeaProgressEvent) => { try { input.onEvent?.(event); } catch { /* A closed client stream never stops the paid generation. */ } };
+  emit({ type: "stage", stage: "research" });
   const research: IdeaResearch = await deps.research(queries, deps.researchModel || deps.model, deps.apiKey, researchUsage);
   const finish = (ideas: DeepIdea[]) => {
     console.info("[ideas-pipeline-usage]", { stages: usages, idea_count: ideas.length, research_status: research.status });
     return { version: 2, ideas, research_status: research.status, usage: { total_tokens: usages.reduce((sum, u) => sum + (u.total_tokens || 0), 0), model: deps.model }, recommended_format: input.format || "auto", redirect_route: "/creer" };
   };
+  emit({ type: "stage", stage: "writing" });
   const system = `${IDEA_EDITORIAL_RULES}\n${SYSTEM_CACHE_BREAK}${context}\n\nEXPLORATION :\n${JSON.stringify(prep.candidates).slice(0, 9000)}\n\nRÉFÉRENCES VÉRIFIÉES :\n${JSON.stringify(research.sources)}\nStatut recherche : ${research.status}. Si indisponible, retire les affirmations qui exigeaient une source ; garde une hypothèse explicite ou un exemple fictif. Une URL est autorisée uniquement via un ID de cette liste.`;
   const schema = `JSON uniquement : {"ideas":[{
 "subject":"titre clair, 220 caractères max", "angle":"nom court de l'approche, 80 caractères max",
@@ -58,10 +64,12 @@ export async function generateDeepIdeas(input: IdeaInput, deps: { call: typeof c
     const parsed = tryParseAiJson<any>(raw, "ideas:selection");
     const ideas = (Array.isArray(parsed?.ideas) ? parsed.ideas : []).map((v: unknown) => parseDeepIdea(v, research.sources)).filter(Boolean) as DeepIdea[];
     if (ideas.length !== 1) throw new Error("Les idées reçues sont incomplètes. Réessaie pour obtenir une sélection exploitable.");
+    emit({ type: "idea", idea: ideas[0], ready: 1, total: 1 });
     return finish(ideas);
   }
   // Four Opus calls in parallel, one ranked candidate each: same rules, same schema,
-  // wall time = slowest idea instead of the sum. Reserves replace a failure or duplicate once.
+  // wall time = slowest idea instead of the sum. Each accepted idea is emitted at once,
+  // and a failure or duplicate immediately starts the next reserve (once per reserve).
   const candidates = prep.candidates.slice(0, 6);
   const develop = async (index: number, others: string[]): Promise<DeepIdea | null> => {
     try {
@@ -72,12 +80,20 @@ export async function generateDeepIdeas(input: IdeaInput, deps: { call: typeof c
   };
   const subjects: string[] = candidates.map((c: any) => String(c?.subject || ""));
   const primary = [0, 1, 2, 3].filter(i => i < candidates.length);
-  const results = await Promise.all(primary.map(i => develop(i, subjects.filter((_, j) => j !== i && j < 4))));
   const ideas: DeepIdea[] = [];
   const seen = new Set<string>();
-  const accept = (idea: DeepIdea | null) => { const key = idea?.subject.toLocaleLowerCase(); if (!idea || !key || seen.has(key)) return false; seen.add(key); ideas.push(idea); return true; };
-  results.forEach(accept);
-  for (let reserve = 4; ideas.length < 4 && reserve < candidates.length; reserve++) accept(await develop(reserve, ideas.map(i => i.subject)));
+  const accept = (idea: DeepIdea | null) => {
+    const key = idea?.subject.toLocaleLowerCase();
+    if (!idea || !key || seen.has(key) || ideas.length >= 4) return false;
+    seen.add(key); ideas.push(idea); emit({ type: "idea", idea, ready: ideas.length, total: 4 }); return true;
+  };
+  let nextReserve = 4;
+  const fill = async (index: number, others: string[]): Promise<void> => {
+    if (accept(await develop(index, others))) return;
+    const reserve = nextReserve++;
+    if (reserve < candidates.length && ideas.length < 4) await fill(reserve, [...ideas.map(i => i.subject), ...subjects.filter((_, j) => j < 4 && j !== index)]);
+  };
+  await Promise.all(primary.map(i => fill(i, subjects.filter((_, j) => j !== i && j < 4))));
   if (ideas.length !== 4) throw new Error("Les idées reçues sont incomplètes. Réessaie pour obtenir une sélection exploitable.");
   return finish(ideas);
 }

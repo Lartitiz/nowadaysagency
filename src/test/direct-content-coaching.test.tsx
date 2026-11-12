@@ -1,19 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ContentCoachingDialog from "../components/dashboard/ContentCoachingDialog";
-const mocks = vi.hoisted(() => ({ invoke: vi.fn(), insert: vi.fn(), scope: "workspace-a", user: "user-a" }));
+const mocks = vi.hoisted(() => ({ invoke: vi.fn(), insert: vi.fn(), scope: "workspace-a", user: "user-a", onEvent: null as any }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: mocks.user } }) }));
 vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => mocks.scope, useWorkspaceReady: () => true }));
 vi.mock("react-router-dom", () => ({ useNavigate: () => vi.fn() }));
-vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: mocks.invoke }));
+// The stream helper is driven through the same mock: its result is the final answer,
+// and a test can push ideas one by one through mocks.events before it resolves.
+vi.mock("@/lib/content-coaching-stream", () => ({ streamContentCoaching: async (body: any, onEvent: any) => {
+  mocks.onEvent = onEvent; const r = await mocks.invoke("content-coaching", { body }); if (r?.error) throw new Error(r.error.message); return r?.data;
+} }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => ({ insert: mocks.insert }) } }));
 vi.mock("@/components/coaching/CoachingShell", () => ({ default: ({ open, children }: any) => open ? <div>{children}</div> : null }));
 vi.mock("@/components/ui/textarea-with-voice", () => ({ TextareaWithVoice: (props: any) => <textarea {...props} /> }));
 const idea = (subject: string) => ({ subject, angle: "Analyse", insight: "Une idée centrale précise", mechanism: "Un mécanisme à développer", reader_benefit: "Choisir selon son besoin", outline: ["Montrer", "Expliquer"], example: "Un exemple fictif", nuance: "Une limite essentielle", grounding: "Un public précis", objective_tag: "credibilite", sources: [], to_verify: [] });
 const response = (name = "Idée") => ({ data: { version: 2, ideas: [1, 2, 3, 4].map(n => idea(`${name} ${n}`)) }, error: null });
 function setup(props: any = {}) { const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); const onSelect = vi.fn(); const view = (p: any = {}) => <QueryClientProvider client={client}><ContentCoachingDialog open onOpenChange={() => {}} onSelect={onSelect} initialChannel="linkedin" {...props} {...p} /></QueryClientProvider>; const rendered = render(view()); return { client, onSelect, view, ...rendered }; }
-beforeEach(() => { cleanup(); sessionStorage.clear(); mocks.scope = "workspace-a"; mocks.user = "user-a"; vi.clearAllMocks(); mocks.invoke.mockResolvedValue(response()); mocks.insert.mockImplementation((payload: any) => ({ select: () => ({ single: async () => ({ data: { id: payload.id }, error: null }) }) })); });
+beforeEach(() => { cleanup(); sessionStorage.clear(); mocks.scope = "workspace-a"; mocks.user = "user-a"; mocks.onEvent = null; vi.clearAllMocks(); mocks.invoke.mockResolvedValue(response()); mocks.insert.mockImplementation((payload: any) => ({ select: () => ({ single: async () => ({ data: { id: payload.id }, error: null }) }) })); });
 describe("direct coach journey", () => {
   it("generates immediately without a subject questionnaire and keeps full brief and channel", async () => {
     const { onSelect } = setup();
@@ -55,5 +59,27 @@ describe("direct coach journey", () => {
   it("asks only the missing activity when the server lacks context", async () => {
     mocks.invoke.mockResolvedValueOnce({ data: { needs_activity: true } }); setup();
     expect(await screen.findByLabelText("Ton activité")).toBeInTheDocument(); expect(screen.getByRole("button", { name: "Trouver mes idées" })).toBeDisabled();
+  });
+  it("shows each idea as soon as it arrives, lets the user keep it, and keeps it when the selection completes", async () => {
+    let finish: (v: any) => void = () => {}; mocks.invoke.mockImplementationOnce(() => new Promise(r => { finish = r; }));
+    setup();
+    expect(await screen.findByText("Je cherche des pistes dans ton activité…")).toBeInTheDocument();
+    await waitFor(() => expect(mocks.onEvent).toBeTruthy());
+    act(() => { mocks.onEvent({ type: "stage", stage: "writing" }); mocks.onEvent({ type: "idea", idea: idea("Idée 1"), ready: 1, total: 4 }); });
+    expect(await screen.findByText("Idée 1")).toBeInTheDocument();
+    expect(screen.getByText("1 idée sur 4 prête, la suite arrive…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Créer" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Garder" })); await screen.findByRole("button", { name: "Gardée" });
+    act(() => finish(response()));
+    await screen.findByText("Idée 4"); expect(screen.getAllByRole("button", { name: "Gardée" })).toHaveLength(1);
+    expect(screen.getByText("4 idées pour commencer. Le format se choisit ensuite.")).toBeInTheDocument();
+  });
+  it("keeps the ideas already shown when the rest of the selection fails", async () => {
+    let finish: (v: any) => void = () => {}; mocks.invoke.mockImplementationOnce(() => new Promise(r => { finish = r; }));
+    setup(); await waitFor(() => expect(mocks.onEvent).toBeTruthy());
+    act(() => { mocks.onEvent({ type: "idea", idea: idea("Idée 1"), ready: 1, total: 4 }); mocks.onEvent({ type: "idea", idea: idea("Idée 2"), ready: 2, total: 4 }); });
+    act(() => finish({ error: { message: "Coupé" } }));
+    expect(await screen.findByText(/Seulement 2 idées sur 4/)).toBeInTheDocument();
+    expect(screen.getByText("Idée 2")).toBeInTheDocument();
   });
 });
