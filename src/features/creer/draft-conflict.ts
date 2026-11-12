@@ -67,7 +67,12 @@ export function computeDraftConflict({
   // Même sujet que le brouillon → pas de conflit, on reprend simplement.
   const hasSource = !!(paramIdeaId || locState.ideaId || locState.fromBrief || locState.fromCalendar || locState.fromRecycle || locState.resumeIdea || locState.libraryPhotoIds?.length);
   if (!isFreshStart && !hasSource && newSubject && newSubject === d.ideaText?.trim()) return null;
+  // Contenu déjà enregistré qu'on rouvre (calendrier, Mes idées) : ce n'est pas
+  // un « nouveau » contenu, le dialogue le dit autrement et le nomme.
+  const reopening = !!locState.resumeIdea?.raw;
+  const reopenTitle = reopening ? String(newSubject || locState.theme || "").trim() : "";
   return {
+    reopening,
     draft: {
       step: d.step,
       ideaText: d.ideaText || "",
@@ -83,6 +88,6 @@ export function computeDraftConflict({
       photoSubject: d.photoSubject, photoDescription: d.photoDescription,
       forcedChannel: d.forcedChannel,
     },
-    newSubject,
+    newSubject: newSubject || reopenTitle,
   };
 }

@@ -41,11 +41,13 @@ interface Props {
   open: boolean;
   draft: DraftSummary;
   newSubject: string;
+  /** La demande rouvre un contenu déjà enregistré (calendrier, Mes idées). */
+  reopening?: boolean;
   onResume: () => void;
   onStartNew: () => void;
 }
 
-export default function DraftConflictDialog({ open, draft, newSubject, onResume, onStartNew }: Props) {
+export default function DraftConflictDialog({ open, draft, newSubject, reopening = false, onResume, onStartNew }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const [saveFirst, setSaveFirst] = useState(true);
@@ -130,7 +132,9 @@ export default function DraftConflictDialog({ open, draft, newSubject, onResume,
         <DialogHeader>
           <DialogTitle>Tu as déjà un contenu en cours</DialogTitle>
           <DialogDescription>
-            Qu'est-ce qu'on en fait avant de lancer le nouveau&nbsp;?
+            {reopening
+              ? <>Qu'est-ce qu'on en fait avant d'ouvrir celui que tu viens de demander&nbsp;?</>
+              : <>Qu'est-ce qu'on en fait avant de lancer le nouveau&nbsp;?</>}
           </DialogDescription>
         </DialogHeader>
 
@@ -145,7 +149,7 @@ export default function DraftConflictDialog({ open, draft, newSubject, onResume,
           {newSubject && (
             <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
               <p className="text-2xs uppercase tracking-wider text-primary font-semibold">
-                Nouvelle demande
+                {reopening ? "Contenu à ouvrir" : "Nouvelle demande"}
               </p>
               <p className="text-sm text-foreground line-clamp-2">{newSubject}</p>
             </div>
@@ -165,10 +169,10 @@ export default function DraftConflictDialog({ open, draft, newSubject, onResume,
         <div className="flex flex-col gap-2 pt-2">
           <Button className="rounded-full" onClick={handleStartNew} disabled={busy}>
             {busy && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Démarrer le nouveau contenu
+            {reopening ? "Ouvrir le contenu demandé" : "Démarrer le nouveau contenu"}
           </Button>
           <Button variant="outline" className="rounded-full" onClick={onResume} disabled={busy}>
-            Reprendre mon contenu en cours
+            {reopening ? "Rester sur mon contenu en cours" : "Reprendre mon contenu en cours"}
           </Button>
         </div>
       </DialogContent>

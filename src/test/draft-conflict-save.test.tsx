@@ -58,4 +58,12 @@ describe("protecting the current draft", () => {
     expect(mocks.insert).not.toHaveBeenCalled(); expect(onStartNew).not.toHaveBeenCalled();
   });
 
+  // Reprise d'un contenu enregistré (« Reprendre le reel ») : rien de « nouveau ».
+  it("names a reopened saved content instead of calling it new", () => {
+    render(<DraftConflictDialog open draft={draft} newSubject="Mon reel avant / après" reopening onResume={vi.fn()} onStartNew={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Ouvrir le contenu demandé" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Rester sur mon contenu en cours" })).toBeTruthy();
+    expect(screen.getByText("Contenu à ouvrir")).toBeTruthy();
+    expect(screen.queryByText(/nouveau/i)).toBeNull();
+  });
 });
