@@ -1,0 +1,21 @@
+import { test, expect } from "@playwright/test";
+import * as path from "path";
+import { fileURLToPath } from "url";
+const SHOTS = path.join(path.dirname(fileURLToPath(import.meta.url)), "shots/qa-stories");
+test("Stories : premier écran téléphone", async ({ page }) => {
+  await page.goto("/idees", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: /^Tout/ }).first().click().catch(() => {});
+  await page.getByPlaceholder(/Retrouver un sujet/i).fill(process.env.QA_STAMP || "47470");
+  await page.waitForTimeout(1500);
+  await page.getByText(process.env.QA_STAMP || "47470").first().click();
+  await page.getByRole("button", { name: /Voir au calendrier/i }).first().click();
+  await page.waitForTimeout(4000);
+  await page.screenshot({ path: path.join(SHOTS, "mobile-calendrier.png") });
+  await page.getByRole("button", { name: /Modifier les stories/i }).first().click();
+  await expect(page.getByText(/^Story 1$/).first()).toBeVisible({ timeout: 30000 });
+  await page.waitForTimeout(4000);
+  await page.screenshot({ path: path.join(SHOTS, "mobile-ecran1.png") });
+  const box = await page.locator('iframe[title^="Aperçu story"]').first().boundingBox();
+  console.log(`[qa] aperçu ${box ? Math.round(box.width) + "x" + Math.round(box.height) + " à y=" + Math.round(box.y) : "absent"}`);
+  console.log(`[qa] débordement ${await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)}`);
+});
