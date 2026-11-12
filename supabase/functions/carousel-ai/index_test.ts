@@ -2023,3 +2023,52 @@ for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carous
     }
   } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });
+
+// QA du 12/11/2026 (Auriana) : « Tes photos en fond » (carousel_type photo) est
+// son rendu préféré, sur Instagram ET LinkedIn. La paire avant/après marquée par
+// l'étape « Que montre chaque photo ? » doit arriver au plan (répartition des
+// photos) et à la rédaction du récit, avec le contexte de chaque photo.
+const PAIR_PHOTOS = [
+  { base64: "aGVsbG8=", mimeType: "image/jpeg", context: "AVANT — cuisine" },
+  { base64: "aGVsbG8=", mimeType: "image/jpeg", context: "Façade de l'immeuble" },
+  { base64: "aGVsbG8=", mimeType: "image/jpeg", context: "APRÈS — cuisine" },
+];
+const allText = (o: any) => [String(o?.system ?? ""), ...(o?.messages || []).flatMap((m: any) =>
+  typeof m.content === "string" ? [m.content] : (m.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text))].join("\n");
+for (const channel of ["instagram", "linkedin"]) {
+  Deno.test(`photos en fond (${channel}) : contexte et paire avant/après dans le plan`, async () => {
+    resetDeps();
+    const prompts: string[] = [];
+    _deps.callAnthropic = (async (o: any) => {
+      prompts.push(allText(o));
+      return JSON.stringify({ strategic_rationale: "ok", narrative_thread: "fil", total_slides: 3, carousel_type: "photo",
+        slides: [1, 2, 3].map(n => ({ slide_number: n, role: "content", title_suggestion: "T", strategic_note: "n", photo_index: n })) });
+    }) as any;
+    try {
+      const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", channel, slide_count: 3, photos: PAIR_PHOTOS }));
+      assertEquals(res.status, 200);
+      const p = prompts.join("\n");
+      assert(p.includes("Photo 2 — contexte fourni par la personne : Façade de l'immeuble"));
+      assert(p.includes("la photo 1 est l'avant, la photo 3 est l'après"));
+      assert(p.includes("deux slides photo qui se suivent"));
+    } finally { resetDeps(); }
+  });
+
+  Deno.test(`photos en fond (${channel}) : contexte et paire avant/après dans la rédaction du récit`, async () => {
+    resetDeps(); _deps.prepareNarrative = createContinuousNarrative;
+    const prompts: string[] = [];
+    _deps.callCarouselWriter = (async (o: any) => {
+      prompts.push(allText(o));
+      return JSON.stringify({ photo_mismatch: { reason: "arrêt du test après la lecture du prompt" } });
+    }) as any;
+    const oldFetch = globalThis.fetch;
+    globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+    try {
+      await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: "photo", channel, slide_count: 5, scenario_origin: "automatic", photos: PAIR_PHOTOS }));
+      const p = prompts.join("\n");
+      assert(prompts.length > 0, "la rédaction du récit doit être appelée");
+      assert(p.includes("Façade de l'immeuble"));
+      assert(p.includes("la photo 1 est l'avant, la photo 3 est l'après"), "consigne avant/après absente du récit");
+    } finally { globalThis.fetch = oldFetch; resetDeps(); }
+  });
+}
