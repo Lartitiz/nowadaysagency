@@ -25,7 +25,7 @@ import { buildStoryFrameHtml, placeTextAwayFromLikelyFace, storyVisualOrFallback
 import { classerParPertinence } from "@/lib/rank-library-photos";
 import { exportStoryPng } from "@/lib/export-carousel-png";
 import { exportStoryPptx } from "@/lib/export-story-pptx";
-import { useOpenInCanva } from "@/hooks/use-open-in-canva";
+import { useOpenInCanva } from "@/hooks/use-open-in-canva"; import { useScrollIntoViewOnPhone } from "@/hooks/use-scroll-into-view-on-phone";
 import { resolveLibraryPhotoUrls, urlToDataUrl } from "@/lib/story-photos";
 import StoryPhotoSuggestions, {
   type AppliedStockPhoto,
@@ -109,9 +109,9 @@ function publicationTimeLabel(value: unknown): string | null {
   return labels[normalized] || value.trim();
 }
 
-
 export default function StoryResult({ result, onStoriesUpdate, photos, onExportActionsChange }: Props) {
   const rawStories: any[] = result?.stories || result?.sequences || result?.slides || [];
+  const storyCardsRef = useScrollIntoViewOnPhone<HTMLDivElement>(); // téléphone : défile seul jusqu'à la story affichée
   // Une story sans plan visuel (ni face cam) reçoit le plan de repli
   // photo + texte complet : aperçu, choix de photo et exports existent.
   const [stories, setStories] = useState(() => rawStories.map(withStoryVisualFallback));
@@ -695,7 +695,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
       </div>
 
       <StoryNav count={stories.length} current={shownStory} onChange={setCurrentStory} />
-      <div className="space-y-2" data-selection-enabled="true">
+      <div ref={storyCardsRef} className="space-y-2 scroll-mt-16" data-selection-enabled="true">
         {stories.map((story: any, i: number) => (
           <Card key={structure.keys[i] ?? i} className="border-border" hidden={i !== shownStory}>
             <CardContent className="p-3">
