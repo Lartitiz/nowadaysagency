@@ -230,7 +230,11 @@ export async function loadStoriesPhotoCatalog(params: { supabase: any; userId: s
     const preferredRows = preferredIds
       .map((id) => rows.find((r) => r.id === id))
       .filter((r): r is CatRow => !!r);
-    const otherRows = rows
+    // Photos choisies pour CETTE séquence : on n'ajoute pas le reste de la
+    // bibliothèque (QA du 12/11/2026 : « Point chantier » illustré par le
+    // salon d'un autre bien). Une story sans photo choisie garde le repli
+    // habituel (photo libre de droits ou « à prendre plus tard »).
+    const otherRows = preferredRows.length > 0 ? [] : rows
       .filter(
         (r) =>
           !preferredIds.includes(r.id) &&
