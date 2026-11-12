@@ -141,6 +141,24 @@ export function higgsfieldErrorMeta(error: unknown) {
   };
 }
 
+/**
+ * What the provider said when it ended a request as failed/nsfw/canceled.
+ * Without it, an outage (12/11/2026: every sunburst request failed) cannot
+ * be told apart from a refused picture. Field names only + one short reason
+ * text; never the prompt or image URLs.
+ */
+export function providerFailureDetail(status: unknown): { fields: string[]; detail?: string } {
+  if (!status || typeof status !== "object") return { fields: [] };
+  const s = status as Record<string, unknown>;
+  const fields = Object.keys(s).filter((k) => !["images", "video", "input", "prompt"].includes(k)).slice(0, 15);
+  for (const key of ["error", "error_message", "failure_reason", "reason", "message", "detail"]) {
+    const v = s[key];
+    const text = typeof v === "string" ? v : v && typeof v === "object" ? JSON.stringify(v) : "";
+    if (text) return { fields, detail: text.slice(0, 200) };
+  }
+  return { fields };
+}
+
 /** Service-role client: the budget RPC and table are service_role only. */
 type DB = ReturnType<typeof getServiceClient>;
 
@@ -255,7 +273,7 @@ export async function generateHiggsfieldImageSync(db: DB, req: SyncImageRequest)
       if (status?.request_id !== requestId) throw new Error("studio_provider_receipt");
       if (["failed", "nsfw", "canceled"].includes(status.status)) {
         await setSpendStatus(db, spendId, "failed");
-        log({ error: `provider_${status.status}` });
+        log({ error: `provider_${status.status}`, request_id: requestId, ...providerFailureDetail(status) });
         return { ok: false, reason: status.status === "nsfw" ? "rejected" : "failed" };
       }
       if (status.status !== "completed") continue;
