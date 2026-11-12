@@ -3,10 +3,16 @@ import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { discountLabel, findActiveStripePromotionCode } from "./stripe-promotion-code.ts";
 
 const original = globalThis.fetch;
-function mockStripe(data: unknown[], status = 200) {
+function mockStripe(data: unknown[], status = 200, coupons: Record<string, unknown> = {}) {
   const urls: string[] = [];
   globalThis.fetch = (async (input: RequestInfo | URL) => {
-    urls.push(String(input));
+    const url = String(input);
+    urls.push(url);
+    const couponId = url.match(/\/v1\/coupons\/([^?]+)/)?.[1];
+    if (couponId) {
+      const c = coupons[decodeURIComponent(couponId)];
+      return new Response(JSON.stringify(c ?? { error: {} }), { status: c ? 200 : 404 });
+    }
     return new Response(JSON.stringify({ data }), { status, headers: { "content-type": "application/json" } });
   }) as typeof fetch;
   return urls;
@@ -25,6 +31,14 @@ Deno.test("code actif trouvé, sans tenir compte de la casse", async () => {
     const found = await findActiveStripePromotionCode("partenaire", "sk_test");
     assertEquals(found, { id: "promo_1", code: "PARTENAIRE", label: "-10 € par mois" });
     assertEquals(urls[0].includes("active=true"), true);
+  } finally { globalThis.fetch = original; }
+});
+
+Deno.test("coupon donné par identifiant (promotion.coupon) : relu à part", async () => {
+  const urls = mockStripe([{ id: "promo_2", code: "P2", active: true, promotion: { type: "coupon", coupon: "c-2" }, times_redeemed: 0 }], 200, { "c-2": COUPON });
+  try {
+    assertEquals(await findActiveStripePromotionCode("P2", "sk_test"), { id: "promo_2", code: "P2", label: "-10 € par mois" });
+    assertEquals(urls.some((u) => u.endsWith("/v1/coupons/c-2")), true);
   } finally { globalThis.fetch = original; }
 });
 

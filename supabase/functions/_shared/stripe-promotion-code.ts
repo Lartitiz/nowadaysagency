@@ -50,15 +50,25 @@ export async function findActiveStripePromotionCode(
       return null;
     }
     const body = await res.json();
+    const headers = { Authorization: `Bearer ${key}`, "Stripe-Version": STRIPE_VERSION };
+    // Selon la version d'API, le coupon arrive en objet (`coupon`) ou en simple
+    // identifiant (`promotion.coupon`) : on le relit alors à part.
+    const readCoupon = async (c: unknown) => {
+      if (c && typeof c === "object") return c as any;
+      if (typeof c !== "string") return null;
+      const r = await fetch(`https://api.stripe.com/v1/coupons/${encodeURIComponent(c)}`, { headers });
+      return r.ok ? await r.json() : null;
+    };
     const now = Math.floor(Date.now() / 1000);
     for (const pc of body?.data ?? []) {
       // Stripe compare les codes sans tenir compte de la casse ; on garde la même règle.
       if (String(pc.code).toUpperCase() !== clean.toUpperCase()) continue;
-      const coupon = pc.coupon ?? pc.promotion?.coupon;
-      if (!pc.active || (coupon && typeof coupon === "object" && coupon.valid === false)) continue;
+      if (!pc.active) continue;
       if (pc.expires_at && pc.expires_at <= now) continue;
       if (pc.max_redemptions && pc.times_redeemed >= pc.max_redemptions) continue;
-      return { id: pc.id, code: pc.code, label: discountLabel(typeof coupon === "object" ? coupon : null) };
+      const coupon = await readCoupon(pc.coupon ?? pc.promotion?.coupon);
+      if (coupon?.valid === false) continue;
+      return { id: pc.id, code: pc.code, label: discountLabel(coupon) };
     }
     return null;
   } catch (e) {
