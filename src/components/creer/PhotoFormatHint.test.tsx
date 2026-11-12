@@ -14,10 +14,10 @@ describe("PhotoFormatHint : texte adapté au canal", () => {
     expect(photoFormatHintText("linkedin", 1)).toBeNull();
   });
 
-  it("Instagram garde carrousel ou Reel et le bouton pour tout afficher", () => {
+  it("Instagram garde carrousel, Reel ou Story et le bouton pour tout afficher", () => {
     const onForce = vi.fn();
     render(<PhotoFormatHint channel="instagram" photoCount={3} forceShowAll={false} onForceShowAll={onForce} />);
-    expect(screen.getByText(/carrousel ou le Reel/)).toBeInTheDocument();
+    expect(screen.getByText(/carrousel, le Reel ou la Story/)).toBeInTheDocument();
     fireEvent.click(screen.getByText("Tout afficher quand même"));
     expect(onForce).toHaveBeenCalledWith(true);
   });

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import CreerStepFormat from "@/components/creer/CreerStepFormat";
-import { ideaAsksForReel, recommendContentFormat } from "@/lib/format-recommendation";
+import { ideaAsksForReel, ideaAsksForStory, recommendContentFormat } from "@/lib/format-recommendation";
 import { photoCapForFormat } from "@/lib/format-photo-cap";
 import { photosToVideoReferences, reelPhotosVideoDraft } from "@/lib/reel-photos-studio";
 
@@ -38,6 +38,13 @@ describe("recommandation de format", () => {
     expect(ideaAsksForReel("reel")).toBe(true);
     expect(recommendContentFormat("linkedin", 4, "Je veux un reel")).toMatchObject({ format: "carousel", mode: "photo" });
   });
+  it("suit « story » écrit dans l'idée, sans confondre avec « storytelling » ni « histoire »", () => {
+    expect(recommendContentFormat("instagram", 3, "Mes stories du chantier").format).toBe("story");
+    expect(recommendContentFormat("instagram", 0, "une story sur mon atelier").format).toBe("story");
+    expect(ideaAsksForStory("Le storytelling de ma marque")).toBe(false);
+    expect(ideaAsksForStory("Story")).toBe(true);
+    expect(recommendContentFormat("linkedin", 3, "mes stories")).toMatchObject({ format: "carousel" });
+  });
   it("garde jusqu'à 10 photos pour Reel, Story et LinkedIn", () => {
     expect(photoCapForFormat("reel")).toBe(10);
     expect(photoCapForFormat("story")).toBe(10);
@@ -51,6 +58,9 @@ describe("écran Format avec 2 photos", () => {
     render(<CreerStepFormat {...base} onNext={vi.fn()} forcedChannel="instagram" initialPhotos={photos} />);
     expect(screen.getByTestId("creer-format-carousel")).toBeInTheDocument();
     expect(screen.getByTestId("creer-format-reel")).toBeInTheDocument();
+    // Les stories utilisent les photos (une par story) : proposées aussi.
+    expect(screen.getByTestId("creer-format-story")).toBeInTheDocument();
+    expect(screen.queryByTestId("creer-format-post")).not.toBeInTheDocument();
     expect(screen.queryByText(/forcément sur un carrousel/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Suivant : Reel/ })).toBeInTheDocument();
   });

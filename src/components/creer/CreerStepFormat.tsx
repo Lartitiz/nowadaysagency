@@ -332,7 +332,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
   const pageOneChoices: FormatChoice[] =
     selectedChannel === "instagram"
       ? typeEntries
-          .filter(([id, spec]) => spec.channel === "instagram" && (multiPhotos ? id === "carousel" || id === "reel" : !hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel"))
+          .filter(([id, spec]) => spec.channel === "instagram" && (multiPhotos ? id === "carousel" || id === "reel" || id === "story" : !hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel"))
           .map(([id, spec]) => ({ id, label: spec.label, preview: id, comingSoon: spec.comingSoon, desc: id === "carousel" ? "Plusieurs slides à faire défiler" : id === "reel" ? "Une vidéo verticale, avec ton script" : id === "story" ? "Une séquence de visuels verticaux" : "Une photo et sa légende" }))
       : selectedChannel === "linkedin"
         ? [
