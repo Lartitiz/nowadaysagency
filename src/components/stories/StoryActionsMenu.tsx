@@ -11,7 +11,6 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MAX_STORIES } from "@/lib/story-sequence-ops";
 import StoryRedo from "@/components/stories/StoryRedo";
-import StoryStructureControls from "@/components/stories/StoryStructureControls";
 
 type RedoProps = Omit<ComponentProps<typeof StoryRedo>, "renderTrigger">;
 
@@ -94,10 +93,4 @@ export function StoryActionsMenu({ index, count, redo, onDelete, onMove, onDupli
       )}
     />
   );
-}
-
-/** Ligne Avant / Après / Dupliquer / Ajouter : sur ordi seulement (sur téléphone, elle est dans le menu « … »). */
-export function StoryStructureRow(props: ComponentProps<typeof StoryStructureControls>) {
-  const isMobile = useIsMobile();
-  return isMobile ? null : <StoryStructureControls {...props} />;
 }
