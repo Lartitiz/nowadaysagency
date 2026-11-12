@@ -591,7 +591,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
   useEffect(() => {
     const ready = libRows.filter((p) => p.status === "ready" && p.storage_path).slice(0, LIBRARY_POOL);
     if (ready.length === 0) {
-      setLibraryPool([]);
+      setLibraryPool((prev) => (prev.length ? [] : prev)); // même état : pas de rendu en boucle tant que la bibliothèque charge
       return;
     }
     let cancelled = false;

@@ -2,6 +2,8 @@
 // photo UNE fois, en parallèle des autres. Avant, chaque photo posée relançait
 // les recherches encore en attente (délais en escalier, appels gâchés) et la
 // 6e story recevait sa photo ~11 s après le résultat.
+// La bibliothèque reste « en chargement » (data undefined) : avant le 12/11 au
+// soir, ce cas faisait tourner StoryResult en boucle de rendus.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { useState } from "react";
@@ -10,10 +12,9 @@ import StoryResult from "@/components/creer/formatRenderers/StoryResult";
 const mocks = vi.hoisted(() => ({
   search: vi.fn(),
   invoke: vi.fn(),
-  noPhotos: [] as any[],
 }));
 vi.mock("@/hooks/use-branding", () => ({ useBrandCharter: () => ({ data: null }) }));
-vi.mock("@/hooks/use-user-photos", () => ({ useUserPhotos: () => ({ data: mocks.noPhotos }) }));
+vi.mock("@/hooks/use-user-photos", () => ({ useUserPhotos: () => ({ data: undefined }) }));
 vi.mock("@/hooks/use-open-in-canva", () => ({ useOpenInCanva: () => ({ openInCanva: vi.fn(), openingCanva: false }) }));
 vi.mock("@/lib/story-photos", () => ({
   resolveLibraryPhotoUrls: async () => new Map(),
