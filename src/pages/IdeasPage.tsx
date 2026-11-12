@@ -96,7 +96,10 @@ function getIdeaPreview(idea: SavedIdea): { title?: string; text?: string } {
   // Liste légère : l'extrait calculé par la base remplace le contenu complet.
   let data: any = idea.content_data !== undefined ? idea.content_data : idea.preview_data;
   const draft = idea.content_draft ?? idea.draft_head;
-  if (typeof data === "string") {
+  // Contenu enregistré en texte JSON (parfois encodé deux fois, ou coupé par
+  // l'extrait de la base) : jamais montré tel quel dans la liste (QA du 12/11/2026).
+  const rawJson = typeof data === "string" ? data : typeof draft === "string" && draft.trim().startsWith("{") ? draft : "";
+  for (let i = 0; i < 2 && typeof data === "string"; i++) {
     try { data = JSON.parse(data); } catch { data = null; }
   }
   if (data && typeof data === "object") {
@@ -120,11 +123,15 @@ function getIdeaPreview(idea: SavedIdea): { title?: string; text?: string } {
       data.content ||
       data.resume ||
       undefined;
-    const cleanText = typeof rawText === "string" && rawText.trim() ? cleanSlideMarkers(rawText) : undefined;
+    const cleanText = typeof rawText === "string" && rawText.trim() && !rawText.trim().startsWith("{") ? cleanSlideMarkers(rawText) : undefined;
     if (title || cleanText) return { title, text: cleanText };
   }
-  if (idea.accroche_short?.trim()) return { text: idea.accroche_short.trim() };
+  const short = idea.accroche_short?.trim();
+  if (short && !short.startsWith("{")) return { text: short };
   if (draft?.trim() && !draft.trim().startsWith("{")) return { text: cleanSlideMarkers(draft) };
+  // JSON coupé : on garde au moins le titre de l'angle s'il est lisible.
+  const cutTitle = rawJson.match(/"title"\s*:\s*"((?:[^"\\]|\\.){3,200})"/)?.[1];
+  if (cutTitle) return { title: cutTitle.replace(/\\"/g, '"') };
   return {};
 }
 
