@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: vi.fn() }));
@@ -8,6 +8,8 @@ vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u" }, 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import CreerStepResult from "@/components/creer/CreerStepResult";
+import CarouselStructureLoader from "@/components/creer/CarouselStructureLoader";
+import { resetWaitClock } from "@/lib/generation-wait-clock";
 
 // Chantier C (15/10/2026, choix de Laetitia) : l'écran du résultat de /creer
 // garde AU PLUS 3 actions visibles dans la barre collée en bas + un menu court
@@ -108,6 +110,26 @@ describe("écran du résultat : durée honnête pendant la génération", () => 
   it("carrousel : 3 à 4 minutes en tout, avec le temps écoulé", () => {
     renderResult("carousel", null, { generating: true });
     expect(screen.getByTestId("generation-time-hint")).toHaveTextContent(/Compte 3 à 4 minutes en tout\. Déjà \d+ s/);
+  });
+
+  // QA du 12/11/2026 : « Déjà 22 s » après une vraie minute, le chrono
+  // repartait de zéro entre le plan des slides et la rédaction.
+  it("carrousel photo : le temps écoulé compte depuis le clic, plan compris", () => {
+    vi.useFakeTimers();
+    try {
+      resetWaitClock();
+      const plan = render(<CarouselStructureLoader hasPhotos />);
+      act(() => { vi.advanceTimersByTime(40_000); });
+      expect(screen.getByTestId("structure-elapsed")).toHaveTextContent("Déjà 40 s.");
+      plan.unmount();
+      act(() => { vi.advanceTimersByTime(500); });
+      renderResult("carousel", null, { generating: true, step2of2: true });
+      act(() => { vi.advanceTimersByTime(20_000); });
+      expect(screen.getByTestId("generation-time-hint")).toHaveTextContent(/Déjà 1 min 0[01]/);
+    } finally {
+      vi.useRealTimers();
+      resetWaitClock();
+    }
   });
 
   it("post : environ 1 minute", () => {

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { elapsedLabel } from "@/components/creer/GenerationTimeHint";
+import { waitPhaseEnded, waitPhaseStarted } from "@/lib/generation-wait-clock";
 
 /**
  * Loader de l'étape "structure" des carrousels photo/mix.
@@ -35,6 +37,9 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
   const [progress, setProgress] = useState(0);
   const [slow, setSlow] = useState(false);
   const startTimeRef = useRef(Date.now());
+  // Départ du chrono partagé avec l'écran de rédaction (« Déjà X s » total).
+  const [waitStart] = useState(() => waitPhaseStarted());
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     startTimeRef.current = Date.now();
@@ -51,6 +56,7 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
       const p = Math.min(90, 90 * (1 - Math.exp(-elapsed / 25)));
       setProgress(Math.round(p));
+      setNow(Date.now());
       // Le serveur relance un second plan identique à 80 s (structure-hedge.ts).
       if (elapsed >= SLOW_AFTER_S) setSlow(true);
     }, 300);
@@ -60,6 +66,8 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
       clearInterval(progressInterval);
     };
   }, [messages.length]);
+  useEffect(() => () => waitPhaseEnded(), []);
+  const elapsed = Math.max(0, Math.round((now - waitStart) / 1000));
 
   return (
     <div className="py-16 text-center space-y-5 animate-fade-in max-w-md mx-auto">
@@ -87,7 +95,8 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
       <p className="text-xs text-muted-foreground">
         {hasPhotos
           ? "J'analyse tes photos une par une (environ une minute), puis je rédige les slides. Compte 3 à 4 minutes en tout pour ton carrousel."
-          : "Je prépare le plan (environ une minute), puis je rédige les slides. Compte 3 à 4 minutes en tout pour ton carrousel."}
+          : "Je prépare le plan (environ une minute), puis je rédige les slides. Compte 3 à 4 minutes en tout pour ton carrousel."}{" "}
+        <span data-testid="structure-elapsed">Déjà {elapsedLabel(elapsed)}.</span>
       </p>
       {slow && (
         <p className="text-xs text-muted-foreground animate-fade-in">

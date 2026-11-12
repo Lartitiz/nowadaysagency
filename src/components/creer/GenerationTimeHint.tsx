@@ -15,7 +15,7 @@ function totalDurationLabel(format: string, opts: { afterPlan?: boolean } = {}):
   return "environ 1 minute";
 }
 
-const elapsedLabel = (s: number) => (s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")}`);
+export const elapsedLabel = (s: number) => (s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")}`);
 
 export default function GenerationTimeHint({
   format,
