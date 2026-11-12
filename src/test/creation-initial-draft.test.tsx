@@ -80,7 +80,7 @@ describe('initial creation draft through real React components', () => {
     const app = mount('/creer?sujet=Mon%20offre&format=carousel&carouselSubMode=text&auto=1');
     await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(1));
     expect(mocks.generate).toHaveBeenCalledWith({});
-    expect(screen.queryByText('Quelques précisions')).toBeNull();
+    expect(screen.queryByTestId('creer-questions-next')).toBeNull();
     app.unmount();
     mount();
     expect(mocks.generate).toHaveBeenCalledTimes(1);
@@ -108,7 +108,7 @@ describe('initial creation draft through real React components', () => {
     await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(1));
     expect(mocks.generate).toHaveBeenCalledWith({});
     expect(loadPhotos()).toMatchObject([{ userPhotoId: 'library-1' }, { userPhotoId: 'library-2' }]);
-    expect(screen.queryByText('Quelques précisions')).toBeNull();
+    expect(screen.queryByTestId('creer-questions-next')).toBeNull();
   });
 
   it('une seule photo produit → demande un autre visuel avant de générer', async () => {

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, ArrowRight, Sparkles, SkipForward, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles, Loader2 } from "lucide-react";
 import type { Question } from "@/hooks/use-content-generator";
 import StickyStepBar from "./StickyStepBar";
 
@@ -110,7 +110,6 @@ export default function CreerStepQuestions({
   questions,
   loadingQuestions,
   loadError,
-  previousBriefsCount,
   initialAnswers,
   onAnswersChange,
   onNext,
@@ -270,7 +269,6 @@ export default function CreerStepQuestions({
 
   const q = questions[currentIndex];
   const isLast = currentIndex === questions.length - 1;
-  const progress = ((currentIndex + 1) / questions.length) * 100;
 
   const handleNext = () => {
     if (!isLast) {
@@ -285,38 +283,37 @@ export default function CreerStepQuestions({
     else onBack();
   };
 
+  // Écran volontairement dépouillé (12/11/2026) : la question est la seule chose
+  // à lire. Plus de grand titre, de paragraphe d'explication ni d'encadré : le
+  // fil d'étapes dit déjà « Précisions », et « facultatif » suffit à dire qu'on
+  // peut passer.
   return (
-    <div className="space-y-5 animate-fade-in">
-      <div>
-        <h2 className="font-display text-3xl text-primary">Quelques précisions</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Tu peux préciser ou changer ce que tu souhaites raconter dans tes réponses. Ce que tu écris sera conservé si tu passes les questions restantes.</p>
-      </div>
-      {previousBriefsCount && previousBriefsCount > 0 ? (
-        <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
-          <p className="text-xs text-primary font-medium">
-            💡 Tes réponses sont sauvegardées et enrichissent tes futures créations.
-          </p>
-        </div>
-      ) : null}
-      {/* Progress */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            Question {currentIndex + 1} / {questions.length}
-          </p>
-        </div>
-        <Progress value={progress} className="h-1.5" />
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground" data-testid="creer-questions-counter">
+          {questions.length > 1 ? `Question ${currentIndex + 1} sur ${questions.length}` : "Une question"} · facultatif
+        </p>
+        {questions.length > 1 && (
+          <div className="flex gap-1.5" aria-hidden="true">
+            {questions.map((item, index) => (
+              <span
+                key={item.id}
+                className={`h-1.5 w-6 rounded-full ${index <= currentIndex ? "bg-primary" : "bg-primary/15"}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Question */}
       <div className="space-y-3">
-        <label htmlFor={`creation-question-${q.id}`} className="block text-sm font-semibold text-foreground">{q.question}</label>
+        <label htmlFor={`creation-question-${q.id}`} className="block text-lg sm:text-xl font-semibold leading-snug text-foreground">{q.question}</label>
         <Textarea
           id={`creation-question-${q.id}`}
           value={answers[q.id] || ""}
           onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
           placeholder={q.placeholder || "Ta réponse…"}
-          rows={3}
+          rows={4}
           className="resize-none"
         />
       </div>
@@ -343,9 +340,9 @@ export default function CreerStepQuestions({
 
         {/* Skip */}
         <Button
-          variant="ghost"
+          variant="link"
           size="sm"
-          className="w-full gap-1.5 text-muted-foreground"
+          className="w-full gap-1.5 text-muted-foreground underline underline-offset-2 hover:text-primary"
           onClick={handleSkip}
           disabled={isSubmitting}
           data-testid="creer-generate-direct"
@@ -353,7 +350,7 @@ export default function CreerStepQuestions({
           {isSubmitting ? (
             <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Lancement…</>
           ) : (
-            <><SkipForward className="h-3.5 w-3.5" /> {hasAnswers ? "Générer avec mes précisions" : "Passer les questions, générer directement"}</>
+            <>{hasAnswers ? "Générer avec mes précisions" : "Passer les questions, générer directement"}</>
           )}
         </Button>
         {isSubmitting && (
