@@ -678,7 +678,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
               💡 Jusqu'à <strong>10 photos</strong> : l'IA place <strong>une photo par story</strong>, là où elle raconte le mieux. Une seule photo = fil visuel de toute la séquence.
             </p>
           )}
-          {selectedFormat === "reel" && postPhoto.length > 0 && <ReelFromPhotosNote photoCount={postPhoto.length} />}
+          {selectedFormat === "reel" && postPhoto.length > 0 && <ReelFromPhotosNote photos={postPhoto} />}
         </div>
       )}
 
