@@ -104,3 +104,10 @@ Deno.test("mixte : une slide de plus de 50 mots est signalée pour être redéco
   assertEquals(longMixSlideIssues(parsed, { carousel_type: "mix", confirmed_structure: [{}, {}, {}] }).length, 0);
   assertEquals(longMixSlideIssues(parsed, { carousel_type: "mix", slide_structure: [{}, {}, {}] }).length, 0);
 });
+
+Deno.test("mixte : seuil plus court sur demande (mixte LinkedIn, passe du 12/11/2026), 50 par défaut", async () => {
+  const { longMixSlideIssues } = await import("./carousel-length.ts");
+  const parsed = { slides: [{ title: "Couv" }, { body: Array(41).fill("mot").join(" ") }, { body: Array(40).fill("mot").join(" ") }] };
+  assertEquals(longMixSlideIssues(parsed, { carousel_type: "mix" }), []);
+  assertEquals(longMixSlideIssues(parsed, { carousel_type: "mix", channel: "linkedin" }, 40), ["La slide 2 est trop longue (41 mots, 40 au plus)."]);
+});

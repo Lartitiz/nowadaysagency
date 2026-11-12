@@ -7,6 +7,7 @@
 import { type CarouselRequestContext, stageTimer, firstDraftStream, buildPhotoContextRecap, pushPhotoWithContext, _deps, pickCarouselModel, retryIfTooShort, carouselSlideFloor, carouselMismatchResponse, echoContext, reviewAllowed, pickCorrectionModel, CORRECTION_ABORT_MS } from "../shared.ts";
 import { continuousCarouselResponse } from "../steps/continuous.ts";
 import { buildMixCarouselNewsReactionPrompt, buildMixCarouselPrompt } from "../prompts.ts";
+import { isLinkedInMix, LINKEDIN_MIX_LONG_WORDS } from "../variant-writing.ts";
 import { type UsageSink } from "../../_shared/anthropic.ts";
 import { carouselLengthPrompt, carouselStructureIssues, longMixSlideIssues } from "../../_shared/carousel-length.ts";
 import { PHOTO_MISMATCH_SYSTEM_REMINDER, MIX_CAROUSEL_TOOL } from "../tools.ts";
@@ -174,7 +175,7 @@ export async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): 
     const mismatch = carouselMismatchResponse(content, body, mixUsage, "mix", corsHeaders);
     if (mismatch) return mismatch;
   }
-  const threadMix = await clock.timed("structure_ms", repairCarouselStructure(content, { body, label: "mix", inspect: (v) => { const p = tryParseAiJson(v); return [...carouselStructureIssues(p, body), ...longMixSlideIssues(p, body)]; }, emitStatus, usage: mixUsage, regenerate: doRepair, startedAt }));
+  const threadMix = await clock.timed("structure_ms", repairCarouselStructure(content, { body, label: "mix", inspect: (v) => { const p = tryParseAiJson(v); return [...carouselStructureIssues(p, body), ...longMixSlideIssues(p, body, isLinkedInMix(body) ? LINKEDIN_MIX_LONG_WORDS : undefined)]; }, emitStatus, usage: mixUsage, regenerate: doRepair, startedAt }));
   content = threadMix.content;
 
   const editorialBaseline = content;

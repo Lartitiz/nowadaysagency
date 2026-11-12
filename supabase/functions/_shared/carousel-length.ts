@@ -96,13 +96,14 @@ export function longTextSlides(parsed: any, body: any): number[] {
   return slides.flatMap((s: any, i: number) => i > 0 && words(s) > LONG_SLIDE_WORDS ? [Number(s?.slide_number) || i + 1] : []);
 }
 
-/** Slides du carrousel MIXTE au-delà de LONG_SLIDE_WORDS mots (couverture
+/** Slides du carrousel MIXTE au-delà de `maxWords` mots (LONG_SLIDE_WORDS par
+ * défaut ; plus court pour le mixte LinkedIn, passé par modes/mix.ts) (couverture
  * exclue), à redécouper par la réparation. Rien quand la longueur est imposée
  * ou que le plafond Auto est déjà atteint : découper ajouterait une slide.
  * Rien non plus avec un plan de slides (07/10/2026) : la réparation doit
  * garder le nombre de slides du plan, une découpe était donc TOUJOURS
  * refusée après une réécriture complète (jusqu'à ~2 min d'attente pour rien). */
-export function longMixSlideIssues(parsed: any, body: any): string[] {
+export function longMixSlideIssues(parsed: any, body: any, maxWords = LONG_SLIDE_WORDS): string[] {
   const slides = parsed?.slides;
   if (!Array.isArray(slides) || !/mix/i.test(String(body?.carousel_type || "")) || carouselLength(body).exact) return [];
   if (body?.confirmed_structure?.length || body?.slide_structure?.length) return [];
@@ -110,7 +111,7 @@ export function longMixSlideIssues(parsed: any, body: any): string[] {
   if (room <= 0) return [];
   const long = slides.flatMap((s: any, i: number) => {
     const n = slideText(s).split(/\s+/).filter(Boolean).length;
-    return i > 0 && n > LONG_SLIDE_WORDS ? [`La slide ${Number(s?.slide_number) || i + 1} est trop longue (${n} mots, ${LONG_SLIDE_WORDS} au plus).`] : [];
+    return i > 0 && n > maxWords ? [`La slide ${Number(s?.slide_number) || i + 1} est trop longue (${n} mots, ${maxWords} au plus).`] : [];
   });
   return long.slice(0, room);
 }
