@@ -2,8 +2,8 @@ vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "test-u
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { afterEach, beforeEach, it, expect, vi } from 'vitest';
 import ReelMontage, { type ReelMontageProject } from '@/components/creer/ReelMontage';
-const mocks=vi.hoisted(()=>({submit:vi.fn(),poll:vi.fn(),archive:vi.fn(),suggest:vi.fn(),search:vi.fn(),readStudio:vi.fn()}));
-vi.mock('@/hooks/use-branding',()=>({useBrandCharter:()=>({data:null})}));
+const mocks=vi.hoisted(()=>({charter:{data:null as any,isLoading:false},submit:vi.fn(),poll:vi.fn(),archive:vi.fn(),suggest:vi.fn(),search:vi.fn(),readStudio:vi.fn()}));
+vi.mock('@/hooks/use-branding',()=>({useBrandCharter:()=>mocks.charter}));
 vi.mock('@/lib/stock-videos',()=>({suggestStockKeywords:mocks.suggest,searchStockVideos:mocks.search}));
 vi.mock('@/lib/reel-user-videos',()=>({listReelVideos:async()=>[{url:'https://clips.test/take.mp4',name:'Ma prise'}],loadVideoDuration:async()=>5,uploadReelVideo:vi.fn()}));
 vi.mock('@/lib/reel-render',async()=>({...await vi.importActual('@/lib/reel-plan'),submitReelRender:mocks.submit,pollReelRender:mocks.poll,archiveReelMp4:mocks.archive}));
@@ -12,7 +12,7 @@ vi.mock('@/features/studio-video/StudioVideoPanel',()=>({StudioVideoPanel:({onPi
  <button onClick={()=>onPickClip?.({id:'studio-job',video_url:'https://clips.test/studio.mp4',duration:5,source_name:'Atelier'})}>Tester le clip Studio</button>}));
 const sections=[{section:'hook',texte_parle:'Mon texte',texte_overlay:'Overlay',timing:'0-3 sec'}];
 const video=`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`;
-beforeEach(()=>{vi.clearAllMocks();mocks.submit.mockResolvedValue('project');mocks.poll.mockResolvedValue('https://renderer.test/temp.mp4');mocks.archive.mockResolvedValue(video);
+beforeEach(()=>{vi.clearAllMocks();mocks.charter={data:null,isLoading:false};mocks.submit.mockResolvedValue('project');mocks.poll.mockResolvedValue('https://renderer.test/temp.mp4');mocks.archive.mockResolvedValue(video);
  mocks.readStudio.mockResolvedValue({job:{status:'ready',video_url:'https://clips.test/fresh.mp4'}});});
 afterEach(()=>{window.history.replaceState(null,'','/');sessionStorage.clear();});
 async function setup() {
@@ -173,4 +173,18 @@ it('offers a clip chosen in Ma bibliothèque in the next Reel montage', async ()
  expect(await screen.findByText(/Prévisualisation pour ce passage/)).toBeInTheDocument();
  expect(mocks.readStudio).toHaveBeenCalledWith('space','library-job');
  expect(sessionStorage.getItem('studio-video-for-reel:space')).toBeNull();
+});
+// Page rechargée : la vidéo rangée revient dans le lecteur, et l'arrivée de la
+// charte (réglages des sous-titres) ne la détache plus (12/11/2026).
+it('keeps the archived video after a reload while the charter loads',async()=>{
+ const project:ReelMontageProject={version:1,sectionTexts:['Mon texte'],montageMode:'cache',voiceMode:'silent',clips:[{id:1,url:'https://clips.test/stock.mp4',duration:5,source:'stock'} as any],voiceClips:[null],cutaways:[null]};
+ mocks.charter={data:undefined,isLoading:true};const onMp4Ready=vi.fn();
+ const view=render(<ReelMontage sections={sections} initialProject={project} initialMp4Url={video} onMp4Ready={onMp4Ready}/>);
+ expect(screen.getByRole('link')).toHaveAttribute('href',video);expect(screen.getByText(/Rangée dans ta bibliothèque/)).toBeTruthy();
+ mocks.charter={data:{font_title:'Libre Baskerville',color_accent:'#FB3D80'},isLoading:false};
+ view.rerender(<ReelMontage sections={sections} initialProject={project} initialMp4Url={video} onMp4Ready={onMp4Ready}/>);
+ await act(async()=>{});
+ expect(onMp4Ready).not.toHaveBeenCalledWith(null);expect(screen.getByText(/Rangée dans ta bibliothèque/)).toBeTruthy();
+ view.rerender(<ReelMontage sections={[{...sections[0],texte_overlay:'Changed'}]} initialProject={project} initialMp4Url={video} onMp4Ready={onMp4Ready}/>);
+ await waitFor(()=>expect(onMp4Ready).toHaveBeenLastCalledWith(null));
 });
