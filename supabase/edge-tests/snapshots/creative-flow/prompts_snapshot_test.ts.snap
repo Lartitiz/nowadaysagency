@@ -3591,10 +3591,6 @@ PHOTOS CHOISIES PAR L'UTILISATRICE POUR CETTE SÉQUENCE (priorité absolue) :
 
 Elle a sélectionné CES photos pour cette séquence : construis les stories de façon à ce que CHACUNE trouve sa place (une story chacune, via "photo_index"). Assigne chaque photo à la story où elle raconte le mieux. Le nombre de stories à fond photo doit permettre de toutes les placer.
 
-Autres photos disponibles dans sa bibliothèque :
-- photo 2 : Mains dans la terre sur le tour, lumière chaude d'atelier
-- photo 3 : Étagère de bols émaillés bleu nuit, rangés par taille
-
 RÈGLES BIBLIOTHÈQUE :
 - Pour chaque story non face cam, place d'abord les PHOTOS CHOISIES, puis regarde si une photo ci-dessus illustre VRAIMENT ce moment précis. Si oui, mets son numéro dans "photo_index". Sinon "photo_index": null.
 - Pour les photos NON choisies, correspondance EXIGEANTE : la photo doit coller à la scène de CETTE story. Un rapport vague ou décoratif = null (on cherchera ailleurs), c'est mieux qu'une photo hors sujet.
@@ -3793,18 +3789,6 @@ snapshot[`buildGeneratePrompt — stories objectif vente : garde-fou 3 séquence
     "id": "photo-choisie-sans-description",
     "description": "photo choisie par l'utilisatrice (pas encore décrite)",
     "preferred": true
-  },
-  {
-    "index": 2,
-    "id": "photo-atelier",
-    "description": "Mains dans la terre sur le tour, lumière chaude d'atelier",
-    "preferred": false
-  },
-  {
-    "index": 3,
-    "id": "photo-bols",
-    "description": "Étagère de bols émaillés bleu nuit, rangés par taille",
-    "preferred": false
   }
 ]\`
 `;
