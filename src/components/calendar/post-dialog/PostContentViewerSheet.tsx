@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { supabase } from "@/integrations/supabase/client";
 import { friendlyError } from "@/lib/error-messages";
 import { toast } from "sonner";
+import { isCalendarStories } from "@/lib/calendar-stories-resume";
 import type { CalendarPost } from "@/lib/calendar-constants";
 
 interface PostContentViewerSheetProps {
@@ -50,6 +51,7 @@ export function PostContentViewerSheet({ showContentViewer, setShowContentViewer
             }}
           />}
           {/^carousel/.test((editingPost?.story_sequence_detail as any)?.type || "") && <Button variant="outline" onClick={() => { setShowContentViewer(false); void handleOpenAtelier(); }}>Modifier dans l’éditeur de carrousel</Button>}
+          {isCalendarStories(editingPost?.story_sequence_detail) && <Button variant="outline" onClick={() => { setShowContentViewer(false); void handleOpenAtelier(); }}>Modifier les stories</Button>}
           {editingPost && (editingPost as any).original_content_data && (
             <RevertToOriginalButton onRevert={async () => {
               const original = (editingPost as any).original_content_data;

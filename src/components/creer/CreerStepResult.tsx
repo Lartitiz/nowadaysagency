@@ -578,7 +578,8 @@ export default function CreerStepResult({
       case "reel":
         return <ReelResult initialMp4Url={reelMp4Url} result={result} workspaceId={reelWorkspaceId} onStepChange={setReelStep} onMp4Change={onReelMp4Change} onResultChange={onReelResultChange} startPhoto={photos?.[0]?.base64 || null} />;
       case "story":
-        return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} />;
+        // Sauvegarde continue des stories : même encadré que le carrousel (rien sans elle).
+        return <>{carouselCloudTools}<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} /></>;
       case "post":
         return <PostResult result={result} photos={photos} onTextChange={onResultTextChange} onPhotosChange={onPostPhotosChange} />;
       case "linkedin":
