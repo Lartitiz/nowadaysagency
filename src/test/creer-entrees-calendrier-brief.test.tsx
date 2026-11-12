@@ -184,6 +184,23 @@ describe('calendrier → /creer (rendu réel)', () => {
     expect(loadFlowState()?.ideaText).toBe('Thème du post');
   });
 
+  it('CalendarPostDialog › handleOpenAtelier d’un reel : montage et vidéo montée repris, retour au même post', async () => {
+    const video = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`;
+    const sections = [{ section: 'hook', texte_parle: 'Phrase 1' }];
+    const raw = { sections, script: sections, montage_project: { version: 1, sectionTexts: ['Phrase 1'], montageMode: 'cache', voiceMode: 'silent', clips: [null], voiceClips: [null], cutaways: [null] },
+      _reel_resume: { mp4: video, source: JSON.stringify(sections) } };
+    mount({
+      pathname: '/creer',
+      search: '?canal=instagram',
+      state: { resumeIdea: { format: 'reel', raw }, fromCalendar: true, calendarPostId: 'cal-10', theme: 'Mon reel', objectif: '', angle: '', format: 'reel', notes: '', postDate: '2026-11-13', existingContent: 'Phrase 1', existingAccroche: null },
+    });
+    await screen.findByTestId('result');
+    expect(mocks.resultProps.result.montage_project.voiceMode).toBe('silent');
+    await waitFor(() => expect(mocks.resultProps.reelMp4Url).toBe(video));
+    expect(mocks.formatNext).not.toHaveBeenCalled();
+    expect(mocks.generate).not.toHaveBeenCalled();
+  });
+
   it('CalendarPostDialog › handleOpenAtelier sans resumeIdea : ouvre l’étape format avec le sujet du post', async () => {
     mount({
       pathname: '/creer',

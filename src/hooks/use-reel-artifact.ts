@@ -33,6 +33,15 @@ export function useReelArtifact({ result, workspaceId, creationId, ps, saveFlowS
     if (activeReelScope.current === reelScope) setReelArtifact({ scope: reelScope, url });
   }, [reelScope]);
   useEffect(() => { saveFlowState({ reelMp4Url, reelSourceKey: reelSource }); }, [reelMp4Url, reelSource]);
+  // Reel repris du calendrier (calendar-reel-resume.ts) : sa vidéo montée revient,
+  // une seule fois, et seulement pour le script qui l'a produite.
+  const resumedMp4 = result?.raw?._reel_resume;
+  const resumeApplied = useRef<string | null>(null);
+  useEffect(() => {
+    if (!resumedMp4 || resumedMp4.source !== reelSource || !isDurableReelUrl(resumedMp4.mp4) || resumeApplied.current === resumedMp4.mp4) return;
+    resumeApplied.current = resumedMp4.mp4;
+    setReelArtifact(current => current.scope === reelScope && current.url ? current : { scope: reelScope, url: resumedMp4.mp4 });
+  }, [resumedMp4?.mp4, resumedMp4?.source, reelSource, reelScope]);
   const instagramInFlight = useRef<{ scope: string } | null>(null);
   useEffect(() => { setPublishingInstagram(false); }, [reelScope]);
 

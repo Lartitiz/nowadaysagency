@@ -330,6 +330,17 @@ describe("navigation vers /creer", () => {
     expect(opts.state.resumeIdea).toEqual({ format: "carousel", raw: { ...detail, carousel_type: "photo" } });
   });
 
+  it("atelier d'un reel enregistré → resumeIdea reel : script, montage et vidéo montée repris, sans régénération", async () => {
+    const video = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`;
+    const sections = [{ section: "hook", texte_parle: "Phrase 1" }];
+    const montage_project = { version: 1, sectionTexts: ["Phrase 1"], montageMode: "cache", voiceMode: "silent", clips: [null], voiceClips: [null], cutaways: [null] };
+    const detail = { type: "reel", sections, script: sections, caption: { text: "Légende" }, montage_project };
+    const [, opts] = await suivre("faux:atelier", post({ format: "reel", story_sequence_detail: detail, media_urls: ["https://ailleurs.test/x.jpg", video] }));
+    expect(opts.state.resumeIdea).toEqual({ format: "reel", raw: { sections, script: sections, caption: { text: "Légende" }, montage_project,
+      _reel_resume: { mp4: video, source: JSON.stringify(sections) } } });
+    expect(opts.state.calendarPostId).toBeTruthy();
+  });
+
   it("atelier d'un carrousel déjà relié à une fiche de Mes idées → même fiche reprise (chantier Y)", async () => {
     const detail = { type: "carousel", slides: [{ n: 1 }], visual_html: ["<div/>"] };
     const fiche = { format: "carousel", raw: { slides: [{ n: 1 }], visual_html: ["<div>retouché</div>"] } };

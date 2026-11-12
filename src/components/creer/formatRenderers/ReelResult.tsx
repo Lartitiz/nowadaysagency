@@ -170,6 +170,8 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
   // URL durable du montage — `null` tant qu'aucune vidéo n'est rattachable.
   const [mp4Url, setMp4Url] = useState<string | null>(initialMp4Url || null);
   const montageDone = montagePhase === "done" || !!mp4Url;
+  // Vidéo rattachée après l'ouverture (reel repris du calendrier) : on la prend.
+  useEffect(() => { if (initialMp4Url) setMp4Url(current => current ?? initialMp4Url); }, [initialMp4Url]);
   useEffect(() => {
     if (stepKey === "montage") setMontageVisited(true);
   }, [stepKey]);
