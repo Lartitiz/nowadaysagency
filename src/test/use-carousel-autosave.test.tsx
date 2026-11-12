@@ -277,3 +277,28 @@ describe("carousel autosave lifecycle", () => {
     );
   });
 });
+
+// Stories (12/11/2026) : même sauvegarde continue, rangée en « story_serie ».
+describe("stories autosave", () => {
+  const stories = (text: string) => ({
+    _carousel_document_id: "stories-1",
+    story_editor_version: 1,
+    stories: [{ number: 1, text }],
+  });
+  it("creates a « story_serie » idea and keeps earlier versions", async () => {
+    const o = { ...options(), title: "", kind: "story" as const, raw: stories("Avant") };
+    const { result, rerender } = renderHook((p) => useCarouselAutosave(p), { initialProps: o });
+    await settle();
+    const row = [...db.rows.values()][0];
+    expect(row).toMatchObject({ format: "story_serie", titre: "Mes stories", angle: "Stories" });
+    expect(row.content_data.stories[0].text).toBe("Avant");
+    await act(async () => { await vi.advanceTimersByTimeAsync(5 * 60_000); });
+    rerender({ ...o, raw: stories("Après") });
+    await settle();
+    const saved = [...db.rows.values()][0];
+    expect(saved.content_data.stories[0].text).toBe("Après");
+    expect(result.current.history.map((v) => v.raw.stories[0].text)).toEqual(["Avant"]);
+    const update = db.ops.find((op) => op.operation === "update");
+    expect(update.payload.format).toBe("story_serie");
+  });
+});

@@ -15,6 +15,7 @@ import type { NavigateFunction } from "react-router-dom";
 import { toast } from "sonner";
 import { resumeCrosspost } from "@/lib/crosspost-content";
 import { resumeCalendarReel } from "@/lib/calendar-reel-resume";
+import { findLinkedStoriesIdea, isCalendarStories, resumeCalendarStories } from "@/lib/calendar-stories-resume";
 import { ANGLE_TO_CAROUSEL } from "@/features/calendar/post-dialog-helpers";
 import type { CalendarPost } from "@/lib/calendar-constants";
 import { findLinkedCarouselIdea } from "@/features/calendar/linked-carousel-idea";
@@ -54,11 +55,12 @@ export function useCalendarPostNavigation({ theme, format, postCanal, objectif, 
     // Carrousel déjà relié à une fiche de Mes idées : on la reprend (pas de doublon).
     const detail = savedPreviewContent as any;
     const isCarousel = !!(detail?.slides && detail?.visual_html?.length && /^carousel/.test(detail.type || ""));
-    const linked = isCarousel && !detail?._crosspost ? await findLinkedCarouselIdea(editingPost?.id) : null;
+    const linked = isCarousel && !detail?._crosspost ? await findLinkedCarouselIdea(editingPost?.id)
+      : isCalendarStories(detail) ? await findLinkedStoriesIdea(editingPost?.id) : null;
     onOpenChange(false);
     setTimeout(() => {
       // Reel enregistré : repris tel quel, montage et vidéo montée compris.
-      const resumeIdea = linked?.resumeIdea || resumeCrosspost(detail, format) || resumeCalendarReel(detail, editingPost?.media_urls) || (isCarousel
+      const resumeIdea = linked?.resumeIdea || resumeCrosspost(detail, format) || resumeCalendarReel(detail, editingPost?.media_urls) || resumeCalendarStories(detail) || (isCarousel
         ? { format: "carousel", raw: { ...detail, carousel_type: detail.type === "carousel_photo" ? "photo" : detail.type === "carousel_mix" ? "mix" : detail.carousel_type || "text" } } : undefined);
       if (resumeIdea?.raw._crosspost && contentDraft !== editingPost?.content_draft && contentDraft != null) resumeIdea.raw.edited_text = contentDraft;
       navigate("/creer?canal=" + (postCanal || "instagram"), {
