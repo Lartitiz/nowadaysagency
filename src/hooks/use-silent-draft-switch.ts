@@ -28,7 +28,8 @@ export function useSilentDraftSwitch({ draftConflict, onSwitch }: {
     };
     (async () => {
       let same = await matches().catch(() => false);
-      if (!same && alive) {
+      // Seconde lecture seulement si une sauvegarde automatique peut être en route.
+      if (!same && alive && draft.result?.raw?._carousel_cloud) {
         await new Promise((r) => setTimeout(r, RETRY_MS));
         if (alive) same = await matches().catch(() => false);
       }

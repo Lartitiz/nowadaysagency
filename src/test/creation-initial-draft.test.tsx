@@ -204,7 +204,8 @@ describe('initial creation draft through real React components', () => {
   });
   it('starts blank only after explicit discard and does not restore the completed content', async () => {
     saveFlowState({step:'result',ideaText:'Ancien',creationId:'old',result:{type:'post',raw:{content:'Texte ancien'}},editingIdeaId:'old-idea',publishedCalendarId:'old-calendar'});
-    const app=mount('/creer?new=1'); fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByText('Démarrer le nouveau contenu'));
+    // Contenu rattaché à une fiche : la fenêtre arrive après la relecture de Mes idées (#1918).
+    const app=mount('/creer?new=1'); fireEvent.click(await screen.findByRole('checkbox')); fireEvent.click(screen.getByText('Démarrer le nouveau contenu'));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull()); expect(screen.getByRole('textbox')).toHaveValue('');
     expect(loadFlowState()?.creationId).not.toBe('old'); expect(loadFlowState()?.editingIdeaId).toBeNull(); expect(loadFlowState()?.publishedCalendarId).toBeUndefined();
     app.unmount(); mount(); expect(screen.getByRole('textbox')).toHaveValue(''); expect(mocks.generate).not.toHaveBeenCalled();
