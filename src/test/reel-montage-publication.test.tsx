@@ -177,7 +177,7 @@ it('offers a clip chosen in Ma bibliothèque in the next Reel montage', async ()
 // Page rechargée : la vidéo rangée revient dans le lecteur, et l'arrivée de la
 // charte (réglages des sous-titres) ne la détache plus (12/11/2026).
 it('keeps the archived video after a reload while the charter loads',async()=>{
- const project:ReelMontageProject={version:1,sectionTexts:['Mon texte'],montageMode:'illustre',voiceMode:'silent',clips:[{id:1,url:'https://clips.test/stock.mp4',duration:5,source:'stock'} as any],voiceClips:[null],cutaways:[null]};
+ const project:ReelMontageProject={version:1,sectionTexts:['Mon texte'],montageMode:'cache',voiceMode:'silent',clips:[{id:1,url:'https://clips.test/stock.mp4',duration:5,source:'stock'} as any],voiceClips:[null],cutaways:[null]};
  mocks.charter={data:undefined,isLoading:true};const onMp4Ready=vi.fn();
  const view=render(<ReelMontage sections={sections} initialProject={project} initialMp4Url={video} onMp4Ready={onMp4Ready}/>);
  expect(screen.getByRole('link')).toHaveAttribute('href',video);expect(screen.getByText(/Rangée dans ta bibliothèque/)).toBeTruthy();
