@@ -1,6 +1,7 @@
 // cron-health, deux scopes : budget images Higgsfield du mois (fiche 18 lot 1, à l'identique).
 import { debutMoisUtc, jugerBudgetHiggsfield, somme, compte } from "./higgsfield-alerte.ts";
 import { DAY, fetchAllRows } from "./lecture.ts";
+import { jugerEchecsHiggsfield } from "./higgsfield-echecs.ts";
 
 // ── Budget images HIGGSFIELD (crédit OpenAI épuisé depuis le 02/10/2026) ─────
 // Toutes les images passent par Higgsfield ; au plafond mensuel
@@ -38,6 +39,7 @@ export async function higgsfieldBudget(supabase: any, now: number) {
       images_mois: duMois.length,
       incertaines_mois: duMois.filter((r: any) => r.status === "uncertain").length,
       par_source: parSource,
+      echecs: jugerEchecsHiggsfield(rows, depuis7j),
       refus_budget: null,
       refus_budget_note: "non journalisé en base (seulement dans les logs des edges)",
     };

@@ -240,6 +240,11 @@ snapshot[`daily : JSON complet sur la base de référence 1`] = `
   higgsfield: {
     actif: true,
     alerte: null,
+    echecs: {
+      alerte: null,
+      echecs_7j: 1,
+      reussies_7j: 2,
+    },
     epuisement_avant_reset: false,
     epuisement_estime: "2027-08-28",
     images_mois: 3,
@@ -509,6 +514,11 @@ snapshot[`daily dégradé : sans clés Photoroom/Stripe, RPC des crons en erreur
   higgsfield: {
     actif: true,
     alerte: "HIGGSFIELD_IMAGE_MONTHLY_LIMIT_USD absent ou invalide — TOUTES les images Higgsfield sont refusées « budget »",
+    echecs: {
+      alerte: null,
+      echecs_7j: 1,
+      reussies_7j: 2,
+    },
     epuisement_avant_reset: null,
     epuisement_estime: null,
     images_mois: 3,
@@ -725,6 +735,11 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
   higgsfield: {
     actif: true,
     alerte: null,
+    echecs: {
+      alerte: null,
+      echecs_7j: 1,
+      reussies_7j: 2,
+    },
     epuisement_avant_reset: false,
     epuisement_estime: "2027-08-28",
     images_mois: 3,
