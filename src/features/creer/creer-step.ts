@@ -50,6 +50,10 @@ export function resolveSafeStep(ps: PersistedFlow, { canalConflict, hasIdea, pho
   // on reste sur l'étape résultat, qui annonce l'interruption et propose de
   // relancer, au lieu de renvoyer à l'étape 2 sans un mot (15/10/2026).
   if (isInterruptedGeneration(ps)) return "result";
+  // Stories : l'étape « Modifier » (grand texte technique) n'existe plus depuis le
+  // 12/11/2026 ; un brouillon resté dessus rouvre le résultat, où chaque story
+  // a sa case de texte.
+  if (ps.step === "edit" && ps.selectedFormat === "story") return ps.result ? "result" : "format";
   if (ps.step === "edit" && ps.editContent) return "edit";
   // structure_review dépend de `structureProposal`, qui n'est PAS persisté →
   // au reload il repart à null et l'écran serait vide. On retombe donc sur

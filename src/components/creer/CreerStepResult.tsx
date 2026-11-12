@@ -634,8 +634,10 @@ export default function CreerStepResult({
         </div>
       )}
 
-      {/* 1. Contenu (slides, caption, visuels, etc.) */}
-      {!isCarousel && onEdit && result && (
+      {/* 1. Contenu (slides, caption, visuels, etc.)
+          Stories (chantier 2, 12/11/2026) : une seule façon de retoucher, la case
+          « Texte de la story » de chaque story. Plus de grand texte technique. */}
+      {!isCarousel && format !== "story" && onEdit && result && (
         <div className="flex justify-end">
           <Button variant="outline" onClick={onEdit} className="gap-2">
             <Pencil className="h-4 w-4" /> Éditer le texte
