@@ -916,6 +916,25 @@ it("une série partielle conserve un accès à chaque échec sans relancer les i
  expect(mock.request.mock.calls.some(([p])=>p.action==='generate')).toBe(false);
 });
 
+it("« Réessayer cette image seulement » relance directement la même demande (12/11/2026)",async()=>{
+ const failed=original();failed.versions=[{id:'failed-1',status:'failed',created_at:'',url:null,library_photo_id:null,error_message:'La création a échoué. Aucune image décomptée.',proposal} as any];
+ const prepared=original();prepared.session={...prepared.session,revision:1,proposal:{...proposal,id:'retry-proposal',cost:1}};prepared.versions=failed.versions;
+ mock.request.mockImplementation(async(p:any)=>p.action==='retry'?prepared:failed);mount();
+ fireEvent.click(await screen.findByRole('button',{name:'Réessayer cette image seulement'}));
+ await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'generate',proposal_id:'retry-proposal'})));
+ const actions=mock.request.mock.calls.map(([p])=>p.action).filter((a)=>a==='retry'||a==='generate');
+ expect(actions).toEqual(['retry','generate']);
+});
+it("« Réessayer » s'arrête à la confirmation quand le solde ne suffit pas",async()=>{
+ const failed=original();failed.versions=[{id:'failed-1',status:'failed',created_at:'',url:null,library_photo_id:null,error_message:'Échec',proposal} as any];
+ const prepared=original();prepared.session={...prepared.session,revision:1,proposal:{...proposal,id:'retry-proposal',cost:1}};prepared.versions=failed.versions;prepared.quota={...prepared.quota,available_total:0};
+ mock.request.mockImplementation(async(p:any)=>p.action==='retry'?prepared:failed);mount();
+ fireEvent.click(await screen.findByRole('button',{name:'Réessayer cette image seulement'}));
+ await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'retry',version_id:'failed-1'})));
+ await new Promise((r)=>setTimeout(r,50));
+ expect(mock.request.mock.calls.some(([p])=>p.action==='generate')).toBe(false);
+});
+
 it("le bouton proposé par le chat attache réellement la mémoire avant une création",async()=>{
  const state=original();state.memory=[{id:'casting',kind:'casting',name:'Anna',note:'Fictive',revision:0,references:[]}];state.session.messages=[{role:'assistant',text:'Choisis la référence',suggested_memory_ids:['casting']}];mock.request.mockResolvedValue(state);mount();fireEvent.click(await screen.findByRole('button',{name:'Utiliser ce mannequin · Anna'}));await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'memory_apply',memory_id:'casting'})));expect(mock.request.mock.calls.some(([p])=>p.action==='generate')).toBe(false);
 });

@@ -185,13 +185,18 @@ export type SyncImageResult =
   | { ok: false; reason: SyncImageFailure };
 export type SyncImageFailure = "unavailable" | "prompt_too_long" | "budget" | "rejected" | "failed" | "timeout";
 
+/** The provider accepted the request then answered "failed" or "canceled".
+ * 12/11/2026: the exact same request failed at 08:51 UTC and succeeded at
+ * 11:20 UTC (provider-side hiccup), so the message invites a retry. */
+export const PROVIDER_FAILED_MESSAGE = "Le service d'images n'a pas réussi cette fois, ça arrive par moments. Aucune image décomptée : réessaie dans une minute.";
+
 /** User-facing French messages, consistent with the Studio wording. */
 export const SYNC_IMAGE_MESSAGES: Record<SyncImageFailure, string> = {
   unavailable: "Le service d'images est indisponible pour le moment. Aucune image décomptée.",
   prompt_too_long: "Cette demande est trop longue pour le service d'images : raccourcis l'ambiance ou l'ajustement. Aucune image décomptée.",
   budget: "Le budget images du mois est atteint côté service. Aucune image décomptée.",
   rejected: "Le service d'images a refusé cette demande, réessaie dans quelques instants. Aucune image décomptée.",
-  failed: "La création a échoué. Aucune image décomptée.",
+  failed: PROVIDER_FAILED_MESSAGE,
   timeout: "La génération prend plus de temps que prévu. Aucune image décomptée, réessaie dans quelques minutes.",
 };
 
