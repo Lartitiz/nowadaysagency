@@ -161,7 +161,10 @@ export function StudioMessageList({
           </div>
         )}
         {current?.versions
-          .filter((v) => v.status === "failed")
+          // Une image déjà relancée n'affiche plus son échec : le bloc de la
+          // relance (en cours, prête ou ratée à son tour) prend le relais.
+          // Sinon un 2e clic recréait l'image et la décomptait une 2e fois.
+          .filter((v) => v.status === "failed" && !current.versions.some((o) => o.proposal?.retry_of === v.id))
           .map((v) => (
             <div
               key={v.id}

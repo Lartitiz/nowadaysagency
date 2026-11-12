@@ -31,6 +31,8 @@ export async function prepareNextProposal(ctx: StudioContext, session: StudioSes
       id: crypto.randomUUID(),
       shots: [],
       cost: 1,
+      // Lets the screen hide « Réessayer » on the failed image once relaunched.
+      retry_of: p.version_id,
     };
     // New proposal (not a submitted job): apply the current routing so the
     // confirmation shows the provider that will really be used.

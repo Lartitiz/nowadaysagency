@@ -42,6 +42,8 @@ export interface StudioProposal {
   series_id?: string;
   series_index?: number;
   series_size?: number;
+  /** Version en échec que cette demande relance (« Réessayer cette image seulement »). */
+  retry_of?: string;
   provider?: string;
   model?: string;
   rules_version?: string;
