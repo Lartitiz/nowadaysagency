@@ -46,7 +46,7 @@ export function PhotoCompositionControls({ recipe, onChange, disabled = false }:
       <label className="flex items-center gap-3 text-sm">Couleur du texte<input type="color" className="h-9 w-12 rounded border" value={recipe.direction.textColor} onChange={e => direction({ textColor: e.target.value })} /></label>
     </div>}
     <details className="rounded-lg border p-3"><summary className="cursor-pointer text-sm font-medium min-h-7">Ajuster la lumière</summary>
-      <p className="my-2 text-xs text-muted-foreground">Ces réglages modifient aussi les couleurs du produit. Compare avec ta source.</p>
+      <p className="my-2 text-xs text-muted-foreground">Ces réglages modifient aussi les couleurs de la photo. Compare avec ta source.</p>
       {range("Exposition", "exposure", recipe.exposure, -1, 1, 0.05, exposure => change({ exposure }))}
       {range("Contraste", "contrast", recipe.contrast, 0.8, 1.2, 0.02, contrast => change({ contrast }))}
       <Button type="button" size="sm" variant="ghost" className="text-foreground" onClick={() => change({ exposure: 0, contrast: 1 })}>Rétablir la lumière d’origine</Button>
