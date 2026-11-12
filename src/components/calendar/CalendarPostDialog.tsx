@@ -20,7 +20,7 @@ import { toast } from "sonner";
 
 import { CalendarPostMetadata } from "./CalendarPostMetadata";
 import { CalendarPostPreview } from "./CalendarPostPreview";
-import { isoToLocalInput, draftFromPost } from "@/features/calendar/post-dialog-helpers";
+import { isoToLocalInput, draftFromPost, previewCaptionOf } from "@/features/calendar/post-dialog-helpers";
 import { PostContextHeader } from "./post-dialog/PostContextHeader";
 import { PostContentViewerSheet } from "./post-dialog/PostContentViewerSheet";
 import { PostEditionBlock } from "./post-dialog/PostEditionBlock";
@@ -283,7 +283,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
   const previewBlock = (compact: boolean) => (
     <CalendarPostPreview
       photoComposition={ssd?.type === "photo_composition"}
-      canal={postCanal} format={format} caption={contentDraft} theme={theme}
+      canal={postCanal} format={format} caption={previewCaptionOf(contentDraft, ssd)} theme={theme}
       copyCaption={calendarPublishCaption(contentDraft, ssd)}
       username={igUsername || ownerName} displayName={ownerName} mediaUrls={mediaUrls}
       visualHtml={ssd?.visual_html || null}
