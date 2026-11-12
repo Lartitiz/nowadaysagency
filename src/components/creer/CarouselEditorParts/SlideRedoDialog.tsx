@@ -86,7 +86,7 @@ export function SlideRedo({ api, raw, slide, getDocument, onKeep }: {
                 <div className="flex items-center gap-3">
                   <SlideThumb html={target.html} width={120} />
                   <div role="status" className="space-y-1 text-sm">
-                    <p className="font-medium">Claude refait ta slide…</p>
+                    <p className="font-medium">L'Assistant Com' refait ta slide…</p>
                     <p className="text-xs text-muted-foreground">Tu peux fermer cette fenêtre : la nouvelle version s’affichera ici dès qu’elle est prête.</p>
                   </div>
                 </div>
@@ -98,8 +98,8 @@ export function SlideRedo({ api, raw, slide, getDocument, onKeep }: {
                     maxLength={500}
                     rows={3}
                     autoFocus
-                    aria-label="Dis à Claude ce que tu veux changer sur cette slide"
-                    placeholder={`Dis à Claude ce que tu veux changer… ex. « ${SLIDE_REDO_EXAMPLES[example]} »`}
+                    aria-label="Dis ce que tu veux changer sur cette slide"
+                    placeholder={`Dis ce que tu veux changer… ex. « ${SLIDE_REDO_EXAMPLES[example]} »`}
                     className="w-full rounded-xl border border-primary bg-background p-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) redo.submit(); }}
                   />

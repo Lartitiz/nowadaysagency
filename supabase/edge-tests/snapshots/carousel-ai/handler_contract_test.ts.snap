@@ -15796,7 +15796,7 @@ snapshot[`handler carousel-ai — slide_redo — chiffre inventé deux fois : re
 
 ── RÉPONSE AU FRONT
 {
- \\"error\\": \\"Claude n'a pas réussi à refaire cette slide sans inventer de chiffre ou d'histoire. Rien n'a été débité : reformule ta consigne.\\"
+ \\"error\\": \\"L'Assistant Com' n'a pas réussi à refaire cette slide sans inventer de chiffre ou d'histoire. Rien n'a été débité : reformule ta consigne.\\"
 }
 
 ── CRÉDITS
