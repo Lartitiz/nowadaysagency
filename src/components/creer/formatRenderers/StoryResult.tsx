@@ -636,7 +636,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
   // Suppression d'une story : confirmation obligatoire, jamais la dernière.
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   // Chantier 4 : déplacer, dupliquer, ajouter (sans IA), clés stables par story.
-  const structure = useStoryStructure({ stories, resetSignal: rawSignature, setStories, onStoriesUpdate, setCurrent: setCurrentStory,
+  const structure = useStoryStructure({ stories, setStories, onStoriesUpdate, setCurrent: setCurrentStory,
     prepare: (list) => pinAttachedPhotos(list, attachedSlots) });
   const removeStory = useCallback((index: number) => {
     if (stories.length > 1) structure.forget(index);

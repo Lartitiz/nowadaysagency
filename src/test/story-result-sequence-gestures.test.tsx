@@ -2,6 +2,7 @@
 // Un test par geste : ajouter, dupliquer, changer l'ordre, taille du texte
 // (aperçu ET export), refaire une story. Chaque geste passe par onStoriesUpdate
 // pour être enregistré comme les autres éditions.
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import StoryResult from "@/components/creer/formatRenderers/StoryResult";
@@ -137,5 +138,21 @@ describe("Stories : gestes de séquence", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Garder la mienne" }));
     expect(onStoriesUpdate).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Texte complet de la story 1")).toHaveValue("Première");
+  });
+
+  it("quand le parent renvoie la séquence (enregistrement auto), la carte n'est pas recréée", () => {
+    function Parent() {
+      const [result, setResult] = useState<any>(three());
+      return <StoryResult result={result} onStoriesUpdate={(stories) => setResult({ ...result, stories })} />;
+    }
+    render(<Parent />);
+    const field = screen.getByLabelText("Texte complet de la story 1");
+    const frame = screen.getByTitle("Aperçu story 1");
+    fireEvent.change(field, { target: { value: "Première, retouchée" } });
+    expect(screen.getByLabelText("Texte complet de la story 1")).toBe(field);
+    expect(screen.getByTitle("Aperçu story 1")).toBe(frame);
+    fireEvent.click(screen.getByRole("button", { name: "Placer la story 1 après la story 2" }));
+    expect(screen.getByLabelText("Texte complet de la story 2")).toHaveValue("Première, retouchée");
+    expect(screen.getByLabelText("Texte complet de la story 2")).toBe(field);
   });
 });
