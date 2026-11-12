@@ -95,7 +95,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 // DEMO_DATA n'est plus importé directement — on utilise demoData du context
 import { useWorkspaceId, useWorkspaceReady, useIsOwnSpace } from "@/hooks/use-workspace-query";
-import { useCarouselAutosave } from "@/hooks/use-carousel-autosave";
+import { useCarouselAutosave } from "@/hooks/use-carousel-autosave"; import { useStoriesCloud } from "@/hooks/use-stories-cloud";
 import { useCarouselQuality } from "@/hooks/use-carousel-quality";
 import CarouselSaveStatus from "@/components/creer/CarouselSaveStatus";
 import { useCreerExports } from "@/hooks/use-creer-exports";
@@ -509,6 +509,7 @@ function CreerWorkspace() {
 
   const [studioSlideId, setStudioSlideId] = useState<string | null>(null);
   const carouselCloudEnabled = workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive && step === "result" && selectedFormat === "carousel" && !cloudVisuals.restoring && !!(result?.raw?.carousel_editor_version || result?.raw?.carousel_studio_version);
+  const storiesCloudEnabled = useStoriesCloud({ ready: workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive, step, selectedFormat, busy: generating || streaming, raw: result?.raw, setResult }); // stories : sauvegarde continue (use-stories-cloud.ts)
   const openCarouselStudio = (id: string) => {
     if (id.startsWith("index:")) {
       const index = Number(id.slice(6));
@@ -520,7 +521,7 @@ function CreerWorkspace() {
     } else setStudioSlideId(id);
   };
   const carouselSave = useCarouselAutosave({
-    enabled: carouselCloudEnabled,
+    enabled: carouselCloudEnabled || storiesCloudEnabled, kind: storiesCloudEnabled ? "story" : "carousel",
     userId: session?.user?.id || "", workspaceId, isOwnSpace, ideaId: editingIdeaId,
     raw: result?.raw, title: ideaText, channel: isLinkedInCarousel ? "linkedin" : "instagram",
     onId: (id) => { if (!isCurrentCreation()) return; setEditingIdeaId(id); saveFlowState({ editingIdeaId: id }); },
@@ -1217,8 +1218,8 @@ function CreerWorkspace() {
   };
 
   const handleSave = async () => {
-    if (carouselCloudEnabled) {
-      if (await carouselSave.flush()) toast.success("Ton carrousel est enregistré dans Mes idées.");
+    if (carouselCloudEnabled || storiesCloudEnabled) {
+      if (await carouselSave.flush()) toast.success(storiesCloudEnabled ? "Tes stories sont enregistrées dans Mes idées." : "Ton carrousel est enregistré dans Mes idées.");
       return;
     }
     if (selectedFormat === "carousel" && !(await persistCarousel())) return;
@@ -1228,7 +1229,7 @@ function CreerWorkspace() {
 
   const handleAddToCalendar = async () => {
     if (!session?.user?.id || !result?.raw) return;
-    if (carouselCloudEnabled && !(await carouselSave.flush())) return;
+    if ((carouselCloudEnabled || storiesCloudEnabled) && !(await carouselSave.flush())) return;
     // If coming from calendar, save directly back
     if (fromCalendar) {
       await handleSaveBackToCalendar();
@@ -1520,7 +1521,6 @@ function CreerWorkspace() {
           </div>
         </div>
       )}
-
 
 
       <div className={`${step === "idea" || (step === "result" && selectedFormat === "carousel") ? "max-w-6xl" : step === "format" ? "max-w-3xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${step === "result" ? "pt-3 sm:pt-4" : "py-6 sm:py-10"} pb-24 [--primary:330_55%_20%] [--ring:330_55%_20%] dark:[--primary:338_96%_61%] dark:[--ring:338_96%_61%]`}>
@@ -1817,7 +1817,7 @@ function CreerWorkspace() {
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}
                 onSave={effectiveHandleSave}
-                saveNotice={isDemoMode || carouselCloudEnabled ? undefined : ideaSaveNotice} autoSavedToIdeas={carouselCloudEnabled}
+                saveNotice={isDemoMode || carouselCloudEnabled || storiesCloudEnabled ? undefined : ideaSaveNotice} autoSavedToIdeas={carouselCloudEnabled || storiesCloudEnabled}
                 savingContent={ideaSaving}
                 canAutoPublish={!!publishChannel}
                 reelMp4Url={reelMp4Url}

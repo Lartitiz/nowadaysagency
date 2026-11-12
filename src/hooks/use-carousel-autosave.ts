@@ -18,6 +18,8 @@ interface Options {
   raw: any;
   title: string;
   channel: string;
+  /** Stories (12/11/2026) : même sauvegarde continue, rangée en « story_serie » dans Mes idées. */
+  kind?: "carousel" | "story";
   onId: (id: string) => void;
   onSaved: (meta: CloudMeta) => void;
   onRestore: (raw: any) => void;
@@ -118,6 +120,8 @@ export function useCarouselAutosave(options: Options) {
     scope.current = { document: identity, key: currentScope };
     controllerKey.current = key;
     const id = copying ? crypto.randomUUID() : o.ideaId || crypto.randomUUID();
+    const story = o.kind === "story";
+    const ideaFormat = story ? "story_serie" : "carousel";
     const scoped = (query: any) =>
       o.workspaceId !== o.userId
         ? o.isOwnSpace
@@ -146,9 +150,9 @@ export function useCarouselAutosave(options: Options) {
             id: draftId,
             user_id: o.userId,
             workspace_id: o.workspaceId !== o.userId ? o.workspaceId : null,
-            titre: o.title.trim() || "Mon carrousel",
-            angle: "Carrousel",
-            format: "carousel",
+            titre: o.title.trim() || (story ? "Mes stories" : "Mon carrousel"),
+            angle: story ? "Stories" : "Carrousel",
+            format: ideaFormat,
             canal: o.channel,
             type: "draft",
             status: "to_explore",
@@ -166,8 +170,8 @@ export function useCarouselAutosave(options: Options) {
           supabase
             .from("saved_ideas")
             // Une idée ouverte depuis Mes idées / le diagnostic était peut-être
-            // notée « Post » : son contenu est désormais un carrousel.
-            .update({ content_data: raw, format: "carousel" })
+            // notée « Post » : son contenu est désormais un carrousel (ou des stories).
+            .update({ content_data: raw, format: ideaFormat })
             .eq("id", draftId),
         );
         query =
@@ -208,7 +212,7 @@ export function useCarouselAutosave(options: Options) {
     setState({ status: "saving" });
     setHistory([]);
     // ID is reserved once. Its parent echo must not reset an in-flight write.
-  }, [options.enabled, identity, options.userId, options.workspaceId, copy]);
+  }, [options.enabled, identity, options.userId, options.workspaceId, copy, options.kind]);
 
   useEffect(() => {
     if (

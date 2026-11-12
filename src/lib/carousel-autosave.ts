@@ -161,7 +161,7 @@ export class CarouselAutosaver {
       let history: CarouselVersion[] = this.meta?.history || [];
       const now = new Date().toISOString();
       if (
-        prior?.carousel_editor_version &&
+        (prior?.carousel_editor_version || prior?.story_editor_version) &&
         (this.forceCheckpoint ||
           !history.length ||
           Date.now() - Date.parse(history[0].savedAt) >= 5 * 60_000)
