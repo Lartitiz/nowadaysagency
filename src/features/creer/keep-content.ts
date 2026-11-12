@@ -41,11 +41,13 @@ const EMOJI: Record<string, string> = { newsletter: "📧", story: "📱", reel:
 export async function saveContentCopyToIdeas(s: ContentCopySource): Promise<string> {
   if (!s.userId || !s.raw) throw new Error("copie impossible");
   const isCarousel = s.format === "carousel";
-  const base = isCarousel ? cleanCarouselSnapshot(s.raw) : { ...s.raw };
+  // Stories en sauvegarde continue (12/11/2026) : même traitement que le carrousel.
+  const isCloudDocument = isCarousel || !!s.raw.story_editor_version;
+  const base = isCloudDocument ? cleanCarouselSnapshot(s.raw) : { ...s.raw };
   if (s.visualSlides?.length) base.visual_html = s.visualSlides;
   if (!isCarousel && s.draftText?.trim() && s.draftText !== s.raw.edited_text) base.edited_text = s.draftText;
   // Nouveau document : l'autosave du carrousel en cours ne doit jamais écrire dans la copie.
-  if (isCarousel) base._carousel_document_id = crypto.randomUUID();
+  if (isCloudDocument) base._carousel_document_id = crypto.randomUUID();
   const content = await externalizeCarouselMedia({ ...base, _ai_generated: true }, s.userId);
   const contentType = mapFormatToContentType(s.format);
   const title = s.subject.trim() || (isCarousel ? "Mon carrousel" : "Mon contenu");
