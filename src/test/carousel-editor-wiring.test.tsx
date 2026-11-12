@@ -7,7 +7,7 @@
 // fond de la slide, texte sur la photo, voile, aperçu Instagram.
 import React, { useState } from "react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import CarouselEditor from "@/components/creer/CarouselEditor";
 import { getEditorElements, prepareSlideHtml, readCarouselDocument, veilAlpha } from "@/lib/carousel-editor";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
@@ -15,6 +15,8 @@ import { composePhotoSlide } from "../../supabase/functions/_shared/photo-overla
 
 const toast = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
+const fixCarouselQuality = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/carousel-fix-all", async (original) => ({ ...(await original<object>()), fixCarouselQuality }));
 vi.mock("@/components/creer/PhotoSwapDialog", () => ({ default: () => null }));
 beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
 beforeEach(() => {
@@ -135,6 +137,61 @@ describe("contrôle qualité (encadré sous les boutons de la page)", () => {
     expect((screen.getByLabelText("Texte sélectionné") as HTMLTextAreaElement).value).toBe("Deux");
     undo();
     expect(saved()).toEqual(before);
+  });
+  it("« Tout corriger » corrige toutes les slides en une seule étape d'Annuler et dit ce qui reste", async () => {
+    render(<Harness portal={portal()} quality={{ status: "done", issues: [issue()], recheck: () => {} }} />);
+    const slides = saved().slides.map((s: { editor_id: string }) => ({ id: s.editor_id }));
+    fixCarouselQuality.mockResolvedValue({
+      patches: [
+        { slideId: slides[0].id, elementId: idOf(0, "body"), styles: { "font-size": "38px" } },
+        { slideId: slides[1].id, elementId: idOf(1, "title"), styles: { color: "#000000", "font-size": "60px" } },
+      ],
+      remaining: [{ slide: 2, elementId: "x", kind: "overflow", severity: "error", message: "Texte coupé ou hors de la slide : ajuste…" }],
+      lockedSlides: [],
+    });
+    const before = saved();
+    await act(async () => { fireEvent.click(buttonText("Tout corriger")); });
+    expect(savedEl(0, idOf(0, "body"))!.style.fontSize).toBe("38px");
+    expect(savedEl(1, idOf(1, "title"))!.style.color).toBe("rgb(0, 0, 0)");
+    expect(savedEl(1, idOf(1, "title"))!.style.fontSize).toBe("60px");
+    expect(toast.success).toHaveBeenCalledWith("2 éléments corrigés", expect.objectContaining({
+      description: "Reste à faire toi-même : Texte trop long pour sa place : raccourcis-le ou agrandis son cadre (slide 3).",
+    }));
+    undo();
+    expect(saved()).toEqual(before);
+  });
+  it("le bouton « Annuler » du message défait « Tout corriger », mais jamais une retouche faite après", async () => {
+    render(<Harness portal={portal()} quality={{ status: "done", issues: [issue()], recheck: () => {} }} />);
+    fixCarouselQuality.mockResolvedValue({
+      patches: [{ slideId: saved().slides[1].editor_id, elementId: idOf(1, "title"), styles: { "font-size": "60px" } }],
+      remaining: [],
+      lockedSlides: [],
+    });
+    const before = saved();
+    await act(async () => { fireEvent.click(buttonText("Tout corriger")); });
+    const options = toast.success.mock.calls[0][1];
+    expect(options.description).toBe("Tout ce qui était signalé est corrigé.");
+    act(() => options.action.onClick());
+    expect(saved()).toEqual(before);
+    act(() => options.action.onClick()); // plus rien à défaire : le document ne bouge pas
+    expect(saved()).toEqual(before);
+  });
+  it("« Tout corriger » n'apparaît pas quand il n'y a que des points à regarder soi-même", () => {
+    const host = portal();
+    render(<Harness portal={host} quality={{ status: "done", issues: [{ ...issue(), kind: "manual", severity: "warning", fix: undefined }], recheck: () => {} }} />);
+    expect(screen.queryByText("Tout corriger")).toBeNull();
+  });
+  it("sous la slide, les pastilles « ! » s'accompagnent d'un bouton « Tout corriger »", async () => {
+    fixCarouselQuality.mockResolvedValue({ patches: [], remaining: [], lockedSlides: [] });
+    const { doc } = withCanvas();
+    // Le texte grossit-il trop petit ? Le contrôle de l'aperçu le signale.
+    doc.querySelector<HTMLElement>('[data-slide-text="body"]')!.style.fontSize = "20px";
+    fireEvent.load(screen.getByTitle("Éditeur de la slide 1"));
+    const status = await screen.findByText(/point à corriger sur cette slide/);
+    expect(screen.getAllByTestId("slide-issue").length).toBe(1);
+    await act(async () => { fireEvent.click(within(status).getByRole("button", { name: "Tout corriger" })); });
+    expect(fixCarouselQuality).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith("Rien à corriger", expect.anything());
   });
   it("« Voir cet élément » ouvre la slide et choisit l'élément sans rien changer", () => {
     render(<Harness portal={portal()} quality={{ status: "done", issues: [issue()], recheck: () => {} }} />);

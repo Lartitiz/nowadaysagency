@@ -187,6 +187,14 @@ export function hasClippedElement(doc: Document): boolean {
   return findClippedIds(doc).length > 0;
 }
 
+/** Plus petite taille lisible sur mobile pour ce texte (mention secondaire ou texte essentiel). */
+export function readableFloorPx(el: HTMLElement): number {
+  const secondary =
+    SECONDARY_ROLE.test(roleOf(el)) ||
+    SECONDARY_ROLE.test((el.dataset.slideText || "").toLowerCase());
+  return secondary ? SECONDARY_FLOOR_PX : ESSENTIAL_FLOOR_PX;
+}
+
 export function inspectSlide(doc: Document, slide: number): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const view = doc.defaultView!;
@@ -372,6 +380,81 @@ function bounded(
     else promise.then(() => finish(), finish);
   });
 }
+/**
+ * Ouvre une slide dans un cadre caché à 1080 × 1350, attend polices et images,
+ * puis laisse `use` lire (ou retoucher) le DOM. Partagé par le contrôle
+ * qualité et « Tout corriger » : les deux mesurent la même géométrie.
+ */
+export async function withSlideFrame<T>(
+  html: string,
+  label: string,
+  signal: AbortSignal,
+  read: (doc: Document, broken: HTMLElement[]) => T | Promise<T>,
+): Promise<T> {
+  const frame = document.createElement("iframe");
+  frame.title = label;
+  frame.setAttribute("aria-hidden", "true");
+  frame.tabIndex = -1;
+  frame.setAttribute("sandbox", "allow-same-origin");
+  frame.style.cssText =
+    "position:fixed;left:-12000px;top:0;width:1080px;height:1350px;border:0;pointer-events:none";
+  try {
+    const loaded = new Promise<void>((resolve) => {
+      frame.onload = () => resolve();
+    });
+    frame.srcdoc = `<!doctype html><html><head><style>html,body{margin:0;width:1080px;height:1350px;overflow:hidden}*{box-sizing:border-box}</style></head><body>${html}</body></html>`;
+    document.body.append(frame);
+    await bounded(loaded, signal);
+    const doc = frame.contentDocument!;
+    await bounded(doc.fonts?.ready || Promise.resolve(), signal);
+    // Mesurer APRÈS polices et images : une police ou une photo tardive
+    // change la géométrie et produirait de faux débordements.
+    const broken: HTMLElement[] = [];
+    const jobs = [
+      ...doc.querySelectorAll<HTMLElement>(PHOTO_SELECTOR),
+    ].map(async (el) => {
+      let ok = true;
+      if (el.tagName === "IMG")
+        ok =
+          (el as HTMLImageElement).complete &&
+          (el as HTMLImageElement).naturalWidth > 0;
+      else {
+        const src = doc
+          .defaultView!.getComputedStyle(el)
+          .backgroundImage.match(/url\(["']?(.*?)["']?\)/)?.[1];
+        if (src) {
+          const image = new Image();
+          const loaded = new Promise<void>((resolve) => {
+            image.onload = () => resolve();
+            image.onerror = () => {
+              ok = false;
+              resolve();
+            };
+          });
+          image.src = src;
+          await bounded(loaded, signal);
+        }
+      }
+      if (!ok) broken.push(el);
+    });
+    await Promise.all(jobs);
+    return await read(doc, broken);
+  } finally {
+    frame.remove();
+  }
+}
+
+export function brokenImageIssue(el: HTMLElement, slide: number): QualityIssue {
+  return {
+    slide,
+    elementId: el.dataset.editorId || "",
+    kind: "image",
+    severity: "error",
+    message:
+      "Image impossible à charger : remplace-la ou vérifie sa disponibilité.",
+  };
+}
+
 export async function checkCarouselQuality(
   slides: { html: string }[],
   signal: AbortSignal,
@@ -379,68 +462,17 @@ export async function checkCarouselQuality(
   const issues: QualityIssue[] = [];
   for (let i = 0; i < slides.length; i++) {
     if (signal.aborted) throw new DOMException("Annulé", "AbortError");
-    const frame = document.createElement("iframe");
-    frame.title = `Contrôle qualité slide ${i + 1}`;
-    frame.setAttribute("aria-hidden", "true");
-    frame.tabIndex = -1;
-    frame.setAttribute("sandbox", "allow-same-origin");
-    frame.style.cssText =
-      "position:fixed;left:-12000px;top:0;width:1080px;height:1350px;border:0;pointer-events:none";
-    try {
-      const loaded = new Promise<void>((resolve) => {
-        frame.onload = () => resolve();
-      });
-      frame.srcdoc = `<!doctype html><html><head><style>html,body{margin:0;width:1080px;height:1350px;overflow:hidden}*{box-sizing:border-box}</style></head><body>${slides[i].html}</body></html>`;
-      document.body.append(frame);
-      await bounded(loaded, signal);
-      const doc = frame.contentDocument!;
-      await bounded(doc.fonts?.ready || Promise.resolve(), signal);
-      // Mesurer APRÈS polices et images : une police ou une photo tardive
-      // change la géométrie et produirait de faux débordements.
-      const jobs = [
-
-        ...doc.querySelectorAll<HTMLElement>(
-          "img,[data-editor-photo],[data-pptx-photo]",
-        ),
-      ].map(async (el) => {
-        let ok = true;
-        if (el.tagName === "IMG")
-          ok =
-            (el as HTMLImageElement).complete &&
-            (el as HTMLImageElement).naturalWidth > 0;
-        else {
-          const src = doc
-            .defaultView!.getComputedStyle(el)
-            .backgroundImage.match(/url\(["']?(.*?)["']?\)/)?.[1];
-          if (src) {
-            const image = new Image();
-            const loaded = new Promise<void>((resolve) => {
-              image.onload = () => resolve();
-              image.onerror = () => {
-                ok = false;
-                resolve();
-              };
-            });
-            image.src = src;
-            await bounded(loaded, signal);
-          }
-        }
-        if (!ok)
-          issues.push({
-            slide: i,
-            elementId: el.dataset.editorId || "",
-            kind: "image",
-            severity: "error",
-            message:
-              "Image impossible à charger : remplace-la ou vérifie sa disponibilité.",
-          });
-      });
-      await Promise.all(jobs);
-      issues.push(...inspectSlide(doc, i));
-
-    } finally {
-      frame.remove();
-    }
+    issues.push(
+      ...(await withSlideFrame(
+        slides[i].html,
+        `Contrôle qualité slide ${i + 1}`,
+        signal,
+        (doc, broken) => [
+          ...broken.map((el) => brokenImageIssue(el, i)),
+          ...inspectSlide(doc, i),
+        ],
+      )),
+    );
   }
   return issues;
 }
