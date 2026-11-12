@@ -24,6 +24,7 @@ import {
 import CanvasToolbar, { type SelectionBox } from "@/components/creer/CarouselEditorParts/CanvasToolbar";
 import { bindCanvas } from "@/components/creer/CarouselEditorParts/canvas-events";
 import { centerOnSlide } from "@/components/creer/CarouselEditorParts/editor-icons";
+import type { FixAll } from "@/components/creer/CarouselEditorParts/use-fix-all";
 
 export default function SlideCanvas({
   slide,
@@ -48,6 +49,7 @@ export default function SlideCanvas({
   onDropPhoto,
   onReplacePhoto,
   onLock,
+  fixAll,
   fitId,
   onFitDone,
   zoom = 1,
@@ -85,6 +87,8 @@ export default function SlideCanvas({
   /** Bouton « Remplacer » de la barre flottante d'une photo. */
   onReplacePhoto?: () => void;
   onLock?: (id: string, locked: boolean) => void;
+  /** « Tout corriger » : corrige d'un coup ce que signalent les pastilles « ! ». */
+  fixAll?: FixAll;
   /** Texte qui vient d'être modifié : sa taille se réduit s'il ne tient plus dans son cadre. */
   fitId?: string | null;
   onFitDone?: (id: string, size: number | null | "trop-long") => void;
@@ -550,11 +554,23 @@ export default function SlideCanvas({
         }}
       />
       </div>
-      {overflow && (
+      {(overflow || (fixAll && !slide.locked && issues.length > 0)) && (
         <p role="status" className="mt-2 text-xs text-amber-700">
-          Un élément dépasse ou manque de place. Ajuste sa taille ou sa position
-          avant d’exporter.
-          {!slide.locked && (
+          {overflow
+            ? "Un élément dépasse ou manque de place. Ajuste sa taille ou sa position avant d’exporter."
+            : `${issues.length} point${issues.length > 1 ? "s" : ""} à corriger sur cette slide (pastilles « ! »).`}
+          {fixAll && !slide.locked && issues.length > 0 && (
+            <button
+              type="button"
+              disabled={fixAll.busy}
+              title="Corrige d’un coup les tailles, les couleurs et les textes coupés de toutes les slides. Annuler défait tout."
+              className="ml-2 rounded-md bg-primary px-2 py-0.5 font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              onClick={fixAll.run}
+            >
+              {fixAll.busy ? "Correction…" : "Tout corriger"}
+            </button>
+          )}
+          {overflow && !slide.locked && (
             <button
               type="button"
               className="ml-2 rounded-md border border-amber-700/40 px-2 py-0.5 font-medium hover:bg-amber-50"

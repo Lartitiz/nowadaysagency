@@ -66,6 +66,7 @@ import { BlockSettings, PhotoSettings } from "@/components/creer/CarouselEditorP
 import { EditorHeader } from "@/components/creer/CarouselEditorParts/EditorHeader";
 import { useEditorKeys } from "@/components/creer/CarouselEditorParts/editor-keys";
 import { QualityPanel } from "@/components/creer/CarouselEditorParts/QualityPanel";
+import { useFixAll } from "@/components/creer/CarouselEditorParts/use-fix-all";
 import { SlideStrip } from "@/components/creer/CarouselEditorParts/SlideStrip";
 import { TextListDialog } from "@/components/creer/CarouselEditorParts/TextListDialog";
 import { AllSlidesPanel, SavedStylesPanel } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
@@ -219,6 +220,7 @@ export default function CarouselEditor({
     h.time = now;
     emit(next);
   };
+  const fixAll = useFixAll(current, commit, () => undo());
   const undo = (redo = false) => {
     const h = history.current,
       from = redo ? h.future : h.past;
@@ -725,15 +727,7 @@ export default function CarouselEditor({
       <EditorHeader showInstagramPreview={channel !== "linkedin"} active={active} count={document.slides.length} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
         redo={slideRedo && slide && <SlideRedo api={slideRedo} raw={raw} slide={slide} getDocument={() => current.current} onKeep={(next) => commit(replaceSlide(current.current, next))} />} />
       {toolsPortal && createPortal(
-        <QualityPanel
-          cloudTools={cloudTools}
-          commit={commit}
-          current={current}
-          document={document}
-          quality={quality}
-          setActive={setActive}
-          setSelected={setSelected}
-        />,
+        <QualityPanel cloudTools={cloudTools} commit={commit} current={current} document={document} fixAll={fixAll} quality={quality} setActive={setActive} setSelected={setSelected} />,
         toolsPortal,
       )}
       <div ref={grid} className={EDITOR_GRID} style={roomStyle(fit)}>
@@ -779,7 +773,7 @@ export default function CarouselEditor({
             api={canvasApi}
             onDropPhoto={onAddPhoto ? dropPhoto : undefined}
             onReplacePhoto={onAddPhoto ? () => setPhotoOpen(true) : undefined}
-            onLock={lockElement}
+            onLock={lockElement} fixAll={fixAll}
             zoom={fullscreen ? 1 : zoom}
             onMeasure={setMeasured}
             onMove={(id, styles) =>

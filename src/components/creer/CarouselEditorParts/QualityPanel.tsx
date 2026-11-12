@@ -5,10 +5,13 @@ import type { MutableRefObject, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
 import { patchElement, type CarouselDocument } from "@/lib/carousel-editor";
+import { FIXABLE_KINDS } from "@/lib/carousel-fix-all";
+import type { FixAll } from "./use-fix-all";
 
 /** Sauvegarde et contrôle qualité : bilan, Revérifier, Voir cet élément, Appliquer la correction. */
-export function QualityPanel({ cloudTools, commit, current, document, quality, setActive, setSelected }: {
+export function QualityPanel({ cloudTools, commit, current, document, fixAll, quality, setActive, setSelected }: {
   cloudTools: ReactNode;
+  fixAll?: FixAll;
   commit: (next: CarouselDocument, key?: string) => void;
   current: MutableRefObject<CarouselDocument>;
   document: CarouselDocument;
@@ -34,6 +37,11 @@ export function QualityPanel({ cloudTools, commit, current, document, quality, s
                     ? `${quality.issues.filter((i) => i.severity === "error").length} point(s) bloquant(s) · ${quality.issues.filter((i) => i.severity === "warning").length} conseil(s)`
                     : "Contrôle terminé : aucun problème détecté"}
             </p>
+            {fixAll && quality.status === "done" && quality.issues.some((i) => FIXABLE_KINDS.includes(i.kind)) && (
+              <Button size="sm" onClick={fixAll.run} disabled={fixAll.busy} title="Corrige d’un coup les tailles, les couleurs et les textes coupés de toutes les slides. Annuler défait tout.">
+                {fixAll.busy ? "Correction…" : "Tout corriger"}
+              </Button>
+            )}
             <Button
               size="sm"
               variant="outline"
