@@ -116,6 +116,7 @@ import { useSubjectBaseline, nextIdeaLink } from "@/hooks/use-subject-baseline";
 import { useIdeaPick } from "@/features/creer/idea-pick";
 import { loadFlowState, saveFlowState as persistFlowState, clearFlowState, savePhotos as persistPhotos, loadPhotos, setFlowWorkspaceId, setFlowUserId } from "@/hooks/use-flow-persistence";
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
+import { useSilentDraftSwitch } from "@/hooks/use-silent-draft-switch";
 import LinkedInCarouselInvite from "@/components/creer/LinkedInCarouselInvite";
 import { useCreerKeepContent, KeepContentDialog } from "@/hooks/use-creer-keep-content";
 import { useCreerSettingsPersistence } from "@/hooks/use-creer-settings-persistence";
@@ -1451,6 +1452,8 @@ function CreerWorkspace() {
     busy: generating || streaming || structureLoading || photoDumpResolving || visualLoading || pinterestVisualGenerating || inspirationLoading || launchGenerating,
     setEditingIdeaId, forgetSavedVersion: () => { setSavedIdeaVersion(null); setSavedId(null); }, setSelectedFormat, setIsLinkedInCarousel, setCarouselSubMode, setSlideLength, setStep });
 
+  const startNewAfterConflict = () => { handleReset(); initialCreationId.current = activeCreation.current; persistedState.current = null; initDone.current = false; justStrippedRef.current = false; setConflictResolved(true); };
+  const silentSwitch /* contenu en cours déjà dans Mes idées : pas de fenêtre */ = useSilentDraftSwitch({ draftConflict, onSwitch: startNewAfterConflict });
   /* Fiche de marque d'abord. Tant que la fiche captée à l'inscription attend
      sa relecture, la marque n'est pas encore écrite dans les tables lues par la
      génération : créer maintenant produirait un contenu générique. La prochaine
@@ -1490,7 +1493,7 @@ function CreerWorkspace() {
         </SheetContent>
       </Sheet>
 
-      {conflictPending && draftConflict && (
+      {conflictPending && draftConflict && !silentSwitch.checking && (
         <DraftConflictDialog
           open
           {...draftConflict}
@@ -1500,14 +1503,7 @@ function CreerWorkspace() {
             window.history.replaceState({ ...(window.history.state || {}), usr: null }, "", location.pathname);
             window.location.replace(location.pathname);
           }}
-          onStartNew={() => {
-            handleReset();
-            initialCreationId.current = activeCreation.current;
-            persistedState.current = null;
-            initDone.current = false;
-            justStrippedRef.current = false;
-            setConflictResolved(true);
-          }}
+          onStartNew={startNewAfterConflict}
         />
       )}
 

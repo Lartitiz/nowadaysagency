@@ -18,7 +18,7 @@ type DraftConflictInput = {
 };
 
 /** Contenu comparable : sans les marques de sauvegarde, clés triées (la base les réordonne). */
-function contentKey(value: any): string {
+export function contentKey(value: any): string {
   return JSON.stringify(value, (key, v) => {
     if (key.startsWith("_carousel_")) return undefined;
     if (v && typeof v === "object" && !Array.isArray(v)) return Object.fromEntries(Object.keys(v).sort().map((k) => [k, v[k]]));
