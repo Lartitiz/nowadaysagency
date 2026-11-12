@@ -10,7 +10,7 @@ import { type UsageSink, getModelForAction } from "../../_shared/anthropic.ts";
 import { PHOTO_QUESTIONS_TOOL } from "../tools.ts";
 import { buildDeepeningQuestionsPrompt } from "../prompts.ts";
 import { runGenerationAndRespond } from "./generate.ts";
-import { QUESTIONS_ADDRESS_OVERRIDE, QUESTIONS_TUTOIEMENT_RETRY, questionsVouvoient } from "../questions-address.ts";
+import { QUESTIONS_ADDRESS_OVERRIDE, relancerQuestionsSiBesoin } from "../questions-address.ts";
 
 // ── Photo / mix carousel: vision-informed questions ──
 export async function handleDeepeningQuestionsVisionRequest(reqCtx: CarouselRequestContext): Promise<Response> {
@@ -69,14 +69,9 @@ Réponds en JSON : {"questions":[{"question":"...","placeholder":"..."}]}. Table
   }, deepeningUsage);
   const firstMessages = [{ role: "user", content: messageContent }];
   let content = await ask(firstMessages);
-  // Une question vouvoie quand même : une relance courte pour tutoyer. Si elle
-  // échoue, on garde les premières questions plutôt que de tout perdre.
-  if (questionsVouvoient(content)) {
-    try {
-      const retried = await ask([...firstMessages, { role: "assistant", content }, { role: "user", content: QUESTIONS_TUTOIEMENT_RETRY }]);
-      if (retried && !questionsVouvoient(retried)) content = retried;
-    } catch (_) { /* on garde la première version */ }
-  }
+  // Une question vouvoie ou reste trop longue : une relance courte.
+  content = await relancerQuestionsSiBesoin(content, (consigne) =>
+    ask([...firstMessages, { role: "assistant", content }, { role: "user", content: consigne }]));
 
   // PAS de logUsage — les questions d'approfondissement sont gratuites
   // (arbitrage 10/07/2026 : un carrousel débite 2 crédits, rédaction +

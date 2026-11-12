@@ -18,6 +18,7 @@ import { tryParseAiJson } from "../../_shared/parse-ai-json.ts";
 import { CAROUSEL_WRITING_VERSION } from "../writing-contract.ts";
 import { CAROUSEL_WRITER_VERSION } from "../writer.ts";
 import { clientStillThere } from "../../_shared/anthropic-stream.ts";
+import { relancerQuestionsSiBesoin } from "../questions-address.ts";
 
 // Partagée par hooks / slides / express_full (texte standard) / suggest_topics /
 // suggest_angles / deepening_questions (variante texte) : un seul appel IA,
@@ -69,6 +70,15 @@ export async function runGenerationAndRespond(
   let content = await timed("write_ms", isWriting
     ? _deps.callCarouselWriter({ ...writingOptions, ...draftStream, model: pickCarouselModel(body) }, usage)
     : _deps.callAnthropic({ ...writingOptions, model: getModelForAction(type === "deepening_questions" ? "questions" : "carousel") }, usage));
+  // Questions (variante texte) : relance si une question vouvoie ou reste trop
+  // longue (12/11/2026), comme la variante avec photos (steps/questions.ts).
+  if (type === "deepening_questions") {
+    const first = content;
+    content = await relancerQuestionsSiBesoin(first, (consigne) => _deps.callAnthropic({
+      ...writingOptions, model: getModelForAction("questions"),
+      messages: [...writingOptions.messages, { role: "assistant", content: first }, { role: "user", content: consigne }],
+    }, usage));
+  }
 
   // Contextual review for every generated carousel, legacy scan only on rollback.
   // Ne rejette jamais : une relecture en échec rend le texte reçu.

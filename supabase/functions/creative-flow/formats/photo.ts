@@ -5,6 +5,7 @@
 // Voir docs/creation-contenu/CARTE.md.
 
 import { type AudienceAddress } from "../../_shared/audience-address.ts";
+import { QUESTIONS_FORM_RULES } from "../../_shared/questions-form.ts";
 import { callAnthropic, getModelForAction, type UsageSink } from "../../_shared/anthropic.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../../_shared/vision-prompts.ts";
 import { GENERATE_ABORT_MS, QUESTIONS_TOOL, extractImagePayload, photoVoiceRule } from "../shared.ts";
@@ -59,7 +60,7 @@ export async function runVisionQuestions(params: {
   // peut s'appuyer sur la photo »). On conserve uniquement ce que le vision prompt
   // n'a pas : la voix de marque, le vocabulaire métier et la mémoire anti-répétition.
   const visionSystemPrompt = `${QUESTIONS_PREFIX}
-${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}${recentBriefsContext ? `\n══ MÉMOIRE ANTI-RÉPÉTITION ══\nSujets DIFFÉRENTS déjà traités récemment :\n${recentBriefsContext}\nN'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions sur le sujet courant — sert uniquement à ne pas reposer une question identique.\n` : ""}`;
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}${recentBriefsContext ? `\n══ MÉMOIRE ANTI-RÉPÉTITION ══\nSujets DIFFÉRENTS déjà traités récemment :\n${recentBriefsContext}\nN'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions sur le sujet courant — sert uniquement à ne pas reposer une question identique.\n` : ""}` + QUESTIONS_FORM_RULES;
 
   return await callAnthropic({
     model: getModelForAction("content"),

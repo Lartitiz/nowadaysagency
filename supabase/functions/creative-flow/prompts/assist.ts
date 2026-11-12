@@ -12,6 +12,7 @@
 import { FORMAT_STRUCTURES, WRITING_RESOURCES, FRAMEWORK_SELECTION, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE } from "../../_shared/copywriting-prompts.ts";
 import { claritySourceBlock } from "../../_shared/content-clarity.ts";
 import { detectFormatFlags } from "../format-flags.ts";
+import { QUESTIONS_FORM_RULES } from "../../_shared/questions-form.ts";
 
 export function buildFollowUpPrompt(params: {
   QUESTIONS_PREFIX: string;
@@ -52,7 +53,7 @@ Réponds UNIQUEMENT en JSON :
       "why": "..."
     }
   ]
-}`;
+}` + QUESTIONS_FORM_RULES;
   const userPrompt = "Pose-moi 1 ou 2 questions d'approfondissement basées sur mes réponses.";
   return { systemPrompt, userPrompt };
 }
@@ -338,7 +339,7 @@ Réponds UNIQUEMENT en JSON :
       "placeholder": "..."
     }
   ]
-}`;
+}` + QUESTIONS_FORM_RULES;
   const userPrompt = `Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "${context}"${angle ? ` (angle "${angle.title}")` : ""}.`;
   return { systemPrompt, userPrompt };
 }
