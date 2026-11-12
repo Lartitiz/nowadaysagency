@@ -77,7 +77,8 @@ export const EDITOR_GRID =
 export function outsideRoom(slide: Element | null | undefined): { above: number; below: number } {
   if (!slide) return { above: 0, below: 0 };
   const r = slide.getBoundingClientRect();
-  const header = window.document.querySelector("header")?.getBoundingClientRect().bottom ?? 0;
+  // La barre d'outils de l'éditeur est collée sous le menu : la place au-dessus commence sous elle.
+  const header = Math.max(window.document.querySelector("header")?.getBoundingClientRect().bottom ?? 0, window.document.querySelector("[data-editor-toolbar]")?.getBoundingClientRect().bottom ?? 0);
   const bar = window.document.querySelector('[data-testid="result-actions"]')?.getBoundingClientRect().top ?? window.innerHeight;
   return { above: Math.max(0, r.top - Math.max(0, header)), below: Math.max(0, Math.min(bar, window.innerHeight) - r.bottom) };
 }
