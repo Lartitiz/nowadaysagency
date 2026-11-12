@@ -93,6 +93,7 @@ export const FRONT_ONLY_ATTRIBUTES = {
   "data-story-rasterized-pill": { role: "Pastille de story rendue en image." },
   "data-placeholder": { role: "Texte d'invite d'un champ vide (écran de résultat)." },
   "data-canvas-sticky": { role: "Interface de l'éditeur : zone de dessin fixe." },
+  "data-editor-toolbar": { role: "Interface de l'éditeur : ligne d'outils collée en haut (Refaire cette slide, Annuler…)." },
   "data-font-preview": { role: "Interface de l'éditeur : aperçu de police." },
   "data-handle": { role: "Interface de l'éditeur : poignée de redimensionnement." },
   "data-thumb": { role: "Interface de l'éditeur : vignette de slide." },
