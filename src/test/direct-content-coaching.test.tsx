@@ -70,9 +70,11 @@ describe("direct coach journey", () => {
     expect(screen.getByText("1 idée sur 4 prête, la suite arrive…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Créer" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Garder" })); await screen.findByRole("button", { name: "Gardée" });
+    act(() => ["Idée 2", "Idée 3", "Idée 4"].forEach((subject, i) => mocks.onEvent({ type: "idea", idea: idea(subject), ready: i + 2, total: 4 })));
+    expect(await screen.findByText("Tes 4 idées sont prêtes.")).toBeInTheDocument(); expect(screen.queryByText(/la suite arrive/)).not.toBeInTheDocument();
     act(() => finish(response()));
-    await screen.findByText("Idée 4"); expect(screen.getAllByRole("button", { name: "Gardée" })).toHaveLength(1);
-    expect(screen.getByText("4 idées pour commencer. Le format se choisit ensuite.")).toBeInTheDocument();
+    expect(await screen.findByText("4 idées pour commencer. Le format se choisit ensuite.")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Gardée" })).toHaveLength(1);
   });
   it("keeps the ideas already shown when the rest of the selection fails", async () => {
     let finish: (v: any) => void = () => {}; mocks.invoke.mockImplementationOnce(() => new Promise(r => { finish = r; }));
