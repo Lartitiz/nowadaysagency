@@ -8,6 +8,8 @@ import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/w
 import { generateDeepIdeas } from "../_shared/ideas/pipeline.ts";
 import { parseDeepIdea } from "../_shared/ideas/contract.ts";
 
+declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void } | undefined;
+
 Deno.serve(async (req) => {
   const cors = getCorsHeaders(req);
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -56,10 +58,37 @@ Deno.serve(async (req) => {
     // Research runs again when an assertion needs support. No client URL is trusted.
     const deepen = body.deepen_idea ? parseDeepIdea(body.deepen_idea) : undefined;
     if (body.deepen_idea && !deepen) return json({ error: "Cette idée ne peut pas être approfondie. Relance une sélection." }, 400);
-    const result = await generateDeepIdeas({ context, history: JSON.stringify([...posts, ...saved, ...generated]).slice(0, 6500), subject, objective: text(a.objectif, 50) || "auto", channel, format: text(a.format, 50) || "auto", previous, deepen: deepen || undefined, refinement: text(body.refinement, 1000) });
-    await logUsage(user.id, "suggestion", "content_coaching", result.usage.total_tokens, result.usage.model, workspace);
-    // Compatibility for older open clients: render the fuller explanation too.
-    return json({ ...result, ideas: result.ideas.map(i => ({ ...i, why_it_works: i.reader_benefit, brief: i.mechanism })), recommended_subject: result.ideas[0].subject, format_reason: "Choisis le format qui sert cette idée à l'étape suivante." });
+    const input = { context, history: JSON.stringify([...posts, ...saved, ...generated]).slice(0, 6500), subject, objective: text(a.objectif, 50) || "auto", channel, format: text(a.format, 50) || "auto", previous, deepen: deepen || undefined, refinement: text(body.refinement, 1000) };
+    const run = async (onEvent?: Parameters<typeof generateDeepIdeas>[0]["onEvent"]) => {
+      const result = await generateDeepIdeas({ ...input, onEvent });
+      await logUsage(user.id, "suggestion", "content_coaching", result.usage.total_tokens, result.usage.model, workspace);
+      // Compatibility for older open clients: render the fuller explanation too.
+      return { ...result, ideas: result.ideas.map(i => ({ ...i, why_it_works: i.reader_benefit, brief: i.mechanism })), recommended_subject: result.ideas[0].subject, format_reason: "Choisis le format qui sert cette idée à l'étape suivante." };
+    };
+    if (body.stream !== true) return json(await run());
+    // Streamed answer (one JSON object per line): stages, each idea as soon as it is
+    // ready, then "done" with the full result, or "error". A closed tab never stops
+    // the generation; the credit is counted only when the full selection succeeds.
+    const encoder = new TextEncoder();
+    let closed = false;
+    const stream = new ReadableStream({
+      start(controller) {
+        const send = (event: unknown) => { if (closed) return; try { controller.enqueue(encoder.encode(JSON.stringify(event) + "\n")); } catch { closed = true; } };
+        send({ type: "stage", stage: "preparation" });
+        const work = (async () => {
+          try { send({ type: "done", ...(await run(send)) }); }
+          catch (error) {
+            console.error("[content-coaching]", error);
+            send({ type: "error", error: error instanceof AnthropicError || error instanceof Error ? error.message : "Impossible de préparer les idées. Réessaie." });
+          }
+          if (!closed) { closed = true; try { controller.close(); } catch { /* already closed by the client */ } }
+        })();
+        // Keep the worker alive (and the usage logged) even if the tab closes mid-way.
+        if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(work);
+      },
+      cancel() { closed = true; },
+    });
+    return new Response(stream, { headers: { ...cors, "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache" } });
   } catch (error) {
     console.error("[content-coaching]", error);
     return json({ error: error instanceof AnthropicError ? error.message : error instanceof Error ? error.message : "Impossible de préparer les idées. Réessaie." }, error instanceof AnthropicError ? error.status : 500);

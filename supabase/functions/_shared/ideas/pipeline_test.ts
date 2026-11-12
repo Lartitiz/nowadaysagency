@@ -30,3 +30,24 @@ Deno.test("sources use actual citation metadata, never a prose URL", () => {
   const sources = extractIdeaSources([{ type: "text", text: "Une assertion", citations: [{ url: "javascript:bad" }, { url: "https://example.org/source", title: "Source primaire" }] }, { type: "text", text: "Source prétendue https://invented.example" }], "2026-09-16");
   assertEquals(sources.length, 1); assertEquals(sources[0].claim, "Une assertion"); assertEquals(sources[0].url, "https://example.org/source");
 });
+Deno.test("each developed idea is emitted as soon as it is ready, before the slowest one", async () => {
+  let calls = 0; let releaseSlow!: () => void; const slow = new Promise<void>(r => { releaseSlow = r; });
+  const events: any[] = [];
+  const pending = generateDeepIdeas({ context: "Céramiste", history: "", onEvent: e => events.push(e) }, {
+    model: "claude-opus-5-5", apiKey: "", call: async (o) => {
+      calls++; if (calls === 1) return JSON.stringify({ candidates: [1, 2, 3, 4, 5, 6].map(i => ({ ...idea, subject: `Piste ${i}` })), research_queries: [] });
+      const n = (o.messages[0].content as string).match(/piste n°(\d)/)?.[1];
+      if (n === "1") await slow; // the first-ranked idea is the slowest
+      if (n === "2") throw new Error("timeout"); // a failure starts its reserve at once
+      return JSON.stringify({ ideas: [{ ...idea, subject: `Idée ${n}` }] });
+    },
+    research: async () => ({ sources: [], status: "not_needed" }),
+  });
+  for (let i = 0; i < 20 && events.filter(e => e.type === "idea").length < 3; i++) await new Promise(r => setTimeout(r, 0));
+  assertEquals(events.slice(0, 2).map(e => e.stage), ["research", "writing"]);
+  assertEquals(events.filter(e => e.type === "idea").map(e => e.idea.subject), ["Idée 3", "Idée 4", "Idée 5"]);
+  releaseSlow();
+  const result = await pending;
+  assertEquals(events.filter(e => e.type === "idea").map(e => e.ready), [1, 2, 3, 4]);
+  assertEquals(result.ideas.map(i => i.subject), ["Idée 3", "Idée 4", "Idée 5", "Idée 1"]);
+});
