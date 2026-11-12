@@ -224,13 +224,28 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
       run: () => onMiseEnScene(photo),
     });
   }
+  // Photo d'un lieu (pièce, façade, paysage…) : la photo EST le décor.
+  // « Changer le décor » détoure un sujet et réinvente le reste (QA du
+  // 12/11/2026 : salon réinventé, sol et murs changés). On propose d'abord le
+  // Studio, où la personne dit avec ses mots ce qu'elle veut changer.
+  const isPlace = photo.kind === "ambiance" && !isProductPhoto;
+  if (isPlace && onStudio) {
+    retouchOptions.unshift({
+      key: "studio",
+      icon: Sparkles,
+      title: "Retoucher avec mes mots",
+      hint: "Dis ce que tu veux changer (ranger, éclaircir, retirer un objet…) : le Studio garde le reste de la photo.",
+      fits: true,
+      run: () => { onOpenChange(false); onStudio(photo); },
+    });
+  }
   if (onRetouche) {
     retouchOptions.push({
       key: "decor",
       icon: Wand2,
       title: "Changer le décor",
       hint: "Ton originale reste toujours récupérable.",
-      fits: true,
+      fits: !isPlace,
       run: () => onRetouche(photo),
     });
   }
@@ -380,12 +395,16 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
                 <summary className="cursor-pointer list-none py-1.5 text-xs text-muted-foreground hover:text-foreground">
                   {isPortrait
                     ? "Outils prévus pour des photos de produit…"
-                    : "Voir aussi les outils produit…"}
+                    : isPlace
+                      ? "Autres outils…"
+                      : "Voir aussi les outils produit…"}
                 </summary>
                 <p className="pb-2 text-xs text-muted-foreground">
                   {isPortrait
                     ? "Cette photo montre une personne. Sur un portrait, ces outils re-génèrent le sujet : le résultat sera imprévisible."
-                    : "Cette photo ne semble pas montrer un produit — le résultat peut surprendre."}
+                    : isPlace
+                      ? "Cette photo montre un lieu. Ces outils détourent un sujet au premier plan et réinventent le reste : murs, sol et meubles peuvent changer."
+                      : "Cette photo ne semble pas montrer un produit — le résultat peut surprendre."}
                 </p>
                 <div className="space-y-2 pb-1">{otherOptions.map(renderOption)}</div>
               </details>

@@ -154,5 +154,28 @@ it.each([
 
 it("une photo d'ambiance garde les outils produit sous le repli", () => {
   openTools(photo({ kind: "ambiance" }));
-  expect(screen.getByText(/Voir aussi les outils produit/)).toBeInTheDocument();
+  // Depuis le 12/11/2026, le repli d'une photo de lieu s'appelle « Autres outils… »
+  // (il contient aussi « Changer le décor »).
+  expect(screen.getByText("Autres outils…")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Une photo pour mon e-commerce/ })).not.toBeVisible();
+});
+
+// QA du 12/11/2026 : sur la photo d'un salon, « Changer le décor » réinventait
+// la pièce. Pour un lieu, le Studio passe en premier, le décor sous le repli.
+it("photo d'un lieu : « Retoucher avec mes mots » ouvre le Studio, « Changer le décor » passe sous le repli", () => {
+  const onStudio = vi.fn();
+  const p = photo({ kind: "ambiance", name: "Salon" });
+  wrap(<PhotoDetailDialog photo={p} open onOpenChange={vi.fn()} onRetouche={vi.fn()} onStudio={onStudio} />);
+  fireEvent.click(screen.getByRole("button", { name: /Préparer \/ modifier/ }));
+  expect(screen.getByText("Autres outils…")).toBeVisible();
+  expect(screen.getByRole("button", { name: /Changer le décor/ })).not.toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: /Retoucher avec mes mots/ }));
+  expect(onStudio).toHaveBeenCalledWith(p);
+});
+
+it("portrait : « Changer le décor » reste proposé directement", () => {
+  wrap(<PhotoDetailDialog photo={photo({ kind: "portrait" })} open onOpenChange={vi.fn()} onRetouche={vi.fn()} onStudio={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: /Préparer \/ modifier/ }));
+  expect(screen.getByRole("button", { name: /Changer le décor/ })).toBeVisible();
+  expect(screen.queryByRole("button", { name: /Retoucher avec mes mots/ })).toBeNull();
 });
