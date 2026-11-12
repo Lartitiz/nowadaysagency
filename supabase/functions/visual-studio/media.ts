@@ -43,6 +43,8 @@ export type Proposal = {
   photo_source_path?: string;
   series_size?: number;
   series_index?: number;
+  /** Failed version this proposal relaunches (« Réessayer cette image seulement »). */
+  retry_of?: string;
   brand_context?: { charter?: Record<string, unknown> | null };
 };
 /** The request may have reached the image provider; repeating it may incur another charge. */

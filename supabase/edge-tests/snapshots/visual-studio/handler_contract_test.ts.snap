@@ -1396,7 +1396,8 @@ GET /rest/v1/brand_charter [moodboard_images]
   "image_prompt": "Soft light",
   "input_path": "in",
   "shots": [],
-  "cost": 1
+  "cost": 1,
+  "retry_of": "id(4)"
  }
 }'
 `;
