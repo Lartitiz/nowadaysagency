@@ -7,7 +7,7 @@ import { type CarouselRequestContext, stageTimer, firstDraftStream, buildPhotoCo
 import { continuousCarouselResponse } from "../steps/continuous.ts";
 import { buildPhotoCarouselNewsReactionPrompt, buildPhotoCarouselPrompt } from "../prompts.ts";
 import { type UsageSink } from "../../_shared/anthropic.ts";
-import { carouselLengthPrompt } from "../../_shared/carousel-length.ts";
+import { carouselLengthPrompt, carouselStructureIssues } from "../../_shared/carousel-length.ts";
 import { PHOTO_MISMATCH_SYSTEM_REMINDER, PHOTO_CAROUSEL_TOOL } from "../tools.ts";
 import { repairCarouselStructure, finalizeCarousel } from "../steps/finalize.ts";
 import { withoutPhotoWriterLayout, normalizeOverlayStyles, capVisualSchemas, assignPhotoTemplates, revalidatePhotoLayoutContent } from "../layout.ts";
@@ -15,6 +15,8 @@ import { carouselNeedsPolish } from "../../_shared/correction-pass.ts";
 import { applyGuardedCarouselCorrection, runRedacGate, rescoreCaptionOnly } from "../../_shared/redac-gate.ts";
 import { mergeConfirmedStructure, maxStructurePhotoIndex, normalizePhotoIndexes } from "../../_shared/photo-slide-structure.ts";
 import { addOutlineUsage } from "../outline.ts";
+import { photoNarratorIssues, photoNarratorRule, photoOverlayIssues } from "../photo-narrative.ts";
+import { tryParseAiJson } from "../../_shared/parse-ai-json.ts";
 import { logContentQuality, threadOutcome, carouselDurations } from "../../_shared/content-quality.ts";
 import { photoMatchPhotoCount } from "../final-photo-match.ts";
 import { CAROUSEL_WRITING_VERSION } from "../writing-contract.ts";
@@ -44,9 +46,11 @@ export async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext)
   const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, researchText, testimonySource, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
-  const photoPrompt = hasNews
+  // Une seule personne pour la marque, celle de sa fiche si elle est nette (test LinkedIn du 12/11/2026).
+  const narratorRule = photoNarratorRule(body, brandGuardText);
+  const photoPrompt = (hasNews
     ? buildPhotoCarouselNewsReactionPrompt(body, isLinkedIn)
-    : buildPhotoCarouselPrompt(body, isLinkedIn);
+    : buildPhotoCarouselPrompt(body, isLinkedIn)) + (narratorRule ? `\n${narratorRule}` : "");
   let content: string;
   let doGenerate: (sink: UsageSink) => Promise<string>;
   // Shares the same source-preserving repair and deadline as mixed carousels.
@@ -150,7 +154,7 @@ export async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext)
   }
   const threadPhoto = photosOnly
     ? { content: emptySlidesText(content), repaired: false }
-    : await clock.timed("structure_ms", repairCarouselStructure(content, { body, label: "photo", emitStatus, usage: photoUsage, regenerate: doRepair, startedAt }));
+    : await clock.timed("structure_ms", repairCarouselStructure(content, { body, label: "photo", inspect: (v) => { const p = tryParseAiJson(v); return [...carouselStructureIssues(p, body), ...photoOverlayIssues(p, body), ...photoNarratorIssues(p, body, brandGuardText)]; }, emitStatus, usage: photoUsage, regenerate: doRepair, startedAt }));
   // Mise en page hors de l'écriture : gabarit, chiffre, liste, étape et
   // attribution sont posés ensuite, à partir du texte FINAL (assignPhotoTemplates,
   // après la relecture et le redac-gate, plus bas).

@@ -30,7 +30,7 @@ export async function continuousCarouselResponse(ctx: CarouselRequestContext): P
     body:ctx.body, brandingContext:ctx.brandingContext, recentTexts,
     photoContext:buildPhotoContextRecap(ctx.body.photo_contexts || ctx.body.photos),
     newsContext:typeof ctx.newsContext === "string" ? ctx.newsContext : "",
-    authoredText:ctx.currentAuthoredText, audienceAddress:ctx.audienceAddress, startedAt:ctx.startedAt, usage,
+    authoredText:ctx.currentAuthoredText, audienceAddress:ctx.audienceAddress, brandVoiceText:ctx.brandGuardText, startedAt:ctx.startedAt, usage,
     emitStatus:ctx.emitStatus, write:_deps.callCarouselWriter, reserveMs:matchReserveMs,
     onDraft:(slides)=>ctx.emitStatus("draft",{slides}), timings:clock.timings,
   }); } catch(error) {

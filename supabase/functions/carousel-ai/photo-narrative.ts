@@ -17,3 +17,106 @@ Utilise d'abord le sujet, l'objectif, les réponses et le contexte de marque dé
 Une question peut porter sur une histoire de marque non visible dans les photos. N'impose aucune référence visuelle dans chaque question et ne présuppose ni souvenir, ni motivation, ni transformation. Ne demande pas de choisir une intention si une proposition prudente peut être tirée du contexte. Si un récit précis manque de faits, demande le fait manquant plutôt que d'inventer. Ne redemande pas ce qui est déjà fourni.
 Les questions s'adressent à l'utilisatrice, pas à son audience : tutoie-la toujours (« ton savoir-faire », jamais « votre »), même si sa marque vouvoie ses client·es.
 `;
+
+// ── « Tes photos en fond » : texte court et un seul narrateur ──
+// Test LinkedIn d'Auriana du 12/11/2026 : 40 à 50 mots sur les slides 2 à 4
+// alors que l'écran promet « Un texte court posé sur chaque photo », et « nous »
+// en slide 2 puis « je » en slide 3. Tous canaux (la promesse de l'écran ne
+// dépend pas du canal) ; hors « Photos brutes » (texte vidé) et hors mixte.
+
+/** Repère de longueur d'une slide « Tes photos en fond » (comme le mixte LinkedIn). */
+export const PHOTO_OVERLAY_SLIDE_WORDS = 30;
+/** Au-delà, la slide est redemandée plus courte (marge sur le repère). */
+export const PHOTO_OVERLAY_LONG_WORDS = PHOTO_OVERLAY_SLIDE_WORDS + 10;
+
+export const isPhotoOverlay = (body: any) => body?.carousel_type === "photo" && body?.photos_only !== true;
+
+export const PHOTO_OVERLAY_LENGTH = `TES PHOTOS EN FOND : le texte est posé sur la photo et se lit en quelques secondes. ${PHOTO_OVERLAY_SLIDE_WORDS} mots au plus par slide (overlay_text, kicker et detail ensemble), en phrases courtes ; une idée par slide. Ce plafond prime sur toute consigne de passages développés. Ce qui ne tient pas passe dans caption.body, sans perdre d'idée.`;
+export const PHOTO_OVERLAY_RECIT_LENGTH = `TES PHOTOS EN FOND : chaque paragraphe est posé sur une photo et tient en ${PHOTO_OVERLAY_SLIDE_WORDS} mots au plus (il se lit en quelques secondes), en phrases courtes ; une idée par paragraphe. Ce plafond prime sur toute consigne de passages développés. Les détails secondaires passent dans caption.body, sans perdre d'idée.`;
+
+const countWords = (text: unknown) => typeof text === "string" ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+
+/** Numéros (depuis 1) des paragraphes trop longs du récit continu ; [] hors « Tes photos en fond ». */
+export function photoOverlayLongPassages(passages: unknown[], body: any): number[] {
+  if (!isPhotoOverlay(body)) return [];
+  return passages.flatMap((p, i) => countWords(p) > PHOTO_OVERLAY_LONG_WORDS ? [i + 1] : []);
+}
+
+const slideOverlayText = (s: any) => [s?.overlay_text, s?.kicker, s?.detail].filter((t) => typeof t === "string").join(" ");
+
+/** Défauts de longueur des slides rédigées (couverture exclue), pour la réparation de modes/photo.ts.
+ * Formulés sans « est trop longue » : cette formule demande une découpe en deux slides. */
+export function photoOverlayIssues(parsed: any, body: any): string[] {
+  const slides = parsed?.slides;
+  if (!isPhotoOverlay(body) || !Array.isArray(slides)) return [];
+  return slides.flatMap((s: any, i: number) => {
+    const n = countWords(slideOverlayText(s));
+    return i > 0 && n > PHOTO_OVERLAY_LONG_WORDS
+      ? [`La slide ${Number(s?.slide_number) || i + 1} porte trop de texte sur sa photo (${n} mots, ${PHOTO_OVERLAY_SLIDE_WORDS} au plus) : raccourcis-la en phrases courtes, sans ajouter de slide ; les détails passent dans caption.body.`]
+      : [];
+  });
+}
+
+export type Narrator = "je" | "nous";
+
+const outsideQuotes = (text: string) => text.replace(/«[^»]*»/g, " ").replace(/"[^"]*"/g, " ").replace(/“[^”]*”/g, " ");
+
+/** Marques de la 1re personne du singulier et du pluriel, hors citations. */
+export function narratorCounts(text: unknown): Record<Narrator, number> {
+  const t = outsideQuotes(String(text || "")).toLowerCase();
+  const je = (t.match(/(?<!\p{L})(?:je|moi|mon|ma|mes)(?!\p{L})|(?<!\p{L})[jm]['’](?=\p{L})/gu) || []).length;
+  const nous = (t.match(/(?<!\p{L})(?:nous|notre|nos)(?!\p{L})/gu) || []).length;
+  return { je, nous };
+}
+
+/** Personne de la fiche de marque (textes écrits par la personne), si elle est nette. */
+export function narratorFromBrand(brandText: unknown): Narrator | null {
+  const { je, nous } = narratorCounts(brandText);
+  if (je >= 3 && je >= 2 * nous) return "je";
+  if (nous >= 3 && nous >= 2 * je) return "nous";
+  return null;
+}
+
+/** Personne de la 1re slide (ou du 1er passage) qui en marque une. */
+function narratorOfFirst(passages: unknown[]): Narrator | null {
+  for (const p of passages) {
+    const { je, nous } = narratorCounts(p);
+    if (je !== nous) return je > nous ? "je" : "nous";
+  }
+  return null;
+}
+
+/** Narrateur incohérent : la marque dit « je » ici et « nous » là. `offenders` = numéros (depuis 1) des passages à reprendre. */
+export function photoNarratorCheck(passages: unknown[], body: any, brandText?: unknown): { target: Narrator; offenders: number[] } | null {
+  if (!isPhotoOverlay(body)) return null;
+  const counts = passages.map(narratorCounts);
+  if (!counts.some((c) => c.je > 0) || !counts.some((c) => c.nous > 0)) return null;
+  const target = narratorFromBrand(brandText) || narratorOfFirst(passages);
+  if (!target) return null;
+  const other: Narrator = target === "je" ? "nous" : "je";
+  const offenders = counts.flatMap((c, i) => c[other] > 0 ? [i + 1] : []);
+  return offenders.length ? { target, offenders } : null;
+}
+
+const NARRATOR_LABEL: Record<Narrator, string> = { je: "« je » (et « mon », « ma », « mes »)", nous: "« nous » (et « notre », « nos »)" };
+
+export function photoNarratorFix(target: Narrator): string {
+  return `Une seule personne pour la marque : ${NARRATOR_LABEL[target]} du début à la fin, sans changer le sens.`;
+}
+
+/** Consigne de rédaction : une seule personne pour la marque, celle de sa fiche si elle est nette. */
+export function photoNarratorRule(body: any, brandText?: unknown): string {
+  if (!isPhotoOverlay(body)) return "";
+  const brand = narratorFromBrand(brandText);
+  return brand
+    ? `NARRATEUR : la marque parle d'elle en ${NARRATOR_LABEL[brand]}, comme dans sa fiche. Garde cette personne sur toutes les slides et dans la légende ; ne passe jamais à l'autre (citations exceptées).`
+    : `NARRATEUR : choisis UNE personne pour parler de la marque, « je » ou « nous », selon sa voix, dès la 1re slide, et garde-la sur toutes les slides et dans la légende ; ne passe jamais de « nous » à « je » ni l'inverse (citations exceptées).`;
+}
+
+/** Défaut de narrateur des slides rédigées, pour la réparation de modes/photo.ts. */
+export function photoNarratorIssues(parsed: any, body: any, brandText?: unknown): string[] {
+  const slides = parsed?.slides;
+  if (!Array.isArray(slides)) return [];
+  const check = photoNarratorCheck(slides.map(slideOverlayText), body, brandText);
+  return check ? [`Narrateur incohérent (slides ${check.offenders.map((n) => Number(slides[n - 1]?.slide_number) || n).join(", ")}). ${photoNarratorFix(check.target)}`] : [];
+}
