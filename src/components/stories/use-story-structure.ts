@@ -7,10 +7,11 @@ import { useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { duplicateStoryAt, insertBlankStoryAfter, MAX_STORIES, moveStory } from "@/lib/story-sequence-ops";
 
-export function useStoryStructure({ stories, resetSignal, setStories, onStoriesUpdate, setCurrent, prepare }: {
+// Les clés ne repartent JAMAIS de zéro quand le parent renvoie la séquence
+// (enregistrement automatique, édition qui revient par la prop) : sinon toutes les
+// cartes sont recréées, l'aperçu se recharge et le curseur quitte le champ de texte.
+export function useStoryStructure({ stories, setStories, onStoriesUpdate, setCurrent, prepare }: {
   stories: any[];
-  /** Change quand le parent remplace la séquence : les clés repartent de zéro. */
-  resetSignal: string;
   setStories: (stories: any[]) => void;
   onStoriesUpdate?: (stories: any[]) => void;
   setCurrent: (index: number) => void;
@@ -19,11 +20,6 @@ export function useStoryStructure({ stories, resetSignal, setStories, onStoriesU
 }) {
   const keys = useRef<number[]>([]);
   const counter = useRef(0);
-  const lastReset = useRef(resetSignal);
-  if (lastReset.current !== resetSignal) {
-    keys.current = [];
-    lastReset.current = resetSignal;
-  }
   while (keys.current.length < stories.length) keys.current.push(++counter.current);
   if (keys.current.length > stories.length) keys.current = keys.current.slice(0, stories.length);
 

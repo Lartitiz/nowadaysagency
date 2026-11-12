@@ -18,6 +18,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { installFigeReplay, FIGES_DIR, LIVE_OK, expectZoneMatches } from "./fige-replay";
 import { sondeResultatActions } from "./resultat-actions-sonde";
+import { sondeGestesStories } from "./gestes-stories-sonde";
 import { sondeHauteurEditeur } from "./hauteur-editeur-sonde";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -251,6 +252,8 @@ test("contenus figés — story", async ({ page }) => {
     },
   })));
   await sondeResultatActions(page, "stories");
+  // Boutons Dupliquer / Après / Ajouter / Taille / Refaire (chantier 4, #1865) : présence seulement.
+  await sondeGestesStories(page);
   // Hauteur de la page et commandes visibles (chantier D, ligne 📏) : en tout dernier.
   await sondeHauteurEditeur(page, "stories");
 });
