@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readableShotPurpose, shotTypeLabel } from "@/lib/reel-shot-purpose";
+import { readableShotPurpose, shotTypeLabel, reelSectionName } from "@/lib/reel-shot-purpose";
 
 // Plan de tournage : les identifiants internes du script s'affichaient tels
 // quels (« section explication_1 », QA reel du 12/11/2026).
@@ -21,5 +21,21 @@ describe("readableShotPurpose", () => {
   it("nomme les types de plan sans anglicisme", () => {
     expect([shotTypeLabel("face_cam"), shotTypeLabel("insert"), shotTypeLabel("b_roll")])
       .toEqual(["🎤 Face caméra", "🔍 Gros plan", "🎬 Plan d'illustration"]);
+  });
+});
+
+// Fiche d'une idée et contenu du calendrier : « HOOK », « BODY », « CTA »
+// s'affichaient tels quels (essai de reprise du 12/11/2026).
+describe("reelSectionName", () => {
+  it.each([
+    [{ section: "hook" }, "Accroche"],
+    [{ section: "body" }, "Développement"],
+    [{ section: "body_2" }, "Passage 2"],
+    [{ section: "cta" }, "Fin"],
+    [{ section: "explication_1" }, "Explication 1"],
+    [{ section: "hook", label: "Le déclic" }, "Le déclic"],
+    [{}, ""],
+  ])("%j → %s", (section, expected) => {
+    expect(reelSectionName(section)).toBe(expected);
   });
 });

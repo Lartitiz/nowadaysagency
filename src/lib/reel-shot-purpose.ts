@@ -52,3 +52,23 @@ export function readableReelFormat(raw: unknown): string {
   if (/face[\s_-]*cam/.test(s)) return "Face caméra";
   return raw.trim();
 }
+
+/**
+ * Nom d'un passage du script, lisible : « hook », « body », « cta » sortaient
+ * tels quels dans la fiche d'une idée et dans le contenu du calendrier (essai
+ * de reprise du 12/11/2026). Le libellé écrit par la génération passe d'abord.
+ */
+export function reelSectionName(section: any): string {
+  const label = typeof section?.label === "string" ? section.label.trim() : "";
+  if (label) return label;
+  const raw = typeof section?.section === "string" ? section.section.trim() : "";
+  if (!raw) return "";
+  const key = raw.toLowerCase();
+  if (key === "hook") return "Accroche";
+  if (key === "cta") return "Fin";
+  if (key === "body") return "Développement";
+  const numbered = key.match(/^body[\s_]*(\d+)$/);
+  if (numbered) return `Passage ${numbered[1]}`;
+  const text = readableShotPurpose(raw);
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}

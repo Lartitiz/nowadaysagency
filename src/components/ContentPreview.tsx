@@ -1,4 +1,5 @@
 import { resumeCrosspost } from "@/lib/crosspost-content";
+import { reelSectionName } from "@/lib/reel-shot-purpose";
 import CrosspostSources from "@/components/crosspost/CrosspostSources";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
@@ -146,7 +147,7 @@ function ReelPreview({ data, compact, editable, onContentChange }: { data: any; 
 
   const handleCopyScript = () => {
     const text = localData.script?.map((s: any) =>
-      `[${s.timing}] ${s.section?.toUpperCase()}\n"${s.texte_parle}"${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`
+      `[${s.timing}] ${reelSectionName(s)}\n"${s.texte_parle}"${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`
     ).join("\n\n───\n\n") || "";
     navigator.clipboard.writeText(text);
     toast.success("Script copié !");
@@ -188,7 +189,7 @@ function ReelPreview({ data, compact, editable, onContentChange }: { data: any; 
           <div key={idx} className="border-b border-border pb-3 last:border-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-semibold text-muted-foreground uppercase">
-                {icon} {section.section} {section.timing && `(${section.timing})`}
+                {icon} {reelSectionName(section)} {section.timing && `(${section.timing})`}
               </span>
             </div>
             {section.format_visuel != null && (
