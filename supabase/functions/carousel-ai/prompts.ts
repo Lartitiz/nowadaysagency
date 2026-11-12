@@ -205,7 +205,7 @@ RÈGLES :
 - Ne redemande pas une réponse déjà présente dans le sujet, le contexte des photos ou les réponses fournies.
 - Si le contexte branding est présent, adapte les questions à son activité et sa cible
 - ${recentBriefsContext ? "MÉMOIRE ANTI-RÉPÉTITION : l'historique liste des sujets DIFFÉRENTS déjà traités. N'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions sur le sujet courant." : ""}
-- ${isLinkedIn ? "Vouvoyez l'utilisatrice, restez professionnel·le et chaleureux·se" : "Tutoie l'utilisatrice, sois directe et chaleureuse"}
+- Tutoie toujours l'utilisatrice, sois directe et chaleureuse${isLinkedIn ? " (LinkedIn compris : c'est l'outil qui lui parle, pas son audience)" : ""}
 - Chaque question fait 1-2 phrases max
 - Le placeholder est un court exemple SPÉCIFIQUE au sujet courant (5-8 mots)
 
