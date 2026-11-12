@@ -6,7 +6,8 @@
  * (#1884), Avant / Après / Dupliquer / Ajouter / Refaire sont dans le menu « … »
  * (« Actions sur la story 1 ») : la sonde l'ouvre, lit ses entrées, le referme. Elle écrit
  * une ligne lue par la visite du matin (consigne 7duodecies) :
- *   🎬 Gestes des stories (1440 px) : 6/6 ✅
+ *   🎬 Gestes des stories : ordi 6/6 ✅ · téléphone 6/6 ✅ (dont 4 dans le menu « … »)
+ * La spec ne tourne qu'en ordi : la sonde passe elle-même en 390 × 844, puis remet la taille.
  *
  * Pourquoi : les tests CI (`story-result-sequence-gestures`) vérifient le code, mais
  * rien ne regardait si ces boutons sont bien affichés EN LIGNE (une retouche Lovable
@@ -25,35 +26,45 @@ const GESTES: { nom: string; role: "button" | "group"; name: string; menu?: stri
 ];
 
 export async function sondeGestesStories(page: Page) {
-  const largeur = page.viewportSize()?.width ?? "?";
+  const avant = page.viewportSize();
+  const parts: string[] = [];
   try {
-    const tab = page.getByRole("button", { name: "Voir la story 1" });
-    if (await tab.isVisible().catch(() => false)) await tab.click();
-    await page.waitForTimeout(500);
-    const visibles = new Set<string>();
-    for (const g of GESTES) {
-      if (await page.getByRole(g.role, { name: g.name, exact: true }).first().isVisible().catch(() => false)) visibles.add(g.nom);
+    for (const vp of [{ nom: "ordi", width: 1440, height: 900 }, { nom: "téléphone", width: 390, height: 844 }]) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.waitForTimeout(800);
+      parts.push(`${vp.nom} ${await compter(page)}`);
     }
-    let dansLeMenu = 0;
-    const menu = page.getByRole("button", { name: "Actions sur la story 1", exact: true });
-    if (GESTES.some((g) => g.menu && !visibles.has(g.nom)) && (await menu.isVisible().catch(() => false))) {
-      await menu.click();
-      await page.getByRole("menu").first().waitFor({ timeout: 5000 }).catch(() => {});
-      for (const g of GESTES) {
-        if (!g.menu || visibles.has(g.nom)) continue;
-        if (await page.getByRole("menuitem", { name: g.menu, exact: true }).first().isVisible().catch(() => false)) {
-          visibles.add(g.nom);
-          dansLeMenu++;
-        }
-      }
-      await page.keyboard.press("Escape");
-    }
-    const manquants = GESTES.filter((g) => !visibles.has(g.nom)).map((g) => g.nom);
-    const ok = GESTES.length - manquants.length;
-    console.log(
-      `🎬 Gestes des stories (${largeur} px) : ${ok}/${GESTES.length}${dansLeMenu ? ` (dont ${dansLeMenu} dans le menu « … »)` : ""} ${manquants.length ? `🟠 manquants : ${manquants.join(", ")}` : "✅"}`,
-    );
+    console.log(`🎬 Gestes des stories : ${parts.join(" · ")}`);
   } catch (e) {
-    console.log(`🎬 Gestes des stories (${largeur} px) : non vérifié (${e instanceof Error ? e.message.slice(0, 80) : "?"})`);
+    console.log(`🎬 Gestes des stories : ${[...parts, `non vérifié (${e instanceof Error ? e.message.slice(0, 80) : "?"})`].join(" · ")}`);
+  } finally {
+    if (avant) await page.setViewportSize(avant).catch(() => {});
   }
+}
+
+async function compter(page: Page): Promise<string> {
+  const tab = page.getByRole("button", { name: "Voir la story 1" });
+  if (await tab.isVisible().catch(() => false)) await tab.click();
+  await page.waitForTimeout(500);
+  const visibles = new Set<string>();
+  for (const g of GESTES) {
+    if (await page.getByRole(g.role, { name: g.name, exact: true }).first().isVisible().catch(() => false)) visibles.add(g.nom);
+  }
+  let dansLeMenu = 0;
+  const menu = page.getByRole("button", { name: "Actions sur la story 1", exact: true });
+  if (GESTES.some((g) => g.menu && !visibles.has(g.nom)) && (await menu.isVisible().catch(() => false))) {
+    await menu.click();
+    await page.getByRole("menu").first().waitFor({ timeout: 5000 }).catch(() => {});
+    for (const g of GESTES) {
+      if (!g.menu || visibles.has(g.nom)) continue;
+      if (await page.getByRole("menuitem", { name: g.menu, exact: true }).first().isVisible().catch(() => false)) {
+        visibles.add(g.nom);
+        dansLeMenu++;
+      }
+    }
+    await page.keyboard.press("Escape");
+  }
+  const manquants = GESTES.filter((g) => !visibles.has(g.nom)).map((g) => g.nom);
+  const ok = GESTES.length - manquants.length;
+  return `${ok}/${GESTES.length} ${manquants.length ? `🟠 manquants : ${manquants.join(", ")}` : "✅"}${dansLeMenu ? ` (dont ${dansLeMenu} dans le menu « … »)` : ""}`;
 }
