@@ -53,6 +53,7 @@ export function computeDraftConflict({
     locState.context ||
     locState.libraryPhotoIds?.length ||
     locState.resumeIdea ||
+    locState.resumeDraft ||
     paramIdeaId ||
     paramAuto ||
     paramFormat ||
@@ -64,10 +65,16 @@ export function computeDraftConflict({
   // Rouvrir depuis Mes idées le contenu déjà en cours, à l'identique : rien à
   // arbitrer (audit du 01/11). Au moindre écart (retouche ailleurs), on demande.
   if (typeof locState.ideaId === "string" && locState.ideaId === d.editingIdeaId && sameContent(d.result?.raw, locState.resumeIdea?.raw)) return null;
+  // Brouillon rouvert depuis Mes idées alors qu'il est déjà ouvert ici : on garde l'onglet.
+  if (locState.resumeDraft && typeof locState.ideaId === "string" && locState.ideaId === d.editingIdeaId) return null;
   // Même sujet que le brouillon → pas de conflit, on reprend simplement.
-  const hasSource = !!(paramIdeaId || locState.ideaId || locState.fromBrief || locState.fromCalendar || locState.fromRecycle || locState.resumeIdea || locState.libraryPhotoIds?.length);
+  const hasSource = !!(paramIdeaId || locState.ideaId || locState.fromBrief || locState.fromCalendar || locState.fromRecycle || locState.resumeIdea || locState.resumeDraft || locState.libraryPhotoIds?.length);
   if (!isFreshStart && !hasSource && newSubject && newSubject === d.ideaText?.trim()) return null;
+  // Un sujet seulement tapé (1re étape, sans photo) n'est pas rangé dans Mes
+  // idées : la nouvelle demande le remplace sans fenêtre (choix du 13/11/2026).
+  const replaceSilently = d.step === "idea" && photoCount === 0 && !d.result && !d.editContent;
   return {
+    replaceSilently,
     draft: {
       step: d.step,
       ideaText: d.ideaText || "",
@@ -85,7 +92,11 @@ export function computeDraftConflict({
     },
     // Reprise d'un contenu déjà écrit (calendrier, Mes idées) : la fenêtre
     // parle d'ouvrir ce contenu, pas d'en démarrer un nouveau (QA du 12/11/2026).
-    resuming: !!locState.resumeIdea,
-    newSubject: newSubject || (locState.resumeIdea ? String(locState.theme || locState.resumeIdea.raw?.subject || "").trim() : ""),
+    resuming: !!(locState.resumeIdea || locState.resumeDraft),
+    newSubject: newSubject
+      || (locState.resumeIdea ? String(locState.theme || locState.resumeIdea.raw?.subject || "").trim() : "")
+      || (locState.resumeDraft ? String(locState.resumeDraft.flow?.ideaText || locState.resumeDraft.flow?.photoSubject || "").trim() : ""),
+    /** Brouillon de l'onglet tel quel : comparé à sa fiche de Mes idées (use-silent-draft-switch.ts). */
+    flow: existingFlowState ?? null,
   };
 }
