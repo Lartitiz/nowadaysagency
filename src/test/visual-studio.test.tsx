@@ -183,7 +183,7 @@ it("remplace les anciennes actions par une question libre dans le chat", async (
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  expect(screen.getByText("Voilà l’image. Qu’est-ce que tu veux faire maintenant ? Réponds-moi directement ici.")).toBeInTheDocument();
+  expect(await screen.findByText("Voilà l’image. Qu’est-ce que tu veux faire maintenant ? Réponds-moi directement ici.")).toBeInTheDocument();
   expect(screen.queryByText(/Avec cette image, tu peux/)).not.toBeInTheDocument();
   const gallery = screen.getByRole("region", { name: "Visuels et versions" });
   expect(within(gallery).queryByRole("button", { name: "Image sélectionnée" })).not.toBeInTheDocument();
@@ -701,7 +701,7 @@ it("invites the user to continue an AI-generated poster in the chat", async () =
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  expect(screen.getByText("Voilà l’image. Qu’est-ce que tu veux faire maintenant ? Réponds-moi directement ici.")).toBeInTheDocument();
+  expect(await screen.findByText("Voilà l’image. Qu’est-ce que tu veux faire maintenant ? Réponds-moi directement ici.")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "finaliser l’affiche avec ses textes" })).not.toBeInTheDocument();
 });
 
