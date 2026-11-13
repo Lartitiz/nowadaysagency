@@ -66,3 +66,29 @@ describe("canaux envoyés au diagnostic", () => {
     expect(body).not.toMatch(/"website"|"linkedin"/);
   });
 });
+
+describe("attente annoncée honnêtement", () => {
+  it("annonce une durée et le temps écoulé, sans alarme à 15 ni à 30 s", async () => {
+    vi.useFakeTimers();
+    render(<DiagnosticLoading {...props} />);
+    expect(screen.getByTestId("diagnostic-time-hint")).toHaveTextContent("Compte 1 à 2 minutes. Déjà 0 s");
+    await act(async () => { vi.advanceTimersByTime(35_000); });
+    expect(screen.getByTestId("diagnostic-time-hint")).toHaveTextContent("Déjà 35 s");
+    expect(screen.queryByText(/plus de temps que prévu|diagnostic simplifié|plus long/)).not.toBeInTheDocument();
+  });
+
+  it("annonce environ 1 minute sans source, et ne dit « plus long » qu'après 90 s", async () => {
+    vi.useFakeTimers();
+    render(<DiagnosticLoading {...props} hasWebsite={false} answers={{ ...props.answers, website: "" }} />);
+    expect(screen.getByTestId("diagnostic-time-hint")).toHaveTextContent("Compte environ 1 minute");
+    await act(async () => { vi.advanceTimersByTime(91_000); });
+    expect(screen.getByTestId("diagnostic-time-hint")).toHaveTextContent("C'est plus long que d'habitude, je continue. Déjà 1 min 31");
+  });
+
+  it("montre tout de suite ses réponses en mots, pas en clés", () => {
+    render(<DiagnosticLoading {...props} answers={{ ...props.answers, activite: "Céramiste", canaux: ["instagram", "website"] }} />);
+    const recap = screen.getByTestId("diagnostic-recap");
+    expect(recap).toHaveTextContent("Ton activité : Céramiste");
+    expect(recap).toHaveTextContent("Tes canaux : Instagram, Site web");
+  });
+});
