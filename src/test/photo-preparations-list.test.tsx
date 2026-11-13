@@ -1,9 +1,10 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-const mock = vi.hoisted(() => ({ list: vi.fn() }));
-vi.mock("@/lib/photo-workflows", () => ({ listPhotoWorkflows: mock.list }));
+const mock = vi.hoisted(() => ({ list: vi.fn(), remove: vi.fn() }));
+vi.mock("@/lib/photo-workflows", () => ({ listPhotoWorkflows: mock.list, deletePhotoWorkflow: mock.remove }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import { PhotoPreparationsPanel } from "@/components/photos/PhotoPreparationsPanel";
-afterEach(() => { cleanup(); mock.list.mockReset(); });
+afterEach(() => { cleanup(); mock.list.mockReset(); mock.remove.mockReset(); });
 it("ignores late reads from another workspace and resumes the selected row", async () => {
   let finishA: (rows: any[]) => void = () => {};
   const b = {id:"b",name:"Préparation B",workspace_id:"B"};
@@ -11,10 +12,10 @@ it("ignores late reads from another workspace and resumes the selected row", asy
   const resume=vi.fn();
   const view=render(<PhotoPreparationsPanel workspaceId="A" onResume={resume} />);
   view.rerender(<PhotoPreparationsPanel workspaceId="B" onResume={resume} />);
-  await screen.findByRole("button",{name:/Préparation B/});
+  await screen.findByRole("button",{name:/^Préparation B/});
   await act(async()=>finishA([{id:"a",name:"Préparation A",workspace_id:"A"}]));
   expect(screen.queryByText("Préparation A")).toBeNull();
-  fireEvent.click(screen.getByRole("button",{name:/Préparation B/}));
+  fireEvent.click(screen.getByRole("button",{name:/^Préparation B/}));
   expect(resume).toHaveBeenCalledWith(b);
 });
 it("distinguishes a failed read from an empty collection and allows retry", async () => {
@@ -24,4 +25,23 @@ it("distinguishes a failed read from an empty collection and allows retry", asyn
   expect(screen.queryByText(/Aucune préparation/)).toBeNull();
   fireEvent.click(screen.getByRole("button",{name:"Réessayer"}));
   await screen.findByText(/Aucune préparation/);
+});
+it("deletes a preparation only after confirmation, and keeps it when deletion fails", async () => {
+  const keep = { id: "k", name: "Garder", workspace_id: "A" }, drop = { id: "d", name: "Essai penché", workspace_id: "A" };
+  mock.list.mockResolvedValue([keep, drop]);
+  const resume = vi.fn();
+  render(<PhotoPreparationsPanel workspaceId="A" onResume={resume} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Supprimer la préparation Essai penché" }));
+  expect(resume).not.toHaveBeenCalled();
+  expect(screen.getByText(/Les photos déjà enregistrées dans Mes photos/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+  expect(mock.remove).not.toHaveBeenCalled();
+  mock.remove.mockRejectedValueOnce(new Error("hors ligne")).mockResolvedValueOnce(undefined);
+  fireEvent.click(screen.getByRole("button", { name: "Supprimer la préparation Essai penché" }));
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Supprimer la préparation" })); });
+  expect(screen.getByText("Essai penché")).toBeTruthy();
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Supprimer la préparation" })); });
+  expect(mock.remove).toHaveBeenLastCalledWith("d", "A");
+  expect(screen.queryByText("Essai penché")).toBeNull();
+  expect(screen.getByText("Garder")).toBeTruthy();
 });

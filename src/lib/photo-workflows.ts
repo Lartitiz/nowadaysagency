@@ -42,6 +42,14 @@ export async function listPhotoWorkflows(workspaceId: string, kind: PhotoWorkflo
   if (error) throw new Error("Les préparations enregistrées sont indisponibles. Réessaie dans un instant.");
   return data as PhotoWorkflowRow[];
 }
+/** Removes only the saved recipe: copies already saved in Mes photos or the calendar are separate rows and stay. */
+export async function deletePhotoWorkflow(id: string, workspaceId: string) {
+  if (!validPhotoId(id) || !validPhotoId(workspaceId)) throw new Error("Cette préparation est introuvable.");
+  const { data, error } = await db.from("photo_workflows").delete().eq("id", id).eq("workspace_id", workspaceId)
+    .eq("kind", "preparation").select("id");
+  if (error) throw new Error("La suppression a échoué. Réessaie dans un instant.");
+  if (!data?.length) throw new Error("Cette préparation a déjà été supprimée ou n’est plus accessible.");
+}
 export async function savePhotoWorkflow(row: Omit<PhotoWorkflowRow, "updated_at">) {
   if (!validPhotoId(row.workspace_id) || !validPhotoId(row.user_id)) throw new Error("Espace de travail indisponible.");
   // An update uses the existing creator; collaborators must not pass an INSERT policy.
