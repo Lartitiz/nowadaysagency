@@ -82,7 +82,7 @@ Ce qui te rend unique : pièces uniques faites main
 ⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -96,7 +96,7 @@ Ce qui te rend unique : pièces uniques faites main
         },
       ],
       model: "claude-sonnet-4-6",
-      system: "<prompt système : 7068 car., voir prompts_snapshot_test.ts>",
+      system: "<prompt système : 7071 car., voir prompts_snapshot_test.ts>",
       temperature: 0.7,
       tool_choice: {
         name: "rendre_diagnostic",
@@ -133,7 +133,7 @@ Ce qui te rend unique : pièces uniques faites main
 ⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -401,7 +401,7 @@ Ce qui te rend unique : pièces uniques faites main
 Je façonne des bols et des tasses en grès dans mon atelier à Lyon.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -415,7 +415,7 @@ Je façonne des bols et des tasses en grès dans mon atelier à Lyon.
         },
       ],
       model: "claude-sonnet-4-6",
-      system: "<prompt système : 7068 car., voir prompts_snapshot_test.ts>",
+      system: "<prompt système : 7071 car., voir prompts_snapshot_test.ts>",
       temperature: 0.7,
       tool_choice: {
         name: "rendre_diagnostic",
@@ -453,7 +453,7 @@ Ce qui te rend unique : pièces uniques faites main
 Je façonne des bols et des tasses en grès dans mon atelier à Lyon.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -720,7 +720,7 @@ Ce qui te rend unique : pièces uniques faites main
 ⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -734,7 +734,7 @@ Ce qui te rend unique : pièces uniques faites main
         },
       ],
       model: "claude-sonnet-4-6",
-      system: "<prompt système : 7068 car., voir prompts_snapshot_test.ts>",
+      system: "<prompt système : 7071 car., voir prompts_snapshot_test.ts>",
       temperature: 0.7,
       tool_choice: {
         name: "rendre_diagnostic",
@@ -778,7 +778,7 @@ Ce qui te rend unique : pièces uniques faites main
 ⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -1070,7 +1070,7 @@ Ce qui te rend unique : pièces uniques faites main
 ⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -1084,7 +1084,7 @@ Ce qui te rend unique : pièces uniques faites main
         },
       ],
       model: "claude-sonnet-4-6",
-      system: "<prompt système : 7068 car., voir prompts_snapshot_test.ts>",
+      system: "<prompt système : 7071 car., voir prompts_snapshot_test.ts>",
       temperature: 0.7,
       tool_choice: {
         name: "rendre_diagnostic",
@@ -1120,7 +1120,7 @@ Ce qui te rend unique : pièces uniques faites main
 ⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -1853,7 +1853,7 @@ Ce qui te rend unique : pièces uniques faites main
 ⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -2071,7 +2071,7 @@ Ce qui te rend unique : pièces uniques faites main
 ⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -2351,7 +2351,7 @@ Ce qui te rend unique : pièces uniques faites main
 Atelier de céramique à Lyon. Réserver un atelier.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -2383,7 +2383,7 @@ Ce qui te rend unique : pièces uniques faites main
 Atelier de céramique à Lyon. Réserver un atelier.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -2437,7 +2437,7 @@ Ce qui te rend unique : pièces uniques faites main
 Atelier de céramique à Lyon.
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -2548,7 +2548,7 @@ Priorité de changement : être visible
 Ce qui te rend unique : pièces uniques faites main
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
@@ -2617,7 +2617,7 @@ Ce qui te rend unique : pièces uniques faites main
 ⚠️ Sources non analysées (scraping échoué) : instagram_public, LinkedIn, social_screenshot, Site web (monsite.fr). NE PAS inventer de score pour ces sources. Mettre leur score à null dans "scores".
 
 === CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.

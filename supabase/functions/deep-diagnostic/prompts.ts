@@ -55,7 +55,7 @@ Pour chacune des 3 priorités, donne une raison liée à une preuve observée, u
 === FORMAT JSON (pas de markdown, pas de backticks) ===
 
 {
-  "summary": "3-4 phrases qui reformulent les mots de la personne. Elle doit se dire 'oui c'est exactement moi'.",
+  "summary": "3-4 phrases qui reformulent les mots de la personne. Elle doit se dire « oui, c'est exactement moi ».",
   "screenshot_readable": false,
   "strengths": [{ "title": "titre court", "detail": "élément observable", "source": "website|profile|about|instagram_public|instagram_screenshot|linkedin_screenshot|social_screenshot|instagram_connected|instagram_insights|linkedin|linkedin_analytics" }],
   "weaknesses": [{ "title": "titre court", "detail": "élément observable et limite de l'inférence", "source": "website|profile|about|instagram_public|instagram_screenshot|linkedin_screenshot|social_screenshot|instagram_connected|instagram_insights|linkedin|linkedin_analytics", "fix_hint": "piste concrète" }],
@@ -151,7 +151,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
 
   // Final instructions
   userParts.push(`=== CONSIGNES FINALES ===
-- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
