@@ -103,12 +103,12 @@ export default function CguCgvPage() {
               <li><strong>Paiement unique "Ton binôme de com'" :</strong> 1 950 € HT en une fois (2 340 € TTC).</li>
               <li><strong>Packs de crédits bonus :</strong> 3,90 € HT, soit 4,68 € TTC (10 crédits) ; 8,90 € HT, soit 10,68 € TTC (30 crédits) ; 14,90 € HT, soit 17,88 € TTC (60 crédits). Ces crédits n'expirent jamais et s'ajoutent à ton quota mensuel de générations IA une fois celui-ci atteint. Ils ne s'appliquent pas aux plafonds de carrousels, d'images et de vidéos. Avec le plan Premium, les textes étant déjà sans compter, ces packs concernent surtout le plan Gratuit.</li>
             </ul>
-            <p className="text-muted-foreground mt-2">Les prix sont indiqués hors taxes (HT). La TVA au taux en vigueur (20 % en France) s'ajoute au moment du paiement et apparaît sur la facture. Les abonnements souscrits avant le 13 novembre 2026 gardent le même montant mensuel, TVA comprise.</p>
+            <p className="text-muted-foreground mt-2">Les prix sont indiqués hors taxes (HT). La TVA applicable (20 % en France) est calculée selon ton adresse de facturation, s'ajoute au moment du paiement et apparaît sur la facture : le montant TTC est indiqué à côté de chaque prix. Les abonnements souscrits avant le 13 novembre 2026 gardent leur montant mensuel actuel, TVA comprise, à chaque renouvellement.</p>
             <p className="text-muted-foreground mt-2">
               Les tarifs peuvent être modifiés à tout moment. Les modifications s'appliquent aux nouveaux abonnements et aux renouvellements, jamais en cours de période.
             </p>
             <p className="italic text-muted-foreground mt-3">
-              "(En résumé : le prix affiché est le prix que tu paies. Pas de frais cachés, pas de surprises.)"
+              "(En résumé : le montant TTC indiqué à côté de chaque prix est ce que tu paies. Pas de frais cachés, pas de surprises.)"
             </p>
           </div>
 
