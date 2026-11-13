@@ -5,7 +5,7 @@
 > dans une autre session. **Le reel est exclu de cet audit.**
 >
 > Règle de tri (Laetitia) : d'abord les parties importantes (carrousel, idées,
-> actualité, vidéo, création /creer) et ce que servent au moins 3 clientes en
+> actualité, vidéo, création /creer) et ce dont se servent au moins 3 clientes en
 > 60 jours. Usage tiré des relevés du 15 et du 17/10/2026
 > (`~/Developer/GitHub/plan-simplicite-creation.md`, section 1.7).
 
@@ -63,7 +63,9 @@ rapide du calendrier, épingles Pinterest, Coach IA.
 
 ### 2. Les stories, le post LinkedIn et la newsletter de /creer 🟠 (fonction serveur)
 
-- **Qui** : les textes de /creer, 42 créations par 5 clientes en 60 jours.
+- **Qui** : l'ensemble des textes de /creer, 42 créations par 5 clientes en
+  60 jours, post Instagram compris (qui s'écrit déjà en flux). La part des
+  seules stories, LinkedIn et newsletter n'est pas comptée : à relever avant.
 - **Aujourd'hui** : rectangles ou lignes gris et phrases qui tournent pendant
   ~1 min. Le serveur a pourtant un texte complet dès la fin de la rédaction,
   avant la relecture qualité : on le garde caché.
