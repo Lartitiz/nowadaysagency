@@ -2,8 +2,12 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 
-const mocks = vi.hoisted(() => ({ insert: vi.fn(), success: vi.fn(), error: vi.fn() }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => ({ insert: mocks.insert }) } }));
+const mocks = vi.hoisted(() => ({ insert: vi.fn(), success: vi.fn(), error: vi.fn(), read: vi.fn(), updateEq: vi.fn() }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => ({
+  insert: mocks.insert,
+  update: () => ({ eq: mocks.updateEq }),
+  select: () => ({ eq: () => ({ maybeSingle: mocks.read }) }),
+}) } }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "test-user" } }) }));
 vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "workspace" }));
 vi.mock("sonner", () => ({ toast: { success: mocks.success, error: mocks.error } }));
@@ -11,6 +15,28 @@ const draft = { step: "result", ideaText: "Ma collection", selectedFormat: "caro
 
 describe("protecting the current draft", () => {
   beforeEach(() => vi.clearAllMocks());
+  // 13/11/2026 : la fiche ouverte est un carrousel, le brouillon est devenu un reel.
+  it("never overwrites the stored idea of another format: saves a new one", async () => {
+    mocks.insert.mockResolvedValue({ error: null });
+    mocks.read.mockResolvedValue({ data: { format: "carousel", content_data: { slides: [{ title: "Slide" }] } }, error: null });
+    const onStartNew = vi.fn();
+    const reel = { step: "result", ideaText: "Visite", selectedFormat: "reel", result: { type: "reel", raw: { script: [{ texte_parle: "Bonjour" }] } }, editContent: "", editingIdeaId: "carousel-idea" };
+    render(<DraftConflictDialog open draft={reel} newSubject="Nouveau" onResume={vi.fn()} onStartNew={onStartNew} />);
+    fireEvent.click(screen.getByRole("button", { name: "Démarrer le nouveau contenu" }));
+    await waitFor(() => expect(onStartNew).toHaveBeenCalledTimes(1));
+    expect(mocks.updateEq).not.toHaveBeenCalled();
+    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ format: "reel" }));
+  });
+  it("updates the stored idea when it has the same format", async () => {
+    mocks.updateEq.mockResolvedValue({ error: null });
+    mocks.read.mockResolvedValue({ data: { format: "carousel", content_data: { slides: [{ title: "Avant" }] } }, error: null });
+    const onStartNew = vi.fn();
+    render(<DraftConflictDialog open draft={{ ...draft, editingIdeaId: "carousel-idea" }} newSubject="Nouveau" onResume={vi.fn()} onStartNew={onStartNew} />);
+    fireEvent.click(screen.getByRole("button", { name: "Démarrer le nouveau contenu" }));
+    await waitFor(() => expect(onStartNew).toHaveBeenCalledTimes(1));
+    expect(mocks.updateEq).toHaveBeenCalledWith("id", "carousel-idea");
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
   it("does not start the new flow if saving fails", async () => {
     mocks.insert.mockResolvedValue({ error: new Error("offline") });
     const onStartNew = vi.fn();

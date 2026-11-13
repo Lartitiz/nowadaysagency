@@ -134,6 +134,27 @@ describe("SaveToIdeasDialog — contrôle de version d'une idée existante", () 
     seedIdea();
   });
 
+  // 13/11/2026 : un reel s'était enregistré dans la fiche d'un carrousel (slides perdues).
+  it("range un contenu d'un autre format dans une nouvelle fiche, sans toucher l'ancienne", async () => {
+    const carousel = { slides: [{ title: "Slide 1" }, { title: "Slide 2" }] };
+    Object.assign(db.rows.get("idea-1")!, { format: "carousel", content_data: carousel });
+    const props = mount({ contentType: "reel", format: "reel", contentData: { script: [{ texte_parle: "Bonjour" }] } });
+    clickSave();
+    await waitFor(() => expect(props.onSaved).toHaveBeenCalledWith("copy-1", true));
+    expect(db.updates).toHaveLength(0);
+    expect(db.rows.get("idea-1")!.content_data).toEqual(carousel);
+    expect(db.inserts[0]).toMatchObject({ format: "reel" });
+  });
+
+  it("une idée encore vide reçoit le contenu, quel que soit son format", async () => {
+    Object.assign(db.rows.get("idea-1")!, { format: "carousel", content_data: null });
+    const props = mount({ contentType: "reel", format: "reel", contentData: { script: [{ texte_parle: "Bonjour" }] } });
+    clickSave();
+    await waitFor(() => expect(props.onSaved).toHaveBeenCalledWith("idea-1", true));
+    expect(db.inserts).toHaveLength(0);
+    expect(db.rows.get("idea-1")!.format).toBe("reel");
+  });
+
   it("met à jour l'idée quand personne ne l'a modifiée depuis son ouverture", async () => {
     const props = mount();
     clickSave();
@@ -156,6 +177,7 @@ describe("SaveToIdeasDialog — contrôle de version d'une idée existante", () 
   });
 
   it("visuels ajoutés après le texte : le 2ᵉ enregistrement ne voit pas de faux conflit", async () => {
+    db.rows.get("idea-1")!.format = "carousel";
     const props = mount({
       format: "carousel",
       visualSlides: [{ slide_number: 1, html: "<div>1</div>" }],
