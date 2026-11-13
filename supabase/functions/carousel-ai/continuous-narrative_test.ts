@@ -11,6 +11,7 @@ import {
   parseNarrative,
   usesContinuousNarrative,
   RECIT_CONTINU_SOLUTION_FIN,
+  closingQuestion,
 } from "./continuous-narrative.ts";
 import {
   audienceAddressRule,
@@ -455,4 +456,14 @@ Deno.test("fin du récit (13/11/2026) : solution sur les slides, nuance avant, u
   for (const part of ["reste dans paragraphs", "jamais en avant-dernier paragraphe", "UNE ouverture tirée du sujet", "Jamais commerciale", "La couverture (hook) promet ce que la fin conclut"]) {
     assert(RECIT_CONTINU_SOLUTION_FIN.includes(part), part);
   }
+});
+
+Deno.test("fin du récit : la question finale de la dernière slide remplit un cta vide, sans rien inventer", () => {
+  assertEquals(closingQuestion("Le risque se concentre dans un lot, alors je le traite d'abord. Sur votre dernière opération, lequel est parti en dernier, et à quel prix ?"), "Sur votre dernière opération, lequel est parti en dernier, et à quel prix ?");
+  assertEquals(closingQuestion("Une fin sans question."), "");
+  assertEquals(closingQuestion(undefined), "");
+  const raw = (cta: string, last: string) => JSON.stringify({ idea: "Idée", hook: "Accroche", paragraphs: ["Un.", "Deux.", last], caption: { hook: "h", body: "b", cta, hashtags: [] } });
+  assertEquals(parseNarrative(raw("", "Et vous, lequel part en dernier ?")).caption.cta, "Et vous, lequel part en dernier ?");
+  assertEquals(parseNarrative(raw("Dis-moi en commentaire.", "Et vous, lequel part en dernier ?")).caption.cta, "Dis-moi en commentaire.");
+  assertEquals(parseNarrative(raw("", "Fin affirmée.")).caption.cta, "");
 });
