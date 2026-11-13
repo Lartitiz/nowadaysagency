@@ -59,6 +59,19 @@ export function usesContinuousNarrative(body: any): boolean {
     );
 }
 
+/**
+ * Solution, nuance et fin du récit continu photo et mixte (13/11/2026).
+ * Carrousel « découpe d'immeuble » : le scénario qui répondait au sujet était
+ * parti dans la légende, la nuance tombait juste avant la fin, la dernière
+ * slide restait floue et sans ouverture, la couverture disait « en premier »
+ * quand la fin disait « en même temps ».
+ */
+export const RECIT_CONTINU_SOLUTION_FIN = `SOLUTION, NUANCE ET FIN
+Ce qui répond à la question ouverte par le sujet (la solution, la méthode, les leviers concrets, le « comment » ; pour un exemple qui compare deux cas, les deux cas) reste dans paragraphs. Ce n'est jamais un détail secondaire à déplacer dans caption.body : si la place manque, ce sont les illustrations secondaires qui passent en légende, ou, quand le nombre de slides est libre, ajoute un paragraphe dans la limite permise.
+Une nuance ou une limite se place avant la solution ou la conclusion qu'elle encadre ; jamais en avant-dernier paragraphe, juste avant la fin, où elle casserait l'élan.
+FIN : le dernier paragraphe conclut sur ce que le lecteur doit retenir, en termes concrets (pas « son traitement » sans dire lequel), puis se termine par UNE ouverture tirée du sujet : soit un geste précis que le lecteur peut faire seul sur son propre cas, soit une question simple à laquelle il peut répondre en commentaire. Elle prolonge la dernière idée et se comprend sans la légende. Jamais commerciale, jamais vague (« N'hésitez pas », « Et vous ? »), aucune destination inventée (lien, message privé, offre, rendez-vous) sauf si la demande la donne.
+La couverture (hook) promet ce que la fin conclut, avec la même force : ne lui fais pas dire plus, ni autre chose, que le texte (par exemple « en premier » quand la fin dit « en même temps »).`;
+
 /** Tout le texte public d'un récit (couverture, paragraphes, légende). */
 export function narrativeText(n: Narrative): string {
   return [n.hook, ...n.paragraphs, n.caption.hook, n.caption.body, n.caption.cta]
@@ -306,12 +319,13 @@ Choisis UNE proposition précise qui mérite d'être développée avec les faits
 Une présentation factuelle bien liée ne suffit pas à une demande de récit : chaque paragraphe doit faire avancer ce que tu défends, pas ouvrir une nouvelle rubrique. Ne donne pas toute la réponse immédiatement pour remplir ensuite avec des descriptions. Pas de suspense artificiel. Une demande explicite de liste, tutoriel ou catalogue conserve sa forme.
 Les photos seront placées ensuite. Leur contexte peut éclairer les faits, mais leur ordre, leurs couleurs et leurs motifs ne dictent pas ton texte. Aucune référence « sur cette photo ». Ne fabrique ni conviction intime, ni souvenir ni fait technique pour rendre le propos intéressant. Tu peux développer une interprétation prudente de faits attestés.
 Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas à ordonner les paragraphes. photo_mismatch est réservé à une contradiction frontale avec une chose concrète que la demande promet de montrer ; retourne alors sa raison, sans inventer un récit. Un décalage d'ambiance ou une illustration indirecte ne justifient pas ce refus.
-Écris hook (accroche de couverture : 4 à 10 mots qui créent une tension ou un manque, jamais un titre-étiquette), puis paragraphs : les paragraphes PUBLICS successifs, sans titres de rubriques ni consignes pour un futur rédacteur. ${RECIT_CONTINU_PARAGRAPHE} Le dernier termine réellement ce propos, sans ouvrir automatiquement une offre commerciale. Caption résume fidèlement ; cta vide si aucune invitation utile n'est demandée. idea nomme précisément la proposition développée.`,
+Écris hook (accroche de couverture : 4 à 10 mots qui créent une tension ou un manque, jamais un titre-étiquette), puis paragraphs : les paragraphes PUBLICS successifs, sans titres de rubriques ni consignes pour un futur rédacteur. ${RECIT_CONTINU_PARAGRAPHE} Le dernier termine réellement ce propos (voir FIN ci-dessous), sans ouvrir automatiquement une offre commerciale. Caption résume fidèlement ; caption.cta reprend en une phrase l'ouverture de la fin. idea nomme précisément la proposition développée.`,
     recitContinuFond(livedCaseFromCarouselBody(body).mode),
     // Sa voix orale (socle, règle 4) : aussi sur le chemin par défaut photo et mixte.
     body?.channel === "linkedin" ? VOIX_ORALE_LINKEDIN : VOIX_ORALE,
     hasNews ? newsWriting(body).trim() : "",
     RECIT_CONTINU_COUVERTURE,
+    RECIT_CONTINU_SOLUTION_FIN,
     recitContinuLongueur(exact),
     isLinkedInMix(body) ? LINKEDIN_MIX_RECIT_LENGTH : "",
     isPhotoOverlay(body) ? PHOTO_OVERLAY_RECIT_LENGTH : "",
