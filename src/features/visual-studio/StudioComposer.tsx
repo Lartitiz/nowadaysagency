@@ -1,12 +1,12 @@
-// Zone de saisie du Studio : glisser-déposer, barre d'outils (tiroir, menu
-// Options, image sélectionnée), choix de branche, photos de référence, texte de
+// Zone de saisie du Studio : glisser-déposer, barre d'outils (un seul menu
+// « Plus d'outils » depuis l'écran simplifié du 13/11/2026, image sélectionnée), choix de branche, photos de référence, texte de
 // la demande (Entrée pour envoyer), import, bibliothèque, bouton Envoyer ou
 // Générer. Fiche 4 de docs/robustesse/gros-fichiers.md, lot 5 : JSX déplacé à
 // l'identique depuis src/pages/VisualStudioPage.tsx ; chaque valeur lue dans la
 // page arrive en prop sous le même nom. Les `id` `studio-draft` /
 // `studio-draft-mobile` ne changent pas (un bouton du fil les cherche).
-import type { MutableRefObject, RefObject } from "react";
-import { Ellipsis, ImagePlus, Library, Loader2, Plus } from "lucide-react";
+import { useState, type MutableRefObject, type RefObject } from "react";
+import { ImagePlus, Library, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +19,8 @@ import {
 import type { StudioProposal, StudioReference, StudioState, StudioVersion } from "@/features/visual-studio/api";
 import { ReferenceCards } from "@/features/visual-studio/ReferenceCards";
 import type { StudioExistingTool } from "@/features/visual-studio/StudioToolDialogs";
+import type { UserPhotoRow } from "@/lib/photo-storage";
+import { StudioPhotoMenuItems, StudioPhotoToolDialogs, type StudioPhotoTool } from "@/features/visual-studio/StudioPhotoShortcuts";
 
 export function StudioComposer({
   mobile,
@@ -57,6 +59,8 @@ export function StudioComposer({
   fileInput,
   references,
   setPicker,
+  sourcePhoto,
+  onPrepare,
 }: {
   mobile: boolean;
   dropActive: boolean;
@@ -94,7 +98,12 @@ export function StudioComposer({
   fileInput: RefObject<HTMLInputElement>;
   references: StudioReference[];
   setPicker: (open: boolean) => void;
+  /** Photo de « Mes photos » d'où vient la session (outils photo du menu). */
+  sourcePhoto: UserPhotoRow | null;
+  /** Ouvre « Format et lumière » (sans crédit) sur cette photo. */
+  onPrepare: () => void;
 }) {
+  const [photoTool, setPhotoTool] = useState<StudioPhotoTool>(null);
   return (
     <div
       className={`studio-composer p-3 border-t space-y-2${dropActive ? " studio-drop-active" : ""}`}
@@ -129,25 +138,26 @@ export function StudioComposer({
     >
       <div className="studio-toolbar">
         <div className="studio-toolbar-group">
-          {hasExtraTools && (
-            <button type="button" className="studio-toolbar-btn" onClick={() => setToolsOpen(true)}>
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              Outils et créations
-            </button>
-          )}
-          {current && (
+          {(current || hasExtraTools) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button type="button" className="studio-toolbar-btn" disabled={!writable || !!busy}>
-                  Options
-                  <Ellipsis className="h-3.5 w-3.5" aria-hidden="true" />
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  Plus d’outils
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem disabled={!writable || !!busy} onClick={() => setExistingTool("before_after")}>Avant / après</DropdownMenuItem>
-                <DropdownMenuItem disabled={!writable || !!busy} onClick={() => setExistingTool("mockup")}>Mockup d’offre</DropdownMenuItem>
-                <DropdownMenuItem disabled={!writable || !!busy || generating}
-                  aria-label="Nouvelle demande sans ces références" onClick={() => void updateSelection([], true)}>Nouvelle demande</DropdownMenuItem>
+              <DropdownMenuContent align="start" className="max-w-xs">
+                {current?.session.source_photo_id && (
+                  <StudioPhotoMenuItems photo={sourcePhoto} disabled={!writable || !!busy || !!generating}
+                    onPrepare={onPrepare} onTool={setPhotoTool} />
+                )}
+                {hasExtraTools && <DropdownMenuItem onClick={() => setToolsOpen(true)}>Photos proposées et compositions</DropdownMenuItem>}
+                {current && <>
+                  <DropdownMenuItem disabled={!writable || !!busy} onClick={() => setExistingTool("before_after")}>Avant / après</DropdownMenuItem>
+                  <DropdownMenuItem disabled={!writable || !!busy} onClick={() => setExistingTool("mockup")}>Mockup d’offre</DropdownMenuItem>
+                  <DropdownMenuItem disabled={!writable || !!busy || generating}
+                    aria-label="Nouvelle demande sans ces références" onClick={() => void updateSelection([], true)}>Nouvelle demande</DropdownMenuItem>
+                </>}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -158,6 +168,7 @@ export function StudioComposer({
           <span className="studio-selection-clear" aria-hidden="true">×</span>
         </button>}
       </div>
+      <StudioPhotoToolDialogs photo={sourcePhoto} tool={photoTool} onClose={() => setPhotoTool(null)} />
       {version?.status === "ready" && version.proposal.person_reference && (
         <p className="text-sm text-muted-foreground">
           Ce mannequin te plaît ? Tu peux <button type="button" className="studio-link" disabled={!writable || !!busy || !!generating} onClick={() => openCastingRef.current?.()}>le garder pour ta marque</button>.
@@ -185,14 +196,10 @@ export function StudioComposer({
         Ta demande
       </label>
       {attachedReferences.length > 0 && (
-        <details className="studio-photos-accordion" open={photosOpen}
-          onToggle={(e) => setPhotosOpen((e.currentTarget as HTMLDetailsElement).open)}>
-          <summary>Photos de référence ({attachedReferences.length})</summary>
-          <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
-            onSelection={ids => void updateSelection(ids)}
-            onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
-            onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
-        </details>
+        <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
+          onSelection={ids => void updateSelection(ids)}
+          onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
+          onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
       )}
 
       <Textarea

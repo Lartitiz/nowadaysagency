@@ -1037,13 +1037,15 @@ it("persists a visible photo role, reordered selection and fresh-request clearin
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:"reference",reference_id:"plate",reference_role:"product",role_source:"user"})));
   await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 1")).toHaveValue("product"));
   expect(screen.getByText("Compris dans la conversation")).toBeInTheDocument();
+  // Les réglages d'une photo s'ouvrent en cliquant sa vignette.
+  fireEvent.click(screen.getByRole("button", {name:/Régler l’image 2/}));
   fireEvent.click(screen.getByRole("button", {name:"Déplacer l’image 2 avant"}));
   await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 1")).toHaveValue("person"));
   mounted.unmount();mount();
   await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 1")).toHaveValue("person"));
   fireEvent.click(screen.getByRole("button", {name:"Retirer Assiette de cette demande"}));
   await waitFor(() => expect(screen.queryByLabelText("Rôle de l’image 2")).not.toBeInTheDocument());
-  await userEvent.click(screen.getByRole("button", {name:"Options"}));
+  await userEvent.click(screen.getByRole("button", {name:/Plus d’outils/}));
   await userEvent.click(await screen.findByRole("menuitem", {name:"Nouvelle demande sans ces références"}));
   await waitFor(() => expect(screen.queryByLabelText("Rôle de l’image 1")).not.toBeInTheDocument());
   expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:"selection",reference_ids:[],new_request:true}));

@@ -1,7 +1,7 @@
 // Filet de la page Studio AVANT son découpage (fiche 4 de
 // docs/robustesse/gros-fichiers.md, lot 0). Il complète visual-studio.test.tsx
 // sur ce qu'aucun test ne couvrait : garde d'entrée, bandeau d'archive, largeur
-// réglable, tiroir « Outils et créations », menu Options, galerie au-delà de
+// réglable, tiroir « Outils et créations » et menu « Plus d’outils », galerie au-delà de
 // 20 images, et un « instantané d'écran » (boutons visibles + appels serveur)
 // sur 4 états. Les lots de découpage ne doivent changer aucun de ces tests.
 //   npx vitest run src/test/visual-studio-page-net.test.tsx
@@ -257,7 +257,8 @@ it("tiroir d'outils : photo proposée (sujet), charte (index), compositions plus
   mock.older.mockResolvedValue({ items: [{ id: "c-old", title: "Ancienne affiche", created_at: "2026-09-01T10:00:00Z" }], hasMore: false });
   mount();
   await screen.findByText("Décris ton fond.");
-  fireEvent.click(screen.getByRole("button", { name: /Outils et créations/ }));
+  await userEvent.click(screen.getByRole("button", { name: /Plus d’outils/ }));
+  await userEvent.click(await screen.findByRole("menuitem", { name: "Photos proposées et compositions" }));
   fireEvent.click(await screen.findByRole("button", { name: /Choisir Bol bleu/ }));
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({
     action: "reference", photo_id: "suggested", reference_role: "subject", revision: 5,
@@ -281,29 +282,30 @@ it("tiroir d'outils : « Reprendre » une composition la relit sur le serveur", 
     : state));
   mount();
   await screen.findByText("Décris ton fond.");
-  fireEvent.click(screen.getByRole("button", { name: /Outils et créations/ }));
+  await userEvent.click(screen.getByRole("button", { name: /Plus d’outils/ }));
+  await userEvent.click(await screen.findByRole("menuitem", { name: "Photos proposées et compositions" }));
   fireEvent.click(await screen.findByRole("button", { name: /Reprendre Affiche du salon/ }));
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({
     action: "composition_read", workspace_id: "A", session_id: "session", composition_history_id: "c1",
   })));
 });
 
-// ── Menu Options ──
+// ── Menu « Plus d’outils » ──
 
-it("menu Options : avant / après et mockup renvoient l'image enregistrée comme composition", async () => {
+it("menu Plus d’outils : avant / après et mockup renvoient l'image enregistrée comme composition", async () => {
   const state = original();
   state.session.revision = 2;
   mock.request.mockResolvedValue(state);
   mount();
   await screen.findByText("Décris ton fond.");
-  await userEvent.click(screen.getByRole("button", { name: "Options" }));
+  await userEvent.click(screen.getByRole("button", { name: /Plus d’outils/ }));
   await userEvent.click(await screen.findByRole("menuitem", { name: "Avant / après" }));
   fireEvent.click(await screen.findByRole("button", { name: "Enregistrer l’avant / après test" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({
     action: "reference", photo_id: "before-after-photo", reference_role: "composition", revision: 2,
   })));
   await waitFor(() => expect(screen.queryByRole("dialog", { name: "Avant / après test" })).toBeNull());
-  await userEvent.click(screen.getByRole("button", { name: "Options" }));
+  await userEvent.click(screen.getByRole("button", { name: /Plus d’outils/ }));
   await userEvent.click(await screen.findByRole("menuitem", { name: "Mockup d’offre" }));
   fireEvent.click(await screen.findByRole("button", { name: "Enregistrer le mockup test" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({
