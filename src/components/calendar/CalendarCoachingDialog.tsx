@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { toLocalDateStr } from "@/lib/utils";
 import { friendlyError } from "@/lib/error-messages";
 import { normalizeObjectif } from "@/lib/chat-plan";
-import { planningDayDate, planningChannel, planningFormat } from "@/lib/weekly-planning";
+import { planningDayDate, planningChannel, planningFormat, planningWeekLabel, remainingPlanningDays } from "@/lib/weekly-planning";
 import { usePlanningVisit } from "@/hooks/use-planning-visit";
 import { plannedKey } from "@/lib/calendar-duplicates";
 
@@ -95,6 +95,9 @@ function CalendarCoachingSession({ open, onOpenChange, onPostAdded, existingPost
   /** Jour choisi à la main pour une carte (index → "Mardi"), avant l'ajout */
   const [dayOverrides, setDayOverrides] = useState<Record<number, string>>({});
   const [addingAll, setAddingAll] = useState(false);
+  // Semaine en cours : les jours déjà passés ne se proposent plus (ni par l'IA, ni au choix du jour).
+  const [today] = useState(() => toLocalDateStr(new Date()));
+  const openDays = remainingPlanningDays(weekStartDate!, today);
 
   // Parent refreshes after each successful insert: keep the current proposals and
   // receipts, even when the calendar returns a newly allocated existingPosts array.
@@ -119,6 +122,7 @@ function CalendarCoachingSession({ open, onOpenChange, onPostAdded, existingPost
           mix_or_focus: mixOrFocus,
           mode,
           week_start: weekStartDate,
+          today,
           canal: defaultCanal,
           existing_posts: mode === "complete" ? existingPosts : undefined,
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
@@ -236,7 +240,7 @@ function CalendarCoachingSession({ open, onOpenChange, onPostAdded, existingPost
     <CoachingShell
       open={open}
       onOpenChange={onOpenChange}
-      title={`Planifier ma semaine du ${weekStartDate}`}
+      title={`Préparer ma semaine ${planningWeekLabel(weekStartDate!)}`.trim()}
       description="Coaching pour planifier ta semaine de contenu"
       emoji="📅"
     >
@@ -430,7 +434,7 @@ function CalendarCoachingSession({ open, onOpenChange, onPostAdded, existingPost
                               </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-36 p-1.5" align="start">
-                              {WEEK_DAYS.map((d) => (
+                              {openDays.map((d) => (
                                 <button
                                   key={d}
                                   type="button"

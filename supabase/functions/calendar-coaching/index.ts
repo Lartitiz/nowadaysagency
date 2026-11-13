@@ -1,4 +1,4 @@
-import { calendarWeek } from "../_shared/calendar-week.ts";
+import { calendarWeek, keepPlanInDays, parisToday, remainingWeekDays } from "../_shared/calendar-week.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -61,9 +61,15 @@ serve(async (req) => {
     const rateCheck = checkRateLimit(user.id);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
-    const { posts_per_week, context_week, mix_or_focus, mode, existing_posts, week_start, canal = "all", workspace_id: bodyWorkspaceId } = await req.json();
+    const { posts_per_week, context_week, mix_or_focus, mode, existing_posts, week_start, today, canal = "all", workspace_id: bodyWorkspaceId } = await req.json();
 
     const week = calendarWeek(week_start);
+    // Semaine en cours : jamais de contenu sur un jour déjà passé (QA du 13/11/2026,
+    // un vendredi, le plan tombait lundi et jeudi, « date déjà passée » au calendrier).
+    const openDays = remainingWeekDays(week, typeof today === "string" ? today : parisToday());
+    const daysRule = openDays.length < 7
+      ? ` Jours possibles UNIQUEMENT : ${openDays.join(", ")} (les jours d'avant sont déjà passés).`
+      : "";
     if (!["all", "instagram", "linkedin", "newsletter", "pinterest"].includes(canal)) throw new Error("invalid_calendar_channel");
 
     const sbGuard = createClient(
@@ -225,6 +231,9 @@ ACCROCHES (hook_idea)
 - ❌ "Mes conseils pour ta bio Instagram"
 - ❌ "Découvrez comment booster votre engagement"
 
+FIL ROUGE ET CONSEIL (week_theme, tip) : ils s'adressent à l'utilisatrice, que l'outil TUTOIE toujours (« filme », « tu auras », « demande »), jamais de vouvoiement. Les citations destinées à son audience gardent le ton de sa fiche.
+SUJET (subject) : ne commence jamais par le nom de l'angle (pas de « Build in public : », « Analyse en profondeur : ») ; l'angle se voit dans le sujet lui-même.
+
 RÉPARTITION DES OBJECTIFS :
 - ~40% visibilité (inspirer) + ~40% confiance (eduquer/lien) + ~20% vente (vendre)
 - Si lancement mentionné, augmente vente à 40% max
@@ -253,7 +262,7 @@ Retourne UNIQUEMENT un JSON valide :
     const parsed: any = await callAnthropicToolSimple(
       getModelForAction("coaching"),
       systemPrompt,
-      `Planifie ${posts_per_week} posts pour la semaine du ${week.from} au ${week.to}. Canal choisi : ${canal}. Respecte ce canal et ses formats ; pour newsletter, utilise uniquement le format newsletter. Pour LinkedIn, utilise post ou carousel. Pour Pinterest, utilise pinterest. Si tous les canaux sont choisis, newsletter reste sur son propre canal.  Contexte : ${context_week || "semaine normale"}. Approche : ${mix_or_focus}.\n\nRappel : chaque sujet doit avoir un angle Nowadays précis, être hyper-spécifique à mon métier, et l'accroche doit être une VRAIE première ligne de post (max 20 mots, ton oral, percutante).`,
+      `Planifie ${posts_per_week} posts pour la semaine du ${week.from} au ${week.to}. Canal choisi : ${canal}. Respecte ce canal et ses formats ; pour newsletter, utilise uniquement le format newsletter. Pour LinkedIn, utilise post ou carousel. Pour Pinterest, utilise pinterest. Si tous les canaux sont choisis, newsletter reste sur son propre canal.  Contexte : ${context_week || "semaine normale"}. Approche : ${mix_or_focus}.${daysRule}\n\nRappel : chaque sujet doit avoir un angle Nowadays précis, être hyper-spécifique à mon métier, et l'accroche doit être une VRAIE première ligne de post (max 20 mots, ton oral, percutante).`,
       PLANNING_TOOL,
       0.9,
       4096,
@@ -282,6 +291,8 @@ Retourne UNIQUEMENT un JSON valide :
     } catch (sondeErr) {
       console.warn("[sonde-singularite] erreur télémétrie calendar", sondeErr);
     }
+
+    if (Array.isArray((parsed as any)?.planning)) (parsed as any).planning = keepPlanInDays((parsed as any).planning, openDays);
 
     await logUsage(user.id, "coach", "calendar_coaching", usage.total_tokens, usage.model, workspaceId || undefined);
 
