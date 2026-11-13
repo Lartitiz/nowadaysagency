@@ -120,11 +120,21 @@ export function IdeaCover({ cover, fallback }: { cover: IdeaCoverData | null; fa
 /** « Page » d'un contenu sans visuel : le format, puis le début du texte. */
 export function TextCover({ label, text }: { label: string; text?: string }) {
   return (
-    <div className="absolute inset-0 flex flex-col gap-2 bg-card p-3.5">
-      <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+    <div className="absolute inset-0 flex flex-col gap-2.5 bg-rose-pale p-4">
+      <span className="text-2xs font-semibold uppercase tracking-wider text-primary-text">{label}</span>
       {text
-        ? <p className="text-[13px] leading-relaxed text-foreground/80 line-clamp-[10] break-words">{text}</p>
+        ? <p className="font-display text-[15px] leading-snug text-foreground line-clamp-[9] break-words">{text}</p>
         : <p className="text-[13px] italic text-muted-foreground">Pas encore de texte</p>}
+    </div>
+  );
+}
+
+/** Demande commencée dans Créer : pas encore de texte, on montre le format. */
+export function BriefCover({ format }: { format: string }) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-rose-pale p-4 text-center">
+      <span className="font-display text-xl text-foreground">{format}</span>
+      <span className="text-xs text-muted-foreground">Demande à reprendre</span>
     </div>
   );
 }
