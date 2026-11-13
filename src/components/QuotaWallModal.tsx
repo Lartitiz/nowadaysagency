@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Sparkles, Calendar, ArrowRight } from "lucide-react";
 import { posthog } from "@/lib/posthog-lazy";
 import type { CategoryUsage } from "@/hooks/use-user-plan";
+import { prixHtEtTtc } from "@/lib/prix-ht";
 
 interface QuotaWallModalProps {
   open: boolean;
@@ -138,7 +139,7 @@ export default function QuotaWallModal({ open, onClose, plan, usage, serverMessa
 
           {plan === "free" && (
             <p className="text-center text-2xs text-muted-foreground">
-              À partir de 39€/mois · Sans engagement · Annulable à tout moment
+              À partir de {prixHtEtTtc(39, "/mois")} · Sans engagement · Annulable à tout moment
             </p>
           )}
 

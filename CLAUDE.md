@@ -170,6 +170,8 @@ Compte pré-rempli "Léa" (photographe portraitiste éthique). Plus utilisé : b
 
 ## BUSINESS MODEL (3 plans)
 
+Prix affichés HT, TVA (20 %) en plus depuis le 13/11/2026 (assujettissement du 06/11). Afficher « HT » et le TTC à côté via `src/lib/prix-ht.ts`. Les abonnements d'avant gardent leur ancien prix TTC (prix Stripe `historical: true` dans `_shared/checkout-catalog.ts`), sans migration.
+
 ### Plan Gratuit (freemium — porte d'entrée)
 - Onboarding conversationnel complet
 - Espace branding (6 sections + coaching IA)
@@ -178,7 +180,7 @@ Compte pré-rempli "Léa" (photographe portraitiste éthique). Plus utilisé : b
 - Espaces par canal
 - Dashboard bento, gamification
 
-### Plan Premium (39€/mois)
+### Plan Premium (39 € HT/mois, soit 46,80 € TTC)
 Tout le gratuit + :
 - Grille du 01/10/2026, à dire telle quelle : « Pour 39 € par mois : tous tes textes sans compter, 20 carrousels, 30 images et 3 vidéos. »
 - Textes et audits sans compter (garde-fou invisible d'usage raisonnable : 200 générations/mois, cité dans les CGV)
@@ -188,7 +190,7 @@ Tout le gratuit + :
 - Communauté (poster, commenter, lives mensuels, replays)
 - Positionnement : présent sur la page pricing, PAS poussé dans la communication. Se vend par l'usage.
 
-### Ta Binôme de Com' (350€/mois × 6 mois = 2 100€, tarif du 30/09/2026)
+### Ta Binôme de Com' (325 € HT/mois × 6 mois = 1 950 € HT, soit 390 € / 2 340 € TTC ; tarif du 13/11/2026)
 L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 - Phase 1 Stratégie (mois 1-2) : kick-off + branding + plan 6 mois (done for you)
 - Phase 2 Application (mois 3-6) : 1 visio 2h/mois + WhatsApp jours ouvrés 24-48h + validation livrables (done with you)
@@ -289,7 +291,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 | Crédits IA | Unité de consommation IA. 23/mois en gratuit (compteur unique) ; en Premium/Binôme, textes sans compter (garde-fou 200/400) et plafonds carrousels / images / vidéos. |
 | Connecteurs intelligents | Système de propagation des modifications branding vers tous les contenus |
 | Mode démo | Compte "Léa" pré-rempli pour les appels découverte |
-| Binôme | L'offre d'accompagnement 6 mois (350€/mois) |
+| Binôme | L'offre d'accompagnement 6 mois (325 € HT/mois) |
 | Navigate state | Méthode React pour passer le contexte du calendrier vers les générateurs |
 | Dashboard bento | Grille de cards de tailles différentes sur la page d'accueil |
 | Endowed Progress Effect | Biais psychologique : la barre de progression commence à 15% pour motiver |

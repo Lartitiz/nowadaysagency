@@ -24,7 +24,7 @@ export default function CguCgvPage() {
         <h1 className="font-display text-2xl font-bold text-foreground mb-2">
           Conditions Générales d'Utilisation et de Vente
         </h1>
-        <p className="text-xs text-muted-foreground mb-6">Dernière mise à jour : 1er octobre 2026</p>
+        <p className="text-xs text-muted-foreground mb-6">Dernière mise à jour : 13 novembre 2026</p>
 
         <div className="rounded-2xl bg-card border border-border p-6 space-y-6 text-sm leading-relaxed">
           <p className="italic text-muted-foreground">
@@ -41,6 +41,7 @@ export default function CguCgvPage() {
               Laetitia Mattioli — EI MATTIOLI Laetitia<br />
               Micro-entreprise<br />
               SIRET : 832 189 070 00028<br />
+              N° de TVA intracommunautaire : [NUMÉRO DE TVA]<br />
               6 rue Saint-Jacques, 89300 Joigny<br />
               Email :{" "}
               <a href="mailto:laetitia@nowadaysagency.com" className="text-primary hover:underline">
@@ -97,12 +98,12 @@ export default function CguCgvPage() {
             <p className="text-muted-foreground">L'Outil propose plusieurs formules :</p>
             <ul className="list-disc pl-5 text-muted-foreground space-y-1 mt-1">
               <li><strong>Plan Gratuit :</strong> accès à l'outil pour poser tes fondations et créer tes premiers contenus, avec un volume mensuel de générations IA pour démarrer (à ce jour : 23 générations IA par mois, dont 3 audits, 3 carrousels et 5 images au maximum). Le mode « rédaction la plus soignée » des carrousels, la vidéo et la publication automatique sont réservés aux formules payantes.</li>
-              <li><strong>Plan L'Assistant Com' Premium :</strong> 39€ TTC par mois, sans engagement. Inclut tes textes IA sans compter (posts, reels, stories, newsletters, LinkedIn, bios, commentaires, messages privés, adaptations, coach, audits…), tous les modules débloqués. Les créations à fort coût de calcul sont plafonnées chaque mois : 20 carrousels (mode « rédaction la plus soignée » compris), 30 images (générations et retouches) et 3 vidéos courtes. Pour garantir un usage raisonnable et personnel de l'outil, l'ensemble des générations IA est limité à 200 par mois ; au-delà, les packs de crédits complémentaires prennent le relais. Ces plafonds sont rappelés sur ta page Abonnement.</li>
-              <li><strong>Programme "Ton binôme de com'" :</strong> 350€ TTC par mois, engagement de 6 mois (soit 2 100€ TTC au total). Inclut le plan Premium en version renforcée (40 carrousels, 60 images et 6 vidéos par mois, usage raisonnable de 400 générations IA par mois) + accompagnement individuel avec Laetitia Mattioli (sessions visio 2h/mois, support WhatsApp jours ouvrés, stratégie personnalisée).</li>
-              <li><strong>Paiement unique "Ton binôme de com'" :</strong> 2 100€ TTC en une fois.</li>
-              <li><strong>Packs de crédits bonus :</strong> 3,90€ (10 crédits), 8,90€ (30 crédits), 14,90€ (60 crédits). Ces crédits n'expirent jamais et s'ajoutent à ton quota mensuel de générations IA une fois celui-ci atteint. Ils ne s'appliquent pas aux plafonds de carrousels, d'images et de vidéos. Avec le plan Premium, les textes étant déjà sans compter, ces packs concernent surtout le plan Gratuit.</li>
+              <li><strong>Plan L'Assistant Com' Premium :</strong> 39 € HT par mois (46,80 € TTC), sans engagement. Inclut tes textes IA sans compter (posts, reels, stories, newsletters, LinkedIn, bios, commentaires, messages privés, adaptations, coach, audits…), tous les modules débloqués. Les créations à fort coût de calcul sont plafonnées chaque mois : 20 carrousels (mode « rédaction la plus soignée » compris), 30 images (générations et retouches) et 3 vidéos courtes. Pour garantir un usage raisonnable et personnel de l'outil, l'ensemble des générations IA est limité à 200 par mois ; au-delà, les packs de crédits complémentaires prennent le relais. Ces plafonds sont rappelés sur ta page Abonnement.</li>
+              <li><strong>Programme "Ton binôme de com'" :</strong> 325 € HT par mois (390 € TTC), engagement de 6 mois (soit 1 950 € HT, 2 340 € TTC au total). Inclut le plan Premium en version renforcée (40 carrousels, 60 images et 6 vidéos par mois, usage raisonnable de 400 générations IA par mois) + accompagnement individuel avec Laetitia Mattioli (sessions visio 2h/mois, support WhatsApp jours ouvrés, stratégie personnalisée).</li>
+              <li><strong>Paiement unique "Ton binôme de com'" :</strong> 1 950 € HT en une fois (2 340 € TTC).</li>
+              <li><strong>Packs de crédits bonus :</strong> 3,90 € HT, soit 4,68 € TTC (10 crédits) ; 8,90 € HT, soit 10,68 € TTC (30 crédits) ; 14,90 € HT, soit 17,88 € TTC (60 crédits). Ces crédits n'expirent jamais et s'ajoutent à ton quota mensuel de générations IA une fois celui-ci atteint. Ils ne s'appliquent pas aux plafonds de carrousels, d'images et de vidéos. Avec le plan Premium, les textes étant déjà sans compter, ces packs concernent surtout le plan Gratuit.</li>
             </ul>
-            <p className="text-muted-foreground mt-2">TVA non applicable, article 293 B du Code Général des Impôts.</p>
+            <p className="text-muted-foreground mt-2">Les prix sont indiqués hors taxes (HT). La TVA au taux en vigueur (20 % en France) s'ajoute au moment du paiement et apparaît sur la facture. Les abonnements souscrits avant le 13 novembre 2026 gardent le même montant mensuel, TVA comprise.</p>
             <p className="text-muted-foreground mt-2">
               Les tarifs peuvent être modifiés à tout moment. Les modifications s'appliquent aux nouveaux abonnements et aux renouvellements, jamais en cours de période.
             </p>

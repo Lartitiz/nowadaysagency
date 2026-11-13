@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/accordion";
 import { Check, X, Sparkles, ArrowLeft } from "lucide-react";
 import PromoCodeInput from "@/components/PromoCodeInput";
+import { prixHtEtTtc, prixTTC } from "@/lib/prix-ht";
 
 /* ─── Feature comparison data (2 plans : Gratuit / Premium) ─── */
 const SECTIONS = [
@@ -71,7 +72,7 @@ const FAQ = [
   },
   {
     q: "C'est quoi la différence entre le gratuit et le Premium ?",
-    a: "La différence, c'est la quantité de créations avec l'IA. Le gratuit te donne 23 crédits par mois. Pour 39 € par mois, le Premium comprend tous tes textes sans compter (audits compris), 20 carrousels, 30 images et 3 vidéos par mois, et la rédaction la plus soignée des carrousels. La publication et la programmation sont comprises dans les deux.",
+    a: "La différence, c'est la quantité de créations avec l'IA. Le gratuit te donne 23 crédits par mois. Pour 39 € HT par mois (46,80 € TTC), le Premium comprend tous tes textes sans compter (audits compris), 20 carrousels, 30 images et 3 vidéos par mois, et la rédaction la plus soignée des carrousels. La publication et la programmation sont comprises dans les deux.",
   },
   {
     q: "Je peux annuler quand je veux ?",
@@ -114,7 +115,7 @@ export default function PricingPage() {
 
   usePageSEO({
     title: "Tarifs : Gratuit ou Premium",
-    description: "Découvre les formules de L'Assistant Com'. Gratuit avec 23 crédits par mois pour créer avec l'IA, Premium à 39€/mois : textes sans compter, 20 carrousels, 30 images et 3 vidéos par mois.",
+    description: "Découvre les formules de L'Assistant Com'. Gratuit avec 23 crédits par mois pour créer avec l'IA, Premium à 39 € HT/mois : textes sans compter, 20 carrousels, 30 images et 3 vidéos par mois.",
     canonical: "/pricing",
   });
 
@@ -204,7 +205,7 @@ export default function PricingPage() {
 
         {selectedPremium && (
           <div className="max-w-3xl mx-auto mb-8 rounded-2xl border-2 border-primary bg-card p-6" role="region" aria-label="Récapitulatif de ton choix">
-            <h2 className="font-display text-xl font-bold">Ton choix : Premium · 39€/mois</h2>
+            <h2 className="font-display text-xl font-bold">Ton choix : Premium · {prixHtEtTtc(39, "/mois")}</h2>
             <p className="text-sm text-muted-foreground mt-2">Sans engagement. Tes textes sans compter (audits compris), 20 carrousels, 30 images et 3 vidéos par mois. Tu peux vérifier ton offre et utiliser un code d’accès avant de passer au paiement.</p>
             {user ? <div className="mt-4"><PromoCodeInput /></div> : <Link to="/login?offer=outil&redirect=%2Fpricing%3Fselected%3Dpremium" className="inline-block mt-4 text-primary underline">Créer un compte ou se connecter pour continuer</Link>}
           </div>
@@ -252,9 +253,10 @@ export default function PricingPage() {
             <h3 className="font-display text-xl font-bold">Premium</h3>
             <p className="text-xs text-muted-foreground font-medium mt-1">Pour créer chaque semaine, sans compter tes crédits</p>
             <p className="text-3xl font-bold mt-2 text-primary">
-              39€
-              <span className="text-base font-normal text-muted-foreground">/mois</span>
+              39 €
+              <span className="text-base font-normal text-muted-foreground"> HT/mois</span>
             </p>
+            <p className="text-xs text-muted-foreground mt-0.5">soit {prixTTC(39, "/mois")}</p>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
               L'outil complet qui transforme tes intentions en publications régulières.
             </p>
@@ -302,7 +304,7 @@ export default function PricingPage() {
               Le <strong>Binôme de com'</strong> : Laetitia à tes côtés pendant 6 mois. Stratégie sur mesure,
               sessions visio, support WhatsApp et validation de chaque livrable. Un accompagnement humain, en plus de l'outil.
             </p>
-            <p className="text-sm font-medium text-foreground mt-2">À partir de 350€/mois · engagement 6 mois</p>
+            <p className="text-sm font-medium text-foreground mt-2">À partir de {prixHtEtTtc(325, "/mois")} · engagement 6 mois</p>
           </div>
           <a
             href="https://calendly.com/laetitia-mattioli/appel-decouverte"

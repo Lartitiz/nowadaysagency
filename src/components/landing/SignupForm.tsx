@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PasswordStrengthIndicator from "@/components/ui/PasswordStrengthIndicator";
 import { CheckCircle2 } from "lucide-react";
+import { prixHtEtTtc } from "@/lib/prix-ht";
 
 const signupSchema = z.object({
   prenom: z.string().trim().min(2, "Ton prénom doit faire au moins 2 caractères").max(50),
@@ -144,7 +145,7 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" aria-label="Formulaire d'inscription">
-      {chosenPremium && <p className="rounded-xl border border-primary/30 bg-card p-3 text-sm">Offre choisie : <strong>Premium · 39€/mois</strong>. Crée ton compte, puis tu retrouveras le récapitulatif avant tout paiement.</p>}
+      {chosenPremium && <p className="rounded-xl border border-primary/30 bg-card p-3 text-sm">Offre choisie : <strong>Premium · {prixHtEtTtc(39, "/mois")}</strong>. Crée ton compte, puis tu retrouveras le récapitulatif avant tout paiement.</p>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label htmlFor={`${formId}-prenom`} className="sr-only">Prénom</label>

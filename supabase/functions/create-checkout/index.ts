@@ -89,6 +89,12 @@ export async function handleCreateCheckoutRequest(req: Request) {
       success_url: `${success.toString()}${success.search ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancel.toString(),
       allow_promotion_codes: true,
+      // Prix HT : Stripe ajoute la TVA d'après l'adresse de facturation,
+      // et une société peut saisir son numéro de TVA intracommunautaire.
+      automatic_tax: { enabled: true },
+      billing_address_collection: "required",
+      tax_id_collection: { enabled: true },
+      ...(customerId ? { customer_update: { address: "auto", name: "auto" } } : {}),
       metadata: {
         user_id: user.id,
       },

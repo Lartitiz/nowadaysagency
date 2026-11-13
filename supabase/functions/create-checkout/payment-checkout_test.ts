@@ -40,7 +40,13 @@ Deno.test("expired attempt reconciles an unknown Stripe outcome before reopening
 
 Deno.test("historical prices remain verifiable but cannot open a new checkout",async()=>{
  const {checkoutOffer}=await import("../_shared/checkout-catalog.ts");
- assertEquals(checkoutOffer("price_1ULVaXIwPeG7GjpydOgyy6d1","subscription",false).plan,"binome");
+ assertEquals(checkoutOffer("price_1UbFtBIwPeG7GjpypPHyQUO7","subscription",false).plan,"binome");
+ assertEquals(checkoutOffer("price_1UbFtAIwPeG7GjpyqP6fBplf","subscription",false).plan,"outil");
+ // Anciens prix TTC (avant la TVA du 13/11/2026) : abonnements en cours toujours reconnus, plus de nouvel achat.
+ for (const [old, mode] of [["price_1T7uZHIwPeG7GjpycpUQuMqf","subscription"],["price_1ULVaXIwPeG7GjpydOgyy6d1","subscription"],["price_1ULVaeIwPeG7GjpydIGgEdV2","payment"],["price_1T7ubCIwPeG7GjpyJ8I0qPAM","payment"],["price_1T7ua6IwPeG7GjpykaYM6Cqr","payment"]]) {
+  checkoutOffer(old, mode);
+  await assertRejects(async()=>checkoutOffer(old, mode, false));
+ }
  assertEquals(checkoutOffer("price_1T7uZbIwPeG7Gjpy3arZSdx8","subscription").plan,"binome");
  await assertRejects(async()=>checkoutOffer("price_1T7uZbIwPeG7Gjpy3arZSdx8","subscription",false));
 });

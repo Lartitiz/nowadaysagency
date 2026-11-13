@@ -13,6 +13,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { isFairUsePlan } from "@/lib/plan-limits";
 import PromoCodeInput from "@/components/PromoCodeInput";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { prixHT, prixTTC } from "@/lib/prix-ht";
 
 // Compteur global unique (« total ») affiché en tête. Ici on ne détaille que les
 // sous-plafonds qui ont vraiment du sens (grille du 01/10/2026) : carrousels
@@ -198,8 +199,6 @@ export default function AbonnementPage() {
                   {subInfo?.plan === "binome" && <Handshake className="h-3.5 w-3.5" strokeWidth={1.75} />}
                   {planLabel}
                 </span>
-                {subInfo?.source === "stripe" && subInfo?.plan === "outil" && " · 39€/mois"}
-                {subInfo?.source === "stripe" && subInfo?.plan === "binome" && " · 350€/mois"}
               </p>
               {subInfo?.source === "admin" && <p className="text-xs text-muted-foreground">Accès de gestion et de démonstration, sans mensualité liée à ce rôle.</p>}
               {subInfo?.plan === "binome" && subInfo?.source !== "admin" && (
@@ -342,7 +341,8 @@ export default function AbonnementPage() {
                         <PackIcon className="h-5 w-5 text-primary" strokeWidth={1.75} />
                       )}
                       <span className="text-sm font-semibold text-foreground">{pack.label}</span>
-                      <span className="text-xs text-primary-text font-semibold">{pack.price.toFixed(2).replace('.', ',')}€</span>
+                      <span className="text-xs text-primary-text font-semibold">{prixHT(pack.price)}</span>
+                      <span className="text-2xs text-muted-foreground">{prixTTC(pack.price)}</span>
                     </button>
                   );
                 })}
@@ -399,7 +399,7 @@ export default function AbonnementPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <PlanCard
               name="Gratuit"
-              price="0€"
+              price="0 €"
               credits="23 crédits / mois · 3 carrousels · 5 images"
               active={plan === "free"}
               onSelect={() => {}}
@@ -407,7 +407,8 @@ export default function AbonnementPage() {
             />
             <PlanCard
               name="Premium"
-              price="39€/mois"
+              price={prixHT(STRIPE_PLANS.outil.price, "/mois")}
+              priceNote={prixTTC(STRIPE_PLANS.outil.price, "/mois")}
               credits="Textes sans compter · 20 carrousels · 30 images · 3 vidéos / mois"
               active={plan === "outil"}
               onSelect={() => handleCheckout(STRIPE_PLANS.outil.priceId)}
@@ -417,7 +418,8 @@ export default function AbonnementPage() {
               plan === "binome" ? "border-primary bg-rose-pale" : "border-border hover:border-primary/30"
             }`}>
               <h3 className="font-display font-bold text-foreground flex items-center justify-center gap-1.5"><Handshake className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> Ta binôme de com</h3>
-              <p className="text-lg font-semibold text-primary-text mt-1">350€/mois</p>
+              <p className="text-lg font-semibold text-primary-text mt-1">{prixHT(STRIPE_PLANS.binome_monthly.price, "/mois")}</p>
+              <p className="text-xs text-muted-foreground">{prixTTC(STRIPE_PLANS.binome_monthly.price, "/mois")}</p>
               <p className="text-xs text-muted-foreground mt-0.5">Engagement 6 mois</p>
               <div className="text-2xs text-muted-foreground mt-1 space-y-0.5 text-left">
                 <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> L'outil complet : 40 carrousels, 60 images, 6 vidéos / mois</p>
@@ -452,8 +454,8 @@ export default function AbonnementPage() {
   );
 }
 
-function PlanCard({ name, price, credits, active, onSelect, disabled }: {
-  name: string; price: string; credits: string; active: boolean; onSelect: () => void; disabled: boolean;
+function PlanCard({ name, price, priceNote, credits, active, onSelect, disabled }: {
+  name: string; price: string; priceNote?: string; credits: string; active: boolean; onSelect: () => void; disabled: boolean;
 }) {
   return (
     <div className={`rounded-xl border-2 p-4 text-center transition-all ${
@@ -461,6 +463,7 @@ function PlanCard({ name, price, credits, active, onSelect, disabled }: {
     }`}>
       <h3 className="font-display font-bold text-foreground">{name}</h3>
       <p className="text-lg font-semibold text-primary-text mt-1">{price}</p>
+      {priceNote && <p className="text-xs text-muted-foreground">{priceNote}</p>}
       <p className="text-xs text-muted-foreground mt-0.5">{credits}</p>
       {active ? (
         <span className="inline-block mt-3 text-xs font-semibold text-primary-text">Plan actuel ✓</span>

@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { versTarifs } from "@/lib/retour-apres-detour";
+import { prixHtEtTtc } from "@/lib/prix-ht";
 
 interface QuotaExhaustedCardProps {
   category: string;
@@ -69,7 +70,7 @@ function QuotaExhaustedCard({
             Passer à Premium — textes sans compter ✨
           </button>
           <p className="text-xs text-muted-foreground mt-2">
-            À partir de 39€/mois, sans engagement
+            À partir de {prixHtEtTtc(39, "/mois")}, sans engagement
           </p>
         </div>
       ) : (

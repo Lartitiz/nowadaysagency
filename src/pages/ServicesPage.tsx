@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2, Target, Search, Home, ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
+import { prixHT, prixTTC } from "@/lib/prix-ht";
+import { STRIPE_PRODUCTS } from "@/lib/stripe-config";
 
 const CALENDLY_URL = "https://calendly.com/laetitia-mattioli/appel-decouverte";
 
@@ -21,8 +23,8 @@ const services = [
       "Plan d'action concret à appliquer",
       "Compte-rendu écrit post-session",
     ],
-    price: 150,
-    priceId: "price_1T7ua6IwPeG7GjpykaYM6Cqr",
+    price: STRIPE_PRODUCTS.coaching.price,
+    priceId: STRIPE_PRODUCTS.coaching.priceId,
     icon: Target,
   },
 ];
@@ -95,7 +97,8 @@ export default function ServicesPage() {
               </ul>
 
               <div className="mt-auto">
-                <p className="font-display text-2xl font-bold text-foreground mb-3">{s.price}€</p>
+                <p className="font-display text-2xl font-bold text-foreground">{prixHT(s.price)}</p>
+                <p className="text-xs text-muted-foreground mb-3">soit {prixTTC(s.price)}</p>
                 <Button
                   className="w-full rounded-full gap-2"
                   onClick={() => handleCheckout(s.priceId, s.key)}

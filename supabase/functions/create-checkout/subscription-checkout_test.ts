@@ -54,3 +54,13 @@ Deno.test("réservation indisponible : aucun appel de création Stripe", async (
   await assertRejects(() => subscriptionCheckout(f.stripe, f.admin, user, params));
   assertEquals(f.keys.length, 0);
 });
+Deno.test("prix HT : TVA calculée par Stripe, adresse et nom gardés sur la fiche du client", async () => {
+  const f = fixture();
+  const taxed = { ...params, automatic_tax: { enabled: true }, billing_address_collection: "required", tax_id_collection: { enabled: true } };
+  await subscriptionCheckout(f.stripe, f.admin, user, taxed);
+  assertEquals(f.requests[0].customer, "cus_1");
+  assertEquals(f.requests[0].automatic_tax, { enabled: true });
+  assertEquals(f.requests[0].tax_id_collection, { enabled: true });
+  assertEquals(f.requests[0].customer_update, { address: "auto", name: "auto" });
+  assertEquals(f.requests[0].customer_email, undefined);
+});
