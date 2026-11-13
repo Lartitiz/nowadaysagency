@@ -15,6 +15,7 @@ import type { NavigateFunction } from "react-router-dom";
 import { toast } from "sonner";
 import { resumeCrosspost } from "@/lib/crosspost-content";
 import { findLinkedReelIdea, resumeCalendarReel } from "@/lib/calendar-reel-resume";
+import { requestOpenStory } from "@/lib/calendar-story-open";
 import { findLinkedStoriesIdea, isCalendarStories, resumeCalendarStories } from "@/lib/calendar-stories-resume";
 import { ANGLE_TO_CAROUSEL } from "@/features/calendar/post-dialog-helpers";
 import type { CalendarPost } from "@/lib/calendar-constants";
@@ -50,7 +51,8 @@ export function useCalendarPostNavigation({ theme, format, postCanal, objectif, 
     handleQuickGenerate();
   };
 
-  const handleOpenAtelier = async () => {
+  // storyIndex : story cliquée dans la fiche (un événement de clic n'en est pas un).
+  const handleOpenAtelier = async (storyIndex?: unknown) => {
     if (theme.trim() && onAutoSave) await onAutoSave(buildSaveData(), effectiveId);
     // Carrousel déjà relié à une fiche de Mes idées : on la reprend (pas de doublon).
     const detail = savedPreviewContent as any;
@@ -64,6 +66,7 @@ export function useCalendarPostNavigation({ theme, format, postCanal, objectif, 
       const resumeIdea = linked?.resumeIdea || resumeCrosspost(detail, format) || resumeCalendarReel(detail, editingPost?.media_urls) || resumeCalendarStories(detail) || (isCarousel
         ? { format: "carousel", raw: { ...detail, carousel_type: detail.type === "carousel_photo" ? "photo" : detail.type === "carousel_mix" ? "mix" : detail.carousel_type || "text" } } : undefined);
       if (resumeIdea?.raw._crosspost && contentDraft !== editingPost?.content_draft && contentDraft != null) resumeIdea.raw.edited_text = contentDraft;
+      requestOpenStory(isCalendarStories(detail) && typeof storyIndex === "number" ? storyIndex : null);
       navigate("/creer?canal=" + (postCanal || "instagram"), {
         state: { resumeIdea, ...(linked ? { ideaId: linked.ideaId } : {}), fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, postDate: selectedDate, existingContent: contentDraft, existingAccroche: accroche, launchId: editingPost?.launch_id, contentType: editingPost?.content_type, contentTypeEmoji: editingPost?.content_type_emoji, category: editingPost?.category, objective: editingPost?.objective, angleSuggestion: editingPost?.angle_suggestion, chapter: (editingPost as any)?.chapter, chapterLabel: (editingPost as any)?.chapter_label, audiencePhase: (editingPost as any)?.audience_phase },
       });

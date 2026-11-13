@@ -3,7 +3,7 @@ import { normalizeFormat } from "@/lib/format-normalizer";
 import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2, ExternalLink } from "lucide-react";
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { exportCarouselPdf, exportCarouselPng } from "@/lib/export-carousel-png";
 import { exportCarouselHybridPptx, type OriginalPhoto } from "@/lib/export-carousel-hybrid-pptx";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
@@ -17,8 +17,7 @@ import { useBrandCharter } from "@/hooks/use-branding";
 import { getIncludeLogoPref, setIncludeLogoPref } from "@/lib/export-logo";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
 import StoryFramePreview from "@/components/stories/StoryFramePreview";
-import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
-import { resolveLibraryPhotoUrls } from "@/lib/story-photos";
+import { useStoryFrames } from "@/hooks/use-story-frames";
 
 interface Props {
   photoComposition?: boolean;
@@ -72,51 +71,7 @@ export function CalendarPostPreview({
   // Sans ça, l'aperçu calendrier d'une série de stories tombait sur le cadre
   // générique 📱 de SocialMockup (les stories n'ont pas de mediaUrls).
   const isStorySerie = format === "story_serie" && Array.isArray(storiesData) && storiesData.length > 0;
-  const storyBranding: StoryFrameBranding | null = charterData
-    ? {
-        color_primary: (charterData as any).color_primary,
-        color_secondary: (charterData as any).color_secondary,
-        color_background: (charterData as any).color_background,
-        color_text: (charterData as any).color_text,
-        story_assemblage: (charterData as any).story_assemblage ?? null,
-        story_pill_color: (charterData as any).story_pill_color ?? null,
-        story_corners: (charterData as any).story_corners ?? null,
-        story_align: (charterData as any).story_align ?? null,
-      }
-    : null;
-  const storyPhotoIdsSignature = useMemo(
-    () =>
-      (isStorySerie ? storiesData : [])
-        .map((s: any) => s?.visual?.photo_id)
-        .filter(Boolean)
-        .sort()
-        .join(","),
-    [isStorySerie, storiesData],
-  );
-  const [storyLibraryUrls, setStoryLibraryUrls] = useState<Map<string, string>>(new Map());
-  useEffect(() => {
-    if (!storyPhotoIdsSignature) {
-      setStoryLibraryUrls(new Map());
-      return;
-    }
-    let cancelled = false;
-    resolveLibraryPhotoUrls(storiesData || [])
-      .then((map) => { if (!cancelled) setStoryLibraryUrls(map); })
-      .catch(() => { if (!cancelled) setStoryLibraryUrls(new Map()); });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storyPhotoIdsSignature]);
-  const storyFrames = useMemo(
-    () =>
-      isStorySerie
-        ? storiesData.map((s: any) => {
-            const v = s?.visual;
-            const photoUrl = v?.photo_url || (v?.photo_id ? storyLibraryUrls.get(v.photo_id) ?? null : null);
-            return buildStoryFrameHtml(s, storyBranding, { photoUrl, preview: true });
-          })
-        : [],
-    [isStorySerie, storiesData, storyBranding, storyLibraryUrls],
-  );
+  const storyFrames = useStoryFrames(storiesData, isStorySerie);
   const handleIncludeLogoChange = (v: boolean) => { setIncludeLogo(v); setIncludeLogoPref(v); };
 
   const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
@@ -293,7 +248,7 @@ export function CalendarPostPreview({
           )}
         </div>
         <div className="flex items-center gap-1">
-          {caption && (
+          {caption && !isStorySerie && (
             <Button variant="ghost" size="icon" onClick={handleCopyCaption} className="h-7 w-7" title="Copier la légende" aria-label="Copier la légende">
               <Copy className="h-3.5 w-3.5" />
             </Button>
@@ -535,12 +490,7 @@ export function CalendarPostPreview({
               <button key={i} onClick={() => setSlideIndex(i)} className={`rounded-full transition-all ${i === idx ? "w-1.5 h-1.5 bg-primary" : "w-1.5 h-1.5 bg-muted-foreground/30"}`} />
             ))}
           </div>
-          {caption && (
-            <div className="mt-3 pt-3 border-t border-border">
-              <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
-              <div className="text-xs text-foreground whitespace-pre-wrap line-clamp-6 leading-relaxed">{caption}</div>
-            </div>
-          )}
+          {/* Pas de « Légende » : une story n'en a pas (le texte de la séquence est dans la fiche). */}
         </div>
       );
     }
