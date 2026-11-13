@@ -9,6 +9,7 @@ import { isCrosspost } from "./crosspost-content";
 //  - résultat brut de génération (`result.raw`, via « Garder en idée »)
 //  - charge utile de « Remettre en idée » (Calendar.buildIdeaPayloadFromPost)
 //  - simple texte (`content_draft`) sans données structurées
+import { creerDraftOf } from "@/features/creer/creer-draft-idea";
 import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 
 export interface IdeaForCalendar {
@@ -116,7 +117,8 @@ export function buildCalendarPostFromIdea(idea: IdeaForCalendar): CalendarPostFr
     episode_number: idea.episode_number ?? null,
   };
 
-  const data = parseData(idea.content_data) ?? parseData(idea.content_draft);
+  // Brouillon de /creer pas encore généré : rien d'écrit à poser au calendrier, seulement le sujet.
+  const data = creerDraftOf(idea.content_data) ? null : parseData(idea.content_data) ?? parseData(idea.content_draft);
   const plainDraft = idea.content_draft === "" ? "" : isPlainText(idea.content_draft) ? idea.content_draft : null;
 
   // 1. Charge utile de « Remettre en idée » : on restitue tel quel.
