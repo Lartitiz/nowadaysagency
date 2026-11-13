@@ -41,7 +41,7 @@ import { storyChangeKind, useStoryHistory } from "@/components/stories/use-story
 import StoryPersonalAnchor from "@/components/stories/StoryPersonalAnchor";
 import { StoryActionsMenu } from "@/components/stories/StoryActionsMenu";
 import { useStoryStructure } from "@/components/stories/use-story-structure";
-import { attachedPhotoSlots, attachedPhotoUrl, pinAttachedPhotos, type AttachedPhotoLike } from "@/lib/story-attached-photos";
+import { attachedPhotoSlots, attachedPhotoUrl, pinAttachedPhotos, type AttachedPhotoLike } from "@/lib/story-attached-photos"; import { useBakeAttachedPhotos } from "@/components/stories/use-bake-attached-photos";
 
 /** Photos signées d'avance, dans lesquelles chaque story pioche. */
 const LIBRARY_POOL = 12;
@@ -160,7 +160,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     : null;
 
   // Photos attachées à la création (lot D) : voir story-attached-photos.ts.
-  const attachedSlots = useMemo(() => attachedPhotoSlots(stories, photos), [photos, stories]);
+  const attachedSlots = useMemo(() => attachedPhotoSlots(stories, photos), [photos, stories]); useBakeAttachedPhotos({ stories, slots: attachedSlots, photos, setStories, onStoriesUpdate, automaticChange }); // enregistrées avec les stories
   const attachedByStory = useMemo(
     () => new Map([...attachedSlots].map(([i, slot]) => [i, attachedPhotoUrl(photos?.[slot])!])),
     [attachedSlots, photos],
