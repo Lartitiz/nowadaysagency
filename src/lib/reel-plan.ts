@@ -162,13 +162,18 @@ export interface RenderPlanOptions {
 }
 
 /**
- * Texte à l'écran d'une section en mode silencieux : le texte overlay écrit
- * pour l'écran, sinon (absent ou vide) TOUT le texte parlé — jamais coupé ;
- * c'est le rendu (reel-render/recipe.ts) qui le découpe en écrans successifs
- * au plancher lisible, sans jamais le rétrécir en dessous.
+ * Texte à l'écran d'une section en mode silencieux : TOUT le script (texte
+ * parlé), jamais coupé ; c'est le rendu (reel-render/recipe.ts) qui le découpe
+ * en écrans successifs au plancher lisible, sans jamais le rétrécir.
+ *
+ * Le `texte_overlay` n'est qu'un repli (section sans texte parlé) : depuis
+ * #1373, c'est un court EXTRAIT de la phrase, écrit pour accompagner une voix.
+ * Sans voix, l'afficher à la place du script laissait l'écran sur
+ * « jamais celle calculée au m² » pendant toute une scène, et le reel alternait
+ * fragments et phrases entières (les sections sans extrait montraient le script).
  */
 export function silentOverlayText(s: { texte_parle?: unknown; texte_overlay?: unknown }): string | undefined {
-  return [s.texte_overlay, s.texte_parle].find(
+  return [s.texte_parle, s.texte_overlay].find(
     (t): t is string => typeof t === "string" && t.trim() !== "",
   );
 }
