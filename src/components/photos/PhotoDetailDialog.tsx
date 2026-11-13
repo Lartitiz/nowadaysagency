@@ -193,7 +193,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
   const isPortrait = photo.kind === "portrait";
   const retouchOptions: RetouchOption[] = [];
   if (onPrepare) retouchOptions.push({ key: "composition", icon: Camera, title: "Adapter le format et la lumière",
-    hint: "Garder la photo entière, ajuster les marges et ajouter du texte.", fits: true, free: true, run: () => onPrepare(photo) });
+    hint: "Choisir le format, redresser une photo penchée, régler la lumière et ajouter du texte.", fits: true, free: true, run: () => onPrepare(photo) });
   if (onPrepareKit) retouchOptions.push({ key: "preparation", icon: Sparkles, title: "Une photo, plusieurs contenus",
     hint: "Préparer un post, une story et une couverture, avec tes informations.", fits: true, free: true, run: () => onPrepareKit(photo) });
   if (isPortrait && onPortraitPro) {
