@@ -36,6 +36,9 @@ export function useCarouselAutosave(options: Options) {
   const controller = useRef<CarouselAutosaver>();
   const scope = useRef<{ document: string; key: string }>();
   const controllerKey = useRef("");
+  // Format du document suivi : le relais d'une fiche ne se fait qu'entre deux
+  // documents du même format (régénération), jamais d'un carrousel à un reel.
+  const controllerKind = useRef<string>();
   const disposal = useRef<ReturnType<typeof setTimeout>>();
   const identity = options.raw?._carousel_document_id;
   const snapshot = useMemo(() => options.raw, [options.raw]);
@@ -108,7 +111,11 @@ export function useCarouselAutosave(options: Options) {
       !!previous &&
       scope.current?.document === identity &&
       controllerKey.current !== key;
-    const predecessor = !copying && previous?.id === o.ideaId &&
+    const kind = o.kind || "carousel";
+    // Autre format sur la même fiche (13/11/2026 : un reel s'enregistrait dans
+    // la fiche du carrousel remplacé) : nouvelle fiche, l'ancienne reste intacte.
+    const otherFormat = !copying && !!previous && previous.id === o.ideaId && controllerKind.current !== kind;
+    const predecessor = !copying && !otherFormat && previous?.id === o.ideaId &&
       scope.current?.key === currentScope ? previous : undefined;
     if (previous) {
       previous.detach();
@@ -119,7 +126,8 @@ export function useCarouselAutosave(options: Options) {
     }
     scope.current = { document: identity, key: currentScope };
     controllerKey.current = key;
-    const id = copying ? crypto.randomUUID() : o.ideaId || crypto.randomUUID();
+    controllerKind.current = kind;
+    const id = copying || otherFormat ? crypto.randomUUID() : o.ideaId || crypto.randomUUID();
     const story = o.kind === "story";
     const reel = o.kind === "reel";
     const ideaFormat = story ? "story_serie" : reel ? "reel" : "carousel";
@@ -189,8 +197,8 @@ export function useCarouselAutosave(options: Options) {
     };
     const c = new CarouselAutosaver(
       id,
-      !copying && !!o.ideaId,
-      !copying && previous?.id === o.ideaId && previous.meta && !previous.dirty
+      !copying && !otherFormat && !!o.ideaId,
+      !copying && !otherFormat && previous?.id === o.ideaId && previous.meta && !previous.dirty
         ? { ...o.raw, _carousel_cloud: previous.meta }
         : o.raw,
       // Les photos des slides sont rangées à part : le brouillon ne garde que leurs liens.

@@ -335,3 +335,26 @@ describe("reel autosave", () => {
     expect(db.ops.some((op) => op.operation === "insert")).toBe(false);
   });
 });
+
+// Vu en ligne le 13/11/2026 : un carrousel enregistré, puis « Passer à un autre
+// format » → Reel → « Le remplacer ». La page garde la fiche du carrousel et le
+// reel s'y enregistrait par-dessus. Un autre format = une nouvelle fiche.
+describe("format change", () => {
+  it("never writes a reel into the carousel's idea", async () => {
+    const o: Parameters<typeof useCarouselAutosave>[0] = options();
+    const { rerender } = renderHook((p) => useCarouselAutosave(p), { initialProps: o });
+    await settle();
+    const onId = o.onId as ReturnType<typeof vi.fn>;
+    const carouselId = onId.mock.calls[0][0];
+    expect(db.rows.get(carouselId).format).toBe("carousel");
+    const reelRaw = { _carousel_document_id: "reel-1", reel_editor_version: 1, sections: [{ texte_parle: "Visite" }] };
+    rerender({ ...o, ideaId: carouselId, kind: "reel" as const, raw: reelRaw });
+    await settle();
+    expect(db.rows.size).toBe(2);
+    expect(db.rows.get(carouselId).format).toBe("carousel");
+    expect(db.rows.get(carouselId).content_data.caption.body).toBe("A");
+    const reelId = onId.mock.calls.at(-1)[0];
+    expect(reelId).not.toBe(carouselId);
+    expect(db.rows.get(reelId)).toMatchObject({ format: "reel" });
+  });
+});
