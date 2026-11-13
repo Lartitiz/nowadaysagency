@@ -438,8 +438,9 @@ try {
         const c = pfond.cette_semaine, i = pfond.comptes_internes_7j;
         console.log(`   « Tes photos en fond » (carrousels gardés) : ${c.au_dela_40_mots} slide(s) > 40 mots sur ${c.slides}${c.max_mots ? ` (max ${c.max_mots})` : ""}, ${c.narrateur_mixte} je/nous mêlés sur ${c.carrousels} carrousel(s)${c.alerte ? `  🔴 ${c.alerte}` : " ✅ (alerte si ≥ 3 slides ou ≥ 2 carrousels je/nous)"}${i?.carrousels ? ` ; comptes internes : ${i.au_dela_40_mots} slide(s) > 40 mots, ${i.narrateur_mixte} je/nous sur ${i.carrousels}` : ""}`);
       }
-      // Fin des carrousels (13/11/2026, #1937/#1947) : la dernière slide finit sur
-      // une ouverture (geste ou question). Seule la question se compte sans IA.
+      // Fin des carrousels (13/11/2026, #1937/#1947/#1952) : la dernière slide finit sur
+      // une ouverture (geste ou question). Seule la question se compte sans IA,
+      // en dernière slide ou en fin de légende.
       // Seuil de lecture : 🟠 si ≥ 2 carrousels et plus de la moitié sans question
       // → lire leur dernière slide dans l'échantillon (geste concret ou fin à plat ?).
       const fin = q.fin_carrousels;
@@ -448,7 +449,7 @@ try {
       } else if (fin) {
         const c = fin.cette_semaine, i = fin.comptes_internes_7j;
         const types = Object.entries(c.par_type || {}).map(([t, v]) => `${t} ${v.sans_question}/${v.carrousels}`).join(", ");
-        console.log(`   fin des carrousels (gardés, depuis le 14/11) : ${c.sans_question} sans question sur ${c.carrousels}${types ? ` (${types})` : ""}${c.alerte ? `  🟠 ${c.alerte}` : " ✅ (🟠 si ≥ 2 et plus de la moitié sans question)"}${i?.carrousels ? ` ; comptes internes : ${i.sans_question} sur ${i.carrousels}` : ""}`);
+        console.log(`   fin des carrousels (gardés, depuis le 14/11) : ${c.sans_question} sans question sur ${c.carrousels}${c.legende_question ? ` (+ ${c.legende_question} avec la question en légende seulement)` : ""}${types ? ` (${types})` : ""}${c.alerte ? `  🟠 ${c.alerte}` : " ✅ (🟠 si ≥ 2 et plus de la moitié sans question)"}${i?.carrousels ? ` ; comptes internes : ${i.sans_question} sur ${i.carrousels}` : ""}`);
       }
       // Plan des carrousels (12/10/2026) : gratuit, gardé en base depuis
       // (format carousel_plan). L'écran attend 170 s, le second appel part à 80 s.
