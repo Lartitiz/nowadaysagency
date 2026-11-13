@@ -209,7 +209,10 @@ export function buildReelComposition(input: ReelRenderInput): ReelComposition {
 
   const duration = round(cursor);
   const textHtml = screens.map((sc) => {
-    const words = sc.words.map((w) => `<span class="w${w.key ? " k" : ""}">${escapeHtml(w.word)}</span>`).join(" ");
+    // Le mot clé est groupé (jamais coupé en fin de ligne, et grossi d'un bloc à la fin).
+    const plain = sc.words.filter((w) => !w.key).map((w) => `<span class="w">${escapeHtml(w.word)}</span>`).join("");
+    const keys = sc.words.filter((w) => w.key).map((w) => `<span class="w k">${escapeHtml(w.word)}</span>`).join("");
+    const words = plain + (keys ? `<span class="kg">${keys}</span>` : "");
     return `<div class="line clip${sc.final ? " final" : ""}" id="${sc.id}" data-start="${sc.start}" data-duration="${sc.duration}" data-track-index="2"><p style="font-size:${sc.fontSize}px">${words}</p></div>`;
   }).join("\n");
 
@@ -241,7 +244,10 @@ html, body { width: ${WIDTH}px; height: ${HEIGHT}px; overflow: hidden; backgroun
   text-shadow: 0 2px 6px rgba(0,0,0,0.55), 0 0 34px rgba(0,0,0,0.75); }
 .line.final { top: 560px; height: ${FINAL_BOX_HEIGHT}px; align-items: center; }
 .line.final p { line-height: 1.04; letter-spacing: -0.03em; }
-.w { display: inline-block; white-space: pre; }
+.w { display: inline-block; white-space: pre; margin-right: 0.27em; }
+.w:last-child { margin-right: 0; }
+.kg { display: inline-block; white-space: nowrap; }
+.k { padding-right: 0.04em; }
 .k { font-family: "Playfair Display", serif; font-style: italic; font-weight: 700; color: #f6c98b; }
 #fadeout { position: absolute; inset: 0; background: #000; opacity: 0; }
 </style>
@@ -291,7 +297,7 @@ D.screens.forEach((sc) => {
   const ws = "#" + sc.id + " .w";
   if (sc.final) {
     tl.fromTo(ws, { opacity: 0, scale: 1.4 }, { opacity: 1, scale: 1, duration: 0.32, ease: "power4.out", stagger: Math.min(0.18, 2.4 / Math.max(1, sc.n)) }, sc.start);
-    tl.fromTo("#" + sc.id + " .k", { scale: 1 }, { scale: 1.1, duration: 0.5, ease: "back.out(3)", transformOrigin: "50% 60%" }, sc.start + Math.min(2.6, sc.duration * 0.4));
+    tl.fromTo("#" + sc.id + " .kg", { scale: 1 }, { scale: 1.1, duration: 0.5, ease: "back.out(3)", transformOrigin: "50% 60%" }, sc.start + Math.min(2.6, sc.duration * 0.4));
     return;
   }
   tl.fromTo(ws, { opacity: 0, y: 34, filter: "blur(8px)" },
