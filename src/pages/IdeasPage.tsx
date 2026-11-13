@@ -3,6 +3,7 @@ import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { calendarSaveError } from '@/lib/calendar-persistence';
 import { savePreviewEdit } from "@/lib/content-preview-save";
 import { cleanIdeaTitle as cleanTitle, ideaCreateLink } from "@/lib/idea-create-link";
+import { briefsWithoutTwin, twinBriefIds } from "@/lib/brief-twins";
 import { creerDraftOf, draftPreviewText } from "@/features/creer/creer-draft-idea";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -224,12 +225,14 @@ function IdeasInWorkspace() {
     setLoading(false);
   };
 
+  // Une demande dont la fiche (brouillon ou contenu commencé) existe déjà n'est pas montrée deux fois.
+  const shownBriefs = useMemo(() => briefsWithoutTwin(briefs, ideas.filter((i) => getIdeaState(i) !== "todo").map((i) => i.titre)), [briefs, ideas]);
   const counts = useMemo(() => {
     const c: Record<IdeaState, number> = { todo: 0, in_progress: 0, created: 0 };
     for (const idea of ideas) c[getIdeaState(idea)]++;
-    c.in_progress += briefs.length;
+    c.in_progress += shownBriefs.length;
     return c;
-  }, [ideas, briefs]);
+  }, [ideas, shownBriefs]);
 
   const filtered = useMemo(() => {
     let result = ideas.filter(i => view === "all" || (view === "calendar" ? getIdeaState(i) === "created" : getIdeaState(i) !== "created"));
@@ -252,8 +255,8 @@ function IdeasInWorkspace() {
   const filteredBriefs = useMemo(() => {
     if (view === "calendar" || kind === "todo" || canalFilter !== "all") return [];
     const q = query.trim().toLocaleLowerCase("fr");
-    return briefs.filter(brief => !q || (brief.subject || "").toLocaleLowerCase("fr").includes(q));
-  }, [briefs, view, kind, canalFilter, query]);
+    return shownBriefs.filter(brief => !q || (brief.subject || "").toLocaleLowerCase("fr").includes(q));
+  }, [shownBriefs, view, kind, canalFilter, query]);
 
   /** Reprend un brief là où il s'était arrêté : questions et réponses déjà remplies. */
   const handleResumeBrief = (brief: SavedBrief) => {
@@ -302,6 +305,9 @@ function IdeasInWorkspace() {
       toast.error("Suppression impossible", { description: friendlyError(error) });
       return;
     }
+    const deleted = ideas.find((i) => i.id === id);
+    const twins = deleted && getIdeaState(deleted) !== "todo" ? twinBriefIds(briefs, deleted.titre) : [];
+    if (twins.length) void supabase.from("content_briefs").delete().in("id", twins).then(({ error: e }) => { if (!e) setBriefs((prev) => prev.filter((b) => !twins.includes(b.id))); });
     setIdeas((prev) => prev.filter((i) => i.id !== id));
     if (selectedIdea?.id === id) closeDetail();
     toast.success("Idée supprimée");
@@ -399,7 +405,7 @@ function IdeasInWorkspace() {
     );
   };
 
-  const totalCount = ideas.length + briefs.length;
+  const totalCount = ideas.length + shownBriefs.length;
   const viewCounts = { active: counts.todo + counts.in_progress, calendar: counts.created, all: totalCount };
 
   const deleteButton = (idea: SavedIdea) => (
@@ -496,7 +502,7 @@ function IdeasInWorkspace() {
             </select>}
           </div>
           <p className="text-xs text-muted-foreground" data-testid="ideas-summary">{loading ? "Chargement…" : `${filtered.length + filteredBriefs.length} élément(s) dans cette sélection`}</p>
-          {canalFilter !== "all" && briefs.length > 0 && view !== "calendar" && <p className="text-xs text-muted-foreground">Les demandes sans canal choisi sont visibles dans <button onClick={() => setCanalFilter("all")} className="underline">Tous les canaux</button>.</p>}
+          {canalFilter !== "all" && shownBriefs.length > 0 && view !== "calendar" && <p className="text-xs text-muted-foreground">Les demandes sans canal choisi sont visibles dans <button onClick={() => setCanalFilter("all")} className="underline">Tous les canaux</button>.</p>}
         </div>
         {!loading && loadError && <div role="alert" className="rounded-xl border border-border bg-muted p-4 mb-4 text-sm"><p>Une partie de tes idées ou de tes demandes n’a pas pu être chargée. La liste peut être incomplète.</p><button onClick={fetchIdeas} className="underline mt-2">Réessayer</button></div>}
 
