@@ -3,6 +3,7 @@ import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { calendarSaveError } from '@/lib/calendar-persistence';
 import { savePreviewEdit } from "@/lib/content-preview-save";
 import { cleanIdeaTitle as cleanTitle, ideaCreateLink } from "@/lib/idea-create-link";
+import { creerDraftOf, draftPreviewText } from "@/features/creer/creer-draft-idea";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -556,7 +557,9 @@ function IdeasInWorkspace() {
           <DialogContent className="max-w-3xl max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
             {selectedIdea && (() => {
               const state = getIdeaState(selectedIdea);
-              const hasContent = selectedIdea.content_data != null || selectedIdea.content_draft != null;
+              // Brouillon de Créer pas encore généré : pas d'aperçu de contenu (creer-draft-idea.ts).
+              const creerDraft = creerDraftOf(selectedIdea.content_data);
+              const hasContent = !creerDraft && (selectedIdea.content_data != null || selectedIdea.content_draft != null);
               const angle = selectedIdea.angle?.trim();
               const showAngle = !!angle && angle !== "libre" && angle !== "brouillon" && !/^(post|reel|story|carousel|newsletter|pinterest|linkedin)/i.test(angle);
               return (
@@ -584,6 +587,10 @@ function IdeasInWorkspace() {
                         {selectedIdea.accroche_short && <p className="text-sm text-foreground font-semibold">{selectedIdea.accroche_short}</p>}
                         {selectedIdea.accroche_long && <p className="text-sm text-foreground/80 italic">{selectedIdea.accroche_long}</p>}
                       </section>
+                    )}
+
+                    {creerDraft && (
+                      <p className="rounded-xl bg-rose-pale p-3 text-sm text-foreground">{draftPreviewText(creerDraft.flow)}</p>
                     )}
 
                     {hasContent && selectedIdea.format !== "actu" && (
@@ -665,7 +672,7 @@ function IdeasInWorkspace() {
                       </Button>
                     ) : (
                       <Button onClick={() => handleCreate(selectedIdea)} className="rounded-pill gap-2 w-full">
-                        <Sparkles className="h-4 w-4" /> {state === "in_progress" ? "Ouvrir l’éditeur complet" : "Créer ce contenu"}
+                        <Sparkles className="h-4 w-4" /> {creerDraft ? "Reprendre ce brouillon" : state === "in_progress" ? "Ouvrir l’éditeur complet" : "Créer ce contenu"}
                       </Button>
                     )}
                     <div className="flex gap-2 min-w-0">
