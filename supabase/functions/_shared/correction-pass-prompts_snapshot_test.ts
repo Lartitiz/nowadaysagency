@@ -28,9 +28,10 @@ const FORMATS: CorrectionFormat[] = ["linkedin", "carousel", "newsletter", "inst
 // ── Surface d'export ──────────────────────────────────────────────────────
 // Au découpage, correction-pass.ts réexportera chaque sous-module : ce test
 // attrape un export oublié ou ajouté par erreur.
-Deno.test("correction-pass : la liste des exports est exactement celle attendue (23)", () => {
+Deno.test("correction-pass : la liste des exports est exactement celle attendue (25)", () => {
   assertEquals(Object.keys(correctionPass).sort(), [
     "CORRECTION_PROMPTS",
+    "LEGAL_RULE_REMOVAL_PROMPT",
     "RESEARCH_EXCESS_PROMPT",
     "RESEARCH_SOURCING_PROMPT",
     "TESTIMONY_REMOVAL_PROMPT",
@@ -38,6 +39,7 @@ Deno.test("correction-pass : la liste des exports est exactement celle attendue 
     "applyCorrectionPassCarousel",
     "applyCorrectionPassReel",
     "applyCorrectionPassStories",
+    "applyLegalRuleRemovalPass",
     "applyResearchExcessPass",
     "applyResearchSourcingPass",
     "applyTestimonyRemovalPass",

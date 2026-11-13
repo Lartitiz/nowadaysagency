@@ -8,7 +8,7 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import * as redacGate from "./redac-gate.ts";
 
-Deno.test("redac-gate : la liste des valeurs exportées est exactement celle attendue (43)", () => {
+Deno.test("redac-gate : la liste des valeurs exportées est exactement celle attendue (45)", () => {
   assertEquals(Object.keys(redacGate).sort(), [
     "analyzeCarouselRedac",
     "analyzeTextRedac",
@@ -23,9 +23,11 @@ Deno.test("redac-gate : la liste des valeurs exportées est exactement celle att
     "countStaccatoAcrossSlides",
     "dropUserSourcedReversals",
     "emptiedMarkers",
+    "enforceNoAddedLegalRules",
     "enforceNoInventedTestimonials",
     "enforceResearchNumberCap",
     "enforceResearchNumberSources",
+    "findAddedLegalRules",
     "findBrandCopyOverlap",
     "findChoppyFragments",
     "findHookEchoes",

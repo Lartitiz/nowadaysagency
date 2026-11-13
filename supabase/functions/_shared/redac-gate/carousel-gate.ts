@@ -14,6 +14,7 @@ import { type EchoContext, hookEchoesBefore } from "./echoes.ts";
 import { type RedacAnalysis, redacViolations, carouselRedacRawCount, redacScore } from "./scoring.ts";
 import { researchNumbers, baseInputText, enforceResearchNumberSources, emptiedMarkers, enforceResearchNumberCap } from "./research-numbers.ts";
 import { enforceNoInventedTestimonials } from "./testimony.ts";
+import { enforceNoAddedLegalRules } from "./legal-rules.ts";
 import { analyzeCarouselRedac, normalizeCaptionHashtags, buildQualityCheck, captionEndingViolated, type CaptionEndingRule, emptyAnalysis } from "./carousel-analysis.ts";
 import { buildFixInstructions } from "./fix-instructions.ts";
 
@@ -326,6 +327,35 @@ export async function runRedacGate(
       }
     } catch (e) {
       console.error("[redac-gate] passe témoignages inventés échouée, contenu conservé :", e);
+    }
+  }
+
+  // Règle juridique que l'utilisatrice n'a pas évoquée (13/11/2026) : passe
+  // dédiée sur les textes balisés, gardée seulement si aucun autre compteur ne
+  // monte et qu'aucun chiffre sourcé ne disparaît.
+  if (opts.testimonySource !== undefined && opts.correction.enabled !== false) {
+    try {
+      const doc = finalDoc.parsed;
+      const block = extractCarouselTexts(doc);
+      const unmarked = (t: string) => t.replace(/\[[^\]\n]{1,40}\]/g, " ");
+      const sourcedNumbers = allowedNumbers ? [...numbersIn(unmarked(block))].filter((n) => allowedNumbers.has(n)) : [];
+      const legal = await enforceNoAddedLegalRules(block, opts.testimonySource, {
+        audited: unmarked,
+        analyze: (b) => dropUserSourcedReversals(analyzeCarouselRedac(reinjectCarouselTexts(doc, b), allowedNumbers, opts.brandGuardText, opts.echo, research, opts.testimonySource), opts.correction.authoredText),
+        otherCount: carouselRedacRawCount,
+        reject: (candidate) => {
+          const kept = numbersIn(unmarked(candidate));
+          const lost = sourcedNumbers.filter((n) => !kept.has(n));
+          return lost.length ? `chiffre sourcé perdu ${JSON.stringify(lost)}` : null;
+        },
+        logger: opts.correction.logger, abortTimeoutMs: opts.correction.abortTimeoutMs,
+      });
+      if (legal.applied) {
+        finalDoc.parsed = reinjectCarouselTexts(doc, legal.content);
+        repassed = true;
+      }
+    } catch (e) {
+      console.error("[redac-gate] passe règles juridiques échouée, contenu conservé :", e);
     }
   }
 

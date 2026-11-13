@@ -136,3 +136,43 @@ export async function applyResearchExcessPass(
     return content;
   }
 }
+
+// ── Passe dédiée : règle juridique ajoutée (13/11/2026) ──
+// Décision de Laetitia : aucune loi, obligation ou interdiction que
+// l'utilisatrice n'a pas évoquée (vu : « au sens de la loi Hoguet… un apporteur
+// ne peut réclamer aucune commission… jurisprudence constante depuis 2012 »).
+// Le code repère les phrases (redac-gate/legal-rules.ts) et relit le résultat.
+export const LEGAL_RULE_REMOVAL_PROMPT = `Tu es correctrice factuelle. Tu reçois un texte et une liste de phrases qui posent une règle de droit (loi, article de code, jurisprudence, décret, obligation ou interdiction légale, sanction) que la personne qui publie n'a jamais évoquée. Elle ne veut pas qu'on lui fasse affirmer du droit à sa place.
+Pour CHAQUE phrase listée : retire la règle juridique (nom de loi, article, jurisprudence, « légalement », « la loi impose », sanction) ET les obligations ou interdictions qui en découlent dans les phrases voisines (« sans mandat, impossible de… », « tu n'as pas le droit de… »). Garde l'idée pratique de l'autrice, dite sans droit : un conseil de bon sens, une façon de faire, une question à se poser (« mettez-vous d'accord par écrit avant »). N'ajoute aucune autre règle, aucune date, aucun chiffre, aucune source.
+Ne modifie RIEN d'autre : mêmes phrases ailleurs, même ordre, mêmes retours à la ligne, mêmes listes. Garde la position et le ton.
+Si le texte comporte des marqueurs entre crochets (« [STORY 1 - TEXT] », « [SLIDE 2 - BODY] »…), conserve TOUS les marqueurs exactement, dans le même ordre.
+Renvoie uniquement le texte corrigé, sans commentaire ni balise.`;
+
+/** Passe courte qui retire les règles juridiques ajoutées (relue ensuite par le code). */
+export async function applyLegalRuleRemovalPass(
+  content: string,
+  opts: { items: string[]; logger?: (msg: string) => void; abortTimeoutMs?: number; model?: AnthropicModel },
+): Promise<string> {
+  if (!content || !opts.items.length) return content;
+  try {
+    const raw = await callAnthropicSimple(
+      opts.model ?? HAIKU_MODEL,
+      LEGAL_RULE_REMOVAL_PROMPT,
+      `PHRASES AVEC UNE RÈGLE JURIDIQUE AJOUTÉE :\n${opts.items.map((n) => `- « ${n} »`).join("\n")}\n\nTEXTE :\n"""\n${content}\n"""`,
+      0,
+      4096,
+      undefined,
+      opts.abortTimeoutMs,
+    );
+    const corrected = unwrapCorrectionOutput(raw);
+    if (!corrected || corrected.length < content.length * 0.5 || corrected.length > content.length * 1.1) {
+      opts.logger?.(`[legal-removal] FALLBACK (longueur ${corrected?.length} vs ${content.length})`);
+      return content;
+    }
+    const guarded = keepStructureOrRevert(content, corrected, "legal-removal", opts.logger);
+    return guarded.reverted ? content : corrected;
+  } catch (e) {
+    opts.logger?.(`[legal-removal] ERROR: ${e}`);
+    return content;
+  }
+}

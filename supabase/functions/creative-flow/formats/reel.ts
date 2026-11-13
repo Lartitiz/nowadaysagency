@@ -9,7 +9,7 @@ import { HAIKU_MODEL } from "../../_shared/anthropic.ts";
 import { enforceAudienceAddress, type AudienceAddress } from "../../_shared/audience-address.ts";
 import { tryParseAiJson } from "../../_shared/parse-ai-json.ts";
 import { applyCorrectionPassReel } from "../../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, hookEchoesBefore } from "../../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, enforceNoAddedLegalRules, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, hookEchoesBefore, textRedacRawCount } from "../../_shared/redac-gate.ts";
 import { countReelSpokenWords, enforceReelNoFaceCam, enforceSelectedReelHook, finalizeReelScript, reelAuditableText, extractReelTexts, reinjectReelTexts, reelTemplateLeaks, reelOverlaysNotFromScript } from "../../_shared/reel-postprocess.ts";
 import { recapHooksLine } from "../../_shared/multi-subject.ts";
 import { CORRECTION_ABORT_MS, addrOpts, extractImagePayload, gateNumbers } from "../shared.ts";
@@ -187,6 +187,13 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
       logger: (msg) => console.log(msg), abortTimeoutMs: CORRECTION_ABORT_MS,
     });
     if (cleaned.applied) Object.assign(parsed, reinjectReelTexts(parsed, cleaned.content));
+    // Règle juridique que l'utilisatrice n'a pas évoquée (13/11/2026) : passe dédiée.
+    const legal = await enforceNoAddedLegalRules(extractReelTexts(parsed), testimonySourceText(body), {
+      analyze: analyzeTestimony, otherCount: textRedacRawCount,
+      audited: (b) => reelAuditableText(reinjectReelTexts(parsed, b)),
+      logger: (msg) => console.log(msg), abortTimeoutMs: CORRECTION_ABORT_MS,
+    });
+    if (legal.applied) Object.assign(parsed, reinjectReelTexts(parsed, legal.content));
   } catch (corrErr) {
     console.error("[creative-flow] correction-pass reel failed:", corrErr);
   }

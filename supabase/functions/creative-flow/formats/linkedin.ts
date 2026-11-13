@@ -16,7 +16,7 @@ import { tryParseAiJson, tryParseAiObject } from "../../_shared/parse-ai-json.ts
 import { callAnthropicSimple, type UsageSink, type AnthropicModel, HAIKU_MODEL } from "../../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream, clientStillThere, type StatusEmitter } from "../../_shared/anthropic-stream.ts";
 import { buildVisionGenerateBrief } from "../../_shared/vision-prompts.ts";
-import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, runTextRedacGate, textRedacRawCount, textRedacViolations, hookEchoesBefore } from "../../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceNoAddedLegalRules, enforceResearchNumberSources, fixElisionsInFields, runTextRedacGate, textRedacRawCount, textRedacViolations, hookEchoesBefore } from "../../_shared/redac-gate.ts";
 import { logContentQuality } from "../../_shared/content-quality.ts";
 import { CORRECTION_ABORT_MS, GENERATE_ABORT_MS, POST_ADDRESS_FIELDS, addrOpts, extractImagePayload, gateNumbers, photoVoiceRule } from "../shared.ts";
 
@@ -454,6 +454,12 @@ Réponds UNIQUEMENT en JSON :
         logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS,
       })).content;
     }
+    // Règle juridique que l'utilisatrice n'a pas évoquée (13/11/2026) : passe dédiée.
+    if (typeof merged.content === "string") {
+      merged.content = (await enforceNoAddedLegalRules(merged.content, liTestimonySource, {
+        analyze: liAnalyze, otherCount: textRedacRawCount, logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS,
+      })).content;
+    }
     // Tu ou vous réglé dans la fiche de marque : passe courte si le post le contredit.
     if (typeof merged.content === "string") {
       merged.content = (await enforceAudienceAddress(merged.content, params.audienceAddress, {
@@ -487,6 +493,12 @@ Réponds UNIQUEMENT en JSON :
   if (typeof fallbackParsed.content === "string") {
     fallbackParsed.content = (await enforceNoInventedTestimonials(fallbackParsed.content, liAnalyze, {
       logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS,
+    })).content;
+  }
+  // Règle juridique que l'utilisatrice n'a pas évoquée (13/11/2026) : passe dédiée.
+  if (typeof fallbackParsed.content === "string") {
+    fallbackParsed.content = (await enforceNoAddedLegalRules(fallbackParsed.content, liTestimonySource, {
+      analyze: liAnalyze, otherCount: textRedacRawCount, logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS,
     })).content;
   }
   if (typeof fallbackParsed.content === "string") {

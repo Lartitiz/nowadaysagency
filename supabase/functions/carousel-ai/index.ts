@@ -30,6 +30,7 @@ import { handleMixCarouselRequest } from "./modes/mix.ts";
 import { handlePhotoCarouselRequest } from "./modes/photo.ts";
 import { handleSlideRedoRequest } from "./modes/slide-redo.ts";
 import { investmentSolicitationBlock } from "../_shared/investment-solicitation.ts";
+import { isSaleListing } from "../_shared/sale-listing.ts";
 export { emptySlidesText } from "./modes/photo.ts";
 
 // Fiche 2 (docs/robustesse/gros-fichiers.md) : déplacés à l'identique, réexportés pour les tests.
@@ -265,7 +266,8 @@ export async function handleRequest(req: Request): Promise<Response> {
       : undefined;
     let depthBlock = "";
     let researchLinks: ResearchLink[] = [];
-    if (type === "express_full") {
+    // Annonce ou mise en vente (13/11/2026) : aucun fait du web, donc pas de recherche.
+    if (type === "express_full" && !isSaleListing(body.subject, body.subject_details, body.objective, body.editorial_angle)) {
       const newsAngle = typeof body.news_context === "string" ? body.news_context.trim().slice(0, 600) : "";
       const depthMode = livedCase.provided ? "support" : "depth";
       const material = await _deps.fetchDepthMaterial({

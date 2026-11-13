@@ -13,6 +13,7 @@ import { type TextRedacAnalysis, textRedacViolations, textRedacRawCount } from "
 import { type ResearchNumbers, findUnsourcedResearchNumbers, enforceResearchNumberSources } from "./research-numbers.ts";
 import { findInventedTestimonials, findInventedExperiences, enforceNoInventedTestimonials } from "./testimony.ts";
 import { buildTextFixInstructions } from "./fix-instructions.ts";
+import { enforceNoAddedLegalRules } from "./legal-rules.ts";
 
 // ── Variante TEXTE (lot 4) : LinkedIn et newsletter ──
 // Mêmes mesures que le gate carrousel, sur un texte brut. Le résultat s'injecte
@@ -136,6 +137,16 @@ export async function runTextRedacGate(
       bestA = cleaned.analysis;
       repassed = true;
     }
+  }
+
+  // Règle juridique que l'utilisatrice n'a pas évoquée (13/11/2026) : passe dédiée.
+  const legal = await enforceNoAddedLegalRules(best, opts.testimonySource, {
+    analyze, otherCount: textRedacRawCount, logger: opts.correction.logger, abortTimeoutMs: opts.correction.abortTimeoutMs,
+  });
+  if (legal.applied) {
+    best = legal.content;
+    bestA = analyze(best);
+    repassed = true;
   }
 
   const violations = textRedacViolations(bestA);
