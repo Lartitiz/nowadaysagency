@@ -38,6 +38,7 @@ import { removePhotoFromLibrary } from "@/lib/photo-storage";
 import { PhotoCard } from "@/components/photos/PhotoCard";
 import { PhotoUploadingCard } from "@/components/photos/PhotoUploadingCard";
 import { PhotoRetouchDialog } from "@/components/photos/PhotoRetouchDialog";
+import { findStudioSessionForPhoto } from "@/features/visual-studio/api";
 import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
 import { PackshotDialog } from "@/components/photos/PackshotDialog";
 import { MiseEnSceneDialog } from "@/components/photos/MiseEnSceneDialog";
@@ -115,6 +116,12 @@ function PhotosLibrary() {
     if (photos.some(photo => photo.id === target.studioPhotoId)) setDetailPhotoId(target.studioPhotoId);
     navigate('/photos', { replace: true, state: null });
   }, [location.state, activeWorkspace?.id, hasPhotoData, photos, navigate]);
+  // « Modifier la photo » : rouvre la session du Studio déjà ouverte sur cette
+  // photo plutôt que d'en créer une nouvelle à chaque fois.
+  async function openStudioFor(photoId: string) {
+    const existing = activeWorkspace ? await findStudioSessionForPhoto(activeWorkspace.id, photoId) : null;
+    navigate(existing ? `/photos/studio?session=${existing}` : `/photos/studio?photo=${photoId}`);
+  }
   const detailPhoto = detailPhotoId ? (photos.find((p) => p.id === detailPhotoId) ?? null) : null;
   const [packshotPhoto, setPackshotPhoto] = useState<UserPhotoRow | null>(null);
   const [miseEnScenePhoto, setMiseEnScenePhoto] = useState<UserPhotoRow | null>(null);
@@ -521,9 +528,8 @@ function PhotosLibrary() {
         sources={preparation.photos.map(p => ({ id: p.id, photoId: p.id, name: p.name || "Photo" }))} mode={preparation.mode}
         onOpenChange={open => { if (!open) setPreparation(null); }} /></Suspense>}
       <PhotoDetailDialog
-        onStudio={activeRole && ["owner", "manager", "editor"].includes(activeRole) ? (photo) => navigate(`/photos/studio?photo=${photo.id}`) : undefined}
+        onStudio={activeRole && ["owner", "manager", "editor"].includes(activeRole) ? (photo) => void openStudioFor(photo.id) : undefined}
         onPrepare={p => { setDetailPhotoId(null); setPreparation({ photos: [p], mode: "single" }); }}
-        onPrepareKit={p => { setDetailPhotoId(null); setPreparation({ photos: [p], mode: "kit" }); }}
         photo={detailPhoto}
         open={!!detailPhoto}
         onOpenChange={(v) => !v && setDetailPhotoId(null)}

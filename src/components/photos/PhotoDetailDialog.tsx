@@ -35,6 +35,7 @@ import {
   type UserPhotoRow,
 } from "@/lib/photo-storage";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { photoToolFit } from "@/lib/photo-tool-fit";
 
 interface PhotoDetailDialogProps {
   photo: UserPhotoRow | null;
@@ -51,7 +52,6 @@ interface PhotoDetailDialogProps {
   /** Ouvre une session Studio avec cette photo. */
   onStudio?: (photo: UserPhotoRow) => void;
   onPrepare?: (photo: UserPhotoRow) => void;
-  onPrepareKit?: (photo: UserPhotoRow) => void;
   onDelete?: (photo: UserPhotoRow) => void;
 }
 
@@ -76,7 +76,7 @@ function slugify(s: string): string {
     .slice(0, 60) || "photo";
 }
 
-export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRetouche, onMiseEnScene, onPortraitPro, onDelete, onPrepare, onPrepareKit, onStudio }: PhotoDetailDialogProps) {
+export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRetouche, onMiseEnScene, onPortraitPro, onDelete, onPrepare, onStudio }: PhotoDetailDialogProps) {
   const navigate = useNavigate();
   const [view, setView] = useState<"after" | "before">("after");
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
@@ -102,22 +102,13 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
   const hasRetouch =
     !!photo?.original_storage_path && photo.original_storage_path !== photo.storage_path;
 
-  // Packshot / Mettre en scène = actions produit : mises en avant seulement si
-  // la photo est un produit (ou pas encore classée — comportement historique).
-  // P4 (18/10/2026) : une image faite par un outil produit (fond blanc, mise
-  // en scène) reste un produit même si l'IA la classe ensuite « autre » ; et
-  // « autre » (classement incertain) ne cache plus les outils produit. Seuls
-  // portrait, ambiance et coulisses les rangent sous le repli.
-  const madeByProductTool =
-    photo?.background_preset_key === "packshot" ||
-    photo?.background_preset_key === "mise_en_scene" ||
-    !!photo?.tags?.some((t) => t === "packshot" || t === "mise-en-scene");
-  const isProductPhoto =
-    !photo?.kind ||
-    photo.kind === "produit" ||
-    photo.kind === "produit_porte" ||
-    photo.kind === "autre" ||
-    madeByProductTool;
+  // Quels outils conviennent à cette photo : règle partagée avec le Studio.
+  const { isProduct: isProductPhoto, isPortrait, isPlace } = photoToolFit(photo);
+  // Option B de l'audit du 13/11/2026 : quand le Studio est ouvert à la
+  // personne, TOUTES les modifications passent par lui (un seul bouton
+  // « Modifier la photo ») ; ses raccourcis gardent les mêmes outils. Le menu
+  // ci-dessous ne sert plus qu'à qui n'a pas accès au Studio.
+  const studioOnly = !!onStudio;
 
   useEffect(() => {
     if (!photo || !open) return;
@@ -187,15 +178,15 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
     }
   }
 
-  // Les outils de retouche, dans l'ordre où ils ont du sens pour CETTE photo.
-  // Ceux qui ne conviennent pas ne disparaissent pas (le classement IA peut se
-  // tromper) : ils passent sous un repli avec la raison.
-  const isPortrait = photo.kind === "portrait";
+  // Menu de repli (sans accès au Studio) : les outils, dans l'ordre où ils ont
+  // du sens pour CETTE photo. Ceux qui ne conviennent pas ne disparaissent pas
+  // (le classement IA peut se tromper) : ils passent sous un repli avec la raison.
+  // « Une photo, plusieurs contenus » n'a plus sa carte (13/11/2026) : la
+  // fenêtre « Adapter le format et la lumière » sait passer en plusieurs formats.
   const retouchOptions: RetouchOption[] = [];
+  if (!studioOnly) {
   if (onPrepare) retouchOptions.push({ key: "composition", icon: Camera, title: "Adapter le format et la lumière",
     hint: "Choisir le format, redresser une photo penchée, régler la lumière et ajouter du texte.", fits: true, free: true, run: () => onPrepare(photo) });
-  if (onPrepareKit) retouchOptions.push({ key: "preparation", icon: Sparkles, title: "Une photo, plusieurs contenus",
-    hint: "Préparer un post, une story et une couverture, avec tes informations.", fits: true, free: true, run: () => onPrepareKit(photo) });
   if (isPortrait && onPortraitPro) {
     retouchOptions.push({
       key: "portrait",
@@ -226,26 +217,6 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
       run: () => onMiseEnScene(photo),
     });
   }
-  // Photo d'un lieu (pièce, façade, paysage…) : la photo EST le décor.
-  // « Changer le décor » détoure un sujet et réinvente le reste (QA du
-  // 12/11/2026 : salon réinventé, sol et murs changés). On propose d'abord le
-  // Studio, où la personne dit avec ses mots ce qu'elle veut changer.
-  const isPlace = photo.kind === "ambiance" && !isProductPhoto;
-  // Classement incertain (« autre ») : ce peut être une pièce comme un objet.
-  // Le Studio, qui marche pour tout, passe en premier ; les autres outils
-  // restent visibles juste en dessous (QA du 12/11/2026).
-  const isUncertain = photo.kind === "autre" && !madeByProductTool;
-  const studioInMenu = (isPlace || isUncertain) && !!onStudio;
-  if (studioInMenu) {
-    retouchOptions.unshift({
-      key: "studio",
-      icon: Sparkles,
-      title: "Retoucher avec mes mots",
-      hint: "Dis ce que tu veux changer (ranger, éclaircir, retirer un objet…) : le Studio garde le reste de la photo.",
-      fits: true,
-      run: () => { onOpenChange(false); onStudio(photo); },
-    });
-  }
   if (onRetouche) {
     retouchOptions.push({
       key: "decor",
@@ -255,6 +226,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
       fits: !isPlace,
       run: () => onRetouche(photo),
     });
+  }
   }
   const fittingOptions = retouchOptions.filter((o) => o.fits);
   const otherOptions = retouchOptions.filter((o) => !o.fits);
@@ -368,9 +340,10 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
               <Sparkles className="h-4 w-4 mr-2 shrink-0" />
               <span className="truncate">Créer un contenu</span>
             </Button>
-            {/* Lieu ou classement incertain : « Retoucher avec mes mots » (menu ci-dessous) fait la même chose. */}
-            {onStudio && !studioInMenu && <Button variant="outline" onClick={() => { onOpenChange(false); onStudio(photo); }}>
-              <Sparkles className="h-4 w-4 mr-2" /> Retravailler dans le Studio
+            {/* Une seule porte pour modifier : le Studio, avec ses raccourcis
+                (format et lumière sans crédit, fond blanc, portrait…). */}
+            {studioOnly && <Button variant="outline" className="w-full min-w-0" onClick={() => { onOpenChange(false); onStudio(photo); }}>
+              <Wand2 className="h-4 w-4 mr-2 shrink-0" /> Modifier la photo
             </Button>}
             {retouchOptions.length > 0 && (
               <Button

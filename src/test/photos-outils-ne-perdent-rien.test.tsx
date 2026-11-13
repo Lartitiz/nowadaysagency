@@ -160,49 +160,31 @@ it("une photo d'ambiance garde les outils produit sous le repli", () => {
   expect(screen.getByRole("button", { name: /Une photo pour mon e-commerce/ })).not.toBeVisible();
 });
 
-// QA du 12/11/2026 : sur la photo d'un salon, « Changer le décor » réinventait
-// la pièce. Pour un lieu, le Studio passe en premier, le décor sous le repli.
-it("photo d'un lieu : « Retoucher avec mes mots » ouvre le Studio, « Changer le décor » passe sous le repli", () => {
+// Option B de l'audit du 13/11/2026 : quand le Studio est accessible, la fiche
+// n'a plus qu'une porte pour modifier, « Modifier la photo », qui ouvre le
+// Studio (ses raccourcis reprennent les outils, voir studio-photo-shortcuts.test).
+it.each([
+  ["un lieu", { kind: "ambiance", name: "Salon" }],
+  ["un classement incertain", { kind: "autre", name: "Chambre" }],
+  ["un fond blanc classé « autre »", { kind: "autre", background_preset_key: "packshot" }],
+  ["un portrait", { kind: "portrait" }],
+  ["un produit", { kind: "produit" }],
+])("avec le Studio, %s n'a qu'une porte : « Modifier la photo »", (_l, over) => {
   const onStudio = vi.fn();
-  const p = photo({ kind: "ambiance", name: "Salon" });
-  wrap(<PhotoDetailDialog photo={p} open onOpenChange={vi.fn()} onRetouche={vi.fn()} onStudio={onStudio} />);
-  // Pas de doublon : le bouton « Retravailler dans le Studio » mène au même endroit.
+  const p = photo(over);
+  wrap(<PhotoDetailDialog photo={p} open onOpenChange={vi.fn()} onPrepare={vi.fn()} onPackshot={vi.fn()}
+    onMiseEnScene={vi.fn()} onRetouche={vi.fn()} onPortraitPro={vi.fn()} onStudio={onStudio} />);
+  expect(screen.queryByRole("button", { name: /Préparer \/ modifier/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /Retravailler dans le Studio/ })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: /Préparer \/ modifier/ }));
-  expect(screen.getByText("Autres outils…")).toBeVisible();
-  expect(screen.getByRole("button", { name: /Changer le décor/ })).not.toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: /Retoucher avec mes mots/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Modifier la photo/ }));
   expect(onStudio).toHaveBeenCalledWith(p);
 });
 
-// QA du 12/11/2026 : une pièce classée « autre » gardait l'ancien menu.
-it("classement incertain (« autre ») : le Studio passe en premier, les autres outils restent visibles", () => {
-  const onStudio = vi.fn();
-  const p = photo({ kind: "autre", name: "Chambre" });
-  wrap(<PhotoDetailDialog photo={p} open onOpenChange={vi.fn()} onPackshot={vi.fn()} onRetouche={vi.fn()} onStudio={onStudio} />);
-  expect(screen.queryByRole("button", { name: /Retravailler dans le Studio/ })).toBeNull();
+it("sans accès au Studio : le menu reste, sans la carte « Une photo, plusieurs contenus »", () => {
+  wrap(<PhotoDetailDialog photo={photo({ kind: "portrait" })} open onOpenChange={vi.fn()} onPrepare={vi.fn()} onRetouche={vi.fn()} />);
+  expect(screen.queryByRole("button", { name: /Modifier la photo/ })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /Préparer \/ modifier/ }));
-  const options = screen.getAllByRole("button").map((b) => b.textContent || "");
-  const studio = options.findIndex((t) => t.includes("Retoucher avec mes mots"));
-  expect(studio).toBeGreaterThanOrEqual(0);
-  expect(studio).toBeLessThan(options.findIndex((t) => t.includes("Changer le décor")));
+  expect(screen.getByRole("button", { name: /Adapter le format et la lumière/ })).toBeVisible();
   expect(screen.getByRole("button", { name: /Changer le décor/ })).toBeVisible();
-  expect(screen.getByRole("button", { name: /Une photo pour mon e-commerce/ })).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: /Retoucher avec mes mots/ }));
-  expect(onStudio).toHaveBeenCalledWith(p);
-});
-
-it("un fond blanc classé « autre » garde son bouton Studio habituel", () => {
-  wrap(<PhotoDetailDialog photo={photo({ kind: "autre", background_preset_key: "packshot" })} open onOpenChange={vi.fn()} onRetouche={vi.fn()} onStudio={vi.fn()} />);
-  expect(screen.getByRole("button", { name: /Retravailler dans le Studio/ })).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: /Préparer \/ modifier/ }));
-  expect(screen.queryByRole("button", { name: /Retoucher avec mes mots/ })).toBeNull();
-});
-
-it("portrait : « Changer le décor » reste proposé directement", () => {
-  wrap(<PhotoDetailDialog photo={photo({ kind: "portrait" })} open onOpenChange={vi.fn()} onRetouche={vi.fn()} onStudio={vi.fn()} />);
-  fireEvent.click(screen.getByRole("button", { name: /Préparer \/ modifier/ }));
-  expect(screen.getByRole("button", { name: /Changer le décor/ })).toBeVisible();
-  expect(screen.queryByRole("button", { name: /Retoucher avec mes mots/ })).toBeNull();
-  expect(screen.getByRole("button", { name: /Retravailler dans le Studio/ })).toBeVisible();
+  expect(screen.queryByText(/Une photo, plusieurs contenus/)).toBeNull();
 });
