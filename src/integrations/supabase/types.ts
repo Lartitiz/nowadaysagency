@@ -6840,6 +6840,7 @@ export type Database = {
           canal: string
           content_data: Json | null
           content_draft: string | null
+          cover: Json | null
           created_at: string
           episode_number: number | null
           format: string
@@ -6869,6 +6870,7 @@ export type Database = {
           canal?: string
           content_data?: Json | null
           content_draft?: string | null
+          cover?: Json | null
           created_at?: string
           episode_number?: number | null
           format: string
@@ -6898,6 +6900,7 @@ export type Database = {
           canal?: string
           content_data?: Json | null
           content_draft?: string | null
+          cover?: Json | null
           created_at?: string
           episode_number?: number | null
           format?: string
@@ -9434,6 +9437,7 @@ export type Database = {
         }
         Returns: Json
       }
+      saved_idea_cover_of: { Args: { p_data: Json }; Returns: Json }
       saved_idea_has_content: {
         Args: { p_data: Json; p_draft: string }
         Returns: boolean
