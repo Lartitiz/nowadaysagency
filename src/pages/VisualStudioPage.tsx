@@ -40,6 +40,7 @@ import { retryCanGenerateNow } from "@/features/visual-studio/retry-direct";
 import { StudioComposer } from "@/features/visual-studio/StudioComposer";
 import { useStudioSession } from "@/features/visual-studio/useStudioSession";
 import { StudioToolDialogs } from "@/features/visual-studio/StudioToolDialogs";
+import { StudioPhotoShortcuts } from "@/features/visual-studio/StudioPhotoShortcuts";
 import { useStudioLibrarySync } from "@/features/visual-studio/useStudioLibrarySync";
 import { useReopenLastSession } from "@/features/visual-studio/useReopenLastSession";
 import { useStudioFit } from "@/features/visual-studio/useStudioFit";
@@ -417,6 +418,10 @@ function Studio({
                   )}
                 </StudioMessageList>
               </div>
+              {writable && current?.session.source_photo_id && !current.versions.length && !proposal && (
+                <StudioPhotoShortcuts photoId={current.session.source_photo_id} workspaceId={workspaceId}
+                  disabled={!!busy || !!generating} onPrepare={() => void openPreparation()} onWrite={editDraft} />
+              )}
               <StudioComposer
                 mobile={mobile}
                 dropActive={dropActive}

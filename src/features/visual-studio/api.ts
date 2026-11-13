@@ -228,6 +228,17 @@ export async function listStudioSessions(workspaceId: string) {
   type Listed = Pick<StudioSession, "id" | "name" | "updated_at" | "archived_at" | "revision">;
   return { active: active.data as Listed[], archived: archived.data as Listed[] };
 }
+/** Dernière session non archivée ouverte sur cette photo, pour la rouvrir au
+ * lieu d'en créer une nouvelle à chaque « Modifier la photo » (13/11/2026). */
+export async function findStudioSessionForPhoto(workspaceId: string, photoId: string): Promise<string | null> {
+  const { data, error } = await db.from("visual_studio_sessions")
+    .select("id")
+    .eq("workspace_id", workspaceId).eq("source_photo_id", photoId)
+    .is("archived_at", null)
+    .order("updated_at", { ascending: false }).limit(1);
+  if (error) return null;
+  return (data?.[0] as { id: string } | undefined)?.id ?? null;
+}
 export async function listOlderStudioCompositions(
   workspaceId: string,
   sessionId: string,

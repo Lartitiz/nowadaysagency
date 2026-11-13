@@ -24,7 +24,7 @@ Maquette cliquable (11 écrans, avec les règles dans les notes du canevas) : ht
 - Sous « Créer avec l'IA », une ligne indique ce qui est inclus et ce qui est Premium.
 - Lien explicite « Créer un avant/après ou un mockup » vers les montages existants.
 - Les onglets Mes photos / Mes préparations / Photos à prendre restent visibles.
-- Fiche photo : tous les outils actuels restent en place ; ajout de « Retravailler dans le Studio visuel », qui ouvre le Studio avec la photo au centre.
+- Fiche photo (13/11/2026, option B) : une seule porte « Modifier la photo », qui ouvre le Studio sur la photo (ou rouvre la session déjà ouverte sur elle). Le Studio propose alors des raccourcis (`StudioPhotoShortcuts.tsx`) : « Format et lumière » sans crédit, « Ranger, éclaircir, retirer un objet… » (phrase pré-remplie), fond blanc pour un produit, fond de marque pour un portrait, et « Autres outils » (mise en scène, changer le décor). Ce sont les mêmes fenêtres que dans « Mes photos ». Sans accès au Studio (rôle en lecture), la fiche garde l'ancien menu « Préparer / modifier ».
 
 ### Studio visuel : un seul espace, pas d'étapes
 
