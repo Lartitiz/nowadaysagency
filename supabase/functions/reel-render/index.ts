@@ -28,6 +28,13 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildReelRecipe } from "./recipe.ts";
 import { SubmitSchema } from "./schema.ts";
+import { buildReelComposition, isHyperframesEligible } from "./hyperframes.ts";
+import {
+  HYPERFRAMES_ENABLED,
+  hyperframesStatus,
+  isHyperframesProject,
+  submitHyperframes,
+} from "./hyperframes-gateway.ts";
 
 const J2V_BASE = "https://api.json2video.com/v2/movies";
 const J2V_TIMEOUT_MS = 20_000;
@@ -124,6 +131,21 @@ serve(async (req) => {
       return json({ error: "La vidéo montée n'a pas pu être rangée dans ta bibliothèque." }, 502);
     }
     return json({ url: pub.publicUrl, bytes: bytes.byteLength });
+  }
+
+  // ── Reel « sans voix » : montage HyperFrames sur notre Google Cloud ──
+  // Repli automatique sur JSON2Video si le relais ne répond pas au lancement.
+  const authorization = req.headers.get("Authorization");
+  if (body.action === "status" && isHyperframesProject(body.project)) {
+    return json(await hyperframesStatus(body.project, authorization));
+  }
+  if (body.action === "submit" && HYPERFRAMES_ENABLED && isHyperframesEligible(body)) {
+    const started = await submitHyperframes(buildReelComposition(body), authorization);
+    if (started.ok) {
+      console.log(JSON.stringify({ event: "reel_render_engine", engine: "hyperframes", sections: body.sections.length }));
+      return json({ project: started.project, status: "running" });
+    }
+    console.warn(JSON.stringify({ event: "reel_render_engine", engine: "json2video", fallback_reason: started.reason }));
   }
 
   const apiKey = Deno.env.get("JSON2VIDEO_API_KEY");

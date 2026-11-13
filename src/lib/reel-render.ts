@@ -89,7 +89,9 @@ export async function pollReelRender(
   opts: { intervalMs?: number; maxTries?: number; onTick?: (n: number) => void } = {},
 ): Promise<string> {
   const interval = opts.intervalMs ?? 6000;
-  const maxTries = opts.maxTries ?? 30;
+  // 50 × 6 s = 5 min : le rendu HyperFrames (reel sans voix, notre Google Cloud)
+  // prend 2 à 3 min, démarrage des machines compris ; JSON2Video finit avant.
+  const maxTries = opts.maxTries ?? 50;
   for (let i = 1; i <= maxTries; i++) {
     await new Promise((r) => setTimeout(r, interval));
     opts.onTick?.(i);
