@@ -8,6 +8,7 @@ import type { CalendarPost } from "@/lib/calendar-constants";
 import { downloadVisualUrls } from "@/lib/download-visual-urls";
 import { toast } from "sonner";
 import { isCalendarStories } from "@/lib/calendar-stories-resume";
+import { CalendarStoriesOverview } from "./post-dialog/CalendarStoriesOverview";
 
 interface Props {
   editingPost: CalendarPost | null;
@@ -31,6 +32,10 @@ interface Props {
   mediaUrls: string[];
   onSaveAndClose: () => void;
   onShowContentViewer?: () => void;
+  /** Contenu structuré à jour (story_sequence_detail, relu après une retouche). */
+  storyDetail?: any;
+  /** Ouvre l'éditeur de stories, sur la story donnée si un numéro est passé. */
+  onOpenStoriesEditor?: (storyIndex?: number) => void;
 }
 
 export function CalendarPostContent({
@@ -38,6 +43,7 @@ export function CalendarPostContent({
   status, setStatus, isGenerating, onSmartGenerate, onCopy, onOpenAtelier,
   onNavigateToDeepen, postCanal, format,
   angle, objectif, notes, mediaUrls, onSaveAndClose, onShowContentViewer,
+  storyDetail, onOpenStoriesEditor,
 }: Props) {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
@@ -147,6 +153,44 @@ export function CalendarPostContent({
       </div>
     );
   };
+
+  // Série de stories : les visuels font foi, le texte n'est qu'un résumé
+  // (le modifier ici ne changeait rien aux stories). Vignettes + éditeur.
+  const storiesDetail = storyDetail ?? editingPost.story_sequence_detail;
+  if (isCalendarStories(storiesDetail)) {
+    return (
+      <div className="space-y-3">
+        <CalendarStoriesOverview
+          detail={storiesDetail} contentDraft={contentDraft} isPublished={isPublished}
+          onOpenEditor={(i) => (onOpenStoriesEditor ? onOpenStoriesEditor(i) : onOpenAtelier())}
+          onCopy={onCopy}
+        />
+        <div className="flex items-center gap-2 pt-1">
+          {isPublished ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-pill">
+              <CheckCircle2 className="h-3 w-3" /> Publiées
+            </span>
+          ) : (
+            <Button size="sm" variant="outline" onClick={() => setStatus("published")} className="rounded-pill text-xs gap-1.5">
+              ✅ Marquer comme publiées
+            </Button>
+          )}
+          {!isPublished && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="rounded-pill px-2" aria-label="Plus d'actions">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onSmartGenerate}>🔄 Nouvelle version IA</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

@@ -23,7 +23,7 @@ import { buildStoryFrameHtml, placeTextAwayFromLikelyFace, storyVisualOrFallback
 import { classerParPertinence } from "@/lib/rank-library-photos";
 import { exportStoryPng } from "@/lib/export-carousel-png";
 import { exportStoryPptx } from "@/lib/export-story-pptx";
-import { useOpenInCanva } from "@/hooks/use-open-in-canva"; import { useScrollIntoViewOnPhone } from "@/hooks/use-scroll-into-view-on-phone";
+import { useOpenInCanva } from "@/hooks/use-open-in-canva"; import { useScrollIntoViewOnPhone } from "@/hooks/use-scroll-into-view-on-phone"; import { takeOpenStoryIndex } from "@/lib/calendar-story-open";
 import { resolveLibraryPhotoUrls, urlToDataUrl } from "@/lib/story-photos";
 import StoryPhotoSuggestions, {
   type AppliedStockPhoto,
@@ -118,7 +118,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
   const [stories, setStories] = useState(() => rawStories.map(withStoryVisualFallback));
   const [readerOpen, setReaderOpen] = useState(false);
   const [personalAnchor, setPersonalAnchor] = useState("");
-  const [currentStory, setCurrentStory] = useState(0);
+  const [currentStory, setCurrentStory] = useState(takeOpenStoryIndex); // story cliquée dans le calendrier, sinon la 1re
   const shownStory = Math.min(currentStory, Math.max(0, stories.length - 1));
   const storiesRef = useRef(stories);
   storiesRef.current = stories;
