@@ -10,6 +10,7 @@ import {
   narrativeAngleFamily,
   parseNarrative,
   usesContinuousNarrative,
+  RECIT_CONTINU_SOLUTION_FIN,
 } from "./continuous-narrative.ts";
 import {
   audienceAddressRule,
@@ -231,7 +232,7 @@ Deno.test("socle : photo, vous, vécu fourni, série photo → tu/vous en tête,
     editorial_intent: { mode: "serie_visuelle" },
   }, { audienceAddress: "vous" });
   assert(system.startsWith(`${audienceAddressRule("vous")}\n\n${COMMON}`), "règle ferme tu/vous en tête");
-  for (const part of [LIVED_CASE_FIRST, COVER_WRITING, RECIT_CONTINU_MOT_CLE, RECIT_CONTINU_PARAGRAPHE, RECIT_CONTINU_SERIE_PHOTO, SOCLE_FAMILLES.J.cas_dabord.texte!, "25 à 40"]) {
+  for (const part of [LIVED_CASE_FIRST, COVER_WRITING, RECIT_CONTINU_MOT_CLE, RECIT_CONTINU_PARAGRAPHE, RECIT_CONTINU_SERIE_PHOTO, SOCLE_FAMILLES.J.cas_dabord.texte!, "25 à 40", RECIT_CONTINU_SOLUTION_FIN]) {
     assert(system.includes(part), part.slice(0, 60));
   }
   // Contradictions d'avant supprimées.
@@ -442,4 +443,16 @@ Deno.test("mixte LinkedIn : mesure des passages trop longs, rien hors mixte Link
   assertEquals(linkedinMixLongPassages([p40, p41, ""], { carousel_type: "mix", channel: "linkedin" }), [2]);
   assertEquals(linkedinMixLongPassages([p41], { carousel_type: "mix" }), []);
   assertEquals(linkedinMixLongPassages([p41], { carousel_type: "photo", channel: "linkedin" }), []);
+});
+
+Deno.test("fin du récit (13/11/2026) : solution sur les slides, nuance avant, une ouverture, photo et mixte", async () => {
+  for (const carousel_type of ["photo", "mix"]) {
+    const system = await systemFor({ carousel_type, slide_count: undefined });
+    assert(system.includes(RECIT_CONTINU_SOLUTION_FIN), carousel_type);
+    assert(!system.includes("cta vide si aucune invitation utile"), "l'ancienne fin sans ouverture a disparu");
+    assert(system.includes("caption.cta reprend en une phrase l'ouverture de la fin"));
+  }
+  for (const part of ["reste dans paragraphs", "jamais en avant-dernier paragraphe", "UNE ouverture tirée du sujet", "Jamais commerciale", "La couverture (hook) promet ce que la fin conclut"]) {
+    assert(RECIT_CONTINU_SOLUTION_FIN.includes(part), part);
+  }
 });
