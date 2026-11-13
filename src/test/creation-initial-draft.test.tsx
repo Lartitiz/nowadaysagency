@@ -276,7 +276,8 @@ describe('initial creation draft through real React components', () => {
     saveFlowState({step:'result',ideaText:'Sujet',result:{type:'post',raw},selectedFormat:'post',creationId:'creation',editingIdeaId:'idea',incomingBriefId:'brief',calendarPostId:'calendar',publishedCalendarId:'published'});
     const app=mount(); await screen.findByTestId('result'); expect(loadFlowState()).toMatchObject({result:{raw},creationId:'creation',editingIdeaId:'idea',incomingBriefId:'brief',calendarPostId:'calendar',publishedCalendarId:'published'});
     const old=mocks.cloud.onId; fireEvent.click(screen.getByText('Réinitialiser')); fireEvent.click(screen.getByText('Garder mon contenu'));
-    expect(loadFlowState()?.result?.raw).toEqual(raw);
+    // Post rangé tout seul dans Mes idées (13/11/2026) : seuls les marqueurs de la sauvegarde s'ajoutent.
+    expect(loadFlowState()?.result?.raw).toMatchObject(raw);
     fireEvent.click(screen.getByText('Réinitialiser')); fireEvent.click(screen.getByRole('button',{name:'Repartir de zéro'}));
     expect(screen.getByRole('textbox')).toHaveValue(''); act(() => old('late-id'));
     expect(loadFlowState()?.editingIdeaId).toBeNull(); expect(loadFlowState()?.calendarPostId).toBeNull(); expect(loadFlowState()?.result).toBeUndefined();

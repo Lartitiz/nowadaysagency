@@ -65,7 +65,11 @@ export const OBJECTIVES = [
 export const PRODUCT_OPTIONS = [
   { key: "produits", emoji: "🎁", label: "Des produits" },
   { key: "services", emoji: "🤝", label: "Des services" },
-  { key: "les_deux", emoji: "✨", label: "Les deux" },
+  // « Des biens ou des réalisations » (13/11/2026) : immobilier, chantiers,
+  // pièces uniques… Ni catalogue de produits (pas de photos produit lues sur le
+  // site, pas de bandeau « photos produit » des marronniers), ni pur service.
+  { key: "realisations", emoji: "🏠", label: "Des biens ou des réalisations" },
+  { key: "les_deux", emoji: "✨", label: "Produits et services" },
 ];
 
 export const TIME_OPTIONS = [

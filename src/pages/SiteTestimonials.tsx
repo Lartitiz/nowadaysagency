@@ -24,7 +24,7 @@ Tu peux répondre en 3-4 lignes, c'est parfait.`;
 
 const TIPS = [
   "Demande dans les 2 semaines après la fin (à chaud)",
-  "Si possible, demande une vidéo courte (20-30 sec) : les témoignages vidéo augmentent la conversion de 80%",
+  "Si possible, demande une vidéo courte (20-30 sec) : un témoignage en vidéo est souvent plus convaincant qu'un texte",
   "3-5 témoignages sur la page = équilibre optimal",
   "Les notes de 4,2-4,5/5 convertissent mieux que 5/5 (la perfection semble suspecte)",
   "Jamais modifier les mots de la personne",

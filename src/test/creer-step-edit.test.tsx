@@ -141,3 +141,15 @@ describe("CreerStepEdit — ajustement par format", () => {
     expect(onBack).not.toHaveBeenCalled();
   });
 });
+
+describe("CreerStepEdit — écriture inclusive selon la fiche de marque", () => {
+  it("ne pose pas la question du point médian si la fiche n'en parle pas", () => {
+    render(<CreerStepEdit content="Texte" format="post" onSave={vi.fn()} onBack={vi.fn()} onCopy={vi.fn()} />);
+    expect(screen.queryByText("Écriture inclusive avec point médian ?")).toBeNull();
+    expect(screen.getByText("L'accroche donne envie de lire la suite ?")).toBeTruthy();
+  });
+  it("la pose quand la fiche demande l'écriture inclusive", () => {
+    render(<CreerStepEdit content="Texte" inclusiveWriting format="post" onSave={vi.fn()} onBack={vi.fn()} onCopy={vi.fn()} />);
+    expect(screen.getByText("Écriture inclusive avec point médian ?")).toBeTruthy();
+  });
+});

@@ -586,9 +586,10 @@ export default function CreerStepResult({
         // Sauvegarde continue des stories : même encadré que le carrousel (rien sans elle).
         return <>{carouselCloudTools}<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} /></>;
       case "post":
-        return <PostResult result={result} photos={photos} onTextChange={onResultTextChange} onPhotosChange={onPostPhotosChange} />;
+        // Post écrit enregistré tout seul (13/11/2026) : même encadré (rien sans la sauvegarde continue).
+        return <>{carouselCloudTools}<PostResult result={result} photos={photos} onTextChange={onResultTextChange} onPhotosChange={onPostPhotosChange} /></>;
       case "linkedin":
-        return <LinkedInResult result={result} photos={photos} onTextChange={onResultTextChange} />;
+        return <>{carouselCloudTools}<LinkedInResult result={result} photos={photos} onTextChange={onResultTextChange} /></>;
       case "newsletter":
         return <NewsletterResult result={result} />;
       case "pinterest_photo":

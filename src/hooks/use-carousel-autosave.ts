@@ -19,7 +19,7 @@ interface Options {
   title: string;
   channel: string;
   /** Stories (12/11/2026) et reel (13/11/2026) : même sauvegarde continue, rangée en « story_serie » / « reel » dans Mes idées. */
-  kind?: "carousel" | "story" | "reel";
+  kind?: "carousel" | "story" | "reel" | "post";
   onId: (id: string) => void;
   onSaved: (meta: CloudMeta) => void;
   onRestore: (raw: any) => void;
@@ -130,7 +130,11 @@ export function useCarouselAutosave(options: Options) {
     const id = copying || otherFormat ? crypto.randomUUID() : o.ideaId || crypto.randomUUID();
     const story = o.kind === "story";
     const reel = o.kind === "reel";
-    const ideaFormat = story ? "story_serie" : reel ? "reel" : "carousel";
+    // Post écrit (13/11/2026) : rangé en « post » ou « linkedin », comme « Garder dans mes idées ».
+    const post = o.kind === "post";
+    const ideaFormat = story ? "story_serie" : reel ? "reel" : post ? (o.channel === "linkedin" ? "linkedin" : "post") : "carousel";
+    // Le texte à plat sert d'aperçu à Mes idées et au calendrier (comme SaveToIdeasDialog).
+    const draftOf = (raw: any) => (post ? { content_draft: JSON.stringify(raw) } : {});
     const scoped = (query: any) =>
       o.workspaceId !== o.userId
         ? o.isOwnSpace
@@ -159,14 +163,15 @@ export function useCarouselAutosave(options: Options) {
             id: draftId,
             user_id: o.userId,
             workspace_id: o.workspaceId !== o.userId ? o.workspaceId : null,
-            titre: o.title.trim() || (story ? "Mes stories" : reel ? "Mon reel" : "Mon carrousel"),
-            angle: story ? "Stories" : reel ? "Reel" : "Carrousel",
+            titre: o.title.trim() || (story ? "Mes stories" : reel ? "Mon reel" : post ? "Mon post" : "Mon carrousel"),
+            angle: story ? "Stories" : reel ? "Reel" : post ? "Post" : "Carrousel",
             format: ideaFormat,
             canal: o.channel,
             type: "draft",
             status: "to_explore",
             source_module: "creer",
             content_data: raw,
+            ...draftOf(raw),
           })
           .select("id,updated_at,content_data")
           .abortSignal(AbortSignal.timeout(20_000))
@@ -180,7 +185,7 @@ export function useCarouselAutosave(options: Options) {
             .from("saved_ideas")
             // Une idée ouverte depuis Mes idées / le diagnostic était peut-être
             // notée « Post » : son contenu est désormais un carrousel (des stories, un reel).
-            .update({ content_data: raw, format: ideaFormat })
+            .update({ content_data: raw, format: ideaFormat, ...draftOf(raw) })
             .eq("id", draftId),
         );
         query =

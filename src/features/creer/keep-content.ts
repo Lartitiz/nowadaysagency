@@ -42,7 +42,7 @@ export async function saveContentCopyToIdeas(s: ContentCopySource): Promise<stri
   if (!s.userId || !s.raw) throw new Error("copie impossible");
   const isCarousel = s.format === "carousel";
   // Stories (12/11/2026) et reel (13/11/2026) en sauvegarde continue : même traitement que le carrousel.
-  const isCloudDocument = isCarousel || !!s.raw.story_editor_version || !!s.raw.reel_editor_version;
+  const isCloudDocument = isCarousel || !!s.raw.story_editor_version || !!s.raw.reel_editor_version || !!s.raw.post_editor_version;
   const base = isCloudDocument ? cleanCarouselSnapshot(s.raw) : { ...s.raw };
   if (s.visualSlides?.length) base.visual_html = s.visualSlides;
   if (!isCarousel && s.draftText?.trim() && s.draftText !== s.raw.edited_text) base.edited_text = s.draftText;

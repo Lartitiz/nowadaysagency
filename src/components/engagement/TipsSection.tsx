@@ -31,8 +31,8 @@ const STORIES_TIPS = [
 const LAUNCH_TIPS = [
   { emoji: "📩", text: "Réponds à CHAQUE message privé dans l'heure. Pendant un lancement, chaque message privé est une vente potentielle." },
   { emoji: "📊", text: "Qui vote \"oui\" à tes sondages ? Ce sont tes prospects les plus chaud·es. Envoie-leur un message privé." },
-  { emoji: "💌", text: "Les messages privés personnalisés convertissent 3-5x mieux qu'un lien en bio. Privilégie la conversation." },
-  { emoji: "⏰", text: "40-60% des inscriptions arrivent dans les dernières 48h. Ne lâche pas, c'est maintenant." },
+  { emoji: "💌", text: "Un message privé personnalisé convertit souvent mieux qu'un lien en bio. Privilégie la conversation." },
+  { emoji: "⏰", text: "Beaucoup d'inscriptions arrivent dans les dernières 48 h. Ne lâche pas, c'est maintenant." },
   { emoji: "🙅", text: "JAMAIS de message privé non sollicité. N'écris qu'aux personnes qui ont montré un intérêt." },
   { emoji: "📱", text: "Publie au moins 5-7 stories par jour pendant le lancement. C'est le format n°1 de conversion." },
   { emoji: "🔥", text: "Relaye les témoignages en stories. La preuve sociale est ton meilleur argument." },

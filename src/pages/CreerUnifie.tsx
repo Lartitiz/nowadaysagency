@@ -95,7 +95,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 // DEMO_DATA n'est plus importé directement — on utilise demoData du context
 import { useWorkspaceId, useWorkspaceReady, useIsOwnSpace } from "@/hooks/use-workspace-query";
-import { useCarouselAutosave } from "@/hooks/use-carousel-autosave"; import { useStoriesCloud } from "@/hooks/use-stories-cloud"; import { useReelCloud } from "@/hooks/use-reel-cloud";
+import { useCarouselAutosave } from "@/hooks/use-carousel-autosave"; import { useStoriesCloud } from "@/hooks/use-stories-cloud"; import { useReelCloud } from "@/hooks/use-reel-cloud"; import { usePostCloud } from "@/hooks/use-post-cloud"; import { useBrandWantsInclusiveWriting } from "@/hooks/use-inclusive-writing";
 import { useCarouselQuality } from "@/hooks/use-carousel-quality";
 import CarouselSaveStatus from "@/components/creer/CarouselSaveStatus";
 import { useCreerExports } from "@/hooks/use-creer-exports";
@@ -520,7 +520,7 @@ function CreerWorkspace() {
 
   const [studioSlideId, setStudioSlideId] = useState<string | null>(null);
   const carouselCloudEnabled = workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive && step === "result" && selectedFormat === "carousel" && !cloudVisuals.restoring && !!(result?.raw?.carousel_editor_version || result?.raw?.carousel_studio_version);
-  const storiesCloudEnabled = useStoriesCloud({ ready: workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive, step, selectedFormat, busy: generating || streaming, raw: result?.raw, setResult }); const reelCloudEnabled = useReelCloud({ ready: workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive, step, selectedFormat, busy: generating || streaming, calendarOnly: fromCalendar && !editingIdeaId, raw: result?.raw, setResult }); // stories et reel : sauvegarde continue (use-stories-cloud.ts, use-reel-cloud.ts)
+  const storiesCloudEnabled = useStoriesCloud({ ready: workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive, step, selectedFormat, busy: generating || streaming, raw: result?.raw, setResult }); const reelCloudEnabled = useReelCloud({ ready: workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive, step, selectedFormat, busy: generating || streaming, calendarOnly: fromCalendar && !editingIdeaId, raw: result?.raw, setResult }); const postCloudEnabled = usePostCloud({ ready: workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive, step, selectedFormat, busy: generating || streaming, calendarOnly: fromCalendar && !editingIdeaId, hasPhotos: uploadedPhotos.length > 0, raw: result?.raw, setResult }); const cloudDocEnabled = carouselCloudEnabled || storiesCloudEnabled || reelCloudEnabled || postCloudEnabled; const inclusiveWriting = useBrandWantsInclusiveWriting(isDemoMode ? undefined : session?.user?.id, workspaceId); // stories, reel et post : sauvegarde continue (use-stories-cloud.ts, use-reel-cloud.ts, use-post-cloud.ts)
   const openCarouselStudio = (id: string) => {
     if (id.startsWith("index:")) {
       const index = Number(id.slice(6));
@@ -532,9 +532,9 @@ function CreerWorkspace() {
     } else setStudioSlideId(id);
   };
   const carouselSave = useCarouselAutosave({
-    enabled: carouselCloudEnabled || storiesCloudEnabled || reelCloudEnabled, kind: storiesCloudEnabled ? "story" : reelCloudEnabled ? "reel" : "carousel",
+    enabled: cloudDocEnabled, kind: storiesCloudEnabled ? "story" : reelCloudEnabled ? "reel" : postCloudEnabled ? "post" : "carousel",
     userId: session?.user?.id || "", workspaceId, isOwnSpace, ideaId: editingIdeaId,
-    raw: result?.raw, title: ideaText, channel: isLinkedInCarousel ? "linkedin" : "instagram",
+    raw: result?.raw, title: ideaText, channel: isLinkedInCarousel || selectedFormat === "linkedin" ? "linkedin" : "instagram",
     onId: (id) => { if (!isCurrentCreation()) return; setEditingIdeaId(id); saveFlowState({ editingIdeaId: id }); },
     onSaved: (meta) => { if (isCurrentCreation()) setResult((prev: any) => prev ? { ...prev, raw: { ...prev.raw, _carousel_cloud: meta } } : prev); },
     onRestore: (raw) => { if (!isCurrentCreation()) return; setResult((prev: any) => prev ? { ...prev, raw } : prev); setVisualSlides(raw.visual_html || []); },
@@ -1235,8 +1235,8 @@ function CreerWorkspace() {
   };
 
   const handleSave = async () => {
-    if (carouselCloudEnabled || storiesCloudEnabled || reelCloudEnabled) {
-      if (await carouselSave.flush()) toast.success(storiesCloudEnabled ? "Tes stories sont enregistrées dans Mes idées." : reelCloudEnabled ? "Ton reel est enregistré dans Mes idées." : "Ton carrousel est enregistré dans Mes idées.");
+    if (cloudDocEnabled) {
+      if (await carouselSave.flush()) toast.success(storiesCloudEnabled ? "Tes stories sont enregistrées dans Mes idées." : reelCloudEnabled ? "Ton reel est enregistré dans Mes idées." : postCloudEnabled ? "Ton post est enregistré dans Mes idées." : "Ton carrousel est enregistré dans Mes idées.");
       return;
     }
     if (selectedFormat === "carousel" && !(await persistCarousel())) return;
@@ -1246,7 +1246,7 @@ function CreerWorkspace() {
 
   const handleAddToCalendar = async () => {
     if (!session?.user?.id || !result?.raw) return;
-    if ((carouselCloudEnabled || storiesCloudEnabled || reelCloudEnabled) && !(await carouselSave.flush())) return;
+    if (cloudDocEnabled && !(await carouselSave.flush())) return;
     // If coming from calendar, save directly back
     if (fromCalendar) {
       await handleSaveBackToCalendar();
@@ -1829,7 +1829,7 @@ function CreerWorkspace() {
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}
                 onSave={effectiveHandleSave}
-                saveNotice={isDemoMode || carouselCloudEnabled || storiesCloudEnabled || reelCloudEnabled ? undefined : ideaSaveNotice} autoSavedToIdeas={carouselCloudEnabled || storiesCloudEnabled || reelCloudEnabled}
+                saveNotice={isDemoMode || cloudDocEnabled ? undefined : ideaSaveNotice} autoSavedToIdeas={cloudDocEnabled}
                 savingContent={ideaSaving}
                 canAutoPublish={!!publishChannel}
                 reelMp4Url={reelMp4Url}
@@ -1966,7 +1966,7 @@ function CreerWorkspace() {
 
             {step === "edit" && (
               <CreerStepEdit
-                content={editContent}
+                content={editContent} inclusiveWriting={inclusiveWriting}
                 savedContent={editBaseline ?? undefined}
                 // Chaque frappe part dans la copie de secours : un rechargement
                 // ou un onglet fermé ne perd plus le texte en cours.

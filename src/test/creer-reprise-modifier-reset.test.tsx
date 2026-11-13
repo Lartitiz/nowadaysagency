@@ -120,6 +120,13 @@ describe('safeStep : étape rouverte après un rechargement', () => {
 });
 
 // ── Test 3 : récupération d'un texte coupé en plein streaming ──
+// Post et LinkedIn s'enregistrent tout seuls dans Mes idées (13/11/2026) : la
+// sauvegarde ajoute ses marqueurs au résultat, le texte repris reste le même.
+const sansSauvegarde = (raw: any) => {
+  if (!raw || typeof raw !== 'object') return raw;
+  const { _carousel_document_id, post_editor_version, _carousel_cloud, ...rest } = raw;
+  return rest;
+};
 describe('pendingStream : texte coupé récupéré au rechargement', () => {
   const restaurer = async (text: string, format = 'post') => {
     saveFlowState({ step: 'result', ideaText: 'Sujet', selectedFormat: format, pendingStream: { text, format, ts: 1 } });
@@ -130,24 +137,25 @@ describe('pendingStream : texte coupé récupéré au rechargement', () => {
   it('JSON tronqué → seul le champ content est affiché, avec un toast, et le texte partiel est purgé', async () => {
     await restaurer('{"content":"Voici le début du texte, coupé au milieu d\\u2019une phrase\\navec un \\"mot\\" cité', 'post');
     const attendu = 'Voici le début du texte, coupé au milieu d’une phrase\navec un "mot" cité';
-    expect(mocks.resultProps.result).toEqual({ content: attendu });
+    expect(sansSauvegarde(mocks.resultProps.result)).toEqual({ content: attendu });
     expect(mocks.toast).toHaveBeenCalledWith("💾 J'ai récupéré le texte généré avant l'interruption.", {
       description: "Vérifie-le : il peut être incomplet. « Regénérer » en refait une version (1 crédit).",
     });
     await waitFor(() => expect(loadFlowState()?.pendingStream).toBeNull());
-    expect(loadFlowState()?.result).toEqual({ type: 'post', raw: { content: attendu } });
+    expect(loadFlowState()?.result).toMatchObject({ type: 'post' });
+    expect(sansSauvegarde(loadFlowState()?.result.raw)).toEqual({ content: attendu });
     expect(mocks.generate).not.toHaveBeenCalled();
   });
 
   it('JSON complet → objet repris tel quel, type pris du format du stream', async () => {
     await restaurer('{"full_text":"Post LinkedIn complet","hashtags":["#a","#b"]}', 'linkedin');
-    expect(mocks.resultProps.result).toEqual({ full_text: 'Post LinkedIn complet', hashtags: ['#a', '#b'] });
+    expect(sansSauvegarde(mocks.resultProps.result)).toEqual({ full_text: 'Post LinkedIn complet', hashtags: ['#a', '#b'] });
     await waitFor(() => expect(loadFlowState()?.result).toMatchObject({ type: 'linkedin' }));
   });
 
   it('texte brut sans JSON → bloc de code retiré, texte gardé', async () => {
     await restaurer('```json\nUn texte brut sans accolade, rendu par le modèle avant la coupure\n```');
-    expect(mocks.resultProps.result).toEqual({ content: 'Un texte brut sans accolade, rendu par le modèle avant la coupure\n' });
+    expect(sansSauvegarde(mocks.resultProps.result)).toEqual({ content: 'Un texte brut sans accolade, rendu par le modèle avant la coupure\n' });
   });
 });
 

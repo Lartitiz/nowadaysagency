@@ -182,7 +182,7 @@ export const DEMO_DIAGNOSTIC: DiagnosticData = {
   summary: "Tu es photographe portraitiste pour entrepreneures. Tes photos sont magnifiques et ton œil est unique — tu ne fais pas juste des photos, tu captures la confiance. Ton positionnement est clair dans ta tête, mais il ne ressort pas assez dans ta communication en ligne.",
   strengths: [
     { title: "Ton positionnement est clair et différenciant", detail: "\"Photographe de confiance\" — tu ne vends pas des photos, tu vends une transformation. C'est rare et puissant.", source: "profile" },
-    { title: "Tes photos sont de qualité pro", detail: "Le coaching posture inclus dans tes séances te différencie de 99% des photographes.", source: "instagram" },
+    { title: "Tes photos sont de qualité pro", detail: "Le coaching posture inclus dans tes séances te différencie de la plupart des photographes.", source: "instagram" },
     { title: "Tu as déjà un site web actif", detail: "Ton site existe et montre ton travail. C'est une base solide qu'on va optimiser.", source: "website" },
     { title: "Ton ton est authentique et cohérent", detail: "Tu parles comme une amie qui sait de quoi elle parle. C'est exactement le bon registre.", source: "profile" },
   ],
