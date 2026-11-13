@@ -4,7 +4,9 @@ import { reportGenerationFailure } from "@/lib/generation-telemetry";
 /** Étapes envoyées par content-coaching en mode flux (une ligne JSON par événement). */
 export type IdeaStreamEvent =
   | { type: "stage"; stage: "preparation" | "research" | "writing" }
-  | { type: "idea"; idea: unknown; ready: number; total: number };
+  | { type: "idea"; idea: unknown; ready: number; total: number; slot?: number }
+  /** Une des 4 places pendant l'écriture : la piste trouvée, puis le début de l'idée. */
+  | { type: "draft"; slot: number; piste?: string; fields?: { subject?: string; insight?: string; mechanism?: string; reader_benefit?: string }; gone?: boolean };
 
 /** Une erreur qui garde la réponse JSON du serveur (quota, activité manquante…). */
 class IdeaStreamError extends Error {
@@ -56,7 +58,7 @@ export async function streamContentCoaching(body: Record<string, unknown>, onEve
       try { event = JSON.parse(line); } catch { return undefined; }
       if (event?.type === "done") return event;
       if (event?.type === "error") fail(event.error || "Impossible de préparer les idées. Réessaie.", "GENERATION_ERROR");
-      if (event?.type === "stage" || event?.type === "idea") onEvent(event);
+      if (event?.type === "stage" || event?.type === "idea" || (event?.type === "draft" && Number.isInteger(event.slot))) onEvent(event);
       return undefined;
     };
     for (;;) {
