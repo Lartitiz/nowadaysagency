@@ -29,7 +29,10 @@ export interface PhotoRecipe {
   text: string;
   /** Normalised source rectangle, only for an explicitly selected visible detail. */
   crop?: PhotoRect;
+  /** Straightening in degrees (−10 to 10, clockwise). The edges are cropped so no empty corner appears. */
+  rotation?: number;
 }
+export const MAX_STRAIGHTEN_DEGREES = 10;
 export const DEFAULT_PHOTO_DIRECTION: PhotoDirection = {
   version: 1, background: "#ffffff", padding: 0, horizontal: 0.5, vertical: 0.5,
   textPosition: "none", textColor: "#1a1a1a", scenePrompt: "",
@@ -58,7 +61,31 @@ export function cleanRecipe(raw: PhotoRecipe): PhotoRecipe {
     direction: cleanDirection(raw.direction || {}), exposure: clamp(raw.exposure ?? 0, -1, 1),
     contrast: clamp(raw.contrast ?? 1, 0.8, 1.2), text: typeof raw.text === "string" ? raw.text.slice(0, 240) : "",
     ...(raw.crop ? { crop: normaliseCrop(raw.crop) } : {}),
+    ...(cleanRotation(raw.rotation) ? { rotation: cleanRotation(raw.rotation) } : {}),
   };
+}
+/** Rounded to a tenth of a degree; anything below 0.05° is treated as straight. */
+export function cleanRotation(value: unknown): number {
+  const n = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  const rounded = Math.round(clamp(n, -MAX_STRAIGHTEN_DEGREES, MAX_STRAIGHTEN_DEGREES) * 10) / 10;
+  return rounded === 0 ? 0 : rounded;
+}
+/** « 2,5° » ; « Droite » à zéro. */
+export function formatDegrees(value: number) {
+  if (!value) return "Droite";
+  return `${value > 0 ? "" : "−"}${Math.abs(value).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}°`;
+}
+
+/**
+ * Largest rectangle with the photo's own proportions that fits inside the photo once turned:
+ * the straightened photo never shows an empty corner. A small safety margin avoids blended edge pixels.
+ */
+export function straightenedSize(width: number, height: number, degrees: number) {
+  const angle = Math.abs(cleanRotation(degrees)) * Math.PI / 180;
+  if (!angle) return { width, height, scale: 1 };
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  const scale = Math.min(width / (width * cos + height * sin), height / (width * sin + height * cos)) * 0.995;
+  return { width: Math.max(1, Math.floor(width * scale)), height: Math.max(1, Math.floor(height * scale)), scale };
 }
 export function normaliseCrop(crop: PhotoRect): PhotoRect {
   const x = clamp(crop.x, 0, 0.9), y = clamp(crop.y, 0, 0.9);
@@ -67,6 +94,8 @@ export function normaliseCrop(crop: PhotoRect): PhotoRect {
 export function photoGeometry(sourceWidth: number, sourceHeight: number, raw: PhotoRecipe) {
   if (!(sourceWidth > 0 && sourceHeight > 0)) throw new Error("Photo illisible.");
   const r = cleanRecipe(raw), { width, height, direction: d } = r;
+  // Geometry works on the straightened photo, whose size is already cropped to hide the turned edges.
+  ({ width: sourceWidth, height: sourceHeight } = straightenedSize(sourceWidth, sourceHeight, r.rotation ?? 0));
   const crop = r.crop ?? { x: 0, y: 0, width: 1, height: 1 };
   const source = { x: crop.x * sourceWidth, y: crop.y * sourceHeight, width: crop.width * sourceWidth, height: crop.height * sourceHeight };
   const margin = Math.round(Math.min(width, height) * d.padding);
@@ -138,10 +167,20 @@ export async function renderPhotoComposition(image: HTMLImageElement, recipe: Ph
   const ctx = canvas.getContext("2d"); if (!ctx) throw new Error("Le rendu photo est indisponible.");
   ctx.fillStyle = r.direction.background; ctx.fillRect(0, 0, r.width, r.height);
   let drawn: CanvasImageSource = image;
+  let drawnWidth = image.naturalWidth, drawnHeight = image.naturalHeight;
+  if (r.rotation) {
+    const size = straightenedSize(image.naturalWidth, image.naturalHeight, r.rotation);
+    const turned = document.createElement("canvas"); turned.width = size.width; turned.height = size.height;
+    const tc = turned.getContext("2d"); if (!tc) throw new Error("Le redressement est indisponible.");
+    tc.imageSmoothingQuality = "high";
+    tc.translate(size.width / 2, size.height / 2); tc.rotate(r.rotation * Math.PI / 180);
+    tc.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
+    drawn = turned; drawnWidth = size.width; drawnHeight = size.height;
+  }
   if (r.exposure !== 0 || r.contrast !== 1) {
-    const lit = document.createElement("canvas"); lit.width = image.naturalWidth; lit.height = image.naturalHeight;
+    const lit = document.createElement("canvas"); lit.width = drawnWidth; lit.height = drawnHeight;
     const lc = lit.getContext("2d"); if (!lc) throw new Error("Le réglage lumière est indisponible.");
-    lc.drawImage(image, 0, 0); const pixels = lc.getImageData(0, 0, lit.width, lit.height);
+    lc.drawImage(drawn, 0, 0); const pixels = lc.getImageData(0, 0, lit.width, lit.height);
     const gain = 2 ** r.exposure;
     for (let i = 0; i < pixels.data.length; i += 4) for (let c = 0; c < 3; c++) {
       pixels.data[i + c] = clamp((pixels.data[i + c] * gain - 128) * r.contrast + 128, 0, 255);

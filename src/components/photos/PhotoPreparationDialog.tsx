@@ -226,7 +226,7 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", resumeWorkf
     if (outputs.some(o => o.savedPhoto)) return;
     if (changed.current && !window.confirm("Préparer plusieurs formats à partir de cette photo ? Les réglages du visuel courant seront repris.")) return;
     const kit = makeOutputs(1, "kit").map(o => ({ ...o, sourceIndex: current.sourceIndex,
-      recipe: { ...o.recipe, exposure: current.recipe.exposure, contrast: current.recipe.contrast, direction: { ...current.recipe.direction, textPosition: o.recipe.format === "story" || o.recipe.format === "cover" ? "top" as const : current.recipe.direction.textPosition } } }));
+      recipe: { ...o.recipe, exposure: current.recipe.exposure, contrast: current.recipe.contrast, rotation: current.recipe.rotation, direction: { ...current.recipe.direction, textPosition: o.recipe.format === "story" || o.recipe.format === "cover" ? "top" as const : current.recipe.direction.textPosition } } }));
     setOutputs(kit); setActive(0); setIsKit(true); changed.current = true; setSavedAt("");
   }
   const close = () => {

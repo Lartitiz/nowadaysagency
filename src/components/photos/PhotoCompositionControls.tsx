@@ -2,7 +2,7 @@ import { useId } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { PHOTO_FORMATS, cleanRecipe, type PhotoRecipe, type PhotoFormat } from "@/lib/photo-composition";
+import { PHOTO_FORMATS, MAX_STRAIGHTEN_DEGREES, formatDegrees, cleanRecipe, type PhotoRecipe, type PhotoFormat } from "@/lib/photo-composition";
 
 export function PhotoCompositionControls({ recipe, onChange, disabled = false }: {
   recipe: PhotoRecipe; onChange: (recipe: PhotoRecipe) => void; disabled?: boolean;
@@ -20,6 +20,14 @@ export function PhotoCompositionControls({ recipe, onChange, disabled = false }:
         <span aria-hidden="true" className="block rounded-sm border border-current bg-muted/40" style={{ width: value.width > value.height ? 46 : 30, height: value.width > value.height ? 46 * value.height / value.width : 30 * value.height / value.width }} />
         <span>{value.label}</span>
       </button>)}</div>
+    </div>
+    <div className="space-y-1 rounded-lg border p-3">
+      <label htmlFor={`${id}-rotation`} className="flex justify-between text-sm font-medium"><span>Redresser</span>
+        <span aria-live="polite">{formatDegrees(recipe.rotation ?? 0)}</span></label>
+      <input id={`${id}-rotation`} className="w-full accent-primary min-h-8" type="range" min={-MAX_STRAIGHTEN_DEGREES} max={MAX_STRAIGHTEN_DEGREES} step={0.1}
+        value={recipe.rotation ?? 0} aria-valuetext={formatDegrees(recipe.rotation ?? 0)} onChange={e => change({ rotation: Number(e.target.value) })} />
+      <p className="text-xs text-muted-foreground">Fais tourner la photo jusqu’à ce que les lignes soient droites. Les bords sont recadrés pour ne laisser aucun coin vide.</p>
+      {!!recipe.rotation && <Button type="button" size="sm" variant="ghost" className="text-foreground" onClick={() => change({ rotation: 0 })}>Annuler le redressement</Button>}
     </div>
     {recipe.format === "banner" && <div className="grid grid-cols-2 gap-2">
       <label className="text-sm">Largeur (px)<Input type="number" min={320} max={2400} value={recipe.width} onChange={e => change({ width: Number(e.target.value) })} /></label>
