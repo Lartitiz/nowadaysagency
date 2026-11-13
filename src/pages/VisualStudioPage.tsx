@@ -41,6 +41,7 @@ import { StudioComposer } from "@/features/visual-studio/StudioComposer";
 import { useStudioSession } from "@/features/visual-studio/useStudioSession";
 import { StudioToolDialogs } from "@/features/visual-studio/StudioToolDialogs";
 import { StudioPhotoShortcuts } from "@/features/visual-studio/StudioPhotoShortcuts";
+import { StudioSourcePreview } from "@/features/visual-studio/StudioSourcePreview";
 import { useStudioLibrarySync } from "@/features/visual-studio/useStudioLibrarySync";
 import { useReopenLastSession } from "@/features/visual-studio/useReopenLastSession";
 import { useStudioFit } from "@/features/visual-studio/useStudioFit";
@@ -208,6 +209,11 @@ function Studio({
         : undefined) ||
       undefined,
     display = version?.url || source;
+  // Photo de « Mes photos » sur laquelle la session a été ouverte.
+  const sourcePhotoRef = current?.session.source_photo_id
+    ? references.find((r) => r.photo_id === current.session.source_photo_id) ||
+      (current.session.source_url ? { name: current.session.name, url: current.session.source_url } : undefined)
+    : undefined;
   const comparisonSource = source ||
     current?.versions.find((v) => v.id === version?.proposal.viewed_version_id)
       ?.url ||
@@ -624,7 +630,8 @@ function Studio({
                     onApply={(id) => mutate("memory_apply", { memory_id: id, revision: current.session.revision })}
                     registerCastingOpener={(open) => { openCastingRef.current = open; }}
                   />}
-                  {!current?.versions.length && <div className="studio-empty">
+                  {!current?.versions.length && sourcePhotoRef && <StudioSourcePreview reference={sourcePhotoRef} onImageExpired={renewImageLink} />}
+                  {!current?.versions.length && !sourcePhotoRef && <div className="studio-empty">
                     <div className="studio-empty-icon"><Sparkles className="h-9 w-9" /></div>
                     <h3 className="font-display text-2xl">Tout commence par ton idée</h3>
                     <p>Une photo, une affiche, une illustration ou un visuel encore à imaginer : décris-le dans la conversation. Le Studio reformulera ta demande avant de créer.</p>

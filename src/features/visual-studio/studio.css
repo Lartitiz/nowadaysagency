@@ -520,3 +520,8 @@
 .studio-shortcuts-title { font-size: 12px; color: hsl(var(--muted-foreground)); }
 .studio-shortcuts-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .studio-shortcut-cost { font-size: 11px; opacity: 0.75; white-space: pre; }
+/* Photo de départ en grand (StudioSourcePreview). */
+.studio-source-preview { display: grid; gap: 10px; margin: 0; }
+.studio-source-preview img { width: 100%; max-height: min(60vh, 560px); object-fit: contain; border-radius: 18px; background: hsl(var(--muted) / 0.5); }
+.studio-source-preview-wait { min-height: 240px; display: flex; align-items: center; justify-content: center; border-radius: 18px; background: hsl(var(--muted) / 0.5); color: hsl(var(--muted-foreground)); font-size: 14px; }
+.studio-source-preview figcaption { display: grid; gap: 2px; font-size: 13px; color: hsl(var(--muted-foreground)); }

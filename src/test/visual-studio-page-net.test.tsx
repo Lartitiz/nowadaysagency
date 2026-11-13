@@ -416,3 +416,22 @@ it("« Corriger les textes de cette affiche » ouvre l'éditeur de composition",
   expect(await screen.findByRole("dialog", { name: "Finaliser mon visuel" })).toBeInTheDocument();
   expect(mock.request.mock.calls.every(([body]) => body.action === "read")).toBe(true);
 });
+
+// 13/11/2026 : Studio ouvert depuis « Modifier la photo » : la photo de départ
+// s'affiche en grand à la place de « Tout commence par ton idée ».
+it("session ouverte sur une photo : la photo s'affiche en grand avant toute image", async () => {
+  mock.request.mockResolvedValue(original());
+  mount();
+  const img = await screen.findByRole("img", { name: "Ma tasse" });
+  expect(img).toHaveAttribute("src", "/source.jpg");
+  expect(screen.queryByText("Tout commence par ton idée")).toBeNull();
+});
+
+it("session sans photo de départ : l'invitation « Tout commence par ton idée » reste", async () => {
+  const state = original();
+  state.session.source_photo_id = null;
+  state.session.source_url = null;
+  mock.request.mockResolvedValue(state);
+  mount();
+  expect(await screen.findByText("Tout commence par ton idée")).toBeInTheDocument();
+});

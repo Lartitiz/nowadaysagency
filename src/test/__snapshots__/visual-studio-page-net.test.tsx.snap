@@ -49,7 +49,6 @@ exports[`instantané d'écran : proposition à confirmer 1`] = `
     "Studio visuel",
     "Une nouvelle image",
     "Images créées dans cette discussion",
-    "Tout commence par ton idée",
   ],
   "requests": [
     "action,session_id,workspace_id · read",
