@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { toLocalDateStr } from "@/lib/utils";
 import { friendlyError } from "@/lib/error-messages";
 import { normalizeObjectif } from "@/lib/chat-plan";
-import { planningDayDate, planningChannel, planningFormat, planningWeekLabel, remainingPlanningDays } from "@/lib/weekly-planning";
+import { planningDayDate, planningChannel, planningFormat, planningNotes, planningTitle, planningWeekLabel, remainingPlanningDays } from "@/lib/weekly-planning";
 import { usePlanningVisit } from "@/hooks/use-planning-visit";
 import { plannedKey } from "@/lib/calendar-duplicates";
 
@@ -22,6 +22,8 @@ interface PlanningItem {
   day: string;
   pillar: string;
   subject: string;
+  /** Titre court (12 mots max) depuis le 13/11/2026 ; absent des anciennes réponses. */
+  title?: string;
   format: string;
   hook_idea: string;
   objective: string;
@@ -155,9 +157,9 @@ function CalendarCoachingSession({ open, onOpenChange, onPostAdded, existingPost
         const canal = planningChannel(item.format, defaultCanal);
         prepared.current.set(index, {
           id: crypto.randomUUID(), user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : null,
-          date: planningDayDate(day, weekStartDate!), theme: item.subject,
+          date: planningDayDate(day, weekStartDate!), theme: planningTitle(item),
           format: planningFormat(item.format, canal), canal, status: "a_rediger",
-          objectif: normalizeObjectif(item.objective), accroche: item.hook_idea, notes: `Pilier : ${item.pillar}`,
+          objectif: normalizeObjectif(item.objective), accroche: item.hook_idea, notes: planningNotes(item),
         });
       }
       const row = prepared.current.get(index);
@@ -181,7 +183,7 @@ function CalendarCoachingSession({ open, onOpenChange, onPostAdded, existingPost
       if (!visit.current) return false;
       receipts.current.set(index, receipt);
       setAddedItems(prev => new Set(prev).add(index));
-      toast.success(`📅 "${item.subject}" ajouté au ${day.toLowerCase()}`);
+      toast.success(`📅 "${planningTitle(item)}" ajouté au ${day.toLowerCase()}`);
       onPostAdded?.();
       return true;
     } catch { if (visit.current) toast.error("Ajout non confirmé. Réessaie : la même proposition sera reprise sans doublon."); return false; }
@@ -456,7 +458,8 @@ function CalendarCoachingSession({ open, onOpenChange, onPostAdded, existingPost
                         {OBJ_LABELS[item.objective] && ` · ${OBJ_LABELS[item.objective]}`}
                       </span>
                     </div>
-                    <p className="text-sm font-medium text-foreground">{item.subject}</p>
+                    <p className="text-sm font-medium text-foreground">{planningTitle(item)}</p>
+                    {planningTitle(item) !== item.subject && <p className="text-xs text-muted-foreground">{item.subject}</p>}
                     <p className="text-xs text-muted-foreground italic">💬 {item.hook_idea}</p>
                     <div className="flex gap-2 pt-1">
                       <Button

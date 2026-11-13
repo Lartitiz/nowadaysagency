@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { planningDayDate, planningChannel, planningFormat, planningWeekLabel, remainingPlanningDays } from "@/lib/weekly-planning";
+import { planningDayDate, planningChannel, planningFormat, planningNotes, planningTitle, planningWeekLabel, remainingPlanningDays } from "@/lib/weekly-planning";
 it("places all days in the selected week, including Sunday and DST", () => {
   expect(planningDayDate("Lundi", "2026-10-19")).toBe("2026-10-19");
   expect(planningDayDate("Dimanche", "2026-10-19")).toBe("2026-10-25");
@@ -24,4 +24,18 @@ it("planningWeekLabel reads like a date, not 2026-11-09", () => {
   expect(planningWeekLabel("2026-11-09")).toBe("du 9 au 15 novembre");
   expect(planningWeekLabel("2026-11-30")).toBe("du 30 novembre au 6 décembre");
   expect(planningWeekLabel("2026-06-01")).toBe("du 1er au 7 juin");
+});
+
+it("planningTitle keeps the calendar entry short", () => {
+  expect(planningTitle({ title: "Avant de casser, on décide ce qu'on sauve", subject: "long" })).toBe("Avant de casser, on décide ce qu'on sauve");
+  expect(planningTitle({ subject: "Un sujet court" })).toBe("Un sujet court");
+  const long = "Build in public : le premier jour du chantier de la Guillotière, raconté depuis l'appartement encore dans son jus, avant le moindre coup de masse.";
+  const t = planningTitle({ subject: long });
+  expect(t.length).toBeLessThanOrEqual(91);
+  expect(t.endsWith("…")).toBe(true);
+});
+
+it("planningNotes keeps the detailed idea when the title shortened it", () => {
+  expect(planningNotes({ title: "Titre", subject: "Idée longue", pillar: "Coulisses" })).toBe("Pilier : Coulisses\n\nIdée détaillée : Idée longue");
+  expect(planningNotes({ subject: "Court", pillar: "P" })).toBe("Pilier : P");
 });
