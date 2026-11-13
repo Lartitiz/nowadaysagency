@@ -551,3 +551,37 @@ describe("lecteur plein écran", () => {
     else await waitFor(() => expect(m.toast.error).toHaveBeenCalled());
   });
 });
+
+describe("série de stories (fiche du 13/11/2026)", () => {
+  const STORIES = { type: "stories", stories: [{ text: "Un" }, { text: "Deux" }, { text: "Trois" }] };
+
+  it("pas de « Publier ce post » : les stories se publient depuis Instagram", () => {
+    renderDialog({ editingPost: post({ format: "story_serie", story_sequence_detail: STORIES }), onUnplan: vi.fn() });
+    expect(screen.queryByRole("button", { name: /Publier ce post/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Gérer ce post/ })).toBeInTheDocument();
+  });
+
+  it("une story cliquée ouvre l'éditeur sur cette story", async () => {
+    const { takeOpenStoryIndex } = await import("@/lib/calendar-story-open");
+    takeOpenStoryIndex();
+    renderDialog({ editingPost: post({ format: "story_serie", story_sequence_detail: STORIES }) });
+    expect(m.contenuProps.storyDetail).toEqual(STORIES);
+    await act(async () => { m.contenuProps.onOpenStoriesEditor(2); });
+    await waitFor(() => expect(m.navigate).toHaveBeenCalledWith("/creer?canal=instagram", expect.anything()));
+    expect(m.navigate.mock.calls[0][1].state.resumeIdea.format).toBe("story");
+    expect(takeOpenStoryIndex()).toBe(2);
+  });
+
+  it("le bouton général ouvre l'éditeur sur la 1re story (un clic n'est pas un numéro)", async () => {
+    const { takeOpenStoryIndex } = await import("@/lib/calendar-story-open");
+    renderDialog({ editingPost: post({ format: "story_serie", story_sequence_detail: STORIES }) });
+    fireEvent.click(screen.getByText("faux:atelier"));
+    await waitFor(() => expect(m.navigate).toHaveBeenCalled());
+    expect(takeOpenStoryIndex()).toBe(0);
+  });
+
+  it("le sujet ne prend pas le curseur d'office pour des stories", () => {
+    renderDialog({ editingPost: post({ format: "story_serie", story_sequence_detail: STORIES }) });
+    expect(document.activeElement?.getAttribute("placeholder")).not.toBe("De quoi parle ce post ?");
+  });
+});

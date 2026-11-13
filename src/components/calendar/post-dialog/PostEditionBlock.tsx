@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import type { CalendarPost } from "@/lib/calendar-constants";
 import type { GuideStep } from "@/lib/production-guides";
 import { CalendarPostContent } from "../CalendarPostContent";
+import { isCalendarStories } from "@/lib/calendar-stories-resume";
 
 export interface LinkedBrief {
   subject: string;
@@ -36,7 +37,7 @@ interface PostEditionBlockProps {
   isGenerating: boolean;
   handleSmartGenerate: () => void;
   handleCopy: () => void;
-  handleOpenAtelier: () => Promise<void>;
+  handleOpenAtelier: (storyIndex?: number) => Promise<void>;
   handleNavigateToDeepen: () => Promise<void>;
   postCanal: string;
   format: string | null;
@@ -57,16 +58,21 @@ interface PostEditionBlockProps {
   linkedBrief: LinkedBrief | null;
   guide: GuideStep[] | null;
   ownerName: string;
+  /** Contenu structuré à jour (story_sequence_detail). */
+  storyDetail?: any;
 }
 
-export function PostEditionBlock({ editingPost, theme, setTheme, themeRef, contentDraft, setContentDraft, accroche, setAccroche, status, setStatus, isGenerating, handleSmartGenerate, handleCopy, handleOpenAtelier, handleNavigateToDeepen, postCanal, format, angle, objectif, notes, setNotes, mediaUrls, setMediaUrls, handleSave, onOpenChange, isMobile, setShowContentViewer, uploading, handleMediaUpload, showSecondary, setShowSecondary, linkedBrief, guide, ownerName }: PostEditionBlockProps) {
+export function PostEditionBlock({ editingPost, theme, setTheme, themeRef, contentDraft, setContentDraft, accroche, setAccroche, status, setStatus, isGenerating, handleSmartGenerate, handleCopy, handleOpenAtelier, handleNavigateToDeepen, postCanal, format, angle, objectif, notes, setNotes, mediaUrls, setMediaUrls, handleSave, onOpenChange, isMobile, setShowContentViewer, uploading, handleMediaUpload, showSecondary, setShowSecondary, linkedBrief, guide, ownerName, storyDetail }: PostEditionBlockProps) {
+  // Série de stories : on ne met pas le curseur dans le sujet (la fiche sert à
+  // revoir et ouvrir les stories), et l'ajout de visuels libres ne les touche pas.
+  const storiesMode = isCalendarStories(storyDetail ?? editingPost?.story_sequence_detail);
   return (
     <div className="space-y-4 min-w-0">
       <div>
         <label className="text-xs font-semibold mb-1.5 block text-foreground">Thème / sujet</label>
         <textarea
           ref={themeRef}
-          autoFocus
+          autoFocus={!storiesMode}
           rows={1}
           value={theme}
           onChange={(e) => setTheme(e.target.value)}
@@ -88,9 +94,11 @@ export function PostEditionBlock({ editingPost, theme, setTheme, themeRef, conte
         objectif={objectif} notes={notes} mediaUrls={mediaUrls}
         onSaveAndClose={() => { handleSave(); onOpenChange(false); }}
         onShowContentViewer={isMobile ? () => setShowContentViewer(true) : undefined}
+        storyDetail={storyDetail}
+        onOpenStoriesEditor={(i) => { void handleOpenAtelier(i); }}
       />
 
-      <div className="space-y-2">
+      {(!storiesMode || mediaUrls.length > 0) && <div className="space-y-2">
         <label className="text-xs font-medium text-foreground">🖼️ Visuels</label>
         {mediaUrls.length > 0 && (
           <div className="flex flex-wrap gap-2">
@@ -107,7 +115,7 @@ export function PostEditionBlock({ editingPost, theme, setTheme, themeRef, conte
           {uploading ? "Import en cours..." : "Ajouter des visuels"}
           <input type="file" accept="image/*" multiple className="hidden" onChange={handleMediaUpload} disabled={uploading} />
         </label>
-      </div>
+      </div>}
 
       {/* Secondaire replié : notes, brief créatif, guide de production, commentaires */}
       <Collapsible open={showSecondary} onOpenChange={setShowSecondary} className="border-t border-border pt-2">

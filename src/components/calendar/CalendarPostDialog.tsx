@@ -25,6 +25,7 @@ import { PostContextHeader } from "./post-dialog/PostContextHeader";
 import { PostContentViewerSheet } from "./post-dialog/PostContentViewerSheet";
 import { PostEditionBlock } from "./post-dialog/PostEditionBlock";
 import { PostActionsFooter } from "./post-dialog/PostActionsFooter";
+import { isCalendarStories } from "@/lib/calendar-stories-resume";
 import { useCalendarPostMedia } from "@/hooks/use-calendar-post-media";
 import { useCalendarQuickGenerate } from "@/hooks/use-calendar-quick-generate";
 import { useCalendarPostAutosave } from "@/hooks/use-calendar-post-autosave";
@@ -246,6 +247,9 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
   // ── Render ──
 
   const ssd = savedPreviewContent as any;
+  // Série de stories : pas de légende ni de texte qui pilote les visuels, pas de
+  // publication directe (Instagram ne la propose pas d'ici).
+  const storiesMode = isCalendarStories(ssd);
   const syncStatus = (savedDraft || "") === (contentDraft || "") ? "synced" : "dirty";
 
   // Bloc édition : sujet + contenu + visuels (visibles) ; notes/brief/guide/commentaires repliés
@@ -262,6 +266,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
       setShowContentViewer={setShowContentViewer} uploading={uploading}
       handleMediaUpload={handleMediaUpload} showSecondary={showSecondary}
       setShowSecondary={setShowSecondary} linkedBrief={linkedBrief} guide={guide} ownerName={ownerName}
+      storyDetail={ssd}
     />
   );
 
@@ -295,7 +300,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
       storiesData={ssd?.type === "stories" ? ssd.stories || null : null}
       compact={compact}
       onFullscreen={ssd && ssd.type !== "photo_composition" ? () => setShowContentViewer(true) : undefined}
-      syncStatus={contentDraft ? syncStatus : undefined}
+      syncStatus={contentDraft && !storiesMode ? syncStatus : undefined}
     />
   );
 
@@ -324,7 +329,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
   const handlePublishNow = () => { if (postCanal === "linkedin") handlePublishLinkedIn(); else handlePublishInstagram(); };
   // Déjà publié (statut éditorial OU auto-publication) → on n'offre plus « Publier » / « Programmer ».
   const alreadyPublished = status === "published" || publishStatus === "published";
-  const canPublishActions = canSchedule && !alreadyPublished;
+  const canPublishActions = canSchedule && !alreadyPublished && !storiesMode;
 
   const actionsBlock = (
     <PostActionsFooter
