@@ -95,3 +95,28 @@ Deno.test("a broken stream falls back to the classic call with the same prompt",
   assertEquals(result.ideas.length, 4);
   assertEquals(result.usage.total_tokens, 0); // classic mock reports no usage: nothing left from the broken stream
 });
+
+Deno.test("a stream cut near its time limit is not followed by a second full wait", async () => {
+  const realNow = Date.now; let clock = 0; Date.now = () => clock; let classic = 0;
+  try {
+    await assertRejects(() => generateDeepIdeas({ context: "Céramiste", history: "", onEvent: () => {} }, {
+      model: "claude-opus-5-5", apiKey: "", research: async () => ({ sources: [], status: "not_needed" }),
+      stream: async () => { clock += 59_000; return sse('{"ideas":[{"subject":"coupé', ""); },
+      call: async () => { classic++; return "{}"; },
+    }));
+    assertEquals(classic, 0);
+  } finally { Date.now = realNow; }
+  // Cut earlier: the classic call only gets the time left.
+  clock = 0; const timeouts: number[] = [];
+  Date.now = () => clock;
+  try {
+    await generateDeepIdeas({ context: "Céramiste", history: "", onEvent: () => {} }, {
+      model: "claude-opus-5-5", apiKey: "", research: async () => ({ sources: [], status: "not_needed" }),
+      stream: async () => { clock += 20_000; return sse('{"ideas":[{"subject":"coupé', ""); },
+      call: async (o) => { timeouts.push(o.abortTimeoutMs!); const user = o.messages[0].content as string;
+        if (user.includes("Explore 6 pistes")) return JSON.stringify({ candidates: [1, 2, 3, 4, 5].map(i => ({ subject: `Piste ${i}` })), research_queries: [] });
+        const n = user.match(/piste n°(\d)/)![1]; return JSON.stringify({ ideas: [{ ...idea, subject: n === "2" ? "Idée 1" : `Idée ${n}` }] }); },
+    }).catch(() => {});
+    assertEquals(timeouts[0], 40_000); // preparation: 60 s minus the 20 s already spent
+  } finally { Date.now = realNow; }
+});

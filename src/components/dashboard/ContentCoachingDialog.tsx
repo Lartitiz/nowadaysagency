@@ -214,7 +214,7 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
         {!live && <p className="text-sm text-muted-foreground">{cards.length} idées pour commencer. Le format se choisit ensuite.</p>}
         {!live && selection?.incomplete && <p className="text-xs text-muted-foreground">{selection.incomplete}</p>}
         {!live && selection?.research_status === "unavailable" && <p className="text-xs text-muted-foreground">La recherche externe n'a pas abouti. Les propositions s'appuient sur ton activité ; les points à vérifier sont indiqués.</p>}
-        <div className="space-y-4">{cards.map(card => "draft" in card ? <DraftCard key={`draft-${card.slot}`} draft={card.draft} /> : <article key={card.id} className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3">
+        <div className="space-y-4">{cards.map(card => "draft" in card ? <DraftCard key={`draft-${card.slot}`} draft={card.draft} writing={progress?.stage === "writing"} /> : <article key={card.id} className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3">
           <h3 className="font-display text-lg leading-snug text-foreground break-words">{card.idea.subject}</h3>
           <p className="text-sm leading-relaxed">{card.idea.insight}</p>
           <p className="text-sm text-muted-foreground leading-relaxed">{card.idea.reader_benefit}</p>
@@ -240,10 +240,10 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
 }
 
 /** An idea still being written: the piste, then its text as it grows (no buttons yet). */
-function DraftCard({ draft }: { draft: Draft }) {
+function DraftCard({ draft, writing }: { draft: Draft; writing: boolean }) {
   const f = draft.fields || {};
   return <article aria-busy="true" className="min-w-0 rounded-2xl border border-dashed border-border bg-card/60 p-4 sm:p-5 space-y-3">
-    <p className="text-xs font-medium text-primary flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" />{f.subject ? "En cours d'écriture…" : "Piste trouvée, j'écris l'idée…"}</p>
+    <p className="text-xs font-medium text-primary flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" />{f.subject ? "En cours d'écriture…" : writing ? "J'écris l'idée…" : "Piste trouvée"}</p>
     <h3 className={`font-display text-lg leading-snug break-words ${f.subject ? "text-foreground" : "text-muted-foreground"}`}>{f.subject || draft.piste}</h3>
     {f.insight && <p className="text-sm leading-relaxed">{f.insight}</p>}
     {f.reader_benefit ? <p className="text-sm text-muted-foreground leading-relaxed">{f.reader_benefit}</p> : f.mechanism && <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">{f.mechanism}</p>}
