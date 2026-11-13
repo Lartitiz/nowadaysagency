@@ -733,7 +733,7 @@ function CreerWorkspace() {
 
   // ─── Lot 7 reels : étape de choix du hook (use-reel-hooks.ts) ───
   const fetchReelHooks = (ans: Record<string, string>, excludeHooks?: string[]) =>
-    reelHooksStep.fetchReelHooks(ans, excludeHooks, { questions, ideaText, objective, workspaceId, userId: session?.user?.id });
+    reelHooksStep.fetchReelHooks(ans, excludeHooks, { questions, ideaText, objective, workspaceId, userId: session?.user?.id, photos: uploadedPhotos });
   const handleHookSelect = (hook: ReelHook) =>
     reelHooksStep.handleHookSelect(hook, { generating, streaming, setStep, doGenerate });
   const handleHookSkip = () =>

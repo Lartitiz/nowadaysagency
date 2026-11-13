@@ -188,6 +188,9 @@ const CASES: { name: string; body: unknown; text: string; seed?: Seed; status?: 
       { section: "developpement", timing: "3-10 sec", photo: 2, texte_parle: "Ces bols partent au prix juste.", texte_overlay: "au prix juste" },
       { section: "cta", timing: "10-15 sec", photo: 3, texte_parle: "Le four tourne quand même.", texte_overlay: "le four tourne" },
     ], caption: { text: "Le prix juste.", hashtags: ["ceramique"] } }) },
+  // 13/11/2026 : les accroches voient aussi les photos (elles inventaient des détails sans elles).
+  { name: "reel à partir de 3 photos — hooks (images envoyées)", body: { step: "hooks", contentType: "reel", context: CONTEXT, answers: ANSWERS,
+    photos: [{ base64: PHOTO, context: "l'atelier" }, { base64: PHOTO }, { base64: PHOTO }] }, text: "" },
   { name: "hooks sans accroche récupérable — reel (502 renvoyé par le handler, lot E)", body: { step: "hooks", contentType: "reel", context: CONTEXT, answers: ANSWERS }, text: "" },
   { name: "LinkedIn exemple fictif sur les seuls faits du brief — generate", body: { step: "generate", contentType: "post_linkedin",
     context: "Écris un exemple fictif de post LinkedIn, uniquement avec les faits du brief : une céramiste refuse une remise et la cliente signe.", answers: ANSWERS }, text: POST_JSON },

@@ -393,8 +393,10 @@ export function buildHooksPrompt(params: {
   context: string;
   effectiveObjective?: string | null;
   objective?: string | null;
+  /** Nombre de photos fournies (jointes au message, voir reelPhotoUserContent). */
+  photoCount?: number;
 }): { systemPrompt: string; userPrompt: string } {
-  const { COMMON_PREFIX, answers, excludeHooksRaw, faceCam, context, effectiveObjective, objective } = params;
+  const { COMMON_PREFIX, answers, excludeHooksRaw, faceCam, context, effectiveObjective, objective, photoCount = 0 } = params;
   // Lot 7 reels : proposer 3 angles d'attaque AVANT la génération complète.
   // Étape gratuite (hors BILLED_STEPS) ; le hook choisi repart en selected_hook.
   const answersBlock = answers?.length
@@ -446,12 +448,23 @@ RÈGLES ABSOLUES :
    ~40-55 s). Jamais plus de 55 s : le montage automatique s'arrête à 60 s.${noFaceCam ? `
 7. L'UTILISATRICE NE VEUT PAS SE MONTRER : format_recommande ≠ face_cam_confession
    pour les 3 hooks (voix_off_broll ou hook_loop uniquement).` : ""}${recapLine ? `
-8. REEL RÉCAP (prime sur les règles 1 à 6) : chacun des 3 hooks ouvre la SÉRIE de sujets (ce qu'ils ont en commun, ou l'annonce de leur nombre), jamais un seul des sujets. Les types restent différents.` : ""}${excludeBlock}`;
+8. REEL RÉCAP (prime sur les règles 1 à 6) : chacun des 3 hooks ouvre la SÉRIE de sujets (ce qu'ils ont en commun, ou l'annonce de leur nombre), jamais un seul des sujets. Les types restent différents.` : ""}${reelHooksPhotosRule(photoCount)}${excludeBlock}`;
   const userPrompt = `SUJET DU REEL : "${context || "?"}"
 Objectif : ${effectiveObjective || objective || "non précisé"}${answersBlock}
 
-Propose-moi 3 hooks de types différents pour ce reel.${recapLine ? " C'est un reel récap : chaque hook annonce la série de sujets, pas un seul sujet." : ""}`;
+Propose-moi 3 hooks de types différents pour ce reel.${photoCount > 1 ? ` Mes ${photoCount} photos sont ci-dessus.` : photoCount === 1 ? " Ma photo est ci-dessus." : ""}${recapLine ? " C'est un reel récap : chaque hook annonce la série de sujets, pas un seul sujet." : ""}`;
   return { systemPrompt, userPrompt };
+}
+
+/**
+ * Accroches d'un reel à partir de photos (13/11/2026). Elles ne voyaient pas les
+ * photos et inventaient des détails (« un mur porteur au milieu du salon »).
+ * Règle générique : rien d'un métier en particulier.
+ */
+export function reelHooksPhotosRule(count: number): string {
+  if (count <= 0) return "";
+  return `
+9. SES PHOTOS (${count}, jointes à son message, dans l'ordre) : le reel les montre, l'accroche se dit sur la photo 1. Un détail concret d'un hook vient de ce qu'on VOIT sur ses photos ou de ce qu'elle a écrit. N'invente aucun élément, défaut, état ou qualité invisible (neuf, ancien, rénové, restauré, fait main…). Ne dis jamais « photo 1 » ni « sur cette photo ».`;
 }
 
 // ═══ REEL À PARTIR DE PHOTOS : UN PASSAGE PAR PHOTO (13/11/2026) ═══

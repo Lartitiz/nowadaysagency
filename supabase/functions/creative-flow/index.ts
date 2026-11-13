@@ -228,6 +228,7 @@ serve(async (req) => {
         context,
         effectiveObjective,
         objective,
+        photoCount: isReel ? reelPhotosOf(body).length : 0,
       }));
 
     } else if (step === "generate") {
@@ -392,21 +393,14 @@ serve(async (req) => {
     } else {
       const { maxTokens, tempText, modelForCall, abortMs, structuredTool } = callOptionsForStep({ step, isLinkedIn, isPhotoMode, context });
       // Reel à partir de photos : la rédaction voit les photos (un passage par photo, formats/reel.ts).
-      const reelPhotos = step === "generate" && isReel ? reelPhotosOf(body) : [];
-      rawContent = reelPhotos.length
+      // Les accroches (step hooks) les voient aussi : sinon elles inventent des détails.
+      const reelPhotos = (step === "generate" || step === "hooks") && isReel ? reelPhotosOf(body) : [];
+      const userContent = reelPhotos.length ? reelPhotoUserContent(reelPhotos, userPrompt!) : userPrompt!;
+      rawContent = structuredTool || reelPhotos.length
         ? await callAnthropic({
             model: modelForCall,
             system: systemPrompt,
-            messages: [{ role: "user", content: reelPhotoUserContent(reelPhotos, userPrompt!) }],
-            temperature: tempText,
-            max_tokens: maxTokens ?? 4096,
-            abortTimeoutMs: abortMs,
-          }, finalUsage)
-        : structuredTool
-        ? await callAnthropic({
-            model: modelForCall,
-            system: systemPrompt,
-            messages: [{ role: "user", content: userPrompt! }],
+            messages: [{ role: "user", content: userContent }],
             temperature: tempText,
             max_tokens: maxTokens ?? 4096,
             abortTimeoutMs: abortMs,

@@ -7,6 +7,8 @@
 import { useRef, useState } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import type { ReelHook } from "@/components/creer/HookSelectionStep";
+import { reelPhotosForScript } from "@/features/creer/generator/bodies/reel";
+import { ownPhotos } from "@/lib/stock-ambient-photos";
 
 type FetchContext = {
   questions: { id: string; question: string }[];
@@ -14,6 +16,8 @@ type FetchContext = {
   objective: string | null;
   workspaceId: string | null | undefined;
   userId: string | undefined;
+  /** Ses photos : les accroches partent de ce qu'on y voit (13/11/2026). */
+  photos?: any[];
 };
 
 type GenerateContext = {
@@ -38,7 +42,7 @@ export function useReelHooks() {
   // Appel GRATUIT (step "hooks" hors BILLED_STEPS côté edge). Jamais bloquant :
   // en cas d'échec, l'écran propose « Continuer sans choisir » (= hook auto,
   // comportement historique).
-  const fetchReelHooks = async (ans: Record<string, string>, excludeHooks: string[] | undefined, { questions, ideaText, objective, workspaceId, userId }: FetchContext) => {
+  const fetchReelHooks = async (ans: Record<string, string>, excludeHooks: string[] | undefined, { questions, ideaText, objective, workspaceId, userId, photos }: FetchContext) => {
     const isRefresh = !!excludeHooks?.length;
     if (isRefresh) setHooksRefreshing(true);
     else { setHooksLoading(true); setReelHooks([]); }
@@ -50,6 +54,9 @@ export function useReelHooks() {
       const answersArray = Object.entries(ans)
         .filter(([, v]) => v && v.trim())
         .map(([id, v]) => ({ question: textById.get(id) || id, answer: v }));
+      // Reel à partir de photos : sans elles, les accroches inventaient des
+      // détails (« un mur porteur au milieu du salon », QA du 13/11/2026).
+      const reelPhotos = await reelPhotosForScript(ownPhotos(photos || []));
       const { data, error: fnError } = await invokeWithTimeout("creative-flow", {
         body: {
           step: "hooks",
@@ -60,6 +67,7 @@ export function useReelHooks() {
           answers: answersArray.length > 0 ? answersArray : null,
           workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null,
           ...(excludeHooks?.length ? { exclude_hooks: excludeHooks.slice(0, 12) } : {}),
+          ...(reelPhotos?.length ? { photos: reelPhotos } : {}),
         },
       }, 60000);
       if (fnError) throw fnError;
