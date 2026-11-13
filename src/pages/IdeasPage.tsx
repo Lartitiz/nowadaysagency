@@ -30,7 +30,7 @@ import { SkeletonCard } from "@/components/ui/skeleton-card";
 import { friendlyError } from "@/lib/error-messages";
 import { calendarPlacementLabel, getIdeaState, ideaContentLabel, IDEA_STATE_LABELS, formatLabel, sourceLabel, type IdeaState } from "@/lib/idea-state";
 import { AddIdeaDialog } from "@/components/calendar/CalendarIdeasSidebar";
-import { IdeaCover, readCover, TextCover } from "@/components/ideas/IdeaCover";
+import { BriefCover, IdeaCover, readCover, TextCover } from "@/components/ideas/IdeaCover";
 
 
 /* ─── Types ─── */
@@ -431,8 +431,8 @@ function IdeasInWorkspace() {
     >
       <div className="min-w-0 pr-6">
         <p className="text-xs text-muted-foreground">{metaFor(idea, "todo")}</p>
-        <h3 className="mt-1.5 font-body text-[15px] font-bold leading-snug text-foreground line-clamp-4" title={cleanTitle(idea.titre)}>
-          <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} aria-busy={openingId === idea.id} className="text-left hover:underline break-words disabled:cursor-wait">{cleanTitle(idea.titre)}</button>
+        <h3 className="mt-1.5 font-body text-[15px] font-bold leading-snug text-foreground" title={cleanTitle(idea.titre)}>
+          <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} aria-busy={openingId === idea.id} className="block w-full text-left disabled:cursor-wait"><span className="line-clamp-4 break-words hover:underline">{cleanTitle(idea.titre)}</span></button>
         </h3>
       </div>
       <div onClick={(e) => e.stopPropagation()}>{primaryAction(idea)}</div>
@@ -450,8 +450,8 @@ function IdeasInWorkspace() {
         <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} tabIndex={-1} aria-hidden="true" className="block w-full rounded-xl text-left transition-shadow group-hover:shadow-md disabled:cursor-wait">
           <IdeaCover cover={readCover(idea.cover)} fallback={<TextCover label={formatLabel(idea.format)} text={preview.text || preview.title} />} />
         </button>
-        <h3 className="mt-2 font-body text-sm font-bold leading-snug text-foreground line-clamp-2" title={cleanTitle(idea.titre)}>
-          <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} aria-busy={openingId === idea.id} className="text-left hover:underline break-words disabled:cursor-wait">{cleanTitle(idea.titre)}</button>
+        <h3 className="mt-2 font-body text-sm font-bold leading-snug text-foreground" title={cleanTitle(idea.titre)}>
+          <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} aria-busy={openingId === idea.id} className="block w-full text-left disabled:cursor-wait"><span className="line-clamp-2 break-words hover:underline">{cleanTitle(idea.titre)}</span></button>
         </h3>
         <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{metaFor(idea, state)}</p>
         <div className="mt-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -525,9 +525,9 @@ function IdeasInWorkspace() {
               {filteredBriefs.map((brief) => (
                 <li key={`brief-${brief.id}`} className="group relative flex min-w-0 flex-col animate-fade-in">
                   <button onClick={() => handleResumeBrief(brief)} tabIndex={-1} aria-hidden="true" className="block w-full rounded-xl text-left transition-shadow group-hover:shadow-md">
-                    <IdeaCover cover={null} fallback={<TextCover label="Demande en cours" text={[formatLabel(brief.format || ""), brief.editorial_angle].filter(Boolean).join(" · ") || undefined} />} />
+                    <IdeaCover cover={null} fallback={<BriefCover format={formatLabel(brief.format || "") || "Contenu"} />} />
                   </button>
-                  <h3 className="mt-2 font-body text-sm font-bold leading-snug text-foreground line-clamp-2" title={cleanTitle(brief.subject)}><button onClick={() => handleResumeBrief(brief)} className="text-left hover:underline break-words">{cleanTitle(brief.subject)}</button></h3>
+                  <h3 className="mt-2 font-body text-sm font-bold leading-snug text-foreground" title={cleanTitle(brief.subject)}><button onClick={() => handleResumeBrief(brief)} className="block w-full text-left"><span className="line-clamp-2 break-words hover:underline">{cleanTitle(brief.subject)}</span></button></h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     <span className="text-primary-text">Demande en cours</span>
                     {brief.created_at && <> · commencé le {formatDate(brief.created_at, "d MMM")}</>}
