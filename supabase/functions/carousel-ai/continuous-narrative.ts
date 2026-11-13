@@ -131,6 +131,19 @@ const TOOL = {
   },
 };
 
+/**
+ * Question finale de la dernière slide, reprise en caption.cta quand le
+ * rédacteur l'a laissé vide (essai réel du 13/11/2026 : question posée sur la
+ * slide, cta vide). Sans question finale : "" (rien n'est inventé).
+ */
+export function closingQuestion(lastParagraph: unknown): string {
+  if (typeof lastParagraph !== "string") return "";
+  const text = lastParagraph.trim();
+  if (!text.endsWith("?")) return "";
+  const sentences = text.match(/[^.!?…]+[.!?…]+/g) || [text];
+  return sentences[sentences.length - 1].trim();
+}
+
 export function parseNarrative(raw: string, exact?: number): Narrative {
   let n: any;
   try {
@@ -169,7 +182,7 @@ export function parseNarrative(raw: string, exact?: number): Narrative {
     caption: {
       hook: typeof n.caption?.hook === "string" ? n.caption.hook : "",
       body: typeof n.caption?.body === "string" ? n.caption.body : "",
-      cta: typeof n.caption?.cta === "string" ? n.caption.cta : "",
+      cta: typeof n.caption?.cta === "string" && n.caption.cta.trim() ? n.caption.cta : closingQuestion(n.paragraphs[n.paragraphs.length - 1]),
       hashtags: Array.isArray(n.caption?.hashtags)
         ? n.caption.hashtags.filter((v: any) => typeof v === "string").slice(
           0,
