@@ -34,3 +34,16 @@ Deno.test("reçu déjà périmé ou texte inchangé : laissé tel quel", async (
   const same: any = { ...base(), progression_review: { reviewed_material: before } };
   assertEquals(await rebindReceiptsAfterFinalTouches(before, same), same);
 });
+
+Deno.test("fin du carrousel (13/11/2026) : la question finale remplit une légende sans appel", async () => {
+  const { fillClosingCta } = await import("./steps/finalize.ts");
+  const doc = { slides: [{ body: "Début." }, { body: "Je traite ce lot d'abord. Sur votre dernière opération, lequel est parti en dernier ?" }], caption: { hook: "h", body: "b", cta: "" } };
+  const out = fillClosingCta(doc);
+  if (out.caption.cta !== "Sur votre dernière opération, lequel est parti en dernier ?") throw new Error(out.caption.cta);
+  const photo = fillClosingCta({ slides: [{ overlay_text: "Fin.", detail: "Et ta vitrine, elle dit quoi ?" }], caption: { cta: " " } });
+  if (photo.caption.cta !== "Et ta vitrine, elle dit quoi ?") throw new Error(photo.caption.cta);
+  const kept = fillClosingCta({ slides: [{ body: "Une question ?" }], caption: { cta: "Garde-moi." } });
+  if (kept.caption.cta !== "Garde-moi.") throw new Error("cta existant écrasé");
+  const none = fillClosingCta({ slides: [{ body: "Pas de question." }], caption: { cta: "" } });
+  if (none.caption.cta !== "") throw new Error("cta inventé");
+});

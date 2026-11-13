@@ -1016,6 +1016,22 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
         sautees_faute_de_temps: 0,
       },
     },
+    fin_carrousels: {
+      cette_semaine: {
+        alerte: null,
+        carrousels: 0,
+        fin_question: 0,
+        par_type: {},
+        sans_question: 0,
+      },
+      comptes_internes_7j: {
+        alerte: null,
+        carrousels: 0,
+        fin_question: 0,
+        par_type: {},
+        sans_question: 0,
+      },
+    },
     garde_anti_redite: {
       cette_semaine: {
         a_mordu: 0,
@@ -1343,6 +1359,22 @@ snapshot[`weekly qualité : colonne content_preview absente → relecture sans e
         sautees_faute_de_temps: 0,
       },
     },
+    fin_carrousels: {
+      cette_semaine: {
+        alerte: null,
+        carrousels: 0,
+        fin_question: 0,
+        par_type: {},
+        sans_question: 0,
+      },
+      comptes_internes_7j: {
+        alerte: null,
+        carrousels: 0,
+        fin_question: 0,
+        par_type: {},
+        sans_question: 0,
+      },
+    },
     garde_anti_redite: {
       cette_semaine: {
         a_mordu: 0,
@@ -1563,6 +1595,22 @@ snapshot[`weekly qualité : table content_quality_events absente → repli sur l
     ],
     echantillon_source: "brouillons",
     fil_carrousels: null,
+    fin_carrousels: {
+      cette_semaine: {
+        alerte: null,
+        carrousels: 0,
+        fin_question: 0,
+        par_type: {},
+        sans_question: 0,
+      },
+      comptes_internes_7j: {
+        alerte: null,
+        carrousels: 0,
+        fin_question: 0,
+        par_type: {},
+        sans_question: 0,
+      },
+    },
     garde_anti_redite: null,
     par_format: {
       story: {
@@ -1708,6 +1756,22 @@ snapshot[`weekly qualité : table complète sans aucun événement 1`] = `
           tentees: 0,
         },
         sautees_faute_de_temps: 0,
+      },
+    },
+    fin_carrousels: {
+      cette_semaine: {
+        alerte: null,
+        carrousels: 0,
+        fin_question: 0,
+        par_type: {},
+        sans_question: 0,
+      },
+      comptes_internes_7j: {
+        alerte: null,
+        carrousels: 0,
+        fin_question: 0,
+        par_type: {},
+        sans_question: 0,
       },
     },
     garde_anti_redite: {

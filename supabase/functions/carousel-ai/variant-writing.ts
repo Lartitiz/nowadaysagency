@@ -76,7 +76,7 @@ CONTRAT VISUEL
 overlay_text : un passage naturel ; sur la couverture, l'accroche seule (10 mots maximum), son sous-titre éventuel dans detail, kicker:null. Préserve les transitions et nuances indispensables. Une phrase courte convient quand elle suffit ; ne transforme pas une explication en slogan pour tenir sur la photo. Le gabarit doit s’adapter au texte. Une photo qui se suffit peut avoir overlay_text:null. Le texte reste le récit ou l'explication, pas une suite de mots-clés. Ne remplis pas chaque champ facultatif.
 ${isPhotoOverlay(body) ? `${PHOTO_OVERLAY_LENGTH}\n` : ""}overlay_style : narratif, sensoriel, minimal ou technique, selon la matière. overlay_position : bottom_left, bottom_center, top_left, top_center ou center.
 ${PHOTO_LAYOUT_AFTER_WRITING}
-La dernière slide peut terminer une explication ou proposer une action pertinente ; elle n'impose pas de question. cta_label:null si aucune invitation. kicker (titre court de la slide) et detail sont facultatifs, ils servent la lecture sans doubler le texte.
+La dernière slide conclut puis se termine par une seule ouverture tirée du récit (geste précis ou question simple, voir FIL DU CARROUSEL). cta_label:null si aucune invitation courte ne s'y prête. kicker (titre court de la slide) et detail sont facultatifs, ils servent la lecture sans doubler le texte.
 Choisis overlay_position dans une zone dégagée, en protégeant le visage, le geste, l’objet et les détails utiles ; respecte une position confirmée. Une répétition de photo ne demande aucun zoom automatique.
 visual_anchor : détail visible dans la photo, utile à sa composition. photo_description et note restent des indications techniques ; aucune prose nouvelle ne doit être cachée dans ces champs.
 

@@ -17,6 +17,7 @@ import { analyzeCarouselRedac, numbersIn, runRedacGate } from "../../_shared/red
 import { carouselEditorialFields } from "../../_shared/carousel-editorial-review.ts";
 import { preservesCarouselScenario } from "../../_shared/carousel-thread.ts";
 import { CAROUSEL_WRITING_VERSION } from "../writing-contract.ts";
+import { closingQuestion } from "../continuous-narrative.ts";
 import { CAROUSEL_WRITER_VERSION } from "../writer.ts";
 import { enforceCover, coverKind, coverRewritePrompt } from "../../_shared/carousel-cover.ts";
 import { type AudienceAddress, type AudienceAddressPass, enforceAudienceAddress } from "../../_shared/audience-address.ts";
@@ -431,9 +432,22 @@ export async function finalizeCarousel(
     ? await lap("thread_address_ms", () => enforceCarouselAudienceAddress(cover.doc, ctx.audienceAddress!, remaining() < 15_000 ? 0 : Math.min(20_000, remaining() - 5_000)))
     : cover.doc;
   // Après couverture et tu/vous : le lien suit le texte réellement livré.
+  // FIN DU CARROUSEL (13/11/2026) : la question qui clôt la dernière slide
+  // remplit une légende sans appel (même repli que le récit continu, #1947).
+  if (!photosOnly && !ownsText) Object.assign(finalDoc, fillClosingCta(finalDoc));
   const webFacts = photosOnly || ownsText ? [] : researchSourceWarnings(finalDoc, ctx.researchLinks);
   if (webFacts.length) finalDoc.structure_warnings = [...(finalDoc.structure_warnings || []), ...webFacts];
   return JSON.stringify(await rebindReceiptsAfterFinalTouches(beforeTouches, finalDoc));
+}
+
+/** Légende sans appel : reprend la question finale de la dernière slide (corps, overlay ou détail). */
+export function fillClosingCta(doc: any): any {
+  const cap = doc?.caption;
+  if (!cap || typeof cap !== "object" || (typeof cap.cta === "string" && cap.cta.trim())) return doc;
+  const slides = Array.isArray(doc.slides) ? doc.slides : [];
+  const last = slides[slides.length - 1] || {};
+  const q = [last.body, last.overlay_text, last.detail].map(closingQuestion).find(Boolean);
+  return q ? { ...doc, caption: { ...cap, cta: q } } : doc;
 }
 
 /**
