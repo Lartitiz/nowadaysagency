@@ -26,7 +26,7 @@ const FUNCTIONS = new URL("../", import.meta.url);
 const DESIGN = new Set([
   "carousel-design-plan", "carousel-sense-design", "contrast-guard", "font-size-guard", "format-render",
   "invented-text-guard", "mix-layout-formatting", "mix-schema-render", "mix-slide-layouts",
-  "photo-art-direction", "photo-editorial", "photo-format-types", "photo-formatting", "photo-overlay-templates",
+  "photo-art-direction", "photo-editorial", "photo-format-types", "photo-formatting", "photo-overlay-templates", "photo-text-placement",
   "photo-template-assign", "photo-visual-guards", "pptx-invariants", "recraft-illustration",
   "schema-formatting", "schema-limit", "schema-telemetry", "verbatim-guard",
 ]);

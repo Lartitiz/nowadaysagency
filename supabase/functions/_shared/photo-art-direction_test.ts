@@ -31,3 +31,14 @@ Deno.test("direction photo : sans pixels et avec position verrouillée, pas de d
   assertEquals(validatePhotoArtChoices(JSON.stringify({choices:[choice]}),slides,new Set())[0].position,"bottom_left");
   assertEquals(validatePhotoArtChoices(JSON.stringify({choices:[choice]}),[{...slides[0],position_locked:true}],new Set([2]))[0].position,"bottom_left");
 });
+Deno.test("direction photo : la zone du sujet déplace un texte long hors du visage (13/11/2026)",()=>{
+  const long=[{slide_number:1,photo_index:2,kicker:"Ce raisonnement pèse surtout avec un financement bancaire et une durée longue.",overlay_text:"Si vous financez en fonds propres sans échéance, ou si le lot peut être conservé, l’ordre compte moins.",overlay_position:"top_left"}];
+  const face={...choice,emphasis:long[0].overlay_text,subject_top:34,subject_bottom:48};
+  const [placed]=validatePhotoArtChoices(JSON.stringify({choices:[face]}),long,new Set([2]),new Map([[2,{width:1080,height:1350}]]));
+  assertEquals(placed.position,"bottom_left");assertEquals(placed.placement?.preferred,"top_left");assertEquals(placed.placement?.moved,true);assertEquals(placed.placement?.conflict,false);
+  // Sans zone du sujet : la préférence de l'IA reste (comportement d'avant).
+  assertEquals(validatePhotoArtChoices(JSON.stringify({choices:[{...choice,subject_top:null,subject_bottom:null}]}),long,new Set([2]))[0].position,"top_left");
+  // Couverture : toujours centrée, jamais déplacée.
+  assertEquals(validatePhotoArtChoices(JSON.stringify({choices:[{...face,treatment:"opening",position:"center"}]}),long,new Set([2]))[0].position,"center");
+  assert(PHOTO_ART_RULES.includes("subject_top"));
+});
