@@ -8,6 +8,7 @@ import { filStats } from "./fil-reparations.ts";
 import { dureesStats } from "./durees-carrousels.ts";
 import { reelsTropLongs } from "./reels-trop-longs.ts";
 import { photosFondStats } from "./photos-fond.ts";
+import { finCarrouselsStats } from "./fin-carrousels.ts";
 import { planStats } from "./plan-carrousels.ts";
 import { CAROUSEL_PLAN_FORMAT } from "../_shared/carousel-plan-format.ts";
 import { fetchAllRows } from "./lecture.ts";
@@ -209,6 +210,12 @@ export function blocQualite({ carCur, carPrev, carAll = [], cqEvents, cqAll, pla
     photos_fond: {
       cette_semaine: photosFondStats(carCur, (d) => inWindow(d, curFrom, curTo)),
       comptes_internes_7j: photosFondStats(carAll.filter((c: any) => internalIds.has(c.user_id)), (d) => inWindow(d, curFrom, curTo)),
+    },
+    // Fin des carrousels (13/11/2026, cf. fin-carrousels.ts) : dernière slide
+    // sans question sur les carrousels gardés de la semaine.
+    fin_carrousels: {
+      cette_semaine: finCarrouselsStats(carCur, (d) => inWindow(d, curFrom, curTo)),
+      comptes_internes_7j: finCarrouselsStats(carAll.filter((c: any) => internalIds.has(c.user_id)), (d) => inWindow(d, curFrom, curTo)),
     },
     // Plan des carrousels (12/10/2026) : durée, second appel, plans vides ou de
     // mauvaise longueur, au-delà des 170 s de l'écran (cf. plan-carrousels.ts).
