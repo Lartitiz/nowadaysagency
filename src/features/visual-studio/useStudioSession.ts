@@ -18,6 +18,7 @@ import {
   StudioRequestError,
   writeDraft,
 } from "@/features/visual-studio/api";
+import { isAlreadySentDraft } from "@/features/visual-studio/sent-draft";
 import { toast } from "sonner";
 import { readAttachedIds, referenceRoleForPhoto, writeAttachedIds } from "@/features/visual-studio/attachments";
 import type { StudioExistingTool, StudioPreparation } from "@/features/visual-studio/StudioToolDialogs";
@@ -221,6 +222,16 @@ export function useStudioSession({
       setError("");
     }
   }, [current?.session.messages, localKey]);
+  // À l'ouverture de la session et à chaque nouveau message : un brouillon
+  // identique au dernier message envoyé est déjà parti, on vide le champ.
+  const userMessageCount = current?.session.messages.filter((m) => m.role === "user").length ?? -1;
+  useEffect(() => {
+    if (userMessageCount < 1 || !isAlreadySentDraft(draftRef.current, current?.session.messages)) return;
+    draftRef.current = "";
+    setDraft("");
+    writeDraft(localKey, "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userMessageCount, localKey]);
   function editDraft(value: string) {
     setBranchChoice(null);
     draftRef.current = value;
