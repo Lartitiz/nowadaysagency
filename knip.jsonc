@@ -67,6 +67,12 @@
     // Invoqué en CLI (node_modules/.bin/jscpd) depuis e2e-visite/code-health.mjs
     // (audit hebdo de duplication), jamais importé en JS — knip ne trace pas
     // les appels via child_process.
-    "jscpd"
+    "jscpd",
+
+    // -- Légitime, à garder --
+    // Ajoutés par Lovable le 13/11/2026 (commit 0f37bbc12) pour son propre
+    // environnement d'aperçu, jamais importés dans le code de l'app.
+    "@lovable.dev/vite-plugin-dev-server-bridge",
+    "@lovable.dev/vite-plugin-hmr-gate"
   ]
 }
