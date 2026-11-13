@@ -185,6 +185,12 @@ const CASES: { name: string; body: Record<string, unknown>; text: string; stream
   { name: "streaming — post LinkedIn", body: { step: "generate", contentType: "post_linkedin", context: CONTEXT, angle: ANGLE, answers: ANSWERS }, text: POST_JSON, stream: true },
   { name: "streaming — newsletter", body: { step: "generate", contentType: "post_newsletter", context: CONTEXT, answers: ANSWERS },
     text: JSON.stringify({ subject: "Mes prix", preheader: "Une décision", content: "J'ai arrêté les remises.", accroche: "J'ai arrêté les remises." }), stream: true },
+  // 13/11/2026 : le reel part en flux — brouillon (`draft`) puis relecture (`correcting`), puis le reel final.
+  { name: "streaming — reel (brouillon puis relecture)", body: { step: "generate", contentType: "reel", context: CONTEXT, answers: ANSWERS, face_cam: "oui" },
+    text: JSON.stringify({ format: "reel", hook: "J'ai arrêté les remises.", script: [
+      { section: "hook", timing: "0-3 sec", texte_parle: "J'ai arrêté les remises.", texte_overlay: "REMISES" },
+      { section: "developpement", timing: "3-20 sec", texte_parle: "La cliente a signé quand même.", texte_overlay: "ELLE A SIGNÉ" },
+    ], caption: { text: "Le prix juste.", hashtags: ["ceramique"] } }), stream: true, userId: "test-user-reel-flux" },
   { name: "streaming — carrousel retiré (410)", body: { step: "generate", contentType: "carrousel", context: CONTEXT }, text: "", stream: true },
 ];
 

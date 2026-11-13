@@ -11,7 +11,7 @@ import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, type UsageSink } from "../_shared/anthropic.ts";
-import { runWithHeartbeatSSE } from "../_shared/anthropic-stream.ts";
+import { runWithHeartbeatSSE, clientStillThere, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { livedCaseFromCreativeBody } from "../_shared/lived-case.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
@@ -36,7 +36,7 @@ export { isExplicitlyFictionalBrief, isFactualFictionalLinkedInBrief, alignFactu
 export { photoVoiceRule } from "./shared.ts";
 export { NEWSLETTER_ADDRESS_FIELDS, applyNewsletterCorrectionPass } from "./formats/newsletter.ts";
 export { gateNumbers, _deps, POST_ADDRESS_FIELDS } from "./shared.ts";
-import { buildHooksPrompt, reelPhotoUserContent, reelPhotosOf } from "./formats/reel.ts";
+import { buildHooksPrompt, reelPhotoUserContent, reelPhotosOf, reelDraftPreview } from "./formats/reel.ts";
 import { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, buildQuestionsPrompt } from "./prompts/assist.ts";
 export { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, buildQuestionsPrompt } from "./prompts/assist.ts";
 export { resolveFormatHint, detectFormatFlags } from "./format-flags.ts";
@@ -56,6 +56,36 @@ export { buildGeneratePrompt } from "./prompts/generate.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
+  // Erreur → réponse claire (aussi renvoyée dans le flux SSE du reel).
+  // deno-lint-ignore no-explicit-any
+  const errorResponse = (e: any): Response => {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (e?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Les erreurs Anthropic portent déjà un message utilisateur clair (troncature 422,
+    // surcharge 529, timeout 504…). Avant, la troncature ("La génération a été coupée
+    // car trop longue") tombait dans le message générique "L'IA a eu un blanc" (le
+    // filtre includes("IA") est sensible à la casse) : indiagnosticable depuis le front.
+    if (e instanceof AnthropicError) {
+      console.error("creative-flow anthropic error:", e.status, e.message);
+      const status = e.status >= 400 && e.status <= 599 ? e.status : 500;
+      return new Response(JSON.stringify({ error: e.message }), {
+        status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    console.error("creative-flow error:", e);
+    const userMessage = e?.message?.includes("API") || e?.message?.includes("IA")
+      ? e.message
+      : "L'IA a eu un blanc. Réessaie dans quelques instants.";
+    return new Response(JSON.stringify({ error: userMessage }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  };
 
   try {
     // Parse body first to extract workspace_id
@@ -343,6 +373,10 @@ serve(async (req) => {
     }
 
     // ── Call Anthropic ──
+    // Reel en flux (13/11/2026) : même travail qu'en JSON, mais le script écrit
+    // part tout de suite (`draft`) puis la relecture (`correcting`), pour que la
+    // cliente lise son brouillon pendant la passe qualité au lieu d'un écran vide.
+    const produce = async (emitStatus?: StatusEmitter): Promise<Response> => {
     let rawContent: string;
     // Une seule des branches ci-dessous s'exécute → un sink partagé suffit.
     const finalUsage: UsageSink = {};
@@ -412,6 +446,12 @@ serve(async (req) => {
       );
     }
 
+    if (emitStatus && isReel && step === "generate") {
+      const draft = reelDraftPreview(parsed);
+      if (draft) emitStatus("draft", { reel: draft });
+      emitStatus("correcting");
+    }
+
     // Chaîne de finition par format : postprocess.ts (fiche 3, lot E).
     const { earlyExit, storiesGate, textEchoesBefore } = await finishGenerated(parsed, { step, isLinkedIn, isPhotoMode, isNewsletter, isReel, isPinterest, isStories, context, contentType, body, rawContent, corsHeaders, audienceAddress, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, newsContext, effectiveObjective, storiesPhotoCatalog });
     if (earlyExit) return earlyExit;
@@ -423,7 +463,8 @@ serve(async (req) => {
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
     if (isBilledStep) {
-      await logUsage(userId, "content", "creative_flow", finalUsage.total_tokens, finalUsage.model, workspace_id);
+      // En flux : pas de débit si la cliente est partie avant de recevoir le reel.
+      if (clientStillThere(emitStatus, "creative-flow:reel")) await logUsage(userId, "content", "creative_flow", finalUsage.total_tokens, finalUsage.model, workspace_id);
     } else {
       // Étape gratuite : aucun crédit, mais comptée (plafond quotidien + bilan du lundi).
       await logUsageHorsCredit({
@@ -432,32 +473,13 @@ serve(async (req) => {
       });
     }
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    };
+
+    if (wantsStream && isReel && step === "generate" && !deepResearch) {
+      return runWithHeartbeatSSE(corsHeaders, (emitStatus) => produce(emitStatus).catch(errorResponse));
+    }
+    return await produce();
   } catch (e: any) {
-    if (e instanceof ValidationError) {
-      return new Response(JSON.stringify({ error: e.message }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (e?.status === 429) {
-      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
-        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    // Les erreurs Anthropic portent déjà un message utilisateur clair (troncature 422,
-    // surcharge 529, timeout 504…). Avant, la troncature ("La génération a été coupée
-    // car trop longue") tombait dans le message générique "L'IA a eu un blanc" (le
-    // filtre includes("IA") est sensible à la casse) : indiagnosticable depuis le front.
-    if (e instanceof AnthropicError) {
-      console.error("creative-flow anthropic error:", e.status, e.message);
-      const status = e.status >= 400 && e.status <= 599 ? e.status : 500;
-      return new Response(JSON.stringify({ error: e.message }), {
-        status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    console.error("creative-flow error:", e);
-    const userMessage = e?.message?.includes("API") || e?.message?.includes("IA")
-      ? e.message
-      : "L'IA a eu un blanc. Réessaie dans quelques instants.";
-    return new Response(JSON.stringify({ error: userMessage }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return errorResponse(e);
   }
 });

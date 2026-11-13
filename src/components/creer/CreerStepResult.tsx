@@ -17,6 +17,7 @@ import NewsletterResult from "@/components/creer/formatRenderers/NewsletterResul
 import PinterestVisualResult from "@/components/creer/formatRenderers/PinterestVisualResult";
 import PinterestPhotoBriefResult from "@/components/creer/formatRenderers/PinterestPhotoBriefResult";
 import Confetti from "@/components/Confetti";
+import { ReelDraftPreview, type ReelDraft } from "./ReelDraftPreview";
 import { CarouselDraftPreview, type DraftSlide } from "@/components/creer/CarouselDraftPreview";
 
 import ResultActions from "@/components/creer/ResultActions";
@@ -211,6 +212,8 @@ interface Props {
   draftSlides?: DraftSlide[];
   /** Carrousel : titres prévus affichés pendant la réflexion, avant la 1re slide. */
   outlineTitles?: string[];
+  /** Reel : accroche choisie puis script en brouillon pendant la relecture (13/11/2026). */
+  reelDraft?: ReelDraft | null;
   streamingContent?: string;
   // Carrousel passé par l'étape structure → la rédaction est l'étape 2/2.
   step2of2?: boolean;
@@ -299,6 +302,7 @@ export default function CreerStepResult({
   generationStage,
   draftSlides,
   outlineTitles,
+  reelDraft,
   streamingContent,
   step2of2,
   qualityMax,
@@ -527,12 +531,12 @@ export default function CreerStepResult({
           </div>
         )}
 
-        <SkeletonPreview format={format} />
+        {format === "reel" && reelDraft ? <ReelDraftPreview draft={reelDraft} stage={generationStage} /> : <SkeletonPreview format={format} />}
 
         <div className="space-y-3">
-          <p className="text-sm font-medium text-center text-foreground animate-fade-in" key={isCorrecting ? "correcting" : messageIndex}>
+          {!(format === "reel" && reelDraft) && <p className="text-sm font-medium text-center text-foreground animate-fade-in" key={isCorrecting ? "correcting" : messageIndex}>
             {displayedMessage}
-          </p>
+          </p>}
           <div className="w-full bg-secondary rounded-full h-2">
             <div
               className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"

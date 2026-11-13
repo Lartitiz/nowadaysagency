@@ -518,3 +518,26 @@ export function reelPhotosNotCovered(parsed: any, count: number): number[] {
   const shown = new Set(sections.map((s) => Number(s?.photo)).filter((n) => Number.isInteger(n) && n >= 1));
   return Array.from({ length: count }, (_, i) => i + 1).filter((n) => !shown.has(n));
 }
+
+// ═══ BROUILLON DU REEL PENDANT L'ATTENTE (13/11/2026) ═══
+// Laetitia : 1 à 2 minutes devant un téléphone vide, « ça paraît trop long ».
+// Comme le carrousel, le serveur envoie le script écrit AVANT la passe qualité
+// (événement SSE `draft`) : la cliente le lit pendant la relecture finale. Le
+// texte final peut encore changer ; seul ce qui sert à l'aperçu part.
+
+/** Aperçu léger du script tel qu'écrit, avant correction. null si rien à montrer. */
+export function reelDraftPreview(parsed: any): { hook: string; sections: { timing: string; texte_parle: string; texte_overlay: string }[] } | null {
+  const script = Array.isArray(parsed?.script) ? parsed.script : Array.isArray(parsed?.sections) ? parsed.sections : [];
+  const sections = script
+    .filter((s: any) => s && typeof s === "object")
+    .slice(0, 12)
+    .map((s: any) => ({
+      timing: typeof s.timing === "string" ? s.timing.slice(0, 20) : "",
+      texte_parle: typeof s.texte_parle === "string" ? s.texte_parle.slice(0, 600) : "",
+      texte_overlay: typeof s.texte_overlay === "string" ? s.texte_overlay.slice(0, 160) : "",
+    }))
+    .filter((s: { texte_parle: string; texte_overlay: string }) => s.texte_parle.trim() || s.texte_overlay.trim());
+  if (!sections.length) return null;
+  const hook = typeof parsed?.hook === "string" ? parsed.hook.slice(0, 300) : "";
+  return { hook, sections };
+}
