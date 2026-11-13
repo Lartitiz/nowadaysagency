@@ -89,22 +89,24 @@ function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[
 }
 
 // ─── Loading tips by activity type ───
+// Aucun chiffre sans source (QA du 13/11/2026 : « 80 % des entrepreneur·es… »
+// à l'écran, alors que l'outil promet de ne jamais inventer de chiffres).
 const LOADING_TIPS: Record<string, string[]> = {
   artisane: [
-    "Le savais-tu ? Les vidéos de processus de création génèrent 3x plus d'engagement.",
+    "Le savais-tu ? Les vidéos qui montrent tes gestes créent souvent plus d'échanges que la pièce finie seule.",
     "Astuce : photographier tes créations sur fond neutre + en situation = combo gagnant.",
   ],
   mode_textile: [
     "Raconter l'histoire de ta marque est le premier levier de vente en mode éthique.",
-    "Les lookbooks en situation convertissent 2x mieux que les photos produit seules.",
+    "Les photos portées, en situation, aident à se projeter bien mieux que la photo produit seule.",
   ],
   art_design: [
     "Montrer ton processus créatif (pas juste le résultat) crée un lien fort avec ton audience.",
     "Les carrousels avant/après sont le format star pour les créatif·ves.",
   ],
   beaute_cosmetiques: [
-    "Les tutoriels courts sont le format roi dans la beauté. 60 secondes, c'est l'idéal.",
-    "Les avis client·es en vidéo convertissent 5x plus que les avis texte.",
+    "Les tutoriels courts marchent très bien dans la beauté : un geste, une astuce, ça suffit.",
+    "Un avis client·e en vidéo rassure souvent plus qu'un avis écrit.",
   ],
   bien_etre: [
     "Les formats 'mythes vs réalités' fonctionnent incroyablement bien dans le bien-être.",
@@ -115,9 +117,9 @@ const LOADING_TIPS: Record<string, string[]> = {
     "Les témoignages transformations sont tes meilleurs arguments de vente.",
   ],
   _default: [
-    "80% des entrepreneur·es sous-estiment la puissance de leur histoire personnelle.",
+    "Ton histoire personnelle est souvent ta matière la plus forte, et la plus sous-estimée.",
     "La régularité bat la perfection. 2 posts par semaine > 1 post parfait par mois.",
-    "Ta bio est lue en moyenne 3 secondes. Chaque mot compte.",
+    "Ta bio se lit en un coup d'œil : chaque mot compte.",
   ],
 };
 
