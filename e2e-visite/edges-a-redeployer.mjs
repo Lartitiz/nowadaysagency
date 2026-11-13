@@ -70,7 +70,12 @@ function lastCommitFor(relPaths) {
 }
 
 /** Modules `_shared/` importés par une fonction, en suivant les chaînes d'import. */
+// 13/11/2026 : suit aussi les sous-dossiers (`_shared/redac-gate/…`,
+// `_shared/correction-pass/…`, nés du découpage des gros fichiers) et les
+// sous-dossiers de la fonction (`creative-flow/formats/…`). Avant, #1935
+// (`_shared/redac-gate/legal-rules.ts`) ne faisait signaler aucune fonction.
 function sharedDepsOf(fnName) {
+  const sharedRoot = path.join(FUNCTIONS_DIR, "_shared") + path.sep;
   const seen = new Set();
   const queue = [];
 
@@ -81,32 +86,26 @@ function sharedDepsOf(fnName) {
     } catch {
       return;
     }
-    // import … from "../_shared/x.ts"  /  "./y.ts" à l'intérieur de _shared/
-    for (const m of src.matchAll(/from\s+["']([^"']*_shared\/[A-Za-z0-9_.-]+\.ts)["']/g)) {
-      const base = path.basename(m[1]);
-      if (!seen.has(base)) {
-        seen.add(base);
-        queue.push(path.join(FUNCTIONS_DIR, "_shared", base));
-      }
-    }
-    if (absFile.includes(`${path.sep}_shared${path.sep}`)) {
-      for (const m of src.matchAll(/from\s+["']\.\/([A-Za-z0-9_.-]+\.ts)["']/g)) {
-        const base = m[1];
-        if (!seen.has(base)) {
-          seen.add(base);
-          queue.push(path.join(FUNCTIONS_DIR, "_shared", base));
-        }
-      }
+    // import … from "../_shared/x.ts", "./redac-gate/y.ts", export … from "./z.ts"
+    for (const m of src.matchAll(/from\s+["'](\.{1,2}\/[^"']+\.ts)["']/g)) {
+      const target = path.resolve(path.dirname(absFile), m[1]);
+      if (!target.startsWith(sharedRoot) || seen.has(target)) continue;
+      seen.add(target);
+      queue.push(target);
     }
   };
 
-  const fnDir = path.join(FUNCTIONS_DIR, fnName);
-  for (const f of fs.readdirSync(fnDir).filter((f) => f.endsWith(".ts"))) {
-    scanFile(path.join(fnDir, f));
-  }
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const abs = path.join(dir, e.name);
+      if (e.isDirectory()) walk(abs);
+      else if (e.name.endsWith(".ts") && !/_test\.ts$/.test(e.name)) scanFile(abs);
+    }
+  };
+  walk(path.join(FUNCTIONS_DIR, fnName));
   while (queue.length) scanFile(queue.shift());
 
-  return [...seen].map((base) => `supabase/functions/_shared/${base}`);
+  return [...seen].map((abs) => path.relative(REPO, abs).split(path.sep).join("/"));
 }
 
 /** Empreinte de la SOURCE d'une fonction = dernier commit la concernant. */
