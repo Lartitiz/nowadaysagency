@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { sansMeta } from "./sans-meta.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateSitePalette } from "../_shared/validate-site-palette.ts";
@@ -113,7 +114,7 @@ export async function handleEnrichment(req: Request): Promise<Response> {
 
 Pour chaque section, donne une réponse structurée en JSON. Sois concret·e, précis·e, et utilise les mots que la personne utilise elle-même sur ses supports. Ne sois pas générique.
 
-Si tu n'as pas assez d'infos pour remplir une section, mets "confidence": "low" et explique ce qui manque. Si tu es confiant·e, mets "confidence": "high".
+Si tu n'as pas assez d'infos pour remplir une section, mets "confidence": "low". Si tu es confiant·e, mets "confidence": "high". Le niveau de confiance ne va QUE dans ce champ : les textes (description, histoire, etc.) sont lus tels quels par la personne, donc jamais « confiance faible », « profil déduit », « aucune source analysée » ni remarque sur ce qui manque dedans.
 
 Réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks.
 
@@ -366,7 +367,7 @@ Précisions importantes :
         },
         persona: {
           confidence: personaP.confidence || "medium",
-          description: prefill.target_description || personaP.description || null,
+          description: sansMeta(prefill.target_description) || sansMeta(personaP.description),
           goals: personaP.goals || [],
           frustrations: personaP.frustrations || [],
           desires: personaP.desires || [],
