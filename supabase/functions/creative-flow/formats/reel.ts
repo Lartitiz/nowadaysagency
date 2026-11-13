@@ -464,7 +464,7 @@ Propose-moi 3 hooks de types différents pour ce reel.${photoCount > 1 ? ` Mes $
 export function reelHooksPhotosRule(count: number): string {
   if (count <= 0) return "";
   return `
-9. SES PHOTOS (${count}, jointes à son message, dans l'ordre) : le reel les montre, l'accroche se dit sur la photo 1. Un détail concret d'un hook vient de ce qu'on VOIT sur ses photos ou de ce qu'elle a écrit. N'invente aucun élément, défaut, état ou qualité invisible (neuf, ancien, rénové, restauré, fait main…). Ne dis jamais « photo 1 » ni « sur cette photo ».`;
+9. SES PHOTOS (${count}, jointes à son message, dans l'ordre) : le reel les montre, l'accroche se dit sur la photo 1. Un détail concret d'un hook vient de ce qu'on VOIT sur ses photos ou de ce qu'elle a écrit. N'invente aucun élément, défaut, état ou qualité invisible (neuf, ancien, rénové, restauré, fait main…). N'invente pas non plus l'histoire de ce qu'on voit (ce qu'il y avait avant, des travaux, un achat, une vente, un délai, une décision) : si son brief ne la raconte pas, l'accroche part de ce qui se voit, ou pose une question. Ne dis jamais « photo 1 » ni « sur cette photo ».`;
 }
 
 // ═══ REEL À PARTIR DE PHOTOS : UN PASSAGE PAR PHOTO (13/11/2026) ═══
