@@ -117,11 +117,13 @@ Deno.test("NON-RÉGRESSION reel : face_cam=non → plus aucune trace de face cam
 
 Deno.test("NON-RÉGRESSION reel : chaque scène porte son texte à l'écran, chaque mot est rendu dans la boîte", () => {
   const { parsed, recipe } = runProductionChain();
+  // Sans voix, l'écran porte le SCRIPT entier de chaque scène, jamais l'extrait
+  // overlay (13/11 : « jamais celle calculée au m² » remplaçait toute la phrase).
   const expectedOnScreen = [
-    CHOSEN_HOOK.text_overlay, // hook choisi : son choix prime
-    "plus aucun défaut",
-    BODY_2_SPOKEN, // repli : texte parlé ENTIER, jamais raccourci
-    "Montre-moi ton dernier raté en commentaire.", // overlay inventé retiré → ses mots
+    CHOSEN_HOOK.text, // hook choisi : sa phrase parlée verrouillée
+    "Je l'avais moulé, démoulé, poncé jusqu'à ce qu'il n'ait plus aucun défaut.",
+    BODY_2_SPOKEN, // texte parlé ENTIER, jamais raccourci
+    "Montre-moi ton dernier raté en commentaire.",
   ];
   assertEquals(parsed.script[3].texte_overlay, null);
   assertEquals(recipe.scenes.length, parsed.script.length);

@@ -135,24 +135,30 @@ describe("buildRenderPlan", () => {
     expect(plan.sections[1].voice_text).toBeUndefined();
   });
 
-  it("mode silent : transmet le texte à incruster, sans piste voix", () => {
+  it("mode silent : incruste TOUT le script, pas l'extrait overlay, sans piste voix", () => {
+    // Cas réel du 13/11 : l'extrait « jamais celle calculée au m² » remplaçait
+    // la phrase entière du script pendant toute la scène.
+    const parle = "Sur une découpe d'immeuble, la grille de tantièmes la plus logique n'est jamais celle calculée au m².";
     const plan = buildRenderPlan(
-      [{ timing: "0-4 sec", texte_parle: "Texte long", texte_overlay: "Le message clé" }],
+      [{ timing: "0-7 sec", texte_parle: parle, texte_overlay: "jamais celle calculée au m²" }],
       ["a.mp4"],
       { voice_mode: "silent" },
     );
     expect(plan.voice_mode).toBe("silent");
-    expect(plan.sections[0].overlay_text).toBe("Le message clé");
+    expect(plan.sections[0].overlay_text).toBe(parle);
     expect(plan.sections[0].voice_audio_url).toBeUndefined();
     expect(plan.sections[0].voice_text).toBeUndefined();
   });
 
-  it("mode silent : overlay absent ou vide → TOUT le texte parlé, jamais coupé", () => {
+  it("mode silent : overlay absent ou vide → TOUT le texte parlé, jamais coupé ; parlé vide → extrait", () => {
     const parle = "Un texte parlé plutôt long, gardé en entier pour l'écran.";
     for (const texte_overlay of [undefined, null, "", "   "]) {
       const plan = buildRenderPlan([{ timing: "0-4 sec", texte_parle: parle, texte_overlay }], ["a.mp4"], { voice_mode: "silent" });
       expect(plan.sections[0].overlay_text).toBe(parle);
     }
+    // Section sans texte parlé : l'extrait overlay reste affiché (repli).
+    const repli = buildRenderPlan([{ timing: "0-4 sec", texte_parle: "  ", texte_overlay: "Le message clé" }], ["a.mp4"], { voice_mode: "silent" });
+    expect(repli.sections[0].overlay_text).toBe("Le message clé");
     const none = buildRenderPlan([{ timing: "0-4 sec", texte_parle: "  ", texte_overlay: "" }], ["a.mp4"], { voice_mode: "silent" });
     expect(none.sections[0].overlay_text).toBeUndefined();
   });
