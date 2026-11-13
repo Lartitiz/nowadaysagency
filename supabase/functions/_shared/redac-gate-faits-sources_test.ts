@@ -89,6 +89,22 @@ Deno.test("règle juridique : passe gardée si la règle disparaît, rejetée si
   }
 });
 
+Deno.test("règle juridique : un second essai retire ce que le premier a laissé", async () => {
+  const text = `${HOGUET} ${JURIS}\n\n${CLEAN}`;
+  let call = 0;
+  const mock = installFetchMock({
+    anthropic: () => anthropicText(++call === 1 ? `${JURIS}\n\n${CLEAN}` : `Mettons-nous d'accord par écrit avant.\n\n${CLEAN}`),
+  });
+  try {
+    const out = await enforceNoAddedLegalRules(text, BRIEF_APPORTEURS);
+    assertEquals(call, 2);
+    assertEquals(out.applied, true);
+    assertEquals(out.content.includes("jurisprudence"), false);
+  } finally {
+    mock.restore();
+  }
+});
+
 Deno.test("règle juridique : la correction qui dégrade un autre compteur est rejetée", async () => {
   const text = `${HOGUET}\n\n${CLEAN}`;
   const analyze = (t: string) => analyzeTextRedac(t, numbersIn(BRIEF_APPORTEURS), undefined, undefined, undefined, BRIEF_APPORTEURS);

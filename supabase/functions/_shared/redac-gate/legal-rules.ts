@@ -82,13 +82,24 @@ export async function enforceNoAddedLegalRules<A>(
   const audited = opts.audited ?? ((t: string) => t);
   const items = findAddedLegalRules(audited(text), sourceText);
   if (!items.length) return { content: text, applied: false, found: [] };
-  const candidate = await applyLegalRuleRemovalPass(text, { items, logger: opts.logger, abortTimeoutMs: opts.abortTimeoutMs });
-  if (!candidate || candidate === text) return { content: text, applied: false, found: items };
-  const after = findAddedLegalRules(audited(candidate), sourceText);
-  const othersBefore = opts.analyze && opts.otherCount ? opts.otherCount(opts.analyze(text)) : 0;
-  const othersAfter = opts.analyze && opts.otherCount ? opts.otherCount(opts.analyze(candidate)) : 0;
-  const rejected = opts.reject?.(candidate) ?? null;
-  const kept = after.length < items.length && othersAfter <= othersBefore && !rejected;
-  opts.logger?.(`[legal-removal] règles juridiques ajoutées ${items.length}→${after.length}, autres ${othersBefore}→${othersAfter}${rejected ? `, refus ${rejected}` : ""}, gardé=${kept}`);
-  return kept ? { content: candidate, applied: true, found: items } : { content: text, applied: false, found: items };
+  const othersOf = (t: string) => opts.analyze && opts.otherCount ? opts.otherCount(opts.analyze(t)) : 0;
+  const othersBefore = othersOf(text);
+  // Deux essais au plus (13/11/2026, test en ligne : 3 règles → 1 au premier
+  // essai, l'exemple de décision de justice restait). Le second ne part que
+  // s'il reste des phrases, sur la meilleure version gardée.
+  let best = text;
+  let remaining = items;
+  for (let attempt = 1; attempt <= 2 && remaining.length; attempt++) {
+    const candidate = await applyLegalRuleRemovalPass(best, { items: remaining, logger: opts.logger, abortTimeoutMs: opts.abortTimeoutMs });
+    if (!candidate || candidate === best) break;
+    const after = findAddedLegalRules(audited(candidate), sourceText);
+    const othersAfter = othersOf(candidate);
+    const rejected = opts.reject?.(candidate) ?? null;
+    const kept = after.length < remaining.length && othersAfter <= othersBefore && !rejected;
+    opts.logger?.(`[legal-removal] essai ${attempt} : règles juridiques ajoutées ${remaining.length}→${after.length}, autres ${othersBefore}→${othersAfter}${rejected ? `, refus ${rejected}` : ""}, gardé=${kept}`);
+    if (!kept) break;
+    best = candidate;
+    remaining = after;
+  }
+  return { content: best, applied: best !== text, found: items };
 }
