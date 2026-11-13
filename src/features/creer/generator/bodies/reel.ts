@@ -5,6 +5,23 @@
 // fichier d'un autre format.
 import type { GenerateParams } from "@/features/creer/generator/types";
 import type { BodyContext } from "@/features/creer/generator/bodies/context";
+import { downscalePhotosForVision } from "@/lib/image-vision";
+
+/**
+ * Reel à partir de photos (13/11/2026) : la rédaction voit les photos, dans
+ * l'ordre donné, pour leur donner un passage chacune. Allégées comme pour les
+ * questions ; la légende tapée et celle de la photothèque tiennent en 200 signes
+ * (limite du serveur).
+ */
+export async function reelPhotosForScript(photos: GenerateParams["photos"]) {
+  const withImage = (photos || []).filter((p) => typeof p?.base64 === "string" && p.base64.length > 0).slice(0, 10);
+  if (!withImage.length) return undefined;
+  const light = await downscalePhotosForVision(withImage);
+  return light?.map((p) => {
+    const context = [p.context?.trim(), p.libraryContext?.trim()].filter(Boolean).join(" — ").slice(0, 200);
+    return { base64: p.base64, mimeType: p.mimeType || "image/jpeg", ...(context ? { context } : {}) };
+  });
+}
 
 // Budget serveur (audit latences 17/08) : génération bornée à 90s
 // + passe qualité reel bornée à 45s = 135s pire cas par tentative,
@@ -25,6 +42,7 @@ export async function buildReelGenerateBody(params: GenerateParams, ctx: BodyCon
     };
   }
 
+  const photos = await reelPhotosForScript(params.photos);
   return {
     step: "generate",
     contentType: "reel",
@@ -44,5 +62,6 @@ export async function buildReelGenerateBody(params: GenerateParams, ctx: BodyCon
     content_structure: structurePrompt || null,
     workspace_id: effectiveWorkspaceId || null,
     ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
+    ...(photos?.length ? { photos } : {}),
   };
 }

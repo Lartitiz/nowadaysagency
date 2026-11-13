@@ -683,6 +683,8 @@ export function useDoGenerate({
       // pure_photo : les photos résolues par le dump priment (setState async → variable locale)
       ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", carouselSubMode: "pure_photo", photoDescription: pureDumpDescription ?? photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
+      // Reel à partir de photos : ses photos, dans son ordre, un passage chacune (bodies/reel.ts).
+      ...(selectedFormat === "reel" ? { photos: ownPhotos(uploadedPhotos).slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })) } : {}),
       ...(qualityMax ? { qualityMax: true } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });

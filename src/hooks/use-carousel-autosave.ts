@@ -18,8 +18,8 @@ interface Options {
   raw: any;
   title: string;
   channel: string;
-  /** Stories (12/11/2026) : même sauvegarde continue, rangée en « story_serie » dans Mes idées. */
-  kind?: "carousel" | "story";
+  /** Stories (12/11/2026) et reel (13/11/2026) : même sauvegarde continue, rangée en « story_serie » / « reel » dans Mes idées. */
+  kind?: "carousel" | "story" | "reel";
   onId: (id: string) => void;
   onSaved: (meta: CloudMeta) => void;
   onRestore: (raw: any) => void;
@@ -121,7 +121,8 @@ export function useCarouselAutosave(options: Options) {
     controllerKey.current = key;
     const id = copying ? crypto.randomUUID() : o.ideaId || crypto.randomUUID();
     const story = o.kind === "story";
-    const ideaFormat = story ? "story_serie" : "carousel";
+    const reel = o.kind === "reel";
+    const ideaFormat = story ? "story_serie" : reel ? "reel" : "carousel";
     const scoped = (query: any) =>
       o.workspaceId !== o.userId
         ? o.isOwnSpace
@@ -150,8 +151,8 @@ export function useCarouselAutosave(options: Options) {
             id: draftId,
             user_id: o.userId,
             workspace_id: o.workspaceId !== o.userId ? o.workspaceId : null,
-            titre: o.title.trim() || (story ? "Mes stories" : "Mon carrousel"),
-            angle: story ? "Stories" : "Carrousel",
+            titre: o.title.trim() || (story ? "Mes stories" : reel ? "Mon reel" : "Mon carrousel"),
+            angle: story ? "Stories" : reel ? "Reel" : "Carrousel",
             format: ideaFormat,
             canal: o.channel,
             type: "draft",
@@ -170,7 +171,7 @@ export function useCarouselAutosave(options: Options) {
           supabase
             .from("saved_ideas")
             // Une idée ouverte depuis Mes idées / le diagnostic était peut-être
-            // notée « Post » : son contenu est désormais un carrousel (ou des stories).
+            // notée « Post » : son contenu est désormais un carrousel (des stories, un reel).
             .update({ content_data: raw, format: ideaFormat })
             .eq("id", draftId),
         );

@@ -180,6 +180,14 @@ const CASES: { name: string; body: unknown; text: string; seed?: Seed; status?: 
       { section: "hook", timing: "0-3 sec", texte_parle: "J'ai arrêté les remises.", texte_overlay: "REMISES" },
       { section: "developpement", timing: "3-20 sec", texte_parle: "La cliente a signé quand même.", texte_overlay: "ELLE A SIGNÉ" },
     ], caption: { text: "Le prix juste.", hashtags: ["ceramique"] } }) },
+  // 13/11/2026 : la rédaction voit les photos, chacune avec son numéro, et le brief demande un passage par photo.
+  { name: "reel à partir de 3 photos — generate (images envoyées, un passage par photo)", body: { step: "generate", contentType: "reel", context: CONTEXT, answers: ANSWERS,
+    photos: [{ base64: PHOTO, context: "l'atelier" }, { base64: PHOTO }, { base64: PHOTO, context: "le four" }] },
+    text: JSON.stringify({ format: "reel", hook: "J'ai arrêté les remises.", photos_vues: ["Un atelier de céramique.", "Des bols sur une étagère.", "Un four ouvert."], script: [
+      { section: "hook", timing: "0-3 sec", photo: 1, texte_parle: "J'ai arrêté les remises.", texte_overlay: "arrêté les remises" },
+      { section: "developpement", timing: "3-10 sec", photo: 2, texte_parle: "Ces bols partent au prix juste.", texte_overlay: "au prix juste" },
+      { section: "cta", timing: "10-15 sec", photo: 3, texte_parle: "Le four tourne quand même.", texte_overlay: "le four tourne" },
+    ], caption: { text: "Le prix juste.", hashtags: ["ceramique"] } }) },
   { name: "hooks sans accroche récupérable — reel (502 renvoyé par le handler, lot E)", body: { step: "hooks", contentType: "reel", context: CONTEXT, answers: ANSWERS }, text: "" },
   { name: "LinkedIn exemple fictif sur les seuls faits du brief — generate", body: { step: "generate", contentType: "post_linkedin",
     context: "Écris un exemple fictif de post LinkedIn, uniquement avec les faits du brief : une céramiste refuse une remise et la cliente signe.", answers: ANSWERS }, text: POST_JSON },

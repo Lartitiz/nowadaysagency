@@ -13,6 +13,7 @@ import { livedCaseFromCreativeBody, LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from 
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief, positionDepthBlock } from "../../_shared/format-briefs.ts";
 import { isFactualFictionalLinkedInBrief } from "../formats/linkedin.ts";
 import type { StoriesPhotoCatalog } from "../formats/stories.ts";
+import { reelPhotoPassagesBlock, reelPhotosOf } from "../formats/reel.ts";
 
 /** Vrai quand buildGeneratePrompt rédige avec le brief stories : seul cas où il
  * lui faut `storiesData` (le handler ne lit la base que dans ce cas, comme avant). */
@@ -94,7 +95,7 @@ export async function buildGeneratePrompt(params: {
       editorial_angle: body.editorial_angle,
       content_structure: body.content_structure,
       inspiration_context: body.inspiration_context,
-    });
+    }) + reelPhotoPassagesBlock(reelPhotosOf(body).length, effectiveObjective);
   } else if (isStories) {
     // Garde-fou vente et catalogue photos : lus en base AVANT par le handler
     // (loadStoriesGenerateData, formats/stories.ts — lot F, 14/10/2026).

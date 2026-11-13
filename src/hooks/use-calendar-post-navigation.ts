@@ -14,7 +14,7 @@
 import type { NavigateFunction } from "react-router-dom";
 import { toast } from "sonner";
 import { resumeCrosspost } from "@/lib/crosspost-content";
-import { resumeCalendarReel } from "@/lib/calendar-reel-resume";
+import { findLinkedReelIdea, resumeCalendarReel } from "@/lib/calendar-reel-resume";
 import { findLinkedStoriesIdea, isCalendarStories, resumeCalendarStories } from "@/lib/calendar-stories-resume";
 import { ANGLE_TO_CAROUSEL } from "@/features/calendar/post-dialog-helpers";
 import type { CalendarPost } from "@/lib/calendar-constants";
@@ -56,7 +56,8 @@ export function useCalendarPostNavigation({ theme, format, postCanal, objectif, 
     const detail = savedPreviewContent as any;
     const isCarousel = !!(detail?.slides && detail?.visual_html?.length && /^carousel/.test(detail.type || ""));
     const linked = isCarousel && !detail?._crosspost ? await findLinkedCarouselIdea(editingPost?.id)
-      : isCalendarStories(detail) ? await findLinkedStoriesIdea(editingPost?.id) : null;
+      : isCalendarStories(detail) ? await findLinkedStoriesIdea(editingPost?.id)
+      : resumeCalendarReel(detail) ? await findLinkedReelIdea(editingPost?.id, editingPost?.media_urls) : null;
     onOpenChange(false);
     setTimeout(() => {
       // Reel enregistré : repris tel quel, montage et vidéo montée compris.
