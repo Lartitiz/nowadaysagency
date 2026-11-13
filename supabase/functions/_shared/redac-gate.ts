@@ -26,6 +26,7 @@ export { redacViolations, carouselRedacRawCount, redacScore, textRedacViolations
 export type { ResearchNumbers } from "./redac-gate/research-numbers.ts";
 export { researchNumbers, findUnsourcedResearchNumbers, findResearchNumbersUsed, enforceResearchNumberSources, emptiedMarkers, enforceResearchNumberCap } from "./redac-gate/research-numbers.ts";
 export { findInventedTestimonials, findInventedExperiences, enforceNoInventedTestimonials } from "./redac-gate/testimony.ts";
+export { findAddedLegalRules, enforceNoAddedLegalRules } from "./redac-gate/legal-rules.ts";
 export { analyzeCarouselRedac, normalizeCaptionHashtags, rescoreCaptionOnly, captionEndingViolated } from "./redac-gate/carousel-analysis.ts";
 export type { CaptionEndingRule } from "./redac-gate/carousel-analysis.ts";
 export { buildTextFixInstructions } from "./redac-gate/fix-instructions.ts";

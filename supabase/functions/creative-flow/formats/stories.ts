@@ -9,7 +9,7 @@ import { HAIKU_MODEL } from "../../_shared/anthropic.ts";
 import { type AudienceAddress } from "../../_shared/audience-address.ts";
 import { enforceAudienceAddressInFields } from "../../_shared/audience-address-fields.ts";
 import { applyCorrectionPassStories, extractStoriesTexts, reinjectStoriesTexts, storiesAuditableText } from "../../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, findChoppyFragments, hookEchoesBefore } from "../../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, enforceNoAddedLegalRules, enforceNoInventedTestimonials, enforceResearchNumberSources, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, findChoppyFragments, hookEchoesBefore } from "../../_shared/redac-gate.ts";
 import { coerceStoriesSequence, finalizeStoriesLayout, stripStoriesWriterLayout } from "../../_shared/story-formatting.ts";
 import { CORRECTION_ABORT_MS, addrOpts, gateNumbers } from "../shared.ts";
 
@@ -113,6 +113,20 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
       if (cleaned.applied) {
         best = reinjectStoriesTexts(base, cleaned.content).stories;
         bestA = cleaned.analysis;
+        repassed = true;
+      }
+    }
+    // Règle juridique que l'utilisatrice n'a pas évoquée (13/11/2026) : passe dédiée.
+    {
+      const base = best;
+      const legal = await enforceNoAddedLegalRules(extractStoriesTexts(base), testimonySourceText(body), {
+        analyze: (b) => analyze(reinjectStoriesTexts(base, b).stories), otherCount: textRedacRawCount,
+        audited: (b) => storiesAuditableText(reinjectStoriesTexts(base, b).stories),
+        logger: (msg) => console.log(msg), abortTimeoutMs: CORRECTION_ABORT_MS,
+      });
+      if (legal.applied) {
+        best = reinjectStoriesTexts(base, legal.content).stories;
+        bestA = analyze(best);
         repassed = true;
       }
     }

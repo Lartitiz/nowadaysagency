@@ -572,15 +572,17 @@ Deno.test("findBrandCopyOverlap : un verbatim cible recopié n'est compté qu'un
 const RESEARCH = "LinkedIn montre d'abord chaque post à 2 à 5 % du réseau (Hootsuite, 2025). La portée se joue dans les 48 à 72 heures (Richard van der Blom, Algorithm Insights 2025). Une étude sur 4,6 millions de posts mesure 17,3 % d'engagement en plus pour les carrousels (Socialinsider, 2024).";
 const BRIEF = "Pourquoi mes posts LinkedIn ne décollent pas, 3 ans d'activité";
 
-Deno.test("researchNumbers : seuls les chiffres absents du brief comptent, les années sont exclues", async () => {
+Deno.test("researchNumbers : seuls les chiffres et années absents du brief comptent (années sourcées depuis le 13/11/2026)", async () => {
   const { researchNumbers } = await import("./redac-gate.ts");
   const r = researchNumbers(numbersIn(BRIEF), RESEARCH + " En 2026, 3 réseaux.")!;
   assertEquals(r.only.has("2"), true);
   assertEquals(r.only.has("17.3"), true);
   assertEquals(r.only.has("4.6"), true);
   assertEquals(r.only.has("3"), false); // déjà dans le brief
-  assertEquals(r.only.has("2025"), false);
-  assertEquals(r.only.has("2026"), false);
+  assertEquals(r.only.has("2025"), true);
+  assertEquals(r.only.has("2026"), true);
+  // Une année du brief reste libre (« depuis 2015 »).
+  assertEquals(researchNumbers(numbersIn(BRIEF + " depuis 2015"), RESEARCH + " Depuis 2015.")!.only.has("2015"), false);
   assertEquals(researchNumbers(numbersIn(BRIEF), ""), undefined);
 });
 

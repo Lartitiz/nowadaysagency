@@ -20,7 +20,8 @@ const RESEARCH_TIMEOUT_MS = 25_000;
 // étude connus ET correspond à une page réellement trouvée ; le lien de cette
 // page suit le fait jusqu'au juge et aux pistes de relecture.
 const SOURCE_RULE = `- Aucun chiffre sans source vérifiée dans tes résultats de recherche. Dans le doute, pas de chiffre.
-- La source d'un fait est un organisme, une institution, un média ou une étude connus (ex. Insee, Ademe, Le Monde, une université), écrite avec le nom qui figure sur la page trouvée. JAMAIS un nom de personne seul, un blog, une boutique ou une marque qui vend : sans source de ce type, pas de fait.`;
+- La source d'un fait est un organisme, une institution, un média ou une étude connus (ex. Insee, Ademe, Le Monde, une université), écrite avec le nom qui figure sur la page trouvée. JAMAIS un nom de personne seul, un blog, une boutique ou une marque qui vend : sans source de ce type, pas de fait.
+- Une date ou une année reprise porte la même source que le fait. Aucune règle de droit (loi, article, jurisprudence, obligation ou interdiction légale) sauf si le sujet en parle lui-même.`;
 
 /**
  * « depth » : sujet sans vécu fourni, la recherche creuse sous le sujet.

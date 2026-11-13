@@ -17,7 +17,7 @@ import { textRedacRawCount, type TextRedacAnalysis } from "./scoring.ts";
 // autorisé tel quel ; un chiffre que seule la recherche fournit doit porter sa
 // source DANS LA MÊME PHRASE (« (Nom, année) », « selon X », « l'étude de X »).
 
-/** Chiffres de la recherche absents du brief/réponses/branding/actu (années exclues : des dates, pas des stats). */
+/** Chiffres et années de la recherche absents du brief/réponses/branding/actu. */
 export interface ResearchNumbers {
   only: Set<string>;
   text: string;
@@ -87,6 +87,13 @@ function statMentions(text: string): StatMention[] {
   return out;
 }
 
+// Années : depuis le 13/11/2026 (décision de Laetitia, « source obligatoire pour
+// les dates »), une année que SEULE la recherche fournit doit porter sa source
+// comme un chiffre (vu : « la jurisprudence est constante depuis 2012 », sans
+// source). Les années du brief, des réponses, du branding ou de l'actu restent
+// libres (« je fais ça depuis 2015 »). Elles ne comptent pas dans le plafond
+// « ton cas d'abord » : l'année d'une source « (Insee, 2024) » n'est pas un
+// deuxième chiffre.
 const isYear = (k: string) => /^(?:19|20)\d{2}(?:\|.*)?$/.test(k);
 
 export function researchNumbers(baseAllowed: Set<string>, researchText?: string, baseText?: string): ResearchNumbers | undefined {
@@ -97,7 +104,7 @@ export function researchNumbers(baseAllowed: Set<string>, researchText?: string,
   const only = new Set<string>();
   for (const m of statMentions(researchText)) {
     const [first, withUnit] = m.keys;
-    if (isYear(first)) continue;
+    if (isYear(first)) { if (!baseKeys.has(first)) only.add(first); continue; }
     if (/^\d/.test(first) && withUnit) {
       // Valeur absente de la base → toute reprise compte ; valeur présente mais
       // avec une autre unité → seule la reprise avec l'unité de la recherche compte.
@@ -126,6 +133,8 @@ const SOURCE_MENTIONS: RegExp[] = [
   // « l'étude de Richard van der Blom », « un rapport du CNRS », « publiée par LinkedIn »
   /(?<!\p{L})(?:[ée]tudes?|rapports?|barom[eè]tres?|enqu[eê]tes?|sondages?|analyses?|chiffres|donn[ée]es)\s+(?:de\s+l['’]|de\s+la\s+|du\s+|des\s+|de\s+|d['’])\p{Lu}/u,
   /(?<!\p{L})(?:publi[ée]e?s?|men[ée]e?s?|r[ée]alis[ée]e?s?|mesur[ée]e?s?)\s+par\s+(?:l['’]|le\s+|la\s+|les\s+)?\p{Lu}/u,
+  // « l'étude Ifop de 2025 », « le baromètre Hootsuite » : nom juste après le mot.
+  /(?<!\p{L})(?:[ée]tudes?|rapports?|barom[eè]tres?|enqu[eê]tes?|sondages?)\s+\p{Lu}[\p{L}'’&-]+/u,
 ];
 
 function hasSourceMention(sentence: string): boolean {
@@ -198,7 +207,7 @@ export function findResearchNumbersUsed(units: string[], research?: ResearchNumb
     const picked: Array<{ m: StatMention; key: string }> = [];
     for (const m of statMentions(sentence).sort((a, b) => (b.end - b.index) - (a.end - a.index))) {
       const key = m.keys.find((k) => research.only.has(k));
-      if (!key || picked.some((p) => m.index < p.m.end && p.m.index < m.end)) continue;
+      if (!key || isYear(key) || picked.some((p) => m.index < p.m.end && p.m.index < m.end)) continue;
       // « 1,5 % » et « 1,5 » sont la même donnée : une seule entrée par valeur.
       const value = m.keys[0];
       if (seen.has(value)) continue;

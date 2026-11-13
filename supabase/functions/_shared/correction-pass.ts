@@ -30,9 +30,11 @@ export {
   applyCorrectionPassStories,
 } from "./correction-pass/passes.ts";
 export {
+  applyLegalRuleRemovalPass,
   applyResearchExcessPass,
   applyResearchSourcingPass,
   applyTestimonyRemovalPass,
+  LEGAL_RULE_REMOVAL_PROMPT,
   RESEARCH_EXCESS_PROMPT,
   RESEARCH_SOURCING_PROMPT,
   TESTIMONY_REMOVAL_PROMPT,

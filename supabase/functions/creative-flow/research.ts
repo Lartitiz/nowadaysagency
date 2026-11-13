@@ -8,6 +8,7 @@
 
 import { getModelForAction, forcesDisabledThinking } from "../_shared/anthropic.ts";
 import { buildDepthBlock } from "../_shared/depth-research.ts";
+import { isSaleListing } from "../_shared/sale-listing.ts";
 import { logUsage } from "../_shared/plan-limiter.ts";
 import { _deps } from "./shared.ts";
 
@@ -28,6 +29,11 @@ export function skipDepthResearch(isStories: boolean, lived: { mode: string }): 
 export async function creativeDepthBlock(params: { context?: string | null; newsContext?: string | null; activity?: string; livedCase?: string }): Promise<string> {
   const subject = typeof params.context === "string" ? params.context.trim() : "";
   if (!subject) return "";
+  // Annonce ou mise en vente (13/11/2026, décision de Laetitia) : aucun fait du web.
+  if (isSaleListing(subject)) {
+    console.log("[creative-flow] annonce de vente : pas de recherche « creuser le sujet »");
+    return "";
+  }
   const newsAngle = typeof params.newsContext === "string" ? params.newsContext.trim().slice(0, 600) : "";
   // « Ton cas d'abord » (04/10/2026) : cas personnel fourni → vérification d'un point, au plus un fait.
   const mode = params.livedCase?.trim() ? "support" : "depth";
