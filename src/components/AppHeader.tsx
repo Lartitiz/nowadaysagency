@@ -193,7 +193,7 @@ function AppHeaderInner() {
     return item.matchExact ? location.pathname === base : location.pathname.startsWith(base);
   };
 
-  const planLabel = plan === "binome" ? "🤝 Binôme de com" : plan === "outil" ? "Outil (39€)" : "Gratuit";
+  const planLabel = plan === "binome" ? "🤝 Binôme de com" : plan === "outil" ? "Premium" : "Gratuit";
   const planBadge = plan === "binome" ? "🤝 Binôme" : plan === "outil" ? "Pro" : null;
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;

@@ -46,6 +46,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { prixHtEtTtc } from "@/lib/prix-ht";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -371,7 +372,7 @@ function SettingsContent() {
                     <Button size="sm" className="rounded-full" onClick={handleCheckoutOutil} disabled={portalLoading}>
                       {portalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                       <Gem className="h-4 w-4" strokeWidth={1.75} />
-                      Passer au plan Premium (39€/mois)
+                      Passer au plan Premium ({prixHtEtTtc(39, "/mois")})
                     </Button>
                     <Button size="sm" variant="outline" className="rounded-full" asChild>
                       <Link to="/binome"><Handshake className="h-4 w-4" strokeWidth={1.75} />Découvrir l'accompagnement</Link>
@@ -731,7 +732,7 @@ const QUOTA_CATEGORIES: { key: string; icon: LucideIcon; label: string }[] = [
 
 function AiQuotaDisplay() {
   const { plan, usage, isPaid } = useUserPlan();
-  const planLabel = plan === "binome" ? "Binôme de com (350€/mois)" : plan === "outil" ? "Premium (39€/mois)" : "Gratuit";
+  const planLabel = plan === "binome" ? "Binôme de com" : plan === "outil" ? "Premium" : "Gratuit";
   const total = usage.total;
   // Plans payants : le global est un garde-fou d'usage raisonnable, pas un
   // compteur à montrer (grille 01/10/2026) — seuls les plafonds durs s'affichent.

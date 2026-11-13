@@ -93,10 +93,10 @@ export default function CheckoutBinomePage() {
           {/* Price */}
           <div className="text-center mb-8">
             <p className="text-4xl font-bold text-foreground">
-              350€<span className="text-lg font-normal text-muted-foreground">/mois</span>
+              325 €<span className="text-lg font-normal text-muted-foreground"> HT/mois (390 € TTC)</span>
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              Engagement 6 mois · 2 100€ au total
+              Engagement 6 mois · 1 950 € HT au total (2 340 € TTC)
             </p>
           </div>
 

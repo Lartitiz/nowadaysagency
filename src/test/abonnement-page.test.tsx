@@ -99,7 +99,10 @@ describe("AbonnementPage — plan actuel", () => {
     expect(within(card).getByText("Gratuit")).toBeInTheDocument();
   });
 
-  it("affiche « Premium » et le prix pour le plan outil", async () => {
+  // Depuis le 13/11/2026 (prix HT + TVA), une abonnée d'avant paie 39 € TTC et une
+  // nouvelle 46,80 € TTC : le bloc « Plan actuel » ne promet plus de montant
+  // (la facture Stripe fait foi).
+  it("affiche « Premium » sans montant figé pour le plan outil", async () => {
     mockInvokeResponses({
       "check-subscription": { data: { plan: "outil", source: "stripe" }, error: null },
     });
@@ -107,7 +110,7 @@ describe("AbonnementPage — plan actuel", () => {
 
     const card = await waitForPlanLoaded();
     expect(within(card).getByText("Premium")).toBeInTheDocument();
-    expect(within(card).getByText(/39€\/mois/)).toBeInTheDocument();
+    expect(within(card).queryByText(/€/)).not.toBeInTheDocument();
   });
 
   it("affiche « Binôme de com » sans lien accompagnement pour le plan binôme", async () => {
@@ -118,7 +121,7 @@ describe("AbonnementPage — plan actuel", () => {
 
     const card = await waitForPlanLoaded();
     expect(within(card).getByText("Binôme de com")).toBeInTheDocument();
-    expect(within(card).getByText(/350€\/mois/)).toBeInTheDocument();
+    expect(within(card).queryByText(/350|325/)).not.toBeInTheDocument();
     expect(within(card).queryByRole("link", { name: /Voir mon accompagnement/ })).not.toBeInTheDocument();
   });
 });
@@ -160,7 +163,7 @@ describe("AbonnementPage — portail Stripe", () => {
     render(<AbonnementPage />);
     const card = await waitForPlanLoaded();
     expect(within(card).getByText("Accès administrateur")).toBeInTheDocument();
-    expect(within(card).queryByText(/350€\/mois/)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/€/)).not.toBeInTheDocument();
     expect(screen.queryByText("Gérer mon abonnement")).not.toBeInTheDocument();
     expect(screen.queryByText("Acheter des crédits bonus")).not.toBeInTheDocument();
     expect(screen.getByText("Accès illimité de gestion et de démonstration.")).toBeInTheDocument();
@@ -203,5 +206,19 @@ describe("AbonnementPage — résilience aux erreurs", () => {
     expect(screen.getByText("Mon abonnement")).toBeInTheDocument();
     expect(screen.queryByText("Plan actuel")).not.toBeInTheDocument();
     expect(screen.queryByText(/Passer à Premium/)).not.toBeInTheDocument();
+  });
+});
+
+describe("AbonnementPage — prix HT + TVA (13/11/2026)", () => {
+  it("affiche les formules en HT avec le TTC à côté", async () => {
+    mockInvokeResponses({ "check-subscription": { data: { plan: "free", source: "free" }, error: null } });
+    render(<AbonnementPage />);
+    await waitForPlanLoaded();
+    const text = document.body.textContent!.replace(/\u00a0/g, " ");
+    expect(text).toContain("39 € HT/mois");
+    expect(text).toContain("46,80 € TTC/mois");
+    expect(text).toContain("325 € HT/mois");
+    expect(text).toContain("390 € TTC/mois");
+    expect(text).not.toMatch(/350 ?€/);
   });
 });

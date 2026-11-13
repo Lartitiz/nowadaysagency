@@ -38,6 +38,10 @@ export async function subscriptionCheckout(stripe: any, admin: any, user: { id: 
   }
   const stableParams = { ...params, customer: customerId };
   delete stableParams.customer_email;
+  // Client connu : Stripe garde sur sa fiche l'adresse et le nom saisis (calcul de la TVA, numéro de TVA).
+  if (params.automatic_tax?.enabled || params.tax_id_collection?.enabled) {
+    stableParams.customer_update = { address: "auto", name: "auto" };
+  }
   const { data: attempt, error: reserveError } = await admin.rpc("reserve_subscription_checkout", {
     p_user_id: user.id, p_params: stableParams,
   });
