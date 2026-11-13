@@ -1,53 +1,56 @@
 /**
- * Option B de l'audit du 13/11/2026 : le Studio ouvert sur une photo propose
- * les retouches courantes en raccourcis, selon le type de photo.
+ * Studio ouvert sur une photo : ses outils dédiés sont rangés dans le menu
+ * « Plus d'outils » (écran simplifié du 13/11/2026, plus de raccourcis dans
+ * la conversation). L'outil qui convient au type de photo passe en premier.
  */
 import React from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-const row = vi.hoisted(() => ({ current: null as any }));
-vi.mock("@/integrations/supabase/client", () => {
-  const chain: any = { select: () => chain, eq: () => chain, maybeSingle: () => Promise.resolve({ data: row.current, error: null }) };
-  return { supabase: { from: () => chain } };
-});
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => ({}) } }));
 vi.mock("@/components/photos/PackshotDialog", () => ({ PackshotDialog: ({ open }: any) => open ? <p>fenêtre fond blanc</p> : null }));
 vi.mock("@/components/photos/PortraitProDialog", () => ({ PortraitProDialog: ({ open }: any) => open ? <p>fenêtre portrait</p> : null }));
 vi.mock("@/components/photos/MiseEnSceneDialog", () => ({ MiseEnSceneDialog: () => null }));
 vi.mock("@/components/photos/PhotoRetouchDialog", () => ({ PhotoRetouchDialog: () => null }));
 
-import { StudioPhotoShortcuts, WRITE_STARTER } from "@/features/visual-studio/StudioPhotoShortcuts";
+import { StudioPhotoMenuItems, StudioPhotoToolDialogs } from "@/features/visual-studio/StudioPhotoShortcuts";
 
-const photo = (kind: string) => ({ id: "p1", workspace_id: "w1", status: "ready", kind, tags: [], background_preset_key: null });
+const photo = (kind: string) => ({ id: "p1", workspace_id: "w1", status: "ready", kind, tags: [], background_preset_key: null }) as any;
 function show(kind: string) {
-  row.current = photo(kind);
-  const onPrepare = vi.fn(), onWrite = vi.fn();
-  render(<QueryClientProvider client={new QueryClient()}>
-    <StudioPhotoShortcuts photoId="p1" workspaceId="w1" disabled={false} onPrepare={onPrepare} onWrite={onWrite} />
-  </QueryClientProvider>);
-  return { onPrepare, onWrite };
+  const onPrepare = vi.fn(), onTool = vi.fn();
+  render(<DropdownMenu open>
+    <DropdownMenuTrigger>Plus d’outils</DropdownMenuTrigger>
+    <DropdownMenuContent>
+      <StudioPhotoMenuItems photo={photo(kind)} disabled={false} onPrepare={onPrepare} onTool={onTool} />
+    </DropdownMenuContent>
+  </DropdownMenu>);
+  return { onPrepare, onTool, labels: screen.getAllByRole("menuitem").map((el) => el.textContent) };
 }
 afterEach(cleanup);
 
-it("format et lumière (sans crédit) et « avec mes mots » pour toute photo", async () => {
-  const { onPrepare, onWrite } = show("ambiance");
-  fireEvent.click(screen.getByRole("button", { name: /Format et lumière/ }));
+it("format et lumière (sans crédit) pour toute photo, sans portrait si ce n'en est pas un", () => {
+  const { onPrepare, labels } = show("ambiance");
+  fireEvent.click(screen.getByRole("menuitem", { name: /Format et lumière/ }));
   expect(onPrepare).toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: /Ranger, éclaircir, retirer un objet/ }));
-  expect(onWrite).toHaveBeenCalledWith(WRITE_STARTER);
-  await screen.findByRole("button", { name: /Autres outils/ });
-  expect(screen.queryByRole("button", { name: /Fond blanc pour ma boutique/ })).toBeNull();
+  expect(labels.some((l) => /portrait/.test(l || ""))).toBe(false);
 });
 
-it("un produit a son raccourci fond blanc, qui ouvre la même fenêtre que Mes photos", async () => {
-  show("produit");
-  fireEvent.click(await screen.findByRole("button", { name: /Fond blanc pour ma boutique/ }));
+it("un produit a le fond blanc juste après format et lumière", () => {
+  const { onTool, labels } = show("produit");
+  expect(labels[1]).toMatch(/Fond blanc pour ma boutique/);
+  fireEvent.click(screen.getByRole("menuitem", { name: /Fond blanc pour ma boutique/ }));
+  expect(onTool).toHaveBeenCalledWith("packshot");
+});
+
+it("un portrait a le fond de marque en premier outil", () => {
+  const { onTool, labels } = show("portrait");
+  expect(labels[1]).toMatch(/Mon portrait sur un fond de marque/);
+  fireEvent.click(screen.getByRole("menuitem", { name: /Mon portrait sur un fond de marque/ }));
+  expect(onTool).toHaveBeenCalledWith("portrait");
+});
+
+it("les fenêtres sont celles de Mes photos", () => {
+  render(<StudioPhotoToolDialogs photo={photo("produit")} tool="packshot" onClose={() => {}} />);
   expect(screen.getByText("fenêtre fond blanc")).toBeInTheDocument();
-});
-
-it("un portrait a son raccourci fond de marque", async () => {
-  show("portrait");
-  fireEvent.click(await screen.findByRole("button", { name: /Mon portrait sur un fond de marque/ }));
-  expect(screen.getByText("fenêtre portrait")).toBeInTheDocument();
 });

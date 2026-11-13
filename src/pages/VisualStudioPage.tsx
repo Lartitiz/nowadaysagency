@@ -40,7 +40,7 @@ import { retryCanGenerateNow } from "@/features/visual-studio/retry-direct";
 import { StudioComposer } from "@/features/visual-studio/StudioComposer";
 import { useStudioSession } from "@/features/visual-studio/useStudioSession";
 import { StudioToolDialogs } from "@/features/visual-studio/StudioToolDialogs";
-import { StudioPhotoShortcuts } from "@/features/visual-studio/StudioPhotoShortcuts";
+import { useStudioSourcePhoto } from "@/features/visual-studio/StudioPhotoShortcuts";
 import { useStudioLibrarySync } from "@/features/visual-studio/useStudioLibrarySync";
 import { useReopenLastSession } from "@/features/visual-studio/useReopenLastSession";
 import { useStudioFit } from "@/features/visual-studio/useStudioFit";
@@ -166,6 +166,12 @@ function Studio({
     queryKey: ["visual-studio", userId, workspaceId, sessionId],
   });
   const [imageAction, setImageAction] = useState<string | null>(null);
+  // Écran simplifié du 13/11/2026 : la photo d'où part la session s'affiche
+  // en grand à droite ; ses outils dédiés sont dans « Plus d'outils ».
+  const sourcePhoto = useStudioSourcePhoto(writable ? current?.session.source_photo_id : null, workspaceId);
+  const sourceReference = current?.session.source_photo_id
+    ? references.find((ref) => ref.photo_id === current.session.source_photo_id) ?? null
+    : null;
   const refetchState = state.refetch;
   const renewImageLink = useMemo(() => createLinkRenewer(
     () => refetchState(),
@@ -418,10 +424,6 @@ function Studio({
                   )}
                 </StudioMessageList>
               </div>
-              {writable && current?.session.source_photo_id && !current.versions.length && !proposal && (
-                <StudioPhotoShortcuts photoId={current.session.source_photo_id} workspaceId={workspaceId}
-                  disabled={!!busy || !!generating} onPrepare={() => void openPreparation()} onWrite={editDraft} />
-              )}
               <StudioComposer
                 mobile={mobile}
                 dropActive={dropActive}
@@ -459,6 +461,8 @@ function Studio({
                 fileInput={fileInput}
                 references={references}
                 setPicker={setPicker}
+                sourcePhoto={sourcePhoto}
+                onPrepare={() => void openPreparation()}
               />
         </>
       </div>
@@ -499,6 +503,18 @@ function Studio({
             </button>
           </nav>
           <div className="studio-header-right">
+            {!videoTab && current && <StudioMemoryPanel
+              key={`${workspaceId}:${sessionId}`}
+              compact
+              memory={current.memory || []}
+              selectedVersion={version?.status === "ready" ? version.id : undefined}
+              personReference={version?.proposal.person_reference}
+              brief={cleanStudioSummary(version?.proposal.summary || current.session.brief || "")}
+              disabled={!writable || !!busy || !!generating}
+              onSave={(values) => mutate("memory_save", values)}
+              onApply={(id) => mutate("memory_apply", { memory_id: id, revision: current.session.revision })}
+              registerCastingOpener={(open) => { openCastingRef.current = open; }}
+            />}
             {!videoTab && (
               <button type="button" className="studio-link" onClick={() => setSessionsOpen(true)}>
                 Mes sessions
@@ -606,25 +622,20 @@ function Studio({
                   className="studio-stage"
                   aria-label="Visuels et versions"
                 >
-                  <div className="studio-gallery-header">
+                  {sourceReference && !current?.versions.length ? <div className="studio-gallery-header">
+                    <h2 className="font-display text-2xl">Ta photo</h2>
+                  </div> : <div className="studio-gallery-header">
                     <div>
                       <h2 className="font-display text-2xl">Images créées dans cette discussion</h2>
                       <p className="text-sm text-muted-foreground">Les nouvelles images suivent les précédentes.</p>
                     </div>
                     <span className="text-xs text-muted-foreground">{current?.versions.length || 0} image{current?.versions.length === 1 ? "" : "s"}</span>
-                  </div>
-                  {current && <StudioMemoryPanel
-                    key={`${workspaceId}:${sessionId}`}
-                    memory={current.memory || []}
-                    selectedVersion={version?.status === "ready" ? version.id : undefined}
-                    personReference={version?.proposal.person_reference}
-                    brief={cleanStudioSummary(version?.proposal.summary || current.session.brief || "")}
-                    disabled={!writable || !!busy || !!generating}
-                    onSave={(values) => mutate("memory_save", values)}
-                    onApply={(id) => mutate("memory_apply", { memory_id: id, revision: current.session.revision })}
-                    registerCastingOpener={(open) => { openCastingRef.current = open; }}
-                  />}
-                  {!current?.versions.length && <div className="studio-empty">
+                  </div>}
+                  {sourceReference && <figure className="studio-source-photo">
+                    <img src={sourceReference.url} alt={`Ta photo : ${sourceReference.name}`} />
+                    <figcaption>{current?.versions.length ? "Ta photo d’origine" : "Les images créées s’afficheront ici, sous ta photo."}</figcaption>
+                  </figure>}
+                  {!current?.versions.length && !sourceReference && <div className="studio-empty">
                     <div className="studio-empty-icon"><Sparkles className="h-9 w-9" /></div>
                     <h3 className="font-display text-2xl">Tout commence par ton idée</h3>
                     <p>Une photo, une affiche, une illustration ou un visuel encore à imaginer : décris-le dans la conversation. Le Studio reformulera ta demande avant de créer.</p>
@@ -650,7 +661,7 @@ function Studio({
                     busy={busy}
                     generating={generating}
                   />}
-                  {!!references.length && <details className="studio-source-details">
+                  {references.some((ref) => ref.id !== sourceReference?.id) && <details className="studio-source-details">
                     <summary>Images apportées dans la discussion · {references.length}</summary>
                     <div className="studio-versions" aria-label="Références de la discussion">
                       {references.map((ref) => <button type="button" key={ref.id} disabled={!writable || !!busy || generating} onClick={() => { setSelectedId(null); setSelectedReferenceId(ref.id); void updateSelection([...new Set([...activeIds, ref.id])], false, null); setCompare(false); }}>

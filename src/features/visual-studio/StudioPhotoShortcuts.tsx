@@ -1,18 +1,14 @@
-// Raccourcis du Studio quand il s'ouvre sur une photo de « Mes photos »
+// Outils photo du Studio quand il s'ouvre sur une photo de « Mes photos »
 // (13/11/2026, option B de l'audit « une seule porte pour modifier une
 // photo ») : la fiche photo n'a plus qu'un bouton « Modifier la photo », qui
-// mène ici. Les retouches courantes sont à un clic, le reste se dit avec ses
-// mots dans la conversation. Les outils dédiés (fond blanc, portrait, décor,
-// mise en scène) restent les mêmes fenêtres que dans « Mes photos ».
-import { useState } from "react";
+// mène ici. Écran simplifié du 13/11/2026 : plus de rangée de raccourcis dans
+// la conversation (les besoins changent d'une personne à l'autre) ; les outils
+// dédiés (format et lumière, fond blanc, portrait, décor, mise en scène) sont
+// rangés dans le menu « Plus d'outils » de la zone de saisie. Ce sont les mêmes
+// fenêtres que dans « Mes photos ».
 import { useQuery } from "@tanstack/react-query";
-import { Camera, ChevronDown, Package, Sparkles, UserRound, Wand2 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Camera, Package, UserRound, Wand2 } from "lucide-react";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import type { UserPhotoRow } from "@/lib/photo-storage";
 import { photoToolFit } from "@/lib/photo-tool-fit";
@@ -21,116 +17,80 @@ import { PortraitProDialog } from "@/components/photos/PortraitProDialog";
 import { MiseEnSceneDialog } from "@/components/photos/MiseEnSceneDialog";
 import { PhotoRetouchDialog } from "@/components/photos/PhotoRetouchDialog";
 
-/** Phrase pré-remplie : la personne n'a plus qu'à dire ce qu'elle change. */
-export const WRITE_STARTER = "Garde ma photo telle quelle, mais ";
+export type StudioPhotoTool = "packshot" | "portrait" | "mise-en-scene" | "decor" | null;
 
-type Tool = "packshot" | "portrait" | "mise-en-scene" | "decor" | null;
-
-export function StudioPhotoShortcuts({
-  photoId,
-  workspaceId,
-  disabled,
-  onPrepare,
-  onWrite,
-}: {
-  photoId: string;
-  workspaceId: string;
-  disabled: boolean;
-  /** Ouvre « Format et lumière » (sans crédit) sur la photo de la session. */
-  onPrepare: () => void;
-  /** Pré-remplit la conversation. */
-  onWrite: (text: string) => void;
-}) {
-  const [tool, setTool] = useState<Tool>(null);
-  const { data: photo } = useQuery({
+/** Photo de « Mes photos » sur laquelle la session a été ouverte. */
+export function useStudioSourcePhoto(photoId: string | null | undefined, workspaceId: string) {
+  return useQuery({
     queryKey: ["studio-source-photo", workspaceId, photoId],
+    enabled: !!photoId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_photos")
         .select("*")
-        .eq("id", photoId)
+        .eq("id", photoId!)
         .eq("workspace_id", workspaceId)
         .maybeSingle();
       if (error) throw error;
       return (data as UserPhotoRow | null) ?? null;
     },
     staleTime: 60_000,
-  });
+  }).data ?? null;
+}
+
+/** Lignes du menu « Plus d'outils » pour la photo d'origine. */
+export function StudioPhotoMenuItems({ photo, disabled, onPrepare, onTool }: {
+  photo: UserPhotoRow | null;
+  disabled: boolean;
+  /** Ouvre « Format et lumière » (sans crédit) sur la photo de la session. */
+  onPrepare: () => void;
+  onTool: (tool: Exclude<StudioPhotoTool, null>) => void;
+}) {
   const fit = photoToolFit(photo);
   const ready = !!photo && photo.status === "ready";
+  // Le type de photo choisit l'ordre : l'outil qui lui va passe en premier.
+  const packshot = <DropdownMenuItem key="packshot" disabled={disabled} onClick={() => onTool("packshot")}>
+    <Package className="h-4 w-4 mr-2 shrink-0" aria-hidden="true" /> Fond blanc pour ma boutique · 1 image
+  </DropdownMenuItem>;
+  const portrait = <DropdownMenuItem key="portrait" disabled={disabled} onClick={() => onTool("portrait")}>
+    <UserRound className="h-4 w-4 mr-2 shrink-0" aria-hidden="true" /> Mon portrait sur un fond de marque · 1 image
+  </DropdownMenuItem>;
+  return <>
+    <DropdownMenuItem disabled={disabled} onClick={onPrepare}>
+      <Camera className="h-4 w-4 mr-2 shrink-0" aria-hidden="true" /> Format et lumière · sans crédit
+    </DropdownMenuItem>
+    {ready && <>
+      {fit.isPortrait && !fit.isProduct ? [portrait, packshot] : [packshot, ...(fit.isPortrait ? [portrait] : [])]}
+      <DropdownMenuItem disabled={disabled} onClick={() => onTool("mise-en-scene")}>
+        <Package className="h-4 w-4 mr-2 shrink-0" aria-hidden="true" /> Mon produit porté ou en situation · 1 image
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={disabled} onClick={() => onTool("decor")}>
+        <Wand2 className="h-4 w-4 mr-2 shrink-0" aria-hidden="true" />
+        <span>
+          Changer le décor · 1 image
+          {fit.isPlace && (
+            <span className="block text-2xs text-muted-foreground">
+              Sur la photo d'un lieu, murs, sol et meubles peuvent changer.
+            </span>
+          )}
+        </span>
+      </DropdownMenuItem>
+    </>}
+    <DropdownMenuSeparator />
+  </>;
+}
 
-  return (
-    <div className="studio-shortcuts" aria-label="Retouches rapides">
-      <p className="studio-shortcuts-title">Que veux-tu faire avec cette photo ?</p>
-      <div className="studio-shortcuts-row">
-        <button type="button" className="studio-toolbar-btn" disabled={disabled} onClick={onPrepare}>
-          <Camera className="h-3.5 w-3.5" aria-hidden="true" />
-          Format et lumière
-          <span className="studio-shortcut-cost"> · sans crédit</span>
-        </button>
-        <button type="button" className="studio-toolbar-btn" disabled={disabled}
-          onClick={() => {
-            onWrite(WRITE_STARTER);
-            // Curseur au bout de la phrase : il ne reste qu'à dire quoi changer.
-            requestAnimationFrame(() => {
-              const box = document.querySelector<HTMLTextAreaElement>(".studio-composer textarea");
-              if (box) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }
-            });
-          }}>
-          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          Ranger, éclaircir, retirer un objet…
-        </button>
-        {ready && fit.isProduct && (
-          <button type="button" className="studio-toolbar-btn" disabled={disabled} onClick={() => setTool("packshot")}>
-            <Package className="h-3.5 w-3.5" aria-hidden="true" />
-            Fond blanc pour ma boutique
-            <span className="studio-shortcut-cost"> · 1 image</span>
-          </button>
-        )}
-        {ready && fit.isPortrait && (
-          <button type="button" className="studio-toolbar-btn" disabled={disabled} onClick={() => setTool("portrait")}>
-            <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
-            Mon portrait sur un fond de marque
-            <span className="studio-shortcut-cost"> · 1 image</span>
-          </button>
-        )}
-        {ready && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" className="studio-toolbar-btn" disabled={disabled}>
-                Autres outils
-                <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-w-xs">
-              {!fit.isProduct && (
-                <DropdownMenuItem onClick={() => setTool("packshot")}>
-                  <Package className="h-4 w-4 mr-2 shrink-0" /> Fond blanc pour ma boutique · 1 image
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={() => setTool("mise-en-scene")}>
-                <Package className="h-4 w-4 mr-2 shrink-0" /> Mon produit porté ou en situation · 1 image
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTool("decor")}>
-                <Wand2 className="h-4 w-4 mr-2 shrink-0" />
-                <span>
-                  Changer le décor · 1 image
-                  {fit.isPlace && (
-                    <span className="block text-2xs text-muted-foreground">
-                      Sur la photo d'un lieu, murs, sol et meubles peuvent changer.
-                    </span>
-                  )}
-                </span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-      {/* Montées seulement à l'ouverture : chaque fenêtre lit ses propres données. */}
-      {tool === "packshot" && <PackshotDialog photo={photo ?? null} open onOpenChange={(v) => !v && setTool(null)} />}
-      {tool === "portrait" && <PortraitProDialog photo={photo ?? null} open onOpenChange={(v) => !v && setTool(null)} />}
-      {tool === "mise-en-scene" && <MiseEnSceneDialog photo={photo ?? null} open onOpenChange={(v) => !v && setTool(null)} />}
-      {tool === "decor" && <PhotoRetouchDialog photo={photo ?? null} open onOpenChange={(v) => !v && setTool(null)} />}
-    </div>
-  );
+/** Fenêtres des outils photo, montées seulement à l'ouverture. */
+export function StudioPhotoToolDialogs({ photo, tool, onClose }: {
+  photo: UserPhotoRow | null;
+  tool: StudioPhotoTool;
+  onClose: () => void;
+}) {
+  const close = (v: boolean) => { if (!v) onClose(); };
+  return <>
+    {tool === "packshot" && <PackshotDialog photo={photo} open onOpenChange={close} />}
+    {tool === "portrait" && <PortraitProDialog photo={photo} open onOpenChange={close} />}
+    {tool === "mise-en-scene" && <MiseEnSceneDialog photo={photo} open onOpenChange={close} />}
+    {tool === "decor" && <PhotoRetouchDialog photo={photo} open onOpenChange={close} />}
+  </>;
 }

@@ -19,7 +19,7 @@ type Draft = {
   fictional: boolean;
 };
 export function StudioMemoryPanel(
-  { memory, selectedVersion, personReference, brief, disabled, onSave, onApply, registerCastingOpener }: {
+  { memory, selectedVersion, personReference, brief, disabled, onSave, onApply, registerCastingOpener, compact }: {
     memory: StudioMemory[];
     selectedVersion?: string;
     personReference?: StudioProposal["person_reference"];
@@ -28,6 +28,8 @@ export function StudioMemoryPanel(
     onSave: (values: Record<string, unknown>) => Promise<unknown>;
     onApply: (id: string) => Promise<unknown>;
     registerCastingOpener?: (open: (() => void) | null) => void;
+    /** Petit lien dans l'en-tête du Studio (écran simplifié du 13/11/2026). */
+    compact?: boolean;
   },
 ) {
   const [open, setOpen] = useState(false),
@@ -75,10 +77,14 @@ export function StudioMemoryPanel(
     }
   }
   return (
-    <div className="my-4">
-      <Button variant="outline" onClick={() => setOpen(true)}>
-        Mémoire de marque{memory.length ? ` · ${memory.length}` : ""}
-      </Button>
+    <div className={compact ? "contents" : "my-4"}>
+      {compact
+        ? <button type="button" className="studio-link" onClick={() => setOpen(true)}>
+          Mémoire de marque{memory.length ? ` · ${memory.length}` : ""}
+        </button>
+        : <Button variant="outline" onClick={() => setOpen(true)}>
+          Mémoire de marque{memory.length ? ` · ${memory.length}` : ""}
+        </Button>}
       <Dialog
         open={open}
         onOpenChange={(v) => {
