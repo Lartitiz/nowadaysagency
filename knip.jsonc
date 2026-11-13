@@ -60,8 +60,12 @@
     // Peer de @axe-core/playwright, lui bien utilisé (e2e-visite/sonde.spec.ts).
     "axe-core",
 
-    // Orpheline depuis la suppression de ui/command.tsx (#673) — retrait en cours.
-    "cmdk",
+    // -- Légitime, à garder --
+    // Plugins du serveur d'aperçu de Lovable, ajoutés par Lovable lui-même le
+    // 13/11/2026 (commit 0f37bbc12) : chargés par son environnement, jamais
+    // importés par le code. Les retirer ne sert à rien, Lovable les remettrait.
+    "@lovable.dev/vite-plugin-dev-server-bridge",
+    "@lovable.dev/vite-plugin-hmr-gate",
 
     // -- Légitime, à garder --
     // Invoqué en CLI (node_modules/.bin/jscpd) depuis e2e-visite/code-health.mjs
