@@ -516,7 +516,7 @@
 .studio-photos-accordion[open] > summary::before { transform: rotate(90deg); }
 .studio-photos-accordion > summary:hover { color: hsl(var(--foreground)); }
 /* Raccourcis quand le Studio s'ouvre sur une photo (StudioPhotoShortcuts). */
-.studio-shortcuts { display: grid; gap: 6px; padding: 8px 0 4px; }
+.studio-shortcuts { display: grid; gap: 6px; padding: 8px 12px 4px; }
 .studio-shortcuts-title { font-size: 12px; color: hsl(var(--muted-foreground)); }
 .studio-shortcuts-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .studio-shortcut-cost { font-size: 11px; opacity: 0.75; white-space: pre; }

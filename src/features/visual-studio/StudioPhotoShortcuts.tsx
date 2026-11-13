@@ -69,7 +69,14 @@ export function StudioPhotoShortcuts({
           <span className="studio-shortcut-cost"> · sans crédit</span>
         </button>
         <button type="button" className="studio-toolbar-btn" disabled={disabled}
-          onClick={() => onWrite(WRITE_STARTER)}>
+          onClick={() => {
+            onWrite(WRITE_STARTER);
+            // Curseur au bout de la phrase : il ne reste qu'à dire quoi changer.
+            requestAnimationFrame(() => {
+              const box = document.querySelector<HTMLTextAreaElement>(".studio-composer textarea");
+              if (box) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }
+            });
+          }}>
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
           Ranger, éclaircir, retirer un objet…
         </button>
