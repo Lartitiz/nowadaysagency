@@ -1,5 +1,6 @@
 import { resumeCrosspost } from "./crosspost-content";
 import { ideaFormatToCreerFormat, type IdeaForCalendar } from './idea-to-calendar';
+import { creerDraftOf } from '@/features/creer/creer-draft-idea';
 
 /** Restore saved output without calling the generation endpoints. */
 export function resumeIdea(idea: IdeaForCalendar) {
@@ -10,6 +11,8 @@ export function resumeIdea(idea: IdeaForCalendar) {
   if (!data && idea.content_draft?.trim().startsWith('{')) {
     try { data = JSON.parse(idea.content_draft); } catch { /* plain draft below */ }
   }
+  // Brouillon de /creer pas encore généré : il se reprend par `resumeDraft` (creer-draft-idea.ts).
+  if (creerDraftOf(data)) return null;
   const format = ideaFormatToCreerFormat(idea.format);
   if (!format || format === 'actu') return null;
   let raw = data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length ? data : null;

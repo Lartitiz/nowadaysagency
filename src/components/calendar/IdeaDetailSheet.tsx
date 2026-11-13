@@ -1,4 +1,5 @@
 import { planSavedIdea } from '@/lib/idea-calendar-persistence';
+import { creerDraftOf } from "@/features/creer/creer-draft-idea";
 import { reelSectionTitle } from "../../../supabase/functions/_shared/reel-caption";
 import { calendarSaveError } from '@/lib/calendar-persistence';
 import { resumeIdea } from '@/lib/resume-idea';
@@ -181,6 +182,8 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
     try { saved = await persistIdea(); }
     catch { return; }
     if (!saved) return;
+    const draft = creerDraftOf(saved.content_data);
+    if (draft) { navigate("/creer", { state: { resumeDraft: draft, ideaId: idea.id } }); onOpenChange(false); return; }
     const resumed = resumeIdea(saved);
     if (resumed && contentDraft !== renderIdeaDraft(idea.content_draft, idea.format)) resumed.raw.edited_text = contentDraft;
     const params = new URLSearchParams({ sujet: title.trim(), format: ideaFormat, canal: saved.canal || "instagram", objectif: objective, idea_id: idea.id });
@@ -431,7 +434,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
         </span>
         <div className="ml-auto flex items-center gap-2">
           <Button onClick={handleGenerate} disabled={!title.trim()} className="rounded-pill gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90">
-            <Sparkles className="h-4 w-4" /> {idea && resumeIdea(idea) ? "Ouvrir l’éditeur" : "Créer ce contenu"}
+            <Sparkles className="h-4 w-4" /> {idea && creerDraftOf(idea.content_data) ? "Reprendre ce brouillon" : idea && resumeIdea(idea) ? "Ouvrir l’éditeur" : "Créer ce contenu"}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -117,6 +117,8 @@ import { useIdeaPick } from "@/features/creer/idea-pick";
 import { loadFlowState, saveFlowState as persistFlowState, clearFlowState, savePhotos as persistPhotos, loadPhotos, setFlowWorkspaceId, setFlowUserId } from "@/hooks/use-flow-persistence";
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import { useSilentDraftSwitch } from "@/hooks/use-silent-draft-switch";
+import { useCreerDraftIdea } from "@/hooks/use-creer-draft-idea";
+import DraftResumeGate from "@/features/creer/DraftResumeGate";
 import LinkedInCarouselInvite from "@/components/creer/LinkedInCarouselInvite";
 import { useCreerKeepContent, KeepContentDialog } from "@/hooks/use-creer-keep-content";
 import { useCreerSettingsPersistence } from "@/hooks/use-creer-settings-persistence";
@@ -127,7 +129,10 @@ import { useUserPlan } from "@/hooks/use-user-plan";
 
 
 
-export default function CreerUnifie() {
+// « Reprendre » un brouillon de Mes idées passe d'abord par DraftResumeGate.
+export default function CreerUnifie() { return <DraftResumeGate><CreerUnifiePage /></DraftResumeGate>; }
+
+function CreerUnifiePage() {
   const entryLocation = useLocation();
   const navigationType = useNavigationType();
   const entryKey = useCreationEntryKey(entryLocation.search, entryLocation.key, navigationType, !!entryLocation.state);
@@ -200,7 +205,12 @@ function CreerWorkspace() {
     existingFlowState, photoCount: loadPhotos().length, aurianaDemoActive, isFreshStart,
     paramSujet, paramIdeaId, paramAuto, paramFormat, paramCanal, locState,
   }));
-  const [conflictResolved, setConflictResolved] = useState(false);
+  // Sujet seulement tapé : remplacé sans fenêtre (brouillon rangé dès la 2e étape, 13/11/2026).
+  const [conflictResolved, setConflictResolved] = useState(() => {
+    if (!draftConflict?.replaceSilently) return false;
+    clearFlowState();
+    return true;
+  });
   const conflictPending = !!draftConflict && !conflictResolved;
 
   const shouldRestore = !isFreshStart && !draftConflict && (hasSomeContext || aurianaDemoActive || loadPhotos().length > 0 || (existingFlowState !== null && !!existingFlowState.step));
@@ -586,6 +596,12 @@ function CreerWorkspace() {
     values: { photoMode, pinterestData, qualityMax, coverIllustration, explicitTextFirstMix, photoDumpEnabled, existingCalendarContent, selectedReelHook, lastConfirmedStructure, lastScenarioOrigin, lastNarrativeThread },
     setters: { photoMode: setPhotoMode, pinterestData: setPinterestData, qualityMax: setQualityMax, coverIllustration: setCoverIllustration, explicitTextFirstMix: setExplicitTextFirstMix, photoDumpEnabled: setPhotoDumpEnabled, existingCalendarContent: setExistingCalendarContent, selectedReelHook: setSelectedReelHook, lastConfirmedStructure: setLastConfirmedStructure, lastScenarioOrigin: setLastScenarioOrigin, lastNarrativeThread: setLastNarrativeThread } });
 
+  useCreerDraftIdea({ // contenu commencé rangé dans Mes idées dès la 2e étape (creer-draft-idea.ts)
+    enabled: workspaceReady && !isDemoMode && !aurianaDemoActive && !conflictPending, userId: session?.user?.id, workspaceId, creationId, editingIdeaId,
+    step, hasResult: !!result, hasEditContent: !!editContent.trim(), generating: generating || streaming, subject: ideaText || photoSubject, photos: uploadedPhotos, photosReady: photosRestored,
+    watch: [step, ideaText, objective, selectedFormat, editorialAngle, answers, questions, carouselSubMode, slideLength, userSlidesInput, photoSubject, photoDescription, forcedChannel, isLinkedInCarousel, newsjackingContext],
+    onId: (id) => { if (!isCurrentCreation()) return; setEditingIdeaId(id); saveFlowState({ editingIdeaId: id }); },
+  });
   // Filets anti-perte au rechargement en pleine génération (texte reçu,
   // génération en cours, purge) : use-generation-reload-guard.ts.
   const interruptedGeneration = useGenerationReloadGuard({
@@ -1453,7 +1469,7 @@ function CreerWorkspace() {
     setEditingIdeaId, forgetSavedVersion: () => { setSavedIdeaVersion(null); setSavedId(null); }, setSelectedFormat, setIsLinkedInCarousel, setCarouselSubMode, setSlideLength, setStep });
 
   const startNewAfterConflict = () => { handleReset(); initialCreationId.current = activeCreation.current; persistedState.current = null; initDone.current = false; justStrippedRef.current = false; setConflictResolved(true); };
-  const silentSwitch /* contenu en cours déjà dans Mes idées : pas de fenêtre */ = useSilentDraftSwitch({ draftConflict, onSwitch: startNewAfterConflict });
+  const silentSwitch /* contenu en cours déjà dans Mes idées : pas de fenêtre */ = useSilentDraftSwitch({ draftConflict, onSwitch: startNewAfterConflict, userId: session?.user?.id, workspaceId });
   /* Fiche de marque d'abord. Tant que la fiche captée à l'inscription attend
      sa relecture, la marque n'est pas encore écrite dans les tables lues par la
      génération : créer maintenant produirait un contenu générique. La prochaine

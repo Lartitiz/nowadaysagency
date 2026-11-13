@@ -1,4 +1,5 @@
 import { resumeIdea } from "@/lib/resume-idea";
+import { creerDraftOf } from "@/features/creer/creer-draft-idea";
 import { actuContext, isSavedActu } from "@/lib/actu-context";
 import type { IdeaForCalendar } from "@/lib/idea-to-calendar";
 
@@ -32,6 +33,9 @@ export function ideaCreateLink(idea: IdeaForCalendar & { id: string; source_modu
     objectif: idea.objectif || "",
     idea_id: idea.id,
   });
+  // Brouillon commencé dans /creer : rouvert à son étape, avec ses photos (DraftResumeGate.tsx).
+  const draft = creerDraftOf(idea.content_data);
+  if (draft) return { to: "/creer", state: { resumeDraft: draft, ideaId: idea.id } };
   return {
     to: `/creer?${params.toString()}`,
     state: { resumeIdea: resumeIdea(idea), ideaId: idea.id, ...(actu ? { context: actuContext(idea) ?? undefined } : {}) },

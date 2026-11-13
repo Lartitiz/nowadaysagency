@@ -193,13 +193,14 @@ describe('initial creation draft through real React components', () => {
     type(''); app.unmount(); mount(); expect(screen.getByRole('textbox')).toHaveValue('');
     expect(loadFlowState()?.forcedChannel).toBe('linkedin'); expect(mocks.generate).not.toHaveBeenCalled();
   });
-  it('does not change any draft identity while the real conflict dialog is open, and resumes', () => {
-    saveFlowState({step:'idea',ideaText:'À garder',creationId:'same',editingIdeaId:'idea',calendarPostId:'calendar',reelMp4Url:'old-video'});
+  it('does not change any draft identity while the real conflict dialog is open, and resumes', async () => {
+    // 2e étape : rangée dans Mes idées si possible ; ici la fiche est illisible, donc la fenêtre protège.
+    saveFlowState({step:'format',ideaText:'À garder',creationId:'same',editingIdeaId:'idea',calendarPostId:'calendar',reelMp4Url:'old-video'});
     const before=loadFlowState(); const location=window.location; const replace=vi.fn(); vi.stubGlobal('location', {...location, replace});
     const app=mount('/creer?new=1');
-    expect(screen.getByRole('dialog')).toBeVisible(); expect(loadFlowState()).toEqual(before);
+    expect(await screen.findByRole('dialog')).toBeVisible(); expect(loadFlowState()).toEqual(before);
     fireEvent.click(screen.getByText('Reprendre mon contenu en cours')); expect(replace).toHaveBeenCalled();
-    app.unmount(); mount(); expect(screen.getByRole('textbox')).toHaveValue('À garder');
+    app.unmount(); mount(); expect(screen.getByText('Idée : À garder')).toBeInTheDocument();
     expect(loadFlowState()).toMatchObject({creationId:'same',editingIdeaId:'idea',calendarPostId:'calendar'}); vi.stubGlobal('location', location);
   });
   it('starts blank only after explicit discard and does not restore the completed content', async () => {
@@ -284,7 +285,7 @@ describe('initial creation draft through real React components', () => {
   it('keeps a photo-only draft when saving it through the text-only conflict path is unsupported', async () => {
     saveFlowState({step:'idea',ideaText:'',photoEntry:true,photoSubject:'',creationId:'photo-draft'});
     await savePhotos([{id:'p',userPhotoId:'library-1',name:'Portrait'}]);
-    const before=loadFlowState(); const app=mount('/creer?new=1'); expect(screen.getByRole('dialog')).toBeVisible();
+    const before=loadFlowState(); const app=mount('/creer?new=1'); expect(await screen.findByRole('dialog')).toBeVisible();
     fireEvent.click(screen.getByText('Démarrer le nouveau contenu'));
     await waitFor(() => expect(screen.getByText('Reprendre mon contenu en cours')).toBeEnabled());
     expect(loadFlowState()).toEqual(before); expect(loadPhotos()).toHaveLength(1);
@@ -310,10 +311,11 @@ describe('initial creation draft through real React components', () => {
     expect(loadPhotos()).toMatchObject([{id:'p',userPhotoId:'library-1'}]);
   });
 
-  it('protects the draft when another creation intent arrives on the already-mounted route', () => {
-    mount(); type('Première intention'); const before=loadFlowState();
-    fireEvent.click(screen.getByText('Autre intention')); expect(screen.getByRole('dialog')).toBeVisible();
-    expect(loadFlowState()).toEqual(before);
+  it('replaces a subject only typed (1st step) without the dialog when another intent arrives (13/11/2026)', async () => {
+    mount(); type('Première intention');
+    fireEvent.click(screen.getByText('Autre intention'));
+    await waitFor(() => expect(loadFlowState()?.ideaText).toBe('Autre sujet'));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('restores the requested channel when using browser history between channel entries', async () => {
@@ -458,7 +460,7 @@ it('protects photos saved without a flow record when entering a new creation', a
   await savePhotos([{id:'p',userPhotoId:'library-1',name:'Photo sans texte'}]);
   expect(loadFlowState()).toBeNull();
   const view = mount('/creer?canal=instagram&new=1');
-  expect(screen.getByRole('dialog')).toBeVisible();
+  expect(await screen.findByRole('dialog')).toBeVisible();
   expect(loadPhotos()).toHaveLength(1);
   expect(mocks.generate).not.toHaveBeenCalled();
   view.unmount();
@@ -472,7 +474,7 @@ it('asks before entering LinkedIn while a Studio photo draft is in progress', as
   await savePhotos([{id:'p',userPhotoId:'library-1',name:'Photo du bol'}]);
   const before = loadFlowState();
   mount('/creer?canal=linkedin');
-  expect(screen.getByRole('dialog')).toBeVisible();
+  expect(await screen.findByRole('dialog')).toBeVisible();
   expect(loadFlowState()).toEqual(before);
   expect(loadPhotos()).toHaveLength(1);
 });
