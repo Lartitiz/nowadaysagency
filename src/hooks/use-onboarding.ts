@@ -574,9 +574,9 @@ export function useOnboarding() {
 
       if (existingProfile) {
         let { error: updateErr } = await supabase.from("profiles").update(profileData as any).eq("user_id", profileUserId);
-        if (updateErr?.code === "42501") {
-          // Le nouveau champ peut manquer de droit UPDATE avant le prochain
-          // déploiement des privilèges. Sauver le reste du profil sans le bloquer.
+        if (updateErr?.code === "42501" || updateErr?.code === "23514") {
+          // Droit UPDATE pas encore déployé, ou réponse récente (« realisations », 13/11/2026)
+          // refusée avant sa migration : sauver le reste (le choix reste dans le navigateur).
           const allowedProfileData = { ...profileData };
           delete allowedProfileData.product_or_service;
           ({ error: updateErr } = await supabase.from("profiles").update(allowedProfileData as any).eq("user_id", profileUserId));
