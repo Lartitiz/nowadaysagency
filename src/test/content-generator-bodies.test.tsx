@@ -94,6 +94,23 @@ describe("generate — reel (creative-flow)", () => {
   it("sans réponses ni caméra : face_cam « oui », réponses vides", async () => {
     expect(await bodyOf({ format: "reel", subject: "Sujet" })).toMatchSnapshot();
   });
+  // 13/11/2026 : la rédaction voit les photos pour leur donner un passage chacune, dans l'ordre.
+  it("à partir de photos : photos allégées dans l'ordre, légendes réunies en 200 signes, jamais le mode photo", async () => {
+    const { body } = await bodyOf({
+      format: "reel", subject: "Visite",
+      photos: [
+        { base64: "data:image/jpeg;base64,AAA", context: "la façade", libraryContext: "Immeuble ancien" },
+        { base64: "data:image/png;base64,BBB", mimeType: "image/png" },
+        { base64: "data:image/jpeg;base64,CCC", context: "x".repeat(250) },
+        { base64: "" },
+      ],
+    });
+    expect(body.photos.map((p: any) => p.base64)).toEqual(["allégée(data:image/jpeg;base64,AAA)", "allégée(data:image/png;base64,BBB)", "allégée(data:image/jpeg;base64,CCC)"]);
+    expect(body.photos[0].context).toBe("la façade — Immeuble ancien");
+    expect(body.photos[1]).not.toHaveProperty("context");
+    expect(body.photos[2].context).toHaveLength(200);
+    expect(body).not.toHaveProperty("photo_mode");
+  });
 });
 
 describe("generate — stories (creative-flow)", () => {

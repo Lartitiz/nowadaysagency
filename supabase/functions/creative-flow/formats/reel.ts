@@ -12,7 +12,7 @@ import { applyCorrectionPassReel } from "../../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, hookEchoesBefore } from "../../_shared/redac-gate.ts";
 import { countReelSpokenWords, enforceReelNoFaceCam, enforceSelectedReelHook, finalizeReelScript, reelAuditableText, extractReelTexts, reinjectReelTexts, reelTemplateLeaks, reelOverlaysNotFromScript } from "../../_shared/reel-postprocess.ts";
 import { recapHooksLine } from "../../_shared/multi-subject.ts";
-import { CORRECTION_ABORT_MS, addrOpts, gateNumbers } from "../shared.ts";
+import { CORRECTION_ABORT_MS, addrOpts, extractImagePayload, gateNumbers } from "../shared.ts";
 
 // ═══ NORMALISATION HOOKS (lot 7) ═══
 // Le tool forcé garantit le JSON de TRANSPORT, pas les types internes : vu en
@@ -84,7 +84,10 @@ export function normalizeHooksResponse(parsed: any, params: { body: any; rawCont
 //    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
 /** Renvoie les échos d'accroche AVANT correction (undefined = garde non armée, hook verrouillé ou passe échouée). */
 export async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[]; audienceAddress?: AudienceAddress | null }): Promise<number | undefined> {
-  const { body, effectiveObjective, fullContext, researchSource, brandGuardText, echoSubject, previousHooks } = params;
+  const { body, effectiveObjective, researchSource, brandGuardText, echoSubject, previousHooks } = params;
+  // Reel à partir de photos : ce que la rédaction y a vu compte comme source,
+  // sinon les relectures (qui ne voient pas les images) retirent ces détails.
+  const fullContext = [params.fullContext, reelPhotosSeenSource(parsed)].filter(Boolean).join("\n\n");
   let echoesBefore: number | undefined;
   if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
     console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
@@ -205,6 +208,11 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
   finalizeReelScript(parsed, body.selected_hook);
   // Encore trop long après les deux coupes : trace lisible dans les journaux
   // (l'écran de montage refuse déjà en français au-delà de 60 s).
+  const photoCount = reelPhotosOf(body).length;
+  if (photoCount > 0) {
+    const missing = reelPhotosNotCovered(parsed, photoCount);
+    if (missing.length) console.warn(JSON.stringify({ event: "reel_photos_oubliees", photos: photoCount, missing }));
+  }
   const finalSeconds = reelScriptSeconds(parsed);
   if (finalSeconds > REEL_MAX_SECONDS) {
     console.warn(JSON.stringify({ event: "reel_trop_long", seconds: finalSeconds, max: REEL_MAX_SECONDS, words: countReelSpokenWords(parsed), objective: effectiveObjective ?? null }));
@@ -437,4 +445,69 @@ Objectif : ${effectiveObjective || objective || "non précisé"}${answersBlock}
 
 Propose-moi 3 hooks de types différents pour ce reel.${recapLine ? " C'est un reel récap : chaque hook annonce la série de sujets, pas un seul sujet." : ""}`;
   return { systemPrompt, userPrompt };
+}
+
+// ═══ REEL À PARTIR DE PHOTOS : UN PASSAGE PAR PHOTO (13/11/2026) ═══
+// QA du 12/11 : avec 3 photos et l'idée « reel visite », le script ne parlait
+// que d'une photo et répétait le même détail. La rédaction ne recevait pas les
+// photos. Désormais elle les voit, et chaque photo a son passage, dans l'ordre
+// donné (visite, produits, étapes d'un atelier : la règle ne dit rien d'un métier).
+
+/** Photos envoyées pour la rédaction du reel (10 au plus, avec leur image). */
+export function reelPhotosOf(body: any): { base64: string; mimeType?: string; context?: string; libraryContext?: string }[] {
+  if (body?.photo_mode) return [];
+  const photos = Array.isArray(body?.photos) ? body.photos : [];
+  return photos.filter((p: any) => typeof p?.base64 === "string" && p.base64.length > 0).slice(0, 10);
+}
+
+/** Mots parlés visés par passage photo, pour tenir dans la durée maximale. */
+export function reelWordsPerPhoto(count: number, effectiveObjective?: string | null): number {
+  if (count <= 0) return 0;
+  // ~20 mots pour l'accroche et la conclusion, le reste réparti entre les photos.
+  return Math.max(6, Math.min(30, Math.floor((reelSpokenWordCap(effectiveObjective) - 20) / count)));
+}
+
+/** Consigne ajoutée au brief du reel quand l'utilisatrice a fourni des photos. */
+export function reelPhotoPassagesBlock(count: number, effectiveObjective?: string | null): string {
+  if (count <= 0) return "";
+  const perPhoto = reelWordsPerPhoto(count, effectiveObjective);
+  const maxSections = Math.max(8, count + 2);
+  return `
+
+══ SES PHOTOS (${count}) : UN PASSAGE PAR PHOTO, DANS L'ORDRE (prime sur le nombre de sections indiqué plus haut) ══
+L'utilisatrice a fourni ${count} photo${count > 1 ? "s" : ""}, numérotées de 1 à ${count} dans l'ordre où elle les a données (ci-dessous dans son message). Le reel les montre toutes, dans cet ordre.
+- Chaque photo a SON passage : une section qui parle de ce qu'on voit sur CETTE photo. Aucune photo oubliée, aucune photo montrée deux fois. Ordre strict : photo 1, puis 2, puis 3…
+- L'accroche (section 1) se dit sur la photo 1. Une conclusion peut se dire sur la dernière photo ou dans une section à part. Le script a entre ${count} et ${count + 2} sections (jusqu'à ${maxSections}).
+- Dans chaque section, ajoute le champ "photo" : le numéro (1 à ${count}) de la photo montrée pendant ce passage. Une section sans photo (conclusion à part) : "photo": null.
+- Environ ${perPhoto} mots parlés par passage photo, pour que le reel tienne en ${REEL_MAX_SECONDS} secondes : plus il y a de photos, plus chaque passage est court.
+- Chaque passage dit quelque chose de NOUVEAU : ne répète pas d'un passage à l'autre le même détail, la même expression ou le même adjectif.
+- Décris seulement ce qui se voit sur la photo ou ce qu'elle a dit. N'ajoute ni histoire, ni état, ni qualité invisibles (neuf, ancien, refait, rénové, restauré, fait main, haut de gamme…) si ni la photo ni ses mots ne le disent.
+- Ne dis jamais « photo 1 », « image 2 » ni « sur cette photo » dans le texte parlé ou à l'écran : on montre, on ne numérote pas.
+- Ajoute aussi au JSON le champ "photos_vues" : un tableau de ${count} phrases courtes et neutres, une par photo dans l'ordre, qui disent ce qu'on y voit (sans interprétation).`;
+}
+
+/** Message de l'utilisatrice avec ses photos : image, puis son numéro et sa légende. */
+export function reelPhotoUserContent(photos: { base64: string; mimeType?: string; context?: string; libraryContext?: string }[], userPrompt: string): any[] {
+  const content: any[] = [];
+  photos.forEach((p, idx) => {
+    const { media_type, data } = extractImagePayload(String(p.base64), p.mimeType);
+    content.push({ type: "image", source: { type: "base64", media_type, data } });
+    const note = [p.context?.trim(), p.libraryContext?.trim()].filter(Boolean).join(" — ");
+    content.push({ type: "text", text: `↑ Photo ${idx + 1} sur ${photos.length}${note ? ` (ce qu'elle en dit : "${note.slice(0, 300)}")` : ""}` });
+  });
+  content.push({ type: "text", text: userPrompt });
+  return content;
+}
+
+/** Ce que la rédaction a vu sur les photos : source admise pour les relectures (sinon elles retirent les détails visibles). */
+export function reelPhotosSeenSource(parsed: any): string {
+  const seen = Array.isArray(parsed?.photos_vues) ? parsed.photos_vues.filter((s: unknown) => typeof s === "string" && s.trim()) : [];
+  return seen.length ? `CE QU'ON VOIT SUR SES PHOTOS (dans l'ordre) :\n${seen.map((s: string, i: number) => `${i + 1}. ${s.trim()}`).join("\n")}` : "";
+}
+
+/** Numéros des photos qu'aucune section ne montre (vide = toutes couvertes). */
+export function reelPhotosNotCovered(parsed: any, count: number): number[] {
+  const sections: any[] = Array.isArray(parsed?.script) ? parsed.script : Array.isArray(parsed?.sections) ? parsed.sections : [];
+  const shown = new Set(sections.map((s) => Number(s?.photo)).filter((n) => Number.isInteger(n) && n >= 1));
+  return Array.from({ length: count }, (_, i) => i + 1).filter((n) => !shown.has(n));
 }

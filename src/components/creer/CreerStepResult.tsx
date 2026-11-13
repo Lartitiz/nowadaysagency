@@ -576,7 +576,8 @@ export default function CreerStepResult({
       case "carousel":
         return <CarouselResult result={result} onSlidesUpdate={onSlidesUpdate} onStaleChange={onCarouselStaleChange} />;
       case "reel":
-        return <ReelResult initialMp4Url={reelMp4Url} result={result} workspaceId={reelWorkspaceId} onStepChange={setReelStep} onMp4Change={onReelMp4Change} onResultChange={onReelResultChange} startPhoto={photos?.[0]?.base64 || null} />;
+        // Reel enregistré tout seul (13/11/2026) : même encadré que le carrousel et les stories.
+        return <>{carouselCloudTools}<ReelResult initialMp4Url={reelMp4Url} result={result} workspaceId={reelWorkspaceId} onStepChange={setReelStep} onMp4Change={onReelMp4Change} onResultChange={onReelResultChange} startPhoto={photos?.[0]?.base64 || null} /></>;
       case "story":
         // Sauvegarde continue des stories : même encadré que le carrousel (rien sans elle).
         return <>{carouselCloudTools}<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} /></>;

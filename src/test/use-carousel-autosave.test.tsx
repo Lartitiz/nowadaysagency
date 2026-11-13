@@ -302,3 +302,36 @@ describe("stories autosave", () => {
     expect(update.payload.format).toBe("story_serie");
   });
 });
+
+// Reel (13/11/2026) : enregistré tout seul, rangé en « reel », une seule fiche
+// même quand on régénère le script.
+describe("reel autosave", () => {
+  const reel = (text: string, doc = "reel-1") => ({
+    _carousel_document_id: doc,
+    reel_editor_version: 1,
+    sections: [{ texte_parle: text }],
+  });
+  it("creates one « reel » idea and keeps updating it after a regeneration", async () => {
+    const o = { ...options(), title: "", kind: "reel" as const, raw: reel("Premier script") };
+    const { rerender } = renderHook((p) => useCarouselAutosave(p), { initialProps: o });
+    await settle();
+    expect(db.rows.size).toBe(1);
+    const id = o.onId.mock.calls[0][0];
+    expect(db.rows.get(id)).toMatchObject({ format: "reel", titre: "Mon reel", angle: "Reel" });
+    // Régénérer : nouveau document, la page a gardé la fiche (ideaId).
+    rerender({ ...o, ideaId: id, raw: reel("Script régénéré", "reel-2") });
+    await settle();
+    expect(db.rows.size).toBe(1);
+    expect(db.rows.get(id).content_data.sections[0].texte_parle).toBe("Script régénéré");
+    expect(db.ops.filter((op) => op.operation === "insert")).toHaveLength(1);
+  });
+  it("updates the idea it was reopened from, without creating another one", async () => {
+    db.rows.set("idea-reel", { id: "idea-reel", updated_at: "t0", content_data: { sections: [{ texte_parle: "Ancien" }] } });
+    const o = { ...options(), kind: "reel" as const, ideaId: "idea-reel", raw: { ...reel("Repris"), _carousel_base_updated_at: "t0" } };
+    renderHook((p) => useCarouselAutosave(p), { initialProps: o });
+    await settle();
+    expect(db.rows.size).toBe(1);
+    expect(db.rows.get("idea-reel").content_data.sections[0].texte_parle).toBe("Repris");
+    expect(db.ops.some((op) => op.operation === "insert")).toBe(false);
+  });
+});

@@ -36,7 +36,7 @@ export { isExplicitlyFictionalBrief, isFactualFictionalLinkedInBrief, alignFactu
 export { photoVoiceRule } from "./shared.ts";
 export { NEWSLETTER_ADDRESS_FIELDS, applyNewsletterCorrectionPass } from "./formats/newsletter.ts";
 export { gateNumbers, _deps, POST_ADDRESS_FIELDS } from "./shared.ts";
-import { buildHooksPrompt } from "./formats/reel.ts";
+import { buildHooksPrompt, reelPhotoUserContent, reelPhotosOf } from "./formats/reel.ts";
 import { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, buildQuestionsPrompt } from "./prompts/assist.ts";
 export { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, buildQuestionsPrompt } from "./prompts/assist.ts";
 export { resolveFormatHint, detectFormatFlags } from "./format-flags.ts";
@@ -357,7 +357,18 @@ serve(async (req) => {
       rawContent = await runVisionGenerate({ body, contentType, context, answers, systemPrompt, finalUsage, audienceAddress });
     } else {
       const { maxTokens, tempText, modelForCall, abortMs, structuredTool } = callOptionsForStep({ step, isLinkedIn, isPhotoMode, context });
-      rawContent = structuredTool
+      // Reel à partir de photos : la rédaction voit les photos (un passage par photo, formats/reel.ts).
+      const reelPhotos = step === "generate" && isReel ? reelPhotosOf(body) : [];
+      rawContent = reelPhotos.length
+        ? await callAnthropic({
+            model: modelForCall,
+            system: systemPrompt,
+            messages: [{ role: "user", content: reelPhotoUserContent(reelPhotos, userPrompt!) }],
+            temperature: tempText,
+            max_tokens: maxTokens ?? 4096,
+            abortTimeoutMs: abortMs,
+          }, finalUsage)
+        : structuredTool
         ? await callAnthropic({
             model: modelForCall,
             system: systemPrompt,

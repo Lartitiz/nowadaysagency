@@ -150,8 +150,10 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
       ...(r.carousel_editor_version ? { carousel_editor_version: r.carousel_editor_version, visual_html: r.visual_html } : {}),
     };
   } else if (selectedFormat === "reel" && (r?.sections || r?.script)) {
+    // Les marqueurs de la sauvegarde continue (versions comprises) restent dans Mes idées.
+    const { _carousel_cloud: _cloud, _carousel_document_id: _doc, _carousel_base_updated_at: _base, ...reelRest } = r;
     storyDetail = {
-      ...r,
+      ...reelRest,
       _reel_resume: undefined, // marque de reprise (calendar-reel-resume.ts), jamais réenregistrée
       type: "reel",
       format_type: r.format_type,

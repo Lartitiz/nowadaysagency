@@ -95,7 +95,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 // DEMO_DATA n'est plus importé directement — on utilise demoData du context
 import { useWorkspaceId, useWorkspaceReady, useIsOwnSpace } from "@/hooks/use-workspace-query";
-import { useCarouselAutosave } from "@/hooks/use-carousel-autosave"; import { useStoriesCloud } from "@/hooks/use-stories-cloud";
+import { useCarouselAutosave } from "@/hooks/use-carousel-autosave"; import { useStoriesCloud } from "@/hooks/use-stories-cloud"; import { useReelCloud } from "@/hooks/use-reel-cloud";
 import { useCarouselQuality } from "@/hooks/use-carousel-quality";
 import CarouselSaveStatus from "@/components/creer/CarouselSaveStatus";
 import { useCreerExports } from "@/hooks/use-creer-exports";
@@ -510,7 +510,7 @@ function CreerWorkspace() {
 
   const [studioSlideId, setStudioSlideId] = useState<string | null>(null);
   const carouselCloudEnabled = workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive && step === "result" && selectedFormat === "carousel" && !cloudVisuals.restoring && !!(result?.raw?.carousel_editor_version || result?.raw?.carousel_studio_version);
-  const storiesCloudEnabled = useStoriesCloud({ ready: workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive, step, selectedFormat, busy: generating || streaming, raw: result?.raw, setResult }); // stories : sauvegarde continue (use-stories-cloud.ts)
+  const storiesCloudEnabled = useStoriesCloud({ ready: workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive, step, selectedFormat, busy: generating || streaming, raw: result?.raw, setResult }); const reelCloudEnabled = useReelCloud({ ready: workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive, step, selectedFormat, busy: generating || streaming, calendarOnly: fromCalendar && !editingIdeaId, raw: result?.raw, setResult }); // stories et reel : sauvegarde continue (use-stories-cloud.ts, use-reel-cloud.ts)
   const openCarouselStudio = (id: string) => {
     if (id.startsWith("index:")) {
       const index = Number(id.slice(6));
@@ -522,7 +522,7 @@ function CreerWorkspace() {
     } else setStudioSlideId(id);
   };
   const carouselSave = useCarouselAutosave({
-    enabled: carouselCloudEnabled || storiesCloudEnabled, kind: storiesCloudEnabled ? "story" : "carousel",
+    enabled: carouselCloudEnabled || storiesCloudEnabled || reelCloudEnabled, kind: storiesCloudEnabled ? "story" : reelCloudEnabled ? "reel" : "carousel",
     userId: session?.user?.id || "", workspaceId, isOwnSpace, ideaId: editingIdeaId,
     raw: result?.raw, title: ideaText, channel: isLinkedInCarousel ? "linkedin" : "instagram",
     onId: (id) => { if (!isCurrentCreation()) return; setEditingIdeaId(id); saveFlowState({ editingIdeaId: id }); },
@@ -1219,8 +1219,8 @@ function CreerWorkspace() {
   };
 
   const handleSave = async () => {
-    if (carouselCloudEnabled || storiesCloudEnabled) {
-      if (await carouselSave.flush()) toast.success(storiesCloudEnabled ? "Tes stories sont enregistrées dans Mes idées." : "Ton carrousel est enregistré dans Mes idées.");
+    if (carouselCloudEnabled || storiesCloudEnabled || reelCloudEnabled) {
+      if (await carouselSave.flush()) toast.success(storiesCloudEnabled ? "Tes stories sont enregistrées dans Mes idées." : reelCloudEnabled ? "Ton reel est enregistré dans Mes idées." : "Ton carrousel est enregistré dans Mes idées.");
       return;
     }
     if (selectedFormat === "carousel" && !(await persistCarousel())) return;
@@ -1230,7 +1230,7 @@ function CreerWorkspace() {
 
   const handleAddToCalendar = async () => {
     if (!session?.user?.id || !result?.raw) return;
-    if ((carouselCloudEnabled || storiesCloudEnabled) && !(await carouselSave.flush())) return;
+    if ((carouselCloudEnabled || storiesCloudEnabled || reelCloudEnabled) && !(await carouselSave.flush())) return;
     // If coming from calendar, save directly back
     if (fromCalendar) {
       await handleSaveBackToCalendar();
@@ -1812,7 +1812,7 @@ function CreerWorkspace() {
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}
                 onSave={effectiveHandleSave}
-                saveNotice={isDemoMode || carouselCloudEnabled || storiesCloudEnabled ? undefined : ideaSaveNotice} autoSavedToIdeas={carouselCloudEnabled || storiesCloudEnabled}
+                saveNotice={isDemoMode || carouselCloudEnabled || storiesCloudEnabled || reelCloudEnabled ? undefined : ideaSaveNotice} autoSavedToIdeas={carouselCloudEnabled || storiesCloudEnabled || reelCloudEnabled}
                 savingContent={ideaSaving}
                 canAutoPublish={!!publishChannel}
                 reelMp4Url={reelMp4Url}
@@ -1821,7 +1821,7 @@ function CreerWorkspace() {
                   if (!prev) return prev;
                   // Script retouché directement : il prime sur le texte à plat de « Modifier » (lot 7).
                   const scriptChanged = JSON.stringify([nextReel?.sections, nextReel?.script]) !== JSON.stringify([prev.raw?.sections, prev.raw?.script]);
-                  return { ...prev, raw: scriptChanged ? withoutEditedText(nextReel) : nextReel };
+                  const nextRaw = scriptChanged ? withoutEditedText(nextReel) : nextReel; return { ...prev, raw: prev.raw?._carousel_cloud ? { ...nextRaw, _carousel_cloud: prev.raw._carousel_cloud } : nextRaw }; // reçu de sauvegarde : toujours le plus récent
                 })}
                 reelWorkspaceId={workspaceId}
                 onPublishOrSchedule={effectiveHandleAddToCalendar}
