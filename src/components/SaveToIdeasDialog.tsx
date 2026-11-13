@@ -13,6 +13,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { clearFlowState } from "@/hooks/use-flow-persistence";
 import { resumeIdea } from "@/lib/resume-idea";
 import { cleanIdeaTitle } from "@/lib/idea-to-calendar";
+import { storedIdeaTakesFormat } from "@/features/creer/idea-format-guard";
 
 /**
  * L'idée a changé ailleurs (autre onglet, autre appareil) depuis son ouverture,
@@ -148,7 +149,13 @@ export function SaveToIdeasDialog({
     try {
       // Version attendue lue avant tout envoi de photos : un conflit déjà connu
       // ne doit rien téléverser.
-      const updatesExisting = !onSaveContent && !!editingIdeaId && !asCopy;
+      const formatLabel =
+        contentType === "newsletter" ? "newsletter" :
+        contentType === "story" ? "story_serie" :
+        contentType === "reel" ? "reel" :
+        contentType === "pinterest" ? (format || "pinterest") : (format || "post");
+      // Fiche d'un autre format (un carrousel remplacé par un reel) : nouvelle fiche, l'ancienne reste intacte.
+      const updatesExisting = !onSaveContent && !!editingIdeaId && !asCopy && await storedIdeaTakesFormat(editingIdeaId, formatLabel);
       const expectedUpdatedAt = updatesExisting ? await readVersion(editingIdeaId!) : null;
       prepared = onPrepareContent ? await onPrepareContent(contentData) : undefined;
       if (!isCurrent()) { await rollbackPrepared(); return; }
@@ -178,11 +185,6 @@ export function SaveToIdeasDialog({
         contentType === "story" ? "📱" :
         contentType === "reel" ? "🎬" :
         contentType === "pinterest" ? "📌" : "📸";
-      const formatLabel =
-        contentType === "newsletter" ? "newsletter" :
-        contentType === "story" ? "story_serie" :
-        contentType === "reel" ? "reel" :
-        contentType === "pinterest" ? (format || "pinterest") : (format || "post");
       const canalValue =
         contentType === "newsletter" ? "newsletter" :
         contentType === "post_linkedin" ? "linkedin" :

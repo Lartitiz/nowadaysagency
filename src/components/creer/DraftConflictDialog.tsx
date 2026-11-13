@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { storedIdeaTakesFormat } from "@/features/creer/idea-format-guard";
 
 const STEP_LABELS: Record<string, string> = {
   idea: "première idée",
@@ -96,7 +97,8 @@ export default function DraftConflictDialog({ open, draft, newSubject, resuming 
         typeof contentData === "string" ? contentData : contentData ? JSON.stringify(contentData) : null,
       content_data: contentData,
     };
-    if (draft.editingIdeaId) {
+    // Fiche d'un autre format : nouvelle fiche, l'ancienne reste intacte (idea-format-guard.ts).
+    if (draft.editingIdeaId && await storedIdeaTakesFormat(draft.editingIdeaId, payload.format)) {
       const { error } = await supabase
         .from("saved_ideas")
         .update({ ...payload, user_id: undefined, updated_at: new Date().toISOString() })
