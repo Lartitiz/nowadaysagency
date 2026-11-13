@@ -44,10 +44,54 @@ Deno.test("each developed idea is emitted as soon as it is ready, before the slo
     research: async () => ({ sources: [], status: "not_needed" }),
   });
   for (let i = 0; i < 20 && events.filter(e => e.type === "idea").length < 3; i++) await new Promise(r => setTimeout(r, 0));
-  assertEquals(events.slice(0, 2).map(e => e.stage), ["research", "writing"]);
+  assertEquals(events.filter(e => e.type === "stage").map(e => e.stage), ["research", "writing"]);
   assertEquals(events.filter(e => e.type === "idea").map(e => e.idea.subject), ["Idée 3", "Idée 4", "Idée 5"]);
   releaseSlow();
   const result = await pending;
   assertEquals(events.filter(e => e.type === "idea").map(e => e.ready), [1, 2, 3, 4]);
   assertEquals(result.ideas.map(i => i.subject), ["Idée 3", "Idée 4", "Idée 5", "Idée 1"]);
+});
+const sse = (text: string, stop = "end_turn") => new ReadableStream<Uint8Array>({ start(c) {
+  const e = new TextEncoder(); const send = (o: unknown) => c.enqueue(e.encode(`data: ${JSON.stringify(o)}\n\n`));
+  send({ type: "message_start", message: { usage: { input_tokens: 7 } } });
+  for (let i = 0; i < text.length; i += 9) send({ type: "content_block_delta", delta: { type: "text_delta", text: text.slice(i, i + 9) } });
+  send({ type: "message_delta", delta: { stop_reason: stop }, usage: { output_tokens: 3 } }); c.close();
+} });
+Deno.test("streamed mode shows the 4 pistes, then each idea while it is written, in its slot", async () => {
+  const events: any[] = []; let classic = 0;
+  const realNow = Date.now; let clock = 0; Date.now = () => (clock += 1000);
+  try {
+    const result = await generateDeepIdeas({ context: "Céramiste", history: "", onEvent: e => events.push(e) }, {
+      model: "claude-opus-5-5", apiKey: "", call: async () => { classic++; return ""; }, research: async () => ({ sources: [], status: "not_needed" }),
+      stream: async (_m, _s, user) => {
+        if (user.includes("Explore 6 pistes")) return sse(JSON.stringify({ candidates: [1, 2, 3, 4, 5, 6].map(i => ({ subject: `Piste ${i}`, insight: "x", grounding: "y" })), research_queries: [] }));
+        const n = user.match(/piste n°(\d)/)![1];
+        return sse(JSON.stringify({ ideas: [{ ...idea, subject: `Idée — ${n}`, insight: "Une \"thèse\" précise" }] }));
+      },
+    });
+    assertEquals(classic, 0);
+    assertEquals(result.ideas.length, 4); assertEquals(result.usage.total_tokens, 50);
+    const pistes = events.filter(e => e.type === "draft" && !e.fields && e.piste);
+    assertEquals(pistes.slice(0, 4).map(e => [e.slot, e.piste]), [[0, "Piste 1"], [1, "Piste 2"], [2, "Piste 3"], [3, "Piste 4"]]);
+    // Pistes arrive before research starts: the screen has something to show early.
+    assert(events.findIndex(e => e.type === "draft") < events.findIndex(e => e.stage === "research"));
+    const live = events.filter(e => e.type === "draft" && e.fields);
+    assert(live.length >= 4);
+    assert(live.every(e => !e.fields.subject.includes("—")), "same dash cleaning as final ideas");
+    assert(live.some(e => e.fields.insight === "Une \"thèse\" précise"));
+    assertEquals(events.filter(e => e.type === "idea").map(e => e.slot).sort(), [0, 1, 2, 3]);
+  } finally { Date.now = realNow; }
+});
+Deno.test("a broken stream falls back to the classic call with the same prompt", async () => {
+  const events: any[] = []; let classic = 0;
+  const result = await generateDeepIdeas({ context: "Céramiste", history: "", onEvent: e => events.push(e) }, {
+    model: "claude-opus-5-5", apiKey: "", research: async () => ({ sources: [], status: "not_needed" }),
+    stream: async () => sse('{"ideas":[{"subject":"coupé', "max_tokens"),
+    call: async (o) => { classic++; const user = o.messages[0].content as string;
+      if (user.includes("Explore 6 pistes")) return JSON.stringify({ candidates: [1, 2, 3, 4, 5].map(i => ({ subject: `Piste ${i}` })), research_queries: [] });
+      const n = user.match(/piste n°(\d)/)![1]; return JSON.stringify({ ideas: [{ ...idea, subject: n === "2" ? "Idée 1" : `Idée ${n}` }] }); },
+  });
+  assertEquals(classic, 6); // preparation + 4 + 1 reserve, each after its stream failed
+  assertEquals(result.ideas.length, 4);
+  assertEquals(result.usage.total_tokens, 0); // classic mock reports no usage: nothing left from the broken stream
 });

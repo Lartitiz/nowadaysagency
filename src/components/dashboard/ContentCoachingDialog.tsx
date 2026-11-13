@@ -17,10 +17,12 @@ import { ideaToEditorialBrief, parseDeepIdea, type DeepIdea, type IdeaSource } f
 export interface CoachingSelection { subject: string; format: string; objective: string; canal?: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; editorialAngle?: string }
 interface Props { open: boolean; onOpenChange: (open: boolean) => void; onSelect?: (data: CoachingSelection) => void; onNewsjackingRedirect?: () => void; initialChannel?: string | null; initialFormat?: string | null }
 interface Preferences { objectif: string; sujet: string; canal: string; format: string; activity: string; carouselSubMode: "text" | "photo" | "mix" | "pure_photo" }
-interface Card { id: string; idea: DeepIdea; saved?: boolean }
+interface Card { id: string; idea: DeepIdea; saved?: boolean; slot?: number }
+/** An idea still being written: its piste first, then its text as it grows. */
+interface Draft { piste?: string; fields?: { subject?: string; insight?: string; mechanism?: string; reader_benefit?: string } }
 interface Selection { cards: Card[]; preferences: Preferences; history: Array<{ subject: string; insight: string; feedback?: string }>; research_status?: string; needs_activity?: boolean; incomplete?: string }
 /** Ideas shown while the selection is still being written (they arrive one by one). */
-interface Progress { stage: "preparation" | "research" | "writing"; cards: Card[] }
+interface Progress { stage: "preparation" | "research" | "writing"; cards: Card[]; drafts?: Record<number, Draft> }
 const STAGE_LABELS: Record<Progress["stage"], string> = { preparation: "Je cherche des pistes dans ton activité…", research: "Je vérifie quelques points…", writing: "J'écris tes idées…" };
 const CHANNELS = [{ id: "instagram", label: "Instagram" }, { id: "linkedin", label: "LinkedIn" }, { id: "pinterest", label: "Pinterest" }, { id: "newsletter", label: "Newsletter" }];
 const FORMATS: Record<string, Array<{ id: string; label: string }>> = {
@@ -73,7 +75,9 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
     // closing and reopening the window during the generation keeps them).
     let streamed: Card[] = [];
     const show = (next: Progress | null) => queryClient.setQueryData<Progress | null>(progressKey, next);
-    const current = () => queryClient.getQueryData<Progress | null>(progressKey)?.cards || streamed;
+    const now = () => queryClient.getQueryData<Progress | null>(progressKey);
+    const current = () => now()?.cards || streamed;
+    const drafts = () => now()?.drafts || {};
     show({ stage: "preparation", cards: [] });
     const savedIds = () => new Set(current().filter(c => c.saved).map(c => c.id));
     const withHistory = (cards: Card[]) => [...history, ...cards.map(c => ({ subject: c.idea.subject, insight: c.idea.insight }))].slice(-24);
@@ -85,13 +89,20 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
         upcoming_marronniers: nextMarronniers(new Date(), 3).map(o => ({ label: o.marronnier.label, date: o.date.toISOString().slice(0, 10) })),
         previous_ideas: history.slice(-24), deepen_idea: card?.idea, refinement: card ? precision : undefined,
       }, event => {
-        if (event.type === "stage") { show({ stage: event.stage, cards: current() }); return; }
+        if (event.type === "stage") { show({ stage: event.stage, cards: current(), drafts: drafts() }); return; }
         if (card) return;
+        if (event.type === "draft") {
+          const { [event.slot]: _old, ...others } = drafts();
+          if (current().some(c => c.slot === event.slot)) return;
+          show({ stage: now()?.stage || "preparation", cards: current(), drafts: event.gone ? others : { ...others, [event.slot]: { piste: event.piste, fields: event.fields } } });
+          return;
+        }
         const raw = event.idea as DeepIdea;
         const idea = parseDeepIdea(raw, raw?.sources as IdeaSource[]);
         if (!idea || current().some(c => c.idea.subject === idea.subject)) return;
-        streamed = [...current(), { id: crypto.randomUUID(), idea }];
-        show({ stage: "writing", cards: streamed });
+        streamed = [...current(), { id: crypto.randomUUID(), idea, slot: event.slot }];
+        const { [event.slot ?? -1]: _done, ...left } = drafts();
+        show({ stage: "writing", cards: streamed, drafts: left });
       }, 200000); // preparation60 + research25 + parallel selection90 (+ rare reserve), with transport margin
     } catch (error) {
       // Ideas already shown stay usable even if the rest of the selection failed.
@@ -110,8 +121,11 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
       if (!idea) throw new Error("Une idée reçue est incomplète. Réessaie.");
       // Same card (same id, same "Gardée" state) as the one already shown.
       const id = arrived.find(c => c.idea.subject === idea.subject)?.id || crypto.randomUUID();
-      return saved.has(id) ? { id, idea, saved: true } : { id, idea };
+      const slot = arrived.find(c => c.id === id)?.slot;
+      return saved.has(id) ? { id, idea, saved: true, slot } : { id, idea, slot };
     });
+    // Keep the places the ideas took on screen while they were written.
+    if (!card) cards.sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9));
     if (cards.length !== (card ? 1 : 4)) throw new Error("La sélection reçue est incomplète. Tes idées précédentes sont conservées.");
     return { cards: card ? previous!.cards.map(c => c.id === card.id ? cards[0] : c) : cards, preferences: prefs,
       history: withHistory(cards), research_status: data.research_status };
@@ -168,8 +182,13 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
   const error = failure || (query.error instanceof Error ? query.error.message : null);
   // While a new selection is being written, its first ideas replace the previous ones.
   const arriving = loading && busy !== null && busy !== "all" ? [] : loading ? progress?.cards || [] : [];
-  const cards = arriving.length ? arriving : selection?.cards || [];
-  const status = loading && <div role="status" className="rounded-xl bg-muted/40 p-4 flex gap-3 items-start"><Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" /><div><p className="text-sm font-medium">{busy && busy !== "all" ? "L'analyse de cette idée est en cours…" : arriving.length >= 4 ? "Tes 4 idées sont prêtes." : arriving.length ? `${arriving.length} idée${arriving.length > 1 ? "s" : ""} sur 4 prête${arriving.length > 1 ? "s" : ""}, la suite arrive…` : STAGE_LABELS[progress?.stage || "preparation"]}</p><p className="text-xs text-muted-foreground mt-1">{arriving.length ? "Tu peux déjà créer ou garder les idées affichées." : "Chaque idée s'affiche dès qu'elle est prête. Tu peux refermer cette fenêtre et revenir."}</p></div></div>;
+  const drafts = loading && (busy === null || busy === "all") ? progress?.drafts || {} : {};
+  // Each of the 4 places shows its finished idea, or the one being written.
+  const places = [0, 1, 2, 3].map(slot => arriving.find(c => c.slot === slot) || (drafts[slot] ? { slot, draft: drafts[slot] } : null)).filter(Boolean) as Array<Card | { slot: number; draft: Draft }>;
+  const shown: Array<Card | { slot: number; draft: Draft }> = [...places, ...arriving.filter(c => c.slot === undefined)];
+  const live = shown.length > 0;
+  const cards = live ? shown : selection?.cards || [];
+  const status = loading && <div role="status" className="rounded-xl bg-muted/40 p-4 flex gap-3 items-start"><Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" /><div><p className="text-sm font-medium">{busy && busy !== "all" ? "L'analyse de cette idée est en cours…" : arriving.length >= 4 ? "Tes 4 idées sont prêtes." : arriving.length ? `${arriving.length} idée${arriving.length > 1 ? "s" : ""} sur 4 prête${arriving.length > 1 ? "s" : ""}, la suite arrive…` : STAGE_LABELS[progress?.stage || "preparation"]}</p><p className="text-xs text-muted-foreground mt-1">{arriving.length ? "Tu peux déjà créer ou garder les idées affichées." : live ? "Tes idées s'écrivent sous tes yeux. Tu peux refermer cette fenêtre et revenir." : "Chaque idée s'affiche dès qu'elle est prête. Tu peux refermer cette fenêtre et revenir."}</p></div></div>;
   const controlClass = "w-full min-w-0 rounded-lg border border-input bg-background px-3 py-2 text-sm";
   return <CoachingShell open={open} onOpenChange={onOpenChange} title="Trouver une idée" description="Des pistes pensées pour ton activité, avec de quoi les développer." emoji="💡">
     <div className="space-y-5">
@@ -189,13 +208,13 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
         </div>
       </details>
       {selection?.needs_activity && <div className="space-y-3"><p className="text-sm">Pour te proposer des idées adaptées, décris simplement ton activité et à qui tu t'adresses.</p><label className="block text-sm">Ton activité<Textarea value={preferences.activity} onChange={e => setPreferences(p => ({ ...p, activity: e.target.value }))} maxLength={500} rows={3} /></label><Button disabled={loading || !preferences.activity.trim()} onClick={() => generate()}>Trouver mes idées</Button></div>}
-      {!arriving.length && status}
+      {!live && status}
       {error && <div role="alert" className="rounded-xl border border-destructive/30 p-4 space-y-2"><p className="text-sm">{error}</p><Button variant="outline" disabled={loading} onClick={() => generate()}>Réessayer</Button></div>}
       {!!cards.length && <>
-        {!arriving.length && <p className="text-sm text-muted-foreground">{cards.length} idées pour commencer. Le format se choisit ensuite.</p>}
-        {!arriving.length && selection?.incomplete && <p className="text-xs text-muted-foreground">{selection.incomplete}</p>}
-        {!arriving.length && selection?.research_status === "unavailable" && <p className="text-xs text-muted-foreground">La recherche externe n'a pas abouti. Les propositions s'appuient sur ton activité ; les points à vérifier sont indiqués.</p>}
-        <div className="space-y-4">{cards.map(card => <article key={card.id} className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3">
+        {!live && <p className="text-sm text-muted-foreground">{cards.length} idées pour commencer. Le format se choisit ensuite.</p>}
+        {!live && selection?.incomplete && <p className="text-xs text-muted-foreground">{selection.incomplete}</p>}
+        {!live && selection?.research_status === "unavailable" && <p className="text-xs text-muted-foreground">La recherche externe n'a pas abouti. Les propositions s'appuient sur ton activité ; les points à vérifier sont indiqués.</p>}
+        <div className="space-y-4">{cards.map(card => "draft" in card ? <DraftCard key={`draft-${card.slot}`} draft={card.draft} /> : <article key={card.id} className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3">
           <h3 className="font-display text-lg leading-snug text-foreground break-words">{card.idea.subject}</h3>
           <p className="text-sm leading-relaxed">{card.idea.insight}</p>
           <p className="text-sm text-muted-foreground leading-relaxed">{card.idea.reader_benefit}</p>
@@ -212,10 +231,21 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
             <Button variant="ghost" disabled={loading} onClick={() => { setRefining(refining === card.id ? null : card.id); setPrecision(""); }}>Creuser</Button></div>
           {refining === card.id && <div className="space-y-2 border-t pt-3"><label className="block text-sm">Une précision à ajouter ? (facultatif)<Textarea value={precision} onChange={e => setPrecision(e.target.value)} maxLength={1000} rows={2} placeholder="Par exemple : montrer ce que cela change dans la pratique." /></label><Button variant="outline" disabled={loading} onClick={() => generate(card)}>Approfondir cette idée</Button></div>}
         </article>)}</div>
-        {!!arriving.length && status}
+        {live && status}
         <Button variant="outline" disabled={loading} onClick={() => generate()} className="w-full gap-2"><RefreshCw className="h-4 w-4" /> D'autres idées</Button>
         <p className="text-xs text-muted-foreground">Une nouvelle sélection ou un approfondissement utilise 1 crédit. Rouvrir ces idées et les garder ne consomme pas de crédit.</p>
       </>}
     </div>
   </CoachingShell>;
+}
+
+/** An idea still being written: the piste, then its text as it grows (no buttons yet). */
+function DraftCard({ draft }: { draft: Draft }) {
+  const f = draft.fields || {};
+  return <article aria-busy="true" className="min-w-0 rounded-2xl border border-dashed border-border bg-card/60 p-4 sm:p-5 space-y-3">
+    <p className="text-xs font-medium text-primary flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" />{f.subject ? "En cours d'écriture…" : "Piste trouvée, j'écris l'idée…"}</p>
+    <h3 className={`font-display text-lg leading-snug break-words ${f.subject ? "text-foreground" : "text-muted-foreground"}`}>{f.subject || draft.piste}</h3>
+    {f.insight && <p className="text-sm leading-relaxed">{f.insight}</p>}
+    {f.reader_benefit ? <p className="text-sm text-muted-foreground leading-relaxed">{f.reader_benefit}</p> : f.mechanism && <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">{f.mechanism}</p>}
+  </article>;
 }

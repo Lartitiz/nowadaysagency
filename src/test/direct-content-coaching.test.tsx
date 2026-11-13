@@ -84,4 +84,24 @@ describe("direct coach journey", () => {
     expect(await screen.findByText(/Seulement 2 idées sur 4/)).toBeInTheDocument();
     expect(screen.getByText("Idée 2")).toBeInTheDocument();
   });
+  it("shows the pistes, then each idea while it is written, in a stable place", async () => {
+    let finish: (v: any) => void = () => {}; mocks.invoke.mockImplementationOnce(() => new Promise(r => { finish = r; }));
+    setup(); await waitFor(() => expect(mocks.onEvent).toBeTruthy());
+    act(() => [0, 1, 2, 3].forEach(slot => mocks.onEvent({ type: "draft", slot, piste: `Piste ${slot + 1}` })));
+    expect(await screen.findByText("Piste 1")).toBeInTheDocument(); expect(screen.getByText("Piste 4")).toBeInTheDocument();
+    expect(screen.getByText("Tes idées s'écrivent sous tes yeux. Tu peux refermer cette fenêtre et revenir.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Créer" })).not.toBeInTheDocument();
+    act(() => mocks.onEvent({ type: "draft", slot: 1, piste: "Piste 2", fields: { subject: "Idée 2 en cours", insight: "Une thèse qui s'é" } }));
+    expect(await screen.findByText("Idée 2 en cours")).toBeInTheDocument(); expect(screen.getByText("Une thèse qui s'é")).toBeInTheDocument();
+    act(() => mocks.onEvent({ type: "idea", idea: idea("Idée 2"), ready: 1, total: 4, slot: 1 }));
+    expect(await screen.findByText("Idée 2")).toBeInTheDocument(); expect(screen.queryByText("Idée 2 en cours")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Créer" })).toHaveLength(1);
+    const headings = () => screen.getAllByRole("heading", { level: 3 }).map(h => h.textContent);
+    expect(headings()).toEqual(["Piste 1", "Idée 2", "Piste 3", "Piste 4"]);
+    act(() => { mocks.onEvent({ type: "draft", slot: 3, gone: true }); ["Idée 1", "Idée 3"].forEach((s, i) => mocks.onEvent({ type: "idea", idea: idea(s), ready: i + 2, total: 4, slot: i * 2 })); });
+    await waitFor(() => expect(headings()).toEqual(["Idée 1", "Idée 2", "Idée 3"]));
+    act(() => finish({ data: { version: 2, ideas: ["Idée 3", "Idée 2", "Idée 5", "Idée 1"].map(idea) }, error: null }));
+    await screen.findByText("4 idées pour commencer. Le format se choisit ensuite.");
+    expect(headings()).toEqual(["Idée 1", "Idée 2", "Idée 3", "Idée 5"]);
+  });
 });
