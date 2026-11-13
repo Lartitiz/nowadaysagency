@@ -7,6 +7,7 @@ import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC, diagnostic
 import { onboardingLabel, ACTIVITY_OPTIONS, BLOCKERS, OBJECTIVES, TIME_OPTIONS, PRODUCT_OPTIONS, CHANNELS, DESIRED_CHANNELS } from "@/lib/onboarding-constants";
 import { ACTIVITY_SECTIONS_REAL_ESTATE, BLOCKERS_REAL_ESTATE, OBJECTIVES_REAL_ESTATE } from "@/lib/onboarding-variants";
 import { Progress } from "@/components/ui/progress";
+import { elapsedLabel } from "@/components/creer/GenerationTimeHint";
 
 interface Props {
   // Le pseudo Instagram peut être lu publiquement par l'Edge Function ; les
@@ -362,6 +363,13 @@ export default function DiagnosticLoading({
 
   const currentMessage = messages[currentIdx] || messages[0];
 
+  // Mêmes sources que le délai de l'appel plus haut : avec un site, un
+  // Instagram, un LinkedIn ou des captures, la lecture s'ajoute à l'IA.
+  const withSources = !!(answers.website || answers.instagram || answers.linkedin || (uploadedFileIds && uploadedFileIds.length > 0));
+  const announced = withSources ? "1 à 2 minutes" : "environ 1 minute";
+  const lateAfter = withSources ? 150 : 90;
+  const recap = answersRecap(answers);
+
   const progressLabel = progressPercent < 30
     ? "Lecture de tes sources..."
     : progressPercent < 60
@@ -381,6 +389,18 @@ export default function DiagnosticLoading({
         <Progress value={progressPercent} className="h-2" />
         <p className="text-xs text-muted-foreground">{progressLabel}</p>
       </div>
+
+      {/* Ce que je regarde : ses réponses, visibles tout de suite */}
+      {phase === "loading" && recap.length > 0 && (
+        <div data-testid="diagnostic-recap" className="max-w-xs mx-auto text-left rounded-xl bg-muted/50 px-4 py-3 space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">Ce que je regarde</p>
+          {recap.map(line => (
+            <p key={line.label} className="text-sm text-foreground">
+              <span className="text-muted-foreground">{line.label} : </span>{line.value}
+            </p>
+          ))}
+        </div>
+      )}
 
       {/* Check lines */}
       <div className="space-y-3 text-left max-w-xs mx-auto">
@@ -430,15 +450,32 @@ export default function DiagnosticLoading({
         </AnimatePresence>
       )}
 
-      {phase === "loading" && elapsedSeconds >= 15 && (
-        <p className="text-xs text-muted-foreground animate-in fade-in mt-2">
-          {elapsedSeconds >= 30
-            ? "C'est un peu long... Si ça ne se débloque pas, je prépare un diagnostic simplifié."
-            : "Ça prend un peu plus de temps que prévu, je fouille en profondeur..."}
+      {/* Durée honnête dès le départ (audit des attentes du 13/11/2026) :
+          avant, rien n'était annoncé et l'écran criait « plus long que prévu »
+          dès 15 s puis « diagnostic simplifié » à 30 s, alors qu'un diagnostic
+          normal prend plus longtemps (IA jusqu'à 90 s, + lecture du site). */}
+      {phase === "loading" && (
+        <p data-testid="diagnostic-time-hint" className="text-xs text-muted-foreground">
+          {elapsedSeconds >= lateAfter
+            ? `C'est plus long que d'habitude, je continue. Déjà ${elapsedLabel(elapsedSeconds)}. Reste sur cette page.`
+            : `Compte ${announced}. Déjà ${elapsedLabel(elapsedSeconds)}. Reste sur cette page.`}
         </p>
       )}
     </div>
   );
+}
+
+/** Ce qu'on sait déjà pendant l'attente : ses propres réponses, en mots. */
+function answersRecap(answers: Props["answers"]): { label: string; value: string }[] {
+  const lines: { label: string; value: string }[] = [];
+  const activity = (answers.activite || "").trim()
+    || onboardingLabel(answers.activity_type, ACTIVITY_OPTIONS, PRODUCT_OPTIONS, ACTIVITY_SECTIONS_REAL_ESTATE.flatMap(s => s.items));
+  if (activity) lines.push({ label: "Ton activité", value: activity.length > 60 ? activity.slice(0, 57) + "…" : activity });
+  const objective = onboardingLabel(answers.objectif, OBJECTIVES, OBJECTIVES_REAL_ESTATE);
+  if (objective) lines.push({ label: "Ton objectif", value: objective });
+  const channels = (answers.canaux || []).map(c => onboardingLabel(c, CHANNELS, DESIRED_CHANNELS)).filter(Boolean);
+  if (channels.length) lines.push({ label: "Tes canaux", value: channels.join(", ") });
+  return lines;
 }
 
 function mapEdgeResponseToDiagnostic(data: any, answers?: { canaux?: string[] }): DiagnosticData {
