@@ -704,7 +704,7 @@ function CreerWorkspace() {
     // Idée du diagnostic ou nouveau sujet après un contenu écrit : l'ancienne fiche reste intacte (use-subject-baseline.ts).
     const link = nextIdeaLink({ pickedIdeaId: ideaId, editingIdeaId, subject: idea, previousSubject: subjectBaseline.current, hasContent: !!result || !!editContent || visualSlides.length > 0 });
     if (link.freshContent) { void carouselSave.flush(); resetGenerator(); streamReset(); setEditContent(""); setEditBaseline(null); setVisualSlides([]); setSavedId(null); sessionStorage.removeItem(CREER_RESULT_KEY); }
-    ideaHistory.change(idea); setEditingIdeaId(link.ideaId); setNewsjackingContext(null); setNewsjackingSuggestedFormat(null);
+    if (idea.trim() !== subjectBaseline.current.trim()) setAnswers({}); ideaHistory.change(idea); setEditingIdeaId(link.ideaId); setNewsjackingContext(null); setNewsjackingSuggestedFormat(null); // nouveau sujet : pas les réponses de l'ancien (QA 13/11/2026)
     // Auriana demo: keep pre-filled format/angle if subject unchanged
     if (aurianaDemoActive && idea === AURIANA_DEMO_SUBJECT) { setStep("format"); return; }
     // Reset format-related state so the user starts fresh at channel selection.

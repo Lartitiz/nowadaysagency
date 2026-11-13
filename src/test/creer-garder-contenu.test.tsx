@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import CreerUnifie from '@/pages/CreerUnifie';
-import { saveFlowState, setFlowUserId, setFlowWorkspaceId } from '@/hooks/use-flow-persistence';
+import { loadFlowState, saveFlowState, setFlowUserId, setFlowWorkspaceId } from '@/hooks/use-flow-persistence';
 
 // Chantier J (18/10/2026) : sur la vraie page /creer, un contenu déjà écrit
 // n'est plus effacé sans le choix de l'utilisatrice (changement de format,
@@ -152,6 +152,13 @@ describe('Changer de sujet après un contenu', () => {
     // Le titre est celui du contenu gardé, pas le nouveau sujet en cours de frappe.
     expect(mocks.inserts[0].row.titre).toContain('Mes 3 erreurs de débutante');
     expect(mocks.inserts[0].row.titre).not.toContain('Un tout autre sujet');
+  });
+
+  it('nouveau sujet : les réponses du précédent ne pré-remplissent plus ses questions', async () => {
+    await changerSujet({ answers: { q1: 'Mon plombier, Karim' } });
+    fireEvent.click(within(await fenetre()).getByTestId('keep-content-replace'));
+    expect(await screen.findByText('Étape format')).toBeInTheDocument();
+    await waitFor(() => expect(loadFlowState()?.answers ?? {}).toEqual({}));
   });
 
   it('même sujet : rien à demander', async () => {
