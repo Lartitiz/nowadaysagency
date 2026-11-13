@@ -91,6 +91,9 @@ describe("direct coach journey", () => {
     expect(await screen.findByText("Piste 1")).toBeInTheDocument(); expect(screen.getByText("Piste 4")).toBeInTheDocument();
     expect(screen.getByText("Tes idées s'écrivent sous tes yeux. Tu peux refermer cette fenêtre et revenir.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Créer" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Piste trouvée")).toHaveLength(4); expect(screen.queryByText("J'écris l'idée…")).not.toBeInTheDocument();
+    act(() => mocks.onEvent({ type: "stage", stage: "writing" }));
+    expect(await screen.findAllByText("J'écris l'idée…")).toHaveLength(4);
     act(() => mocks.onEvent({ type: "draft", slot: 1, piste: "Piste 2", fields: { subject: "Idée 2 en cours", insight: "Une thèse qui s'é" } }));
     expect(await screen.findByText("Idée 2 en cours")).toBeInTheDocument(); expect(screen.getByText("Une thèse qui s'é")).toBeInTheDocument();
     act(() => mocks.onEvent({ type: "idea", idea: idea("Idée 2"), ready: 1, total: 4, slot: 1 }));
