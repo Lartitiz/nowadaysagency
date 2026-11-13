@@ -42,3 +42,23 @@ export function planningWeekLabel(weekStart: string): string {
     ? `du ${first} au ${end.getDate()} ${month(end)}`
     : `du ${first} ${month(start)} au ${end.getDate()} ${month(end)}`;
 }
+
+/** Titre court d'un contenu planifié (case du calendrier, message). L'IA
+ *  renvoie `title` depuis le 13/11/2026 ; avant, seul `subject`, souvent un
+ *  paragraphe entier : on le coupe proprement au mot. */
+export function planningTitle(item: { title?: string | null; subject?: string | null }): string {
+  const title = item.title?.trim();
+  if (title) return title;
+  const subject = (item.subject || "").trim();
+  if (subject.length <= 90) return subject;
+  const cut = subject.slice(0, 90);
+  return cut.slice(0, Math.max(cut.lastIndexOf(" "), 40)).replace(/[\s,;:—-]+$/, "") + "…";
+}
+
+/** Notes du contenu posé : le pilier, puis l'idée détaillée quand le titre l'a raccourcie. */
+export function planningNotes(item: { title?: string | null; subject?: string | null; pillar?: string | null }): string {
+  const lines = [`Pilier : ${item.pillar || "—"}`];
+  const subject = (item.subject || "").trim();
+  if (subject && subject !== planningTitle(item)) lines.push("", `Idée détaillée : ${subject}`);
+  return lines.join("\n");
+}
