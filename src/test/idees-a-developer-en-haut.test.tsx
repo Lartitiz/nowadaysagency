@@ -53,9 +53,30 @@ afterEach(cleanup);
 it('met les idées à développer en haut, le diagnostic d’abord, puis les contenus commencés', async () => {
   render(<MemoryRouter initialEntries={['/idees?vue=all']}><IdeasPage /></MemoryRouter>);
   const list = await screen.findByTestId('ideas-list');
-  const items = () => Array.from(list.children).filter((el) => el.tagName === 'LI');
-  await waitFor(() => expect(items()).toHaveLength(6));
-  const titres = items().map((li) => li.querySelector('h3')?.textContent);
-  expect(titres).toEqual(['Idée du diagnostic', 'Deuxième idée du diagnostic', 'Idée gardée récente', 'Demande commencée', 'Carrousel tout neuf', 'Déjà au calendrier']);
-  expect(screen.getByTestId('ideas-todo-heading')).toHaveTextContent('Tes idées à développer (3), puis tes contenus');
+  const todo = screen.getByTestId('ideas-todo-list');
+  const titles = (ul: HTMLElement) => Array.from(ul.children).filter((el) => el.tagName === 'LI').map((li) => li.querySelector('h3')?.textContent);
+  await waitFor(() => expect(titles(list)).toHaveLength(3));
+  expect(titles(todo)).toEqual(['Idée du diagnostic', 'Deuxième idée du diagnostic', 'Idée gardée récente']);
+  expect(titles(list)).toEqual(['Demande commencée', 'Carrousel tout neuf', 'Déjà au calendrier']);
+  expect(screen.getByTestId('ideas-todo-heading')).toHaveTextContent('Tes idées à développer (3)');
+  expect(screen.getByTestId('ideas-contents-heading')).toHaveTextContent('Tes contenus (3)');
+});
+
+// Vignettes à la Canva (13/11/2026) : une idée sans contenu n'a pas de faux
+// visuel ; un contenu montre sa slide 1, sa story 1 ou le début de son texte.
+it('montre la slide 1 des contenus qui en ont une, une page texte sinon, rien pour les idées', async () => {
+  state.read.mockReset().mockImplementation((table: string) => ({ data: table === 'saved_ideas' ? [
+    row('slide', 'Carrousel avec visuels', { status: 'drafting', has_content: true, created_at: '2026-10-18T10:00:00Z', cover: { kind: 'slide', html: '<div>Slide 1</div>', count: 8 } }),
+    row('texte', 'Post sans visuel', { format: 'post', status: 'drafting', has_content: true, created_at: '2026-10-17T10:00:00Z', preview_data: { body: 'Le début de mon post' } }),
+    row('vide', 'Idée sans contenu', { has_content: false, created_at: '2026-10-16T10:00:00Z' }),
+  ] : [], error: null }));
+  render(<MemoryRouter initialEntries={['/idees?vue=all']}><IdeasPage /></MemoryRouter>);
+  const list = await screen.findByTestId('ideas-list');
+  await waitFor(() => expect(list.querySelectorAll('[data-testid="idea-cover"]')).toHaveLength(2));
+  const covers = Array.from(list.querySelectorAll('[data-testid="idea-cover"]'));
+  expect(covers.map((c) => c.getAttribute('data-cover'))).toEqual(['slide', 'text']);
+  expect(covers[0]).toHaveTextContent('1/8');
+  expect(covers[1]).toHaveTextContent('Le début de mon post');
+  expect(screen.getByTestId('ideas-todo-list').querySelector('[data-testid="idea-cover"]')).toBeNull();
+  expect(state.selects.some((c) => c.includes('cover'))).toBe(true);
 });

@@ -10,7 +10,7 @@ import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/u
 import { readIdeaList } from "@/lib/idea-list-read";
 import { IDEA_SUMMARY_COLUMNS, loadFullIdea, needsFullIdea, readIdeaSummaries } from "@/lib/saved-idea-summaries";
 
-const IDEAS_PAGE_COLUMNS = `${IDEA_SUMMARY_COLUMNS}, type, personal_elements, accroche_short, accroche_long, format_technique, created_at, preview_data:preview, draft_head:preview_draft`;
+const IDEAS_PAGE_COLUMNS = `${IDEA_SUMMARY_COLUMNS}, type, personal_elements, accroche_short, accroche_long, format_technique, created_at, preview_data:preview, draft_head:preview_draft, cover`;
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import { SkeletonCard } from "@/components/ui/skeleton-card";
 import { friendlyError } from "@/lib/error-messages";
 import { calendarPlacementLabel, getIdeaState, ideaContentLabel, IDEA_STATE_LABELS, formatLabel, sourceLabel, type IdeaState } from "@/lib/idea-state";
 import { AddIdeaDialog } from "@/components/calendar/CalendarIdeasSidebar";
+import { IdeaCover, readCover, TextCover } from "@/components/ideas/IdeaCover";
 
 
 /* ─── Types ─── */
@@ -46,6 +47,8 @@ interface SavedIdea {
   content_data?: any | null;
   has_content?: boolean;
   preview_data?: unknown;
+  /** Première image (slide 1 / story 1), calculée par la base. */
+  cover?: unknown;
   draft_head?: string | null;
   source_module: string | null;
   personal_elements: any | null;
@@ -398,53 +401,61 @@ function IdeasInWorkspace() {
   const totalCount = ideas.length + briefs.length;
   const viewCounts = { active: counts.todo + counts.in_progress, calendar: counts.created, all: totalCount };
 
+  const deleteButton = (idea: SavedIdea) => (
+    <DeleteIdeaDialog onConfirm={() => handleDelete(idea.id)}>
+      <Button variant="ghost" size="sm" aria-label="Supprimer cette idée" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
+        <X className="h-3.5 w-3.5" />
+      </Button>
+    </DeleteIdeaDialog>
+  );
+
+  const metaFor = (idea: SavedIdea, state: IdeaState) => (
+    <>
+      <span className="text-primary-text">{ideaContentLabel(idea)}</span> · {metaLine(idea)}
+      {state === "created" && idea.planned_date && (
+        <> · <span className="text-[#2E7D32]">{calendarPlacementLabel(formatDate(idea.planned_date, "d MMM"))}</span></>
+      )}
+      {state === "in_progress" && idea.updated_at && (
+        <> · reprise le {formatDate(idea.updated_at, "d MMM")}</>
+      )}
+    </>
+  );
+
+  /* Idée encore sans contenu : une carte titre, sans faux visuel (13/11/2026). */
+  const renderTodo = (idea: SavedIdea, idx: number) => (
+    <li
+      key={idea.id}
+      className="relative flex flex-col justify-between gap-3 rounded-xl border border-dashed border-rose-medium bg-card p-4 transition-all animate-fade-in hover:border-solid hover:shadow-sm"
+      style={{ animationDelay: `${Math.min(idx, 10) * 0.04}s` }}
+    >
+      <div className="min-w-0 pr-6">
+        <p className="text-xs text-muted-foreground">{metaFor(idea, "todo")}</p>
+        <h3 className="mt-1.5 font-body text-[15px] font-bold leading-snug text-foreground line-clamp-4" title={cleanTitle(idea.titre)}>
+          <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} aria-busy={openingId === idea.id} className="text-left hover:underline break-words disabled:cursor-wait">{cleanTitle(idea.titre)}</button>
+        </h3>
+      </div>
+      <div onClick={(e) => e.stopPropagation()}>{primaryAction(idea)}</div>
+      <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>{deleteButton(idea)}</div>
+    </li>
+  );
+
+  /* Contenu commencé ou fini : vignette (slide 1, story 1 ou début du texte). */
   const renderIdea = (idea: SavedIdea, idx: number) => {
     const state = getIdeaState(idea);
+    if (state === "todo") return renderTodo(idea, idx);
     const preview = idea.format !== "actu" ? getIdeaPreview(idea) : {};
     return (
-      <li
-        key={idea.id}
-        className="relative rounded-xl border border-border bg-card px-4 py-3.5 transition-all animate-fade-in hover:border-rose-medium hover:shadow-sm"
-        style={{ animationDelay: `${Math.min(idx, 10) * 0.04}s` }}
-      >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1 pr-6 sm:pr-0">
-            <h3 className="font-body text-[15px] font-bold leading-snug text-foreground">
-              <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} aria-busy={openingId === idea.id} className="text-left hover:underline break-words disabled:cursor-wait">{cleanTitle(idea.titre)}</button>
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              <span className="text-primary-text">{ideaContentLabel(idea)}</span> · {metaLine(idea)}
-              {state === "created" && idea.planned_date && (
-                <> · <span className="text-[#2E7D32]">{calendarPlacementLabel(formatDate(idea.planned_date, "d MMM"))}</span></>
-              )}
-              {state === "in_progress" && idea.updated_at && (
-                <> · reprise le {formatDate(idea.updated_at, "d MMM")}</>
-              )}
-            </p>
-            {preview.text && (
-              <p className="text-sm text-foreground/70 line-clamp-2 mt-2">{preview.text}</p>
-            )}
-          </div>
-          <div className="shrink-0 flex items-center gap-1 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="w-full sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">{primaryAction(idea)}</div>
-            {/* Supprimer — à côté de l'action sur grand écran */}
-            <div className="hidden sm:block">
-              <DeleteIdeaDialog onConfirm={() => handleDelete(idea.id)}>
-                <Button variant="ghost" size="sm" aria-label="Supprimer cette idée" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </DeleteIdeaDialog>
-            </div>
-          </div>
-        </div>
-
-        {/* Supprimer — en haut à droite au doigt (le bouton d'action prend toute la largeur) */}
-        <div className="absolute top-2 right-2 sm:hidden" onClick={(e) => e.stopPropagation()}>
-          <DeleteIdeaDialog onConfirm={() => handleDelete(idea.id)}>
-            <Button variant="ghost" size="sm" aria-label="Supprimer cette idée" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          </DeleteIdeaDialog>
+      <li key={idea.id} className="group relative flex min-w-0 flex-col animate-fade-in" style={{ animationDelay: `${Math.min(idx, 10) * 0.04}s` }}>
+        <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} tabIndex={-1} aria-hidden="true" className="block w-full rounded-xl text-left transition-shadow group-hover:shadow-md disabled:cursor-wait">
+          <IdeaCover cover={readCover(idea.cover)} fallback={<TextCover label={formatLabel(idea.format)} text={preview.text || preview.title} />} />
+        </button>
+        <h3 className="mt-2 font-body text-sm font-bold leading-snug text-foreground line-clamp-2" title={cleanTitle(idea.titre)}>
+          <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} aria-busy={openingId === idea.id} className="text-left hover:underline break-words disabled:cursor-wait">{cleanTitle(idea.titre)}</button>
+        </h3>
+        <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{metaFor(idea, state)}</p>
+        <div className="mt-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          {primaryAction(idea)}
+          {deleteButton(idea)}
         </div>
       </li>
     );
@@ -501,51 +512,40 @@ function IdeasInWorkspace() {
           />
         ) : (
           <>
-          {todoIdeas.length > 0 && otherIdeas.length + filteredBriefs.length > 0 && <h2 data-testid="ideas-todo-heading" className="mb-2.5 text-sm font-semibold text-bordeaux">Tes idées à développer ({todoIdeas.length}), puis tes contenus</h2>}
-          <ul className="space-y-2.5" data-testid="ideas-list">
-            {todoIdeas.map(renderIdea)}
-            {filteredBriefs.map((brief) => (
-              <li
-                key={`brief-${brief.id}`}
-                className="relative rounded-xl border border-[#F0E4EC] bg-card px-4 py-3.5 transition-all animate-fade-in hover:border-rose-medium hover:shadow-sm"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div className="min-w-0 flex-1 pr-6 sm:pr-0">
-                    <h3 className="font-body text-[15px] font-bold leading-snug text-foreground"><button onClick={() => handleResumeBrief(brief)} className="text-left hover:underline">{cleanTitle(brief.subject)}</button></h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      <span className="inline-flex items-center rounded-pill bg-rose-pale px-2 py-0.5 text-2xs font-semibold text-primary-text mr-2">
-                        Demande en cours
-                      </span>
-                      {formatLabel(brief.format || "")}
-                      {brief.created_at && <> · commencé le {formatDate(brief.created_at, "d MMM")}</>}
-                    </p>
-                  </div>
-                  <div className="shrink-0 flex items-center gap-1 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
-                    <div className="w-full sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">
-                      <Button size="sm" className="rounded-pill text-xs gap-1.5" onClick={() => handleResumeBrief(brief)}>
-                        <PenLine className="h-3.5 w-3.5" /> Reprendre cette demande
-                      </Button>
-                    </div>
-                    <div className="hidden sm:block">
-                      <DeleteIdeaDialog onConfirm={() => handleDeleteBrief(brief.id)}>
-                        <Button variant="ghost" size="sm" aria-label="Supprimer cette demande" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </DeleteIdeaDialog>
-                    </div>
-                  </div>
-                </div>
-                <div className="absolute top-2 right-2 sm:hidden" onClick={(e) => e.stopPropagation()}>
-                  <DeleteIdeaDialog onConfirm={() => handleDeleteBrief(brief.id)}>
-                    <Button variant="ghost" size="sm" aria-label="Supprimer cette demande" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
-                      <X className="h-3.5 w-3.5" />
+          {todoIdeas.length > 0 && otherIdeas.length + filteredBriefs.length > 0 && <h2 data-testid="ideas-todo-heading" className="mb-2.5 text-sm font-semibold text-bordeaux">Tes idées à développer ({todoIdeas.length})</h2>}
+          {todoIdeas.length > 0 && (
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="ideas-todo-list">
+              {todoIdeas.map(renderIdea)}
+            </ul>
+          )}
+          {todoIdeas.length > 0 && otherIdeas.length + filteredBriefs.length > 0 && <h2 data-testid="ideas-contents-heading" className="mt-8 mb-2.5 text-sm font-semibold text-bordeaux">Tes contenus ({otherIdeas.length + filteredBriefs.length})</h2>}
+          {otherIdeas.length + filteredBriefs.length > 0 && (
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4" data-testid="ideas-list">
+              {filteredBriefs.map((brief) => (
+                <li key={`brief-${brief.id}`} className="group relative flex min-w-0 flex-col animate-fade-in">
+                  <button onClick={() => handleResumeBrief(brief)} tabIndex={-1} aria-hidden="true" className="block w-full rounded-xl text-left transition-shadow group-hover:shadow-md">
+                    <IdeaCover cover={null} fallback={<TextCover label="Demande en cours" text={[formatLabel(brief.format || ""), brief.editorial_angle].filter(Boolean).join(" · ") || undefined} />} />
+                  </button>
+                  <h3 className="mt-2 font-body text-sm font-bold leading-snug text-foreground line-clamp-2" title={cleanTitle(brief.subject)}><button onClick={() => handleResumeBrief(brief)} className="text-left hover:underline break-words">{cleanTitle(brief.subject)}</button></h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    <span className="text-primary-text">Demande en cours</span>
+                    {brief.created_at && <> · commencé le {formatDate(brief.created_at, "d MMM")}</>}
+                  </p>
+                  <div className="mt-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button size="sm" variant="outline" className="rounded-pill text-xs gap-1.5" onClick={() => handleResumeBrief(brief)}>
+                      <PenLine className="h-3.5 w-3.5" /> Reprendre
                     </Button>
-                  </DeleteIdeaDialog>
-                </div>
-              </li>
-            ))}
-            {otherIdeas.map((idea, idx) => renderIdea(idea, todoIdeas.length + idx))}
-          </ul>
+                    <DeleteIdeaDialog onConfirm={() => handleDeleteBrief(brief.id)}>
+                      <Button variant="ghost" size="sm" aria-label="Supprimer cette demande" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </DeleteIdeaDialog>
+                  </div>
+                </li>
+              ))}
+              {otherIdeas.map((idea, idx) => renderIdea(idea, todoIdeas.length + idx))}
+            </ul>
+          )}
           </>
         )}
 
