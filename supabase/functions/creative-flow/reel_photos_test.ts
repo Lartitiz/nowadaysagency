@@ -6,6 +6,8 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   REEL_MAX_SECONDS,
+  buildHooksPrompt,
+  reelHooksPhotosRule,
   reelPhotoPassagesBlock,
   reelPhotoUserContent,
   reelPhotosNotCovered,
@@ -71,4 +73,19 @@ Deno.test("reel : repère les photos qu'aucun passage ne montre", () => {
   const script = [{ photo: 1 }, { photo: 1 }, { photo: 3 }, { photo: null }];
   assertEquals(reelPhotosNotCovered({ script }, 3), [2]);
   assertEquals(reelPhotosNotCovered({ sections: [{ photo: 1 }, { photo: 2 }] }, 2), []);
+});
+
+Deno.test("reel : les accroches savent qu'il y a des photos et n'inventent rien d'invisible, sans rien de propre à un métier", () => {
+  const base = { COMMON_PREFIX: "", excludeHooksRaw: [], context: "Mon atelier", objective: null };
+  const without = buildHooksPrompt(base);
+  assert(!without.systemPrompt.includes("SES PHOTOS"));
+  assert(!without.userPrompt.includes("photo"));
+  const withPhotos = buildHooksPrompt({ ...base, photoCount: 3 });
+  assert(withPhotos.systemPrompt.includes("SES PHOTOS (3"));
+  assert(withPhotos.userPrompt.includes("Mes 3 photos sont ci-dessus."));
+  assert(buildHooksPrompt({ ...base, photoCount: 1 }).userPrompt.includes("Ma photo est ci-dessus."));
+  const rule = reelHooksPhotosRule(3).toLowerCase();
+  for (const metier of ["appartement", "pièce", "visite", "bien immobilier", "marchand", "mur"]) {
+    assert(!rule.includes(metier), `mot de métier dans la consigne : ${metier}`);
+  }
 });
