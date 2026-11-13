@@ -157,7 +157,7 @@ export default function CreerStepEdit({ content, savedContent, onDraftChange, fo
           disabled={!!adjusting}
           onChange={(e) => history.change(e.target.value, true)}
           rows={10}
-          className="resize-y font-mono text-sm"
+          className="resize-y text-sm leading-relaxed"
         />
       </div>
 
