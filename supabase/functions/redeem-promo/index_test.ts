@@ -53,6 +53,7 @@ interface MockOpts {
   coachingError?: string | null;
   activeStripeSubscription?: boolean;
   stripeSource?: string;
+  stripePromotionCodes?: unknown[];
 }
 
 function installMockFetch(opts: MockOpts) {
@@ -64,6 +65,10 @@ function installMockFetch(opts: MockOpts) {
     const path = url.replace(SUPABASE_URL, "").split("?")[0];
     const json = (body: unknown, status = 200) =>
       new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+    if (url.startsWith("https://api.stripe.com/v1/promotion_codes")) {
+      return json({ data: opts.stripePromotionCodes ?? [] });
+    }
 
     if (path === "/auth/v1/user") {
       return json({ id: USER_ID, email: "cliente@example.com" });
@@ -151,6 +156,26 @@ Deno.test("redeem-promo: code inconnu -> 400 'Code invalide ou expiré.'", async
     const body = await res.json();
     assertEquals(body.error, "Code invalide ou expiré.");
   } finally {
+    restore();
+  }
+});
+
+Deno.test("redeem-promo: code de réduction Stripe -> 200 { discount }, rien d'accordé", async () => {
+  Deno.env.set("STRIPE_SECRET_KEY", "sk_test_x");
+  const mock = installMockFetch({
+    promo: null,
+    stripePromotionCodes: [{ id: "promo_x", code: "PARTENAIRE", active: true, times_redeemed: 0,
+      coupon: { valid: true, amount_off: 1000, duration: "forever" } }],
+  });
+  try {
+    const res = await handleRedeemPromoRequest(redeemReq({ code: "partenaire" }));
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(body.discount, { id: "promo_x", code: "PARTENAIRE", label: "-10 € par mois" });
+    assertEquals(body.success, undefined);
+    assertEquals(mock.rpcCalls.length, 0);
+  } finally {
+    Deno.env.delete("STRIPE_SECRET_KEY");
     restore();
   }
 });
