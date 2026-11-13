@@ -59,13 +59,13 @@ const GLOBAL_SECTIONS: AuditSection[] = [
   ]},
   { id: "copywriting", emoji: "💬", title: "Rédaction", questions: [
     { id: "q5", text: "Tes titres parlent de ce que ta cliente va obtenir ?", tooltip: "'Reprends confiance dans ta com' fonctionne mieux." },
-    { id: "q6", text: "Tu as un bouton d'action visible sans scroller ?", tooltip: "Si ta visiteuse doit scroller, tu perds 40% de conversions." },
+    { id: "q6", text: "Tu as un bouton d'action visible sans scroller ?", tooltip: "Si ta visiteuse doit scroller pour le trouver, une partie d'entre elles ne le verra jamais." },
     { id: "q7", text: "Le ton de tes textes correspond à ta cible ?", tooltip: "Parle comme ta cliente parle." },
     { id: "q8", text: "Tu as du micro-texte rassurant sous tes boutons ?", tooltip: "Un petit texte sous le bouton réduit l'anxiété." },
   ]},
   { id: "parcours", emoji: "🗺️", title: "Parcours utilisateur·ice", questions: [
     { id: "q9", text: "Ton menu a moins de 6 éléments ?", tooltip: "Plus de 6 = confusion." },
-    { id: "q10", text: "Ta visiteuse peut passer à l'action en 3 clics max ?", tooltip: "Chaque clic supplémentaire fait perdre ~20%." },
+    { id: "q10", text: "Ta visiteuse peut passer à l'action en 3 clics max ?", tooltip: "Chaque clic en plus fait perdre des visiteuses en route." },
     { id: "q11", text: "Chaque page a UN objectif principal clair ?", tooltip: "Une page = un objectif." },
     { id: "q12", text: "Tes pages ont toutes le même style ?", tooltip: "L'incohérence crée de la méfiance." },
   ]},
@@ -75,8 +75,8 @@ const GLOBAL_SECTIONS: AuditSection[] = [
     { id: "q15", text: "Tu as une page À propos avec ta photo et ton histoire ?", tooltip: "Les gens achètent à des humains." },
   ]},
   { id: "mobile", emoji: "📱", title: "Mobile", questions: [
-    { id: "q16", text: "Ton site s'affiche bien sur mobile ?", tooltip: "60-80% viennent du mobile." },
-    { id: "q17", text: "Ton site charge en moins de 3 secondes ?", tooltip: "Au-delà de 3s, 53% quittent." },
+    { id: "q16", text: "Ton site s'affiche bien sur mobile ?", tooltip: "Une grande partie de tes visiteuses arrive depuis un téléphone." },
+    { id: "q17", text: "Ton site charge en moins de 3 secondes ?", tooltip: "Au-delà de 3 secondes, beaucoup de visiteuses partent avant d'avoir vu la page." },
     { id: "q18", text: "Tes boutons sont assez grands pour le pouce ?", tooltip: "Un bouton trop petit = frustration." },
   ]},
   { id: "visuel", emoji: "🎨", title: "Hiérarchie visuelle", questions: [

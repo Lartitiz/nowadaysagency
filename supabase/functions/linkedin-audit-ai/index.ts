@@ -146,7 +146,7 @@ DONNÉES DE RÉFÉRENCE LINKEDIN 2025-2026 :
 PONDÉRATION PAR SECTION :
 
 Profil : 30% du score total
-- Photo (5 pts) : professionnelle, visage visible 60% du cadre, fond clair. Jusqu'à 14x plus de vues.
+- Photo (5 pts) : professionnelle, visage visible 60% du cadre, fond clair.
 - Bannière (5 pts) : communique le positionnement, pas vide, dimensions 1584×396
 - Titre (10 pts) : contient mots-clés SEO, formule valeur, max 220 car., PAS de buzzwords vides ("passionné", "expert en tout")
 - URL (3 pts) : personnalisée, sans chiffres aléatoires

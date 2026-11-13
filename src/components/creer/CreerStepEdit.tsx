@@ -22,6 +22,8 @@ import { toast } from "sonner";
 
 interface Props {
   content: string;
+  /** La fiche de marque demande l'écriture inclusive : la checklist pose la question du point médian. */
+  inclusiveWriting?: boolean;
   /** Dernière version appliquée (« Sauver ») : au-delà, les modifications sont en attente. */
   savedContent?: string;
   /** Texte en cours, transmis au fil de la frappe pour la copie de secours. */
@@ -57,15 +59,20 @@ const ADJUSTMENTS = [
   { id: "storytelling", instruction: "Plus de storytelling", display: "Raconter davantage ton histoire", emoji: "📖" },
 ];
 
-const QUALITY_CHECKLIST = [
-  "Le contenu est clair, affirmé, percutant ?",
-  "Y a-t-il une histoire ou un exemple concret ?",
-  "Écriture inclusive avec point médian ?",
-  "L'accroche donne envie de lire la suite ?",
-  "L'appel à l'action est naturel et non agressif ?",
-];
+const INCLUSIVE_CHECK = "Écriture inclusive avec point médian ?";
 
-export default function CreerStepEdit({ content, savedContent, onDraftChange, format, subject, newsContext, workspaceId, onSave, onBack, onCopy, onCalendar }: Props) {
+function qualityChecklist(inclusive: boolean): string[] {
+  return [
+    "Le contenu est clair, affirmé, percutant ?",
+    "Y a-t-il une histoire ou un exemple concret ?",
+    // Seulement si la fiche de marque le prévoit (choix du 13/11/2026).
+    ...(inclusive ? [INCLUSIVE_CHECK] : []),
+    "L'accroche donne envie de lire la suite ?",
+    "L'appel à l'action est naturel et non agressif ?",
+  ];
+}
+
+export default function CreerStepEdit({ content, inclusiveWriting, savedContent, onDraftChange, format, subject, newsContext, workspaceId, onSave, onBack, onCopy, onCalendar }: Props) {
   const history = useTextEditHistory(content);
   const editedContent = history.value;
   const [confirmBackOpen, setConfirmBackOpen] = useState(false);
@@ -87,7 +94,9 @@ export default function CreerStepEdit({ content, savedContent, onDraftChange, fo
   const active = useRef(true);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const [adjusting, setAdjusting] = useState<string | null>(null);
-  const [checkedItems, setCheckedItems] = useState<boolean[]>(new Array(QUALITY_CHECKLIST.length).fill(false));
+  const checklist = qualityChecklist(!!inclusiveWriting);
+  // Cochées par libellé : la liste change de longueur quand la fiche arrive.
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
   const handleAdjust = useCallback(async (adjustmentId: string) => {
     setAdjusting(adjustmentId);
@@ -124,12 +133,8 @@ export default function CreerStepEdit({ content, savedContent, onDraftChange, fo
     }
   }, [editedContent, format, subject, newsContext, workspaceId, history.change]);
 
-  const toggleCheck = (index: number) => {
-    setCheckedItems((prev) => {
-      const next = [...prev];
-      next[index] = !next[index];
-      return next;
-    });
+  const toggleCheck = (item: string) => {
+    setCheckedItems((prev) => ({ ...prev, [item]: !prev[item] }));
   };
 
   return (
@@ -185,11 +190,11 @@ export default function CreerStepEdit({ content, savedContent, onDraftChange, fo
       {/* Quality checklist */}
       <div className="rounded-xl border border-border bg-card p-3 space-y-2">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Checklist qualité</p>
-        {QUALITY_CHECKLIST.map((item, i) => (
-          <label key={i} className="flex items-start gap-2 cursor-pointer">
+        {checklist.map((item) => (
+          <label key={item} className="flex items-start gap-2 cursor-pointer">
             <Checkbox
-              checked={checkedItems[i]}
-              onCheckedChange={() => toggleCheck(i)}
+              checked={!!checkedItems[item]}
+              onCheckedChange={() => toggleCheck(item)}
               className="mt-0.5"
             />
             <span className="text-sm text-foreground">{item}</span>

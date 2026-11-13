@@ -31,6 +31,6 @@ export function resumeIdea(idea: IdeaForCalendar) {
     if (crosspost.format === 'carousel' && idea.updated_at !== undefined) crosspost.raw._carousel_base_updated_at = idea.updated_at;
     return crosspost;
   }
-  if ((format === 'carousel' || format === 'story' || format === 'reel') && idea.updated_at !== undefined) raw = { ...raw, _carousel_base_updated_at: idea.updated_at };
+  if ((format === 'carousel' || format === 'story' || format === 'reel' || (raw?.post_editor_version && (format === 'post' || format === 'linkedin'))) && idea.updated_at !== undefined) raw = { ...raw, _carousel_base_updated_at: idea.updated_at };
   return { format, raw };
 }

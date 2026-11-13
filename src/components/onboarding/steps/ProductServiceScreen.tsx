@@ -40,7 +40,7 @@ export default function ProductServiceScreen({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {PRODUCT_OPTIONS.map(o => (
           <button
             key={o.key}

@@ -219,7 +219,7 @@ function LinkedInProfilForm() {
           <AccordionItem value="photo" className="rounded-xl border border-border bg-card px-5">
             <AccordionTrigger className="font-body text-base font-bold"><span className="flex-1 text-left">3. Ta photo de profil</span>{sectionBadge(photoDone)}</AccordionTrigger>
             <AccordionContent className="space-y-4 pb-5">
-              <p className="text-sm text-muted-foreground">Premier élément visible avec ton titre. Elle doit être professionnelle sans gommer tes singularités. Une bonne photo = jusqu'à 14x plus de vues.</p>
+              <p className="text-sm text-muted-foreground">Premier élément visible avec ton titre. Elle doit être professionnelle sans gommer tes singularités. Une bonne photo donne envie de cliquer sur ton profil.</p>
               <div className="space-y-2 text-sm">
                 <p>☐ 400×400 px minimum</p>
                 <p>☐ Mon visage occupe ~60% du cadre</p>

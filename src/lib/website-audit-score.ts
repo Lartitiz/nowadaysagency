@@ -338,7 +338,7 @@ export function getCategoryRecommendations(
           priority: "haute",
           effort: "long",
           recommendation:
-            "Ton site mobile a besoin d'attention. 70% de tes visiteuses viennent du mobile.",
+            "Ton site mobile a besoin d'attention : une grande partie de tes visiteuses arrive depuis un téléphone.",
         });
         recs.push({
           priority: "haute",

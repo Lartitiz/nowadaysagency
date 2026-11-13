@@ -1,7 +1,7 @@
-export type ProductOrService = "produits" | "services" | "les_deux";
+export type ProductOrService = "produits" | "services" | "realisations" | "les_deux";
 
 const isChoice = (value: string | null | undefined): value is ProductOrService =>
-  value === "produits" || value === "services" || value === "les_deux";
+  value === "produits" || value === "services" || value === "realisations" || value === "les_deux";
 
 export function rememberProductOrService(userId: string, choice: string): void {
   if (!isChoice(choice)) return;
