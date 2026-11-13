@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
+import { chosenHookText, type ReelDraft } from "@/components/creer/ReelDraftPreview";
 import { posthog } from "@/lib/posthog-lazy";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { readableError } from "@/lib/error-messages";
@@ -64,6 +65,9 @@ export function useContentGenerator() {
   // Titres PRÉVUS (08/10/2026, évènement `outline`) : repère affiché pendant
   // que le rédacteur réfléchit, remplacé par les vraies slides dès la 1re.
   const [outlineTitles, setOutlineTitles] = useState<string[]>([]);
+  // Reel en brouillon (13/11/2026) : accroche choisie tout de suite, puis le
+  // script écrit (évènement SSE `draft` de creative-flow) pendant la relecture.
+  const [reelDraft, setReelDraft] = useState<ReelDraft | null>(null);
 
   // Internal streaming wrapper — proxied to consumers via the hook's return.
   // Kept inside the hook so all callers share the same SSE state.
@@ -89,6 +93,7 @@ export function useContentGenerator() {
     setGenerationStage(null);
     setDraftSlides([]);
     setOutlineTitles([]);
+    setReelDraft(null);
     setGenerating(false);
     setResult(null);
     setError(null);
@@ -134,6 +139,7 @@ export function useContentGenerator() {
     setGenerationStage(null);
     setDraftSlides([]);
     setOutlineTitles([]);
+    setReelDraft(null);
     const generationStartedAt = performance.now();
 
     // Defensive: bail early on non-canonical formats (e.g. "auto") so the user
@@ -186,8 +192,16 @@ export function useContentGenerator() {
         }
 
         case "reel": {
-          const res = await invokeWithTimeout("creative-flow", {
+          const hook = chosenHookText(params.selectedHook);
+          if (hook) setReelDraft({ hook, sections: [] });
+          const res = await invokeWithHeartbeat("creative-flow", {
             body: await buildReelGenerateBody(params, { effectiveSubject, existingContent, structurePrompt, structureId, effectiveWorkspaceId }),
+            onStatus: (stage, event) => {
+              if (epoch !== generationEpoch.current) return;
+              const draft = event?.reel as ReelDraft | undefined;
+              if (stage === "draft") { if (Array.isArray(draft?.sections)) setReelDraft({ hook: hook || draft.hook || "", sections: draft.sections }); }
+              else setGenerationStage(stage);
+            },
           }, REEL_GENERATE_TIMEOUT_MS);
           data = res.data;
           invokeError = res.error;
@@ -282,6 +296,7 @@ export function useContentGenerator() {
         setGenerationStage(null);
     setDraftSlides([]);
     setOutlineTitles([]);
+    setReelDraft(null);
       }
     }
   }, [defaultWorkspaceId]);
@@ -414,6 +429,7 @@ export function useContentGenerator() {
     generationStage,
     draftSlides,
     outlineTitles,
+    reelDraft,
     result,
     setResult,
     error,

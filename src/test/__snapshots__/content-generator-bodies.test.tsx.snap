@@ -874,7 +874,7 @@ Le texte déjà écrit dans le calendrier",
     "workspace_id": "workspace",
   },
   "fn": "creative-flow",
-  "onStatus": "undefined",
+  "onStatus": "function",
   "timeout": 180000,
 }
 `;
@@ -913,7 +913,7 @@ exports[`generate — reel (creative-flow) > réponses seules : rangées par pos
     "workspace_id": "workspace",
   },
   "fn": "creative-flow",
-  "onStatus": "undefined",
+  "onStatus": "function",
   "timeout": 180000,
 }
 `;
@@ -935,7 +935,7 @@ exports[`generate — reel (creative-flow) > sans réponses ni caméra : face_ca
     "workspace_id": "workspace",
   },
   "fn": "creative-flow",
-  "onStatus": "undefined",
+  "onStatus": "function",
   "timeout": 180000,
 }
 `;
