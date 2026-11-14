@@ -1672,14 +1672,19 @@ Réponds UNIQUEMENT en JSON :
   ]
 }
 
-══ FORME DES QUESTIONS (PRIORITAIRE : LISIBILITÉ) ══
-L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup, sans relire.
-- Une seule phrase de 20 mots au plus.
-- Une seule chose demandée par question : pas deux options reliées par « ou », pas deux demandes reliées par « et ».
-- Mots de tous les jours. Pas de parenthèses. Reprends un mot du sujet si besoin, jamais le titre entier du sujet.
-- L'exemple de réponse (placeholder) tient en 15 mots au plus.
+══ FORME DES QUESTIONS : LISIBLES ET CREUSÉES ══
+L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup ET avoir envie d'y répondre avec sa vraie matière. Une question courte mais générale ne sert à rien : la précision passe avant la brièveté.
+- 30 mots au plus, en une ou deux phrases courtes. La première peut poser le contexte précis du sujet, la seconde pose la question.
+- Chaque question va chercher une matière concrète que seule l'utilisatrice peut donner : un chiffre, un moment précis, une phrase entendue, une étape de sa méthode, une erreur fréquente qu'elle voit, un choix qu'elle a fait et pourquoi.
+- Utilise le vocabulaire de son métier et un aspect précis du sujet. Une question qui irait à n'importe quel sujet ou à n'importe quelle utilisatrice est invalide.
+- Jamais de question à laquelle on répond par oui ou non (« Tu as un exemple ? », « Tu as un cas réel ? »). Demande directement l'exemple ou le cas.
+- Pas de parenthèses. Pas de choix entre deux options reliées par « ou » : si deux pistes sont possibles, choisis la plus utile.
+- Les questions se complètent : chacune creuse un endroit différent du sujet, sans se répéter.
+- L'exemple de réponse (placeholder) tient en 15 mots au plus et montre une réponse concrète, propre au sujet.
 Trop lourd : « Ce post doit-il rester sur le principe général (la saison fixe le prix) ou s'appuyer sur un cas réel que tu as vécu, avec ses chiffres ? »
-Lisible : « Tu as un cas réel à raconter pour illustrer ça ? »
+Trop vague : « Tu as un cas réel à raconter pour illustrer ça ? »
+Lisible et creusée : « Pense à ta dernière opération bloquée par un lot. Combien de temps la revente a-t-elle été retardée, et qu'est-ce qui l'a débloquée ? »
+Ces exemples parlent d'un autre sujet : ne les recopie pas, trouve les mots du sujet courant.
 
 ── USER PROMPT ──
 Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "Pourquoi je ne fais plus de remises sur mes créations" (angle "Le mythe du talent").\`
@@ -1762,14 +1767,19 @@ Réponds UNIQUEMENT en JSON :
   ]
 }
 
-══ FORME DES QUESTIONS (PRIORITAIRE : LISIBILITÉ) ══
-L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup, sans relire.
-- Une seule phrase de 20 mots au plus.
-- Une seule chose demandée par question : pas deux options reliées par « ou », pas deux demandes reliées par « et ».
-- Mots de tous les jours. Pas de parenthèses. Reprends un mot du sujet si besoin, jamais le titre entier du sujet.
-- L'exemple de réponse (placeholder) tient en 15 mots au plus.
+══ FORME DES QUESTIONS : LISIBLES ET CREUSÉES ══
+L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup ET avoir envie d'y répondre avec sa vraie matière. Une question courte mais générale ne sert à rien : la précision passe avant la brièveté.
+- 30 mots au plus, en une ou deux phrases courtes. La première peut poser le contexte précis du sujet, la seconde pose la question.
+- Chaque question va chercher une matière concrète que seule l'utilisatrice peut donner : un chiffre, un moment précis, une phrase entendue, une étape de sa méthode, une erreur fréquente qu'elle voit, un choix qu'elle a fait et pourquoi.
+- Utilise le vocabulaire de son métier et un aspect précis du sujet. Une question qui irait à n'importe quel sujet ou à n'importe quelle utilisatrice est invalide.
+- Jamais de question à laquelle on répond par oui ou non (« Tu as un exemple ? », « Tu as un cas réel ? »). Demande directement l'exemple ou le cas.
+- Pas de parenthèses. Pas de choix entre deux options reliées par « ou » : si deux pistes sont possibles, choisis la plus utile.
+- Les questions se complètent : chacune creuse un endroit différent du sujet, sans se répéter.
+- L'exemple de réponse (placeholder) tient en 15 mots au plus et montre une réponse concrète, propre au sujet.
 Trop lourd : « Ce post doit-il rester sur le principe général (la saison fixe le prix) ou s'appuyer sur un cas réel que tu as vécu, avec ses chiffres ? »
-Lisible : « Tu as un cas réel à raconter pour illustrer ça ? »
+Trop vague : « Tu as un cas réel à raconter pour illustrer ça ? »
+Lisible et creusée : « Pense à ta dernière opération bloquée par un lot. Combien de temps la revente a-t-elle été retardée, et qu'est-ce qui l'a débloquée ? »
+Ces exemples parlent d'un autre sujet : ne les recopie pas, trouve les mots du sujet courant.
 
 ── USER PROMPT ──
 Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "Pourquoi je ne fais plus de remises sur mes créations" (angle "Le mythe du talent").\`
@@ -1852,14 +1862,19 @@ Réponds UNIQUEMENT en JSON :
   ]
 }
 
-══ FORME DES QUESTIONS (PRIORITAIRE : LISIBILITÉ) ══
-L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup, sans relire.
-- Une seule phrase de 20 mots au plus.
-- Une seule chose demandée par question : pas deux options reliées par « ou », pas deux demandes reliées par « et ».
-- Mots de tous les jours. Pas de parenthèses. Reprends un mot du sujet si besoin, jamais le titre entier du sujet.
-- L'exemple de réponse (placeholder) tient en 15 mots au plus.
+══ FORME DES QUESTIONS : LISIBLES ET CREUSÉES ══
+L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup ET avoir envie d'y répondre avec sa vraie matière. Une question courte mais générale ne sert à rien : la précision passe avant la brièveté.
+- 30 mots au plus, en une ou deux phrases courtes. La première peut poser le contexte précis du sujet, la seconde pose la question.
+- Chaque question va chercher une matière concrète que seule l'utilisatrice peut donner : un chiffre, un moment précis, une phrase entendue, une étape de sa méthode, une erreur fréquente qu'elle voit, un choix qu'elle a fait et pourquoi.
+- Utilise le vocabulaire de son métier et un aspect précis du sujet. Une question qui irait à n'importe quel sujet ou à n'importe quelle utilisatrice est invalide.
+- Jamais de question à laquelle on répond par oui ou non (« Tu as un exemple ? », « Tu as un cas réel ? »). Demande directement l'exemple ou le cas.
+- Pas de parenthèses. Pas de choix entre deux options reliées par « ou » : si deux pistes sont possibles, choisis la plus utile.
+- Les questions se complètent : chacune creuse un endroit différent du sujet, sans se répéter.
+- L'exemple de réponse (placeholder) tient en 15 mots au plus et montre une réponse concrète, propre au sujet.
 Trop lourd : « Ce post doit-il rester sur le principe général (la saison fixe le prix) ou s'appuyer sur un cas réel que tu as vécu, avec ses chiffres ? »
-Lisible : « Tu as un cas réel à raconter pour illustrer ça ? »
+Trop vague : « Tu as un cas réel à raconter pour illustrer ça ? »
+Lisible et creusée : « Pense à ta dernière opération bloquée par un lot. Combien de temps la revente a-t-elle été retardée, et qu'est-ce qui l'a débloquée ? »
+Ces exemples parlent d'un autre sujet : ne les recopie pas, trouve les mots du sujet courant.
 
 ── USER PROMPT ──
 Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "Pourquoi je ne fais plus de remises sur mes créations" (angle "Le mythe du talent").\`
@@ -1942,14 +1957,19 @@ Réponds UNIQUEMENT en JSON :
   ]
 }
 
-══ FORME DES QUESTIONS (PRIORITAIRE : LISIBILITÉ) ══
-L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup, sans relire.
-- Une seule phrase de 20 mots au plus.
-- Une seule chose demandée par question : pas deux options reliées par « ou », pas deux demandes reliées par « et ».
-- Mots de tous les jours. Pas de parenthèses. Reprends un mot du sujet si besoin, jamais le titre entier du sujet.
-- L'exemple de réponse (placeholder) tient en 15 mots au plus.
+══ FORME DES QUESTIONS : LISIBLES ET CREUSÉES ══
+L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup ET avoir envie d'y répondre avec sa vraie matière. Une question courte mais générale ne sert à rien : la précision passe avant la brièveté.
+- 30 mots au plus, en une ou deux phrases courtes. La première peut poser le contexte précis du sujet, la seconde pose la question.
+- Chaque question va chercher une matière concrète que seule l'utilisatrice peut donner : un chiffre, un moment précis, une phrase entendue, une étape de sa méthode, une erreur fréquente qu'elle voit, un choix qu'elle a fait et pourquoi.
+- Utilise le vocabulaire de son métier et un aspect précis du sujet. Une question qui irait à n'importe quel sujet ou à n'importe quelle utilisatrice est invalide.
+- Jamais de question à laquelle on répond par oui ou non (« Tu as un exemple ? », « Tu as un cas réel ? »). Demande directement l'exemple ou le cas.
+- Pas de parenthèses. Pas de choix entre deux options reliées par « ou » : si deux pistes sont possibles, choisis la plus utile.
+- Les questions se complètent : chacune creuse un endroit différent du sujet, sans se répéter.
+- L'exemple de réponse (placeholder) tient en 15 mots au plus et montre une réponse concrète, propre au sujet.
 Trop lourd : « Ce post doit-il rester sur le principe général (la saison fixe le prix) ou s'appuyer sur un cas réel que tu as vécu, avec ses chiffres ? »
-Lisible : « Tu as un cas réel à raconter pour illustrer ça ? »
+Trop vague : « Tu as un cas réel à raconter pour illustrer ça ? »
+Lisible et creusée : « Pense à ta dernière opération bloquée par un lot. Combien de temps la revente a-t-elle été retardée, et qu'est-ce qui l'a débloquée ? »
+Ces exemples parlent d'un autre sujet : ne les recopie pas, trouve les mots du sujet courant.
 
 ── USER PROMPT ──
 Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "Pourquoi je ne fais plus de remises sur mes créations" (angle "Le mythe du talent").\`
