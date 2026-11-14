@@ -59,3 +59,9 @@ export function questionsTropLongues(content: string): boolean {
   const questions = Array.isArray(parsed?.questions) ? parsed.questions : [];
   return questions.some((q: any) => questionTropLongue(q?.question || ""));
 }
+
+/** Vrai si le texte vouvoie, hors citations entre guillemets (« … » ou "…"). */
+export function hasVouvoiement(text: string): boolean {
+  const outsideQuotes = String(text || "").replace(/«[^»]*»/g, " ").replace(/"[^"]*"/g, " ").replace(/“[^”]*”/g, " ");
+  return /(^|[^\p{L}])(vous|votre|vos)(?![\p{L}])/iu.test(outsideQuotes);
+}

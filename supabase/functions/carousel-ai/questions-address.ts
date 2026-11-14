@@ -13,7 +13,9 @@
 // (`relancerQuestionsSiBesoin`) si une question vouvoie OU reste trop longue,
 // pour les questions avec photos comme pour la variante texte.
 
-import { QUESTIONS_FORM_RULES, QUESTIONS_COURTES_RETRY, questionsTropLongues } from "../_shared/questions-form.ts";
+import { QUESTIONS_FORM_RULES, QUESTIONS_COURTES_RETRY, questionsTropLongues, hasVouvoiement } from "../_shared/questions-form.ts";
+
+export { hasVouvoiement };
 
 export const QUESTIONS_ADDRESS_OVERRIDE = `
 
@@ -22,11 +24,6 @@ Les règles de vouvoiement plus haut concernent le texte des slides, adressé à
 
 export const QUESTIONS_TUTOIEMENT_RETRY = "Tu as vouvoyé l'utilisatrice. Réécris exactement les mêmes questions en la tutoyant (« ta », « tu », « tes »), sans rien changer d'autre, avec le même format.";
 
-/** Vrai si le texte vouvoie, hors citations entre guillemets (« … » ou "…"). */
-export function hasVouvoiement(text: string): boolean {
-  const outsideQuotes = String(text || "").replace(/«[^»]*»/g, " ").replace(/"[^"]*"/g, " ").replace(/“[^”]*”/g, " ");
-  return /(^|[^\p{L}])(vous|votre|vos)(?![\p{L}])/iu.test(outsideQuotes);
-}
 
 /** Vrai si au moins une question ou un exemple de réponse vouvoie. */
 export function questionsVouvoient(content: string): boolean {

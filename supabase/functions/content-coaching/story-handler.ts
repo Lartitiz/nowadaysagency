@@ -3,7 +3,7 @@
 import { callAnthropicToolSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { logUsageHorsCredit } from "../_shared/usage-hors-credit.ts";
-import { freeStepsCapReached, FREE_STEPS_MESSAGE } from "../creative-flow/free-steps-cap.ts";
+import { freeStepsCapReached, FREE_STEPS_MESSAGE } from "../_shared/free-steps-cap.ts";
 import {
   GENERIC_STORY_QUESTIONS, STORY_IDEA_TOOL, STORY_QUESTIONS_TOOL, fallbackStoryIdea,
   normalizeStoryIdea, normalizeStoryQuestions, readStoryAnswers, storyIdeaSystem,
