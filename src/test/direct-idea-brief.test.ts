@@ -61,3 +61,27 @@ describe("generation request adapter", () => {
     expect(sent.subject).toContain(idea.nuance);
   });
 });
+describe("idea springs (14/11/2026)", () => {
+  const base = parseDeepIdea({ ...idea, source_ids: [] })!;
+  it("keeps a known spring, the share reason and the question; drops an unknown spring", () => {
+    const parsed = parseDeepIdea({ ...idea, spring: "position", share_reason: "On défend ce choix.", ask: { question: "Qu'as-tu refusé récemment ?", placeholder: "Ex. : les grosses commandes" } })!;
+    expect(parsed.spring).toBe("position");
+    expect(parsed.share_reason).toBe("On défend ce choix.");
+    expect(parsed.ask).toEqual({ question: "Qu'as-tu refusé récemment ?", placeholder: "Ex. : les grosses commandes" });
+    expect(parseDeepIdea({ ...idea, spring: "viral" })!.spring).toBeUndefined();
+    expect(base.spring).toBeUndefined(); // older ideas still parse, without badge
+  });
+  it("puts the spring, the share reason and her real answer in the brief, never an invented one", () => {
+    const withAsk = { ...base, spring: "position" as const, share_reason: "On défend ce choix.", ask: { question: "Qu'as-tu refusé récemment ?", placeholder: "" } };
+    const empty = ideaToEditorialBrief(withAsk);
+    expect(empty).toContain("Ressort : Prendre position, avec un acte");
+    expect(empty).toContain("Pourquoi on l'enverra : On défend ce choix.");
+    expect(empty).toContain("Ne rien inventer");
+    const answered = ideaToEditorialBrief(withAsk, "J'ai arrêté les commandes de 200 pièces.\n\nTrop d'usure.");
+    expect(answered).toContain("Sa réponse (fait réel donné par elle, à utiliser tel quel) : J'ai arrêté les commandes de 200 pièces.\nTrop d'usure.");
+    // Her answer reaches the carousel as her own case, not as proposed material.
+    const body = withIdeaBrief("carousel-ai", { editorial_angle: answered });
+    expect(body.deepening_answers["Qu'as-tu refusé récemment ?"]).toBe("J'ai arrêté les commandes de 200 pièces.\nTrop d'usure.");
+    expect(withIdeaBrief("carousel-ai", { editorial_angle: empty }).deepening_answers["Qu'as-tu refusé récemment ?"]).toBeUndefined();
+  });
+});

@@ -6,7 +6,7 @@ export type IdeaStreamEvent =
   | { type: "stage"; stage: "preparation" | "research" | "writing" }
   | { type: "idea"; idea: unknown; ready: number; total: number; slot?: number }
   /** Une des 4 places pendant l'écriture : la piste trouvée, puis le début de l'idée. */
-  | { type: "draft"; slot: number; piste?: string; fields?: { subject?: string; insight?: string; mechanism?: string; reader_benefit?: string }; gone?: boolean };
+  | { type: "draft"; slot: number; piste?: string; spring?: string; fields?: { subject?: string; insight?: string; mechanism?: string; reader_benefit?: string }; gone?: boolean };
 
 /** Une erreur qui garde la réponse JSON du serveur (quota, activité manquante…). */
 class IdeaStreamError extends Error {

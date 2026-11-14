@@ -120,3 +120,35 @@ Deno.test("a stream cut near its time limit is not followed by a second full wai
     assertEquals(timeouts[0], 40_000); // preparation: 60 s minus the 20 s already spent
   } finally { Date.now = realNow; }
 });
+
+Deno.test("each piste keeps its spring: the prompt asks for 4 different springs and the idea keeps the piste's one", async () => {
+  const springs = ["geste", "clin_oeil", "position", "eclairer", "moment", "autres"];
+  const prompts: string[] = []; const events: any[] = []; let systemRules = "";
+  const result = await generateDeepIdeas({ context: "Céramiste", history: "", previous: [{ subject: "A", insight: "B", spring: "geste" }], onEvent: e => events.push(e) }, {
+    model: "claude-opus-5-5", apiKey: "", research: async () => ({ sources: [], status: "not_needed" }),
+    call: async (o) => { const user = o.messages[0].content as string; prompts.push(user); systemRules = o.system as string;
+      if (user.includes("Explore 6 pistes")) return JSON.stringify({ candidates: springs.map((s, i) => ({ spring: s, subject: `Piste ${i + 1}` })), research_queries: [] });
+      const n = Number(user.match(/piste n°(\d)/)![1]);
+      // The writer tries to change the spring and adds a question when a real fact is missing.
+      return JSON.stringify({ ideas: [{ ...idea, subject: `Idée ${n}`, spring: "cause", share_reason: "On s'y reconnaît.", ask: n === 3 ? { question: "Qu'as-tu refusé récemment ?", placeholder: "Ex. : les grosses commandes" } : null }] }); },
+  });
+  assert(prompts[0].includes("4 ressorts DIFFÉRENTS"));
+  assert(systemRules.includes("Le clin d'œil à ta cliente") && systemRules.includes("test du partage"));
+  assert(prompts[0].includes("DÉJÀ PROPOSÉ") || systemRules.includes('"spring":"geste"'));
+  assertEquals(result.ideas.map(i => i.spring), ["geste", "clin_oeil", "position", "eclairer"]);
+  assertEquals(result.ideas[2].ask?.question, "Qu'as-tu refusé récemment ?");
+  assertEquals(result.ideas[0].ask, undefined);
+  assertEquals(result.ideas[0].share_reason, "On s'y reconnaît.");
+  assert(prompts.find(p => p.includes("piste n°3"))!.includes("remplis ask"));
+  assert(prompts.find(p => p.includes("piste n°4"))!.includes("Exige un apport précis"));
+  assert(!prompts.find(p => p.includes("piste n°1"))!.includes("Exige un apport précis"));
+  assertEquals(events.filter(e => e.type === "draft" && e.piste === "Piste 2").every(e => e.spring === "clin_oeil"), true);
+});
+Deno.test("deepening keeps the spring of the chosen idea", async () => {
+  let calls = 0;
+  const result = await generateDeepIdeas({ context: "Céramiste", history: "", deepen: { ...idea, spring: "moment" } as any }, {
+    model: "claude-opus-5-5", apiKey: "", research: async () => ({ sources: [], status: "not_needed" }),
+    call: async () => { calls++; return calls === 1 ? '{"candidates":[{"subject":"A"}],"research_queries":[]}' : JSON.stringify({ ideas: [{ ...idea, spring: "eclairer" }] }); },
+  });
+  assertEquals(result.ideas[0].spring, "moment");
+});
