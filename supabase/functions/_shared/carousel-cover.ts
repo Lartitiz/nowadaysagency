@@ -27,8 +27,13 @@ export type CoverKind = "text" | "photo" | "mix";
 export const coverKind = (carouselType: unknown): CoverKind =>
   carouselType === "photo" ? "photo" : carouselType === "mix" ? "mix" : "text";
 
+// Seuls les mots comptent : en typographie française, « », ? ! : ; sont
+// séparés par une espace et passaient pour des mots. Le 14/11/2026, la
+// couverture « La « fatigue synthétique » ? On a toujours dit ça autrement. »
+// (9 mots) était comptée 12, jugée trop longue et remplacée par une formule
+// abstraite (« On a un nouveau mot pour un vieux combat »).
 export const coverWords = (text: unknown): number =>
-  String(text ?? "").trim().split(/\s+/).filter(Boolean).length;
+  String(text ?? "").trim().split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 
 type Slide = Record<string, any>;
 
@@ -228,7 +233,7 @@ export function coverRewritePrompt(input: { hook: string; subtitle: string; slid
       : "le registre et le tutoiement ou vouvoiement";
   return `${COVER_WRITING}
 
-Réécris UNIQUEMENT la couverture de ce carrousel pour respecter ces règles. Garde le sens, la position défendue, ${register}. N'ajoute aucun fait, chiffre, nom ou vécu absent du texte fourni. Ne reprends pas mot pour mot la slide 2.
+Réécris UNIQUEMENT la couverture de ce carrousel pour respecter ces règles. Resserre l'accroche actuelle en gardant ses mots forts plutôt que de la remplacer : lue seule, elle doit encore dire de quoi on parle, jamais devenir une formule abstraite. Garde le sens, la position défendue, ${register}. N'ajoute aucun fait, chiffre, nom ou vécu absent du texte fourni. Ne reprends pas mot pour mot la slide 2.
 
 Couverture actuelle :
 - titre : ${JSON.stringify(input.hook)}
