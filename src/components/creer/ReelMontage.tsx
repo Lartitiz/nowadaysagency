@@ -13,7 +13,7 @@
  * (ReelVoiceRecorder), ou le reel reste volontairement sans voix.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, Film } from "lucide-react";
 import { useBrandCharter } from "@/hooks/use-branding";
@@ -21,7 +21,9 @@ import type { VoiceClip } from "@/lib/reel-voice";
 import { MontageModeFork, MontageModeSummary } from "@/features/reel-montage/MontageModeChoice";
 import { MontageVoiceChoice } from "@/features/reel-montage/MontageVoiceChoice";
 import { StudioClipDialog } from "@/features/reel-montage/StudioClipDialog";
-import { montageRenderKey, savedMontageProject } from "@/features/reel-montage/montage-project";
+import { montageRenderKey, savedMontageProject, withTweaksKey } from "@/features/reel-montage/montage-project";
+import { ReelPreview } from "@/features/reel-montage/ReelPreview";
+import { DEFAULT_TWEAKS, hasInstantPreview, maxDurationsFor, previewComposition, sanitizeTweaks, tweakedPlan, type ReelTweaks } from "@/features/reel-montage/reel-preview";
 import { useReelStockSearch } from "@/features/reel-montage/use-reel-stock-search";
 import { useReelMyVideos } from "@/features/reel-montage/use-reel-my-videos";
 import { useReelStudioReturn } from "@/features/reel-montage/use-reel-studio-return";
@@ -91,22 +93,35 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
   // Changing any render input invalidates publication, while preserving takes,
   // chosen clips and the old downloadable MP4. Late rendering responses are ignored.
-  const renderKey = montageRenderKey({ sections, clips, cutaways, voiceClips, voiceMode, montageMode, charter });
+  // Retouches de l'aperçu du reel sans voix (bornées ; remises à la longueur du plan à l'usage).
+  const [tweaks, setTweaks] = useState<ReelTweaks>(() => initialProject?.tweaks ? sanitizeTweaks(initialProject.tweaks, initialProject.clips.filter(Boolean).length) : DEFAULT_TWEAKS);
+  const previewKey = montageRenderKey({ sections, clips, cutaways, voiceClips, voiceMode, montageMode, charter });
+  const renderKey = withTweaksKey(previewKey, tweaks, hasInstantPreview(montageMode, voiceMode));
   const projectCallback = useRef(onProjectChange);
   projectCallback.current = onProjectChange;
   const lastPersistedProject = useRef<string | null>(null);
   useEffect(() => {
-    const project = savedMontageProject({ associationTexts, montageMode, voiceMode, clips, voiceClips, cutaways });
+    const project = savedMontageProject({ associationTexts, montageMode, voiceMode, clips, voiceClips, cutaways, tweaks });
     const key = JSON.stringify(project);
     if (lastPersistedProject.current === null) { lastPersistedProject.current = key; return; }
     if (lastPersistedProject.current === key) return;
     lastPersistedProject.current = key;
     projectCallback.current?.(project);
-  }, [montageMode, voiceMode, clips, voiceClips, cutaways, associationTexts]);
+  }, [montageMode, voiceMode, clips, voiceClips, cutaways, associationTexts, tweaks]);
   const { phase, tick, mp4Url, archived, errorMsg, archiving, downloadFailed, downloading, archiveRetryAvailable,
-    activeRender, handleAssemble, handleArchiveRetry, handleDownload } = useReelRender({
-    initialMp4Url, renderKey, onPhaseChange, onMp4Ready, needsReview, montageMode, voiceMode, spoken, clips, cutaways, voiceUrls, voiceDurations, charter, workspaceId, inputsReady: !charterLoading,
+    activeRender, handleAssemble, handleArchiveRetry, handleDownload, previewPlan, hasPreview, reopenPreview, renderMp4, instantPreview } = useReelRender({
+    initialMp4Url, renderKey, previewKey, tweaks, onPhaseChange, onMp4Ready, needsReview, montageMode, voiceMode, spoken, clips, cutaways, voiceUrls, voiceDurations, charter, workspaceId, inputsReady: !charterLoading,
   });
+  const maxDurations = maxDurationsFor(clips);
+  const preview = useMemo(() => previewPlan ? previewComposition(previewPlan, tweaks, maxDurations, window.location.origin) : null,
+    // maxDurations découle de clips.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [previewPlan, tweaks, clips]);
+  // Passages tels que retouchés (durées), dans l'ordre du script : ce que lit l'IA de « Dis ce que tu veux changer ».
+  const previewPassages = previewPlan
+    ? tweakedPlan(previewPlan, { ...sanitizeTweaks(tweaks, previewPlan.sections.length), order: null }, maxDurations).sections
+      .map((s) => ({ duration: s.duration, text: s.overlay_text || "" }))
+    : [];
 
   const { keywords, setKeywords, results, loading, runSearch } = useReelStockSearch({ spoken, subject, montageMode, setClips, activeRender });
   const { myVideos, uploadingSection, fileInputRef, openFilePicker, handleFileChosen, pickFromLibrary } = useReelMyVideos({ setClips });
@@ -185,7 +200,12 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
             onChange={(e) => handleFileChosen(e.target.files)}
           />
 
-          <MontageResult spoken={spoken} ready={ready} phase={phase} archiving={archiving} needsReview={needsReview} handleAssemble={handleAssemble} setAssociationTexts={setAssociationTexts} sectionTexts={sectionTexts} setNeedsReview={setNeedsReview} montageMode={montageMode} voiceMode={voiceMode} clips={clips} tick={tick} errorMsg={errorMsg} mp4Url={mp4Url} downloading={downloading} handleDownload={handleDownload} downloadFailed={downloadFailed} archived={archived} archiveRetryAvailable={archiveRetryAvailable} handleArchiveRetry={handleArchiveRetry} />
+          {preview && (
+            <ReelPreview html={preview.html} duration={preview.duration} tweaks={tweaks} setTweaks={setTweaks} passages={previewPassages}
+              workspaceId={workspaceId} busy={phase === "rendering"} tick={tick}
+              onDownload={() => void renderMp4({ download: true })} onSave={() => void renderMp4()} />
+          )}
+          <MontageResult previewOpen={!!preview} canReopenPreview={instantPreview && hasPreview && !preview} reopenPreview={reopenPreview} spoken={spoken} ready={ready} phase={phase} archiving={archiving} needsReview={needsReview} handleAssemble={handleAssemble} setAssociationTexts={setAssociationTexts} sectionTexts={sectionTexts} setNeedsReview={setNeedsReview} montageMode={montageMode} voiceMode={voiceMode} clips={clips} tick={tick} errorMsg={errorMsg} mp4Url={mp4Url} downloading={downloading} handleDownload={handleDownload} downloadFailed={downloadFailed} archived={archived} archiveRetryAvailable={archiveRetryAvailable} handleArchiveRetry={handleArchiveRetry} />
         </>
       )}
       <StudioClipDialog studioTarget={studioTarget} setStudioTarget={setStudioTarget} spoken={spoken} workspaceId={workspaceId}

@@ -16,11 +16,19 @@
  * gardée.
  *
  * Les sons (`assets/…`) ne sont pas dans cette page : le relais les ajoute à
- * côté de index.html avant le rendu (sons Pixabay, licence libre).
+ * côté de index.html avant le rendu (sons Pixabay, licence libre). Pour
+ * l'aperçu immédiat dans l'app (14/11/2026), la MÊME page est jouée par le
+ * lecteur HyperFrames du navigateur : les sons y sont lus depuis
+ * `public/reel-assets/` du site (option `assetBase`, copie vérifiée par
+ * src/test/reel-assets-sync.test.ts).
+ *
+ * Retouches (`look`, voir tweaks.ts) : taille du texte, ambiance calme, sons,
+ * volume. Sans retouche, la page est exactement celle d'avant.
  */
 
 import { estimateOverlayLines, type ReelRenderInput } from "./recipe.ts";
 import { REEL_OVERLAY_MIN_FONT_PX } from "../_shared/socle.ts";
+import { DEFAULT_LOOK, sanitizeLook, type ReelLook } from "./tweaks.ts";
 
 const WIDTH = 1080;
 const HEIGHT = 1920;
@@ -79,8 +87,8 @@ export function screenWords(text: string): { word: string; key: boolean }[] {
 }
 
 /** Plus grande taille du palier qui tient dans la boîte, sans jamais passer sous le plancher. */
-export function screenFontSize(text: string, final: boolean): number {
-  const sizes = final ? FINAL_SIZES_PX : TEXT_SIZES_PX;
+export function screenFontSize(text: string, final: boolean, textScale = 1): number {
+  const sizes = (final ? FINAL_SIZES_PX : TEXT_SIZES_PX).map((px) => Math.max(REEL_OVERLAY_MIN_FONT_PX, Math.round(px * textScale)));
   const boxHeight = final ? FINAL_BOX_HEIGHT : TEXT_BOX_HEIGHT;
   for (const size of sizes) {
     const lines = estimateOverlayLines(text, size, TEXT_BOX_WIDTH);
@@ -92,8 +100,9 @@ export function screenFontSize(text: string, final: boolean): number {
 /** Taille en dessous de laquelle un écran est découpé (lisible sur téléphone d'un coup d'œil). */
 const SCREEN_SPLIT_PX = 64;
 
-function fitsOnScreen(text: string): boolean {
-  return estimateOverlayLines(text, SCREEN_SPLIT_PX, TEXT_BOX_WIDTH) * SCREEN_SPLIT_PX * LINE_HEIGHT <= TEXT_BOX_HEIGHT;
+function fitsOnScreen(text: string, textScale = 1): boolean {
+  const px = Math.round(SCREEN_SPLIT_PX * textScale);
+  return estimateOverlayLines(text, px, TEXT_BOX_WIDTH) * px * LINE_HEIGHT <= TEXT_BOX_HEIGHT;
 }
 
 /**
@@ -101,22 +110,23 @@ function fitsOnScreen(text: string): boolean {
  * tant qu'elles tiennent à 64 px, une phrase trop longue répartie entre deux
  * mots. Tous les mots, dans l'ordre : `screens.join(" ")` redonne le texte.
  */
-export function splitScreens(raw: string): string[] {
+export function splitScreens(raw: string, textScale = 1): string[] {
+  const fits = (t: string) => fitsOnScreen(t, textScale);
   const text = raw.trim().replace(/\s+/g, " ");
   if (!text) return [];
-  if (fitsOnScreen(text)) return [text];
+  if (fits(text)) return [text];
   const sentences = text.match(/[^.!?…]+(?:[.!?…]+|$)/gu)?.map((p) => p.trim()).filter(Boolean) || [text];
   const screens: string[] = [];
   let current = "";
   for (const sentence of sentences) {
     const joined = current ? `${current} ${sentence}` : sentence;
-    if (fitsOnScreen(joined)) { current = joined; continue; }
+    if (fits(joined)) { current = joined; continue; }
     if (current) screens.push(current);
     current = "";
-    if (fitsOnScreen(sentence)) { current = sentence; continue; }
+    if (fits(sentence)) { current = sentence; continue; }
     for (const word of sentence.split(" ")) {
       const next = current ? `${current} ${word}` : word;
-      if (!current || fitsOnScreen(next)) current = next;
+      if (!current || fits(next)) current = next;
       else { screens.push(current); current = word; }
     }
   }
@@ -140,7 +150,18 @@ interface Shot {
   sectionDuration: number;
 }
 
-export function buildReelComposition(input: ReelRenderInput): ReelComposition {
+export interface CompositionOptions {
+  /** Retouches de rendu (bornées par sanitizeLook). Défaut : montage de départ. */
+  look?: Partial<ReelLook>;
+  /** Où trouver les sons : "assets/" pour le relais, URL absolue du site pour l'aperçu. */
+  assetBase?: string;
+}
+
+export function buildReelComposition(input: ReelRenderInput, options: CompositionOptions = {}): ReelComposition {
+  const look = sanitizeLook({ ...DEFAULT_LOOK, ...options.look });
+  const assetBase = options.assetBase ?? "assets/";
+  const sfx = (id: string, name: string, start: number, duration: number, volume: number, track: number, mediaStart?: number) =>
+    sfxTag(assetBase, id, name, start, duration, Math.round(volume * look.volume * (look.calm ? 0.7 : 1) * 100) / 100, track, mediaStart);
   const sections = input.sections;
   const last = sections.length - 1;
   let cursor = 0;
@@ -182,7 +203,7 @@ export function buildReelComposition(input: ReelRenderInput): ReelComposition {
     }
 
     const isFinal = i === last && sections.length > 1;
-    const chunks = s.overlay_text ? splitScreens(s.overlay_text) : [];
+    const chunks = s.overlay_text ? splitScreens(s.overlay_text, look.textScale) : [];
     const textStart = start + 0.3;
     const textSpan = Math.max(0.6, s.duration - 0.45);
     const share = textSpan / Math.max(1, chunks.length);
@@ -193,13 +214,13 @@ export function buildReelComposition(input: ReelRenderInput): ReelComposition {
         start: at,
         duration: round(Math.max(0.5, share - 0.05)),
         words: screenWords(chunk),
-        fontSize: screenFontSize(chunk, isFinal && chunks.length === 1),
+        fontSize: screenFontSize(chunk, isFinal && chunks.length === 1, look.textScale),
         final: isFinal && chunks.length === 1,
       });
-      if (!(isFinal && chunks.length === 1)) sounds.push(sfx(`c${i}_${k}`, "click-soft", at, 0.36, 0.5, 12));
+      if (!(isFinal && chunks.length === 1) && !look.calm) sounds.push(sfx(`c${i}_${k}`, "click-soft", at, 0.36, 0.5, 12));
     });
 
-    if (isFinal && start >= 3) {
+    if (isFinal && start >= 3 && !look.calm) {
       // Montée qui culmine sur la dernière coupe, puis coup sourd.
       sounds.push(sfx("riser", "riser", round(Math.max(0, start - 2.4)), 2.5, 0.7, 13, 1.1));
       sounds.push(sfx("impact", "impact-bass-1", round(start + 0.05), 2.1, 0.9, 14));
@@ -217,9 +238,11 @@ export function buildReelComposition(input: ReelRenderInput): ReelComposition {
   }).join("\n");
 
   const bedDuration = round(Math.min(duration, 60));
-  const bed = `<audio id="bed" src="assets/pad.mp3" data-start="0" data-duration="${bedDuration}" data-track-index="10" data-volume="0.8"></audio>`;
+  const bedVolume = Math.round(0.8 * look.volume * 100) / 100;
+  const bed = `<audio id="bed" src="${escapeHtml(assetBase)}pad.mp3" data-start="0" data-duration="${bedDuration}" data-track-index="10" data-volume="${bedVolume}"></audio>`;
+  const audio = look.sounds && look.volume > 0 ? `${bed}\n${sounds.join("\n")}` : "";
 
-  const script = buildTimelineScript(shots, screens, brolls, duration);
+  const script = buildTimelineScript(shots, screens, brolls, duration, look.calm);
 
   const html = `<!doctype html>
 <html lang="fr">
@@ -258,8 +281,7 @@ ${media.join("\n")}
 <div id="shade"></div>
 ${textHtml}
 <div id="fadeout"></div>
-${bed}
-${sounds.join("\n")}
+${audio}
 </div>
 <script>
 ${script}
@@ -270,8 +292,8 @@ ${script}
   return { html, duration };
 }
 
-function sfx(id: string, name: string, start: number, duration: number, volume: number, track: number, mediaStart?: number): string {
-  return `<audio id="sfx-${id}" src="assets/sfx/${name}.mp3" data-start="${round(start)}" data-duration="${duration}"${mediaStart ? ` data-media-start="${mediaStart}"` : ""} data-track-index="${track}" data-volume="${volume}"></audio>`;
+function sfxTag(assetBase: string, id: string, name: string, start: number, duration: number, volume: number, track: number, mediaStart?: number): string {
+  return `<audio id="sfx-${id}" src="${escapeHtml(assetBase)}sfx/${name}.mp3" data-start="${round(start)}" data-duration="${duration}"${mediaStart ? ` data-media-start="${mediaStart}"` : ""} data-track-index="${track}" data-volume="${volume}"></audio>`;
 }
 
 function buildTimelineScript(
@@ -279,8 +301,10 @@ function buildTimelineScript(
   screens: TextScreen[],
   brolls: { id: string; start: number; duration: number }[],
   duration: number,
+  calm = false,
 ): string {
   const data = JSON.stringify({ shots, screens: screens.map(({ id, start, duration, final, words }) => ({ id, start, duration, final, n: words.length })), brolls, duration });
+  if (calm) return calmTimelineScript(data);
   return `const D = ${data};
 const tl = gsap.timeline({ paused: true });
 D.shots.forEach((s, i) => {
@@ -305,5 +329,28 @@ D.screens.forEach((sc) => {
   tl.to("#" + sc.id + " p", { opacity: 0, y: -18, duration: 0.28, ease: "power2.in" }, Math.max(sc.start + 0.6, sc.start + sc.duration - 0.32));
 });
 tl.to("#fadeout", { opacity: 1, duration: 0.8, ease: "power1.in" }, Math.max(0, D.duration - 0.85));
+window.__timelines = window.__timelines || {};
+window.__timelines["main"] = tl;`;
+}
+
+/** Ambiance « Plus calme » : poussée de caméra légère, mots en fondu simple, pas de pop final. */
+function calmTimelineScript(data: string): string {
+  return `const D = ${data};
+const tl = gsap.timeline({ paused: true });
+D.shots.forEach((s, i) => {
+  tl.fromTo("#cam" + i, { scale: 1.0 }, { scale: 1.03, duration: Math.max(0.1, s.duration - 0.05), ease: "none" }, s.start);
+  if (i > 0) tl.fromTo("#" + s.id, { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "sine.inOut" }, s.start);
+});
+D.brolls.forEach((b) => {
+  tl.fromTo("#" + b.id, { opacity: 0 }, { opacity: 1, duration: 0.4 }, b.start);
+  tl.to("#" + b.id, { opacity: 0, duration: 0.4 }, Math.max(b.start + 0.45, b.start + b.duration - 0.45));
+});
+D.screens.forEach((sc) => {
+  const ws = "#" + sc.id + " .w";
+  tl.fromTo(ws, { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "sine.out", stagger: Math.min(0.06, 0.9 / Math.max(1, sc.n)) }, sc.start);
+  if (!sc.final) tl.to("#" + sc.id + " p", { opacity: 0, duration: 0.4, ease: "sine.in" }, Math.max(sc.start + 0.7, sc.start + sc.duration - 0.42));
+});
+tl.to("#fadeout", { opacity: 1, duration: 1, ease: "sine.in" }, Math.max(0, D.duration - 1.05));
+window.__timelines = window.__timelines || {};
 window.__timelines["main"] = tl;`;
 }

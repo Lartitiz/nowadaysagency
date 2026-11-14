@@ -8,6 +8,10 @@ import { Loader2, Film, Download } from "lucide-react";
 import type { MontageMode, Phase, Section, SelectedClip } from "./types";
 
 interface MontageResultProps {
+  /** Aperçu immédiat ouvert (reel sans voix) : il porte lui-même l'avancement et les boutons. */
+  previewOpen?: boolean;
+  canReopenPreview?: boolean;
+  reopenPreview?: () => void;
   spoken: Section[];
   ready: number;
   phase: Phase;
@@ -39,7 +43,7 @@ function renderingMessage(montageMode: MontageMode, voiceMode: "recorded" | "sil
   return "Assemblage des clips, incrustation des sous-titres et de la voix…";
 }
 
-export function MontageResult({ spoken, ready, phase, archiving, needsReview, handleAssemble, setAssociationTexts, sectionTexts, setNeedsReview, montageMode, voiceMode, clips, tick, errorMsg, mp4Url, downloading, handleDownload, downloadFailed, archived, archiveRetryAvailable, handleArchiveRetry }: MontageResultProps) {
+export function MontageResult({ previewOpen = false, canReopenPreview = false, reopenPreview, spoken, ready, phase, archiving, needsReview, handleAssemble, setAssociationTexts, sectionTexts, setNeedsReview, montageMode, voiceMode, clips, tick, errorMsg, mp4Url, downloading, handleDownload, downloadFailed, archived, archiveRetryAvailable, handleArchiveRetry }: MontageResultProps) {
   return (
     <>
   {/* Toujours en vue : collée en bas de l'écran, au-dessus du menu du téléphone
@@ -70,7 +74,7 @@ export function MontageResult({ spoken, ready, phase, archiving, needsReview, ha
     Un clip du Studio est muet. Remplace-le par ta vidéo filmée face à la caméra, puis ajoute-le comme image en plus.
   </p>}
 
-  {phase === "rendering" && (
+  {phase === "rendering" && !previewOpen && (
     <p className="text-2xs text-muted-foreground text-center">
       {renderingMessage(montageMode, voiceMode)}
       (≈ {Math.max(1, tick * 6)} s)
@@ -79,7 +83,11 @@ export function MontageResult({ spoken, ready, phase, archiving, needsReview, ha
 
   {phase === "error" && <p className="text-xs text-destructive">{errorMsg}</p>}
 
-  {mp4Url && phase !== "rendering" && (
+  {canReopenPreview && phase !== "rendering" && (
+    <Button type="button" variant="outline" size="sm" onClick={reopenPreview}>Retoucher le montage</Button>
+  )}
+
+  {mp4Url && phase !== "rendering" && !previewOpen && (
     <div className="space-y-2">
       <video src={mp4Url} controls playsInline className="w-full max-h-[420px] rounded-lg bg-black" />
       <div className="flex items-center gap-2 flex-wrap">

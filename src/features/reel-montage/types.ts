@@ -39,6 +39,8 @@ export interface ReelMontageProject {
   clips: (SelectedClip | null)[];
   voiceClips: (VoiceClip | null)[];
   cutaways: (StudioCutaway | null)[];
+  /** Retouches de l'aperçu du reel sans voix (absent = montage de départ). Bornées par sanitizeTweaks. */
+  tweaks?: Record<string, unknown>;
 }
 
 export function fromStock(v: StockVideo): SelectedClip {

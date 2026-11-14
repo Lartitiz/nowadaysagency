@@ -50,11 +50,12 @@ export function readableRenderMessage(message: string): string {
 }
 
 /** Lance un rendu. Renvoie l'identifiant de projet. */
-export async function submitReelRender(plan: RenderPlan): Promise<string> {
+export async function submitReelRender(plan: RenderPlan, look?: object): Promise<string> {
   const seconds = renderPlanSeconds(plan);
   if (seconds > MAX_REEL_SECONDS) throw new Error(reelTooLongMessage(seconds));
+  // `look` : retouches de rendu de l'aperçu (reel sans voix), bornées côté edge.
   const { data, error } = await supabase.functions.invoke("reel-render", {
-    body: { action: "submit", ...plan },
+    body: { action: "submit", ...plan, ...(look ? { look } : {}) },
   });
   if (error) {
     console.error("[submitReelRender] échec de l'appel à reel-render:", error);

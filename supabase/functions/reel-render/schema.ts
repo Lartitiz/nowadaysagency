@@ -26,6 +26,13 @@ export const SectionSchema = z.object({
   (s.broll_start || 0) + s.broll_duration <= s.duration + 0.01),
   "Le plan de coupe dépasse la durée du passage.");
 
+export const LookSchema = z.object({
+  textScale: z.number().min(0.8).max(1.4),
+  calm: z.boolean(),
+  sounds: z.boolean(),
+  volume: z.number().min(0).max(1.5),
+}).partial();
+
 export const SubmitSchema = z.object({
   action: z.literal("submit"),
   width: z.number().int().positive().optional(),
@@ -37,4 +44,18 @@ export const SubmitSchema = z.object({
   subtitle_settings: z.record(z.unknown()).optional(),
   // "filme" (prise face cam, clip gardé avec son) / "cache" (défaut, comportement existant).
   mode: z.enum(["filme", "cache"]).optional(),
+  // Retouches de rendu du reel « sans voix » (tweaks.ts, bornes vérifiées là aussi).
+  look: LookSchema.optional(),
+});
+
+/** « Dis ce que tu veux changer » : demande libre → réglages bornés (jamais de HTML). */
+export const TweakSchema = z.object({
+  action: z.literal("tweak"),
+  request: z.string().trim().min(2).max(500),
+  workspace_id: z.string().uuid().optional(),
+  current: z.record(z.unknown()).optional(),
+  passages: z.array(z.object({
+    duration: z.number().positive().max(90),
+    text: z.string().max(400),
+  })).min(1).max(20),
 });
