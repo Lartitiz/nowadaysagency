@@ -3,7 +3,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { ArrowRight, Camera, ArrowLeft, CalendarRange } from "lucide-react";
+import { ArrowRight, Camera, ArrowLeft } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 // Gros panneau (recherche d'actu) chargé à la demande — pas dans le chunk initial.
@@ -13,6 +13,7 @@ import { PhotoUploadZone, type PhotoItem } from "./PhotoUploadZone";
 import { toast } from "sonner";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useHideAppBreadcrumb } from "@/lib/app-breadcrumb";
 import { IdeaPicks } from "./CreerIdeaPicks";
 import { fetchIdeasToDevelop } from "@/lib/ideas-to-develop";
 import type { IdeaToCreate } from "@/lib/idea-create-link";
@@ -77,6 +78,8 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
   const showPhotosMode = onPhotoEntryChange ? !!photoEntry : fallbackPhotoEntry;
   const setShowPhotosMode = onPhotoEntryChange ?? setFallbackPhotoEntry;
   const navigate = useNavigate();
+  // Écran épuré (14/11/2026) : le fil « Accueil › Créer un contenu » doublait le menu.
+  useHideAppBreadcrumb();
   const { column, value } = useWorkspaceFilter();
 
   // Idées encore sans contenu (celles du diagnostic d'abord), montrées sans
@@ -117,56 +120,45 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
     <div className="space-y-6 animate-fade-in">
       {!showNewsjacking && !showPhotosMode && (
         <>
-          <header>
-            {channel && <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">{{ instagram: "Instagram", linkedin: "LinkedIn", pinterest: "Pinterest", newsletter: "Newsletter" }[channel]}</p>}
-            <h1 className="font-display text-4xl sm:text-5xl text-primary leading-tight">De quoi veux-tu parler&nbsp;?</h1>
-            <p className="mt-3 text-sm sm:text-base text-muted-foreground">Une idée suffit. Tu peux aussi commencer avec tes photos.</p>
-          </header>
-          <div className="grid gap-8 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:gap-10">
+          {/* Écran épuré (14/11/2026, maquette validée par Laetitia) : le titre, le champ
+              et « Continuer » d'abord ; plus de canal, de phrase d'aide ni de descriptions. */}
+          <h1 className="font-display text-3xl sm:text-4xl text-primary leading-tight">De quoi veux-tu parler&nbsp;?</h1>
+          <div className="grid gap-8 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:gap-10">
             <div className="min-w-0">
-              <div className="space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-7">
-                <div className="flex min-h-7 flex-wrap items-center justify-between gap-2">
-                  <label htmlFor="creation-idea" className="block text-sm font-semibold text-primary">Ton idée</label>
-                  {historyControls}
-                </div>
+              <label htmlFor="creation-idea" className="sr-only">Ton idée</label>
+              <div className="space-y-4 rounded-2xl border-2 border-primary/70 bg-card p-4 sm:p-5 focus-within:border-primary">
+                {historyControls && <div className="flex min-h-7 flex-wrap items-center justify-end gap-2">{historyControls}</div>}
                 <Textarea
                   id="creation-idea"
                   data-testid="creer-idea-input"
                   value={idea}
                   onChange={(e) => setIdea(e.target.value)}
                   placeholder="Une nouveauté, les coulisses, une question de tes clientes…"
-                  rows={ideaPicks && isMobile ? 3 : 6}
-                  className={`resize-y text-base max-h-[40vh] overflow-y-auto ${ideaPicks && isMobile ? "min-h-24" : "min-h-40"}`}
+                  rows={ideaPicks && isMobile ? 3 : 5}
+                  className={`resize-y border-0 px-1 text-base shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 max-h-[40vh] overflow-y-auto ${ideaPicks && isMobile ? "min-h-24" : "min-h-32"}`}
                 />
                 {/* Dès qu'elle écrit, les idées s'effacent : elles poussaient « Continuer » hors de l'écran du téléphone (audit du 01/11). */}
                 {isMobile && !idea.trim() && ideaPicks}
-                {onPhotosNext && (
-                  // Vraie entrée visible (passe Auriana du 12/11 : le petit lien souligné
-                  // ne se voyait pas, « où je mets mes photos ? »).
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // L'idée déjà tapée devient le sujet des photos : elle se perdait
-                      // au clic (test LinkedIn d'Auriana, 12/11/2026).
-                      if (idea.trim() && !localPhotoSubject.trim()) setLocalPhotoSubject(idea.trim());
-                      setShowPhotosMode(true);
-                    }}
-                    data-testid="creer-start-photos"
-                    className="group flex w-full items-center gap-4 rounded-xl border-2 border-dashed border-primary/40 bg-rose-pale/60 px-4 py-3.5 text-left text-primary transition-colors hover:border-primary hover:bg-rose-pale focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                      <Camera size={19} aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold"><span>Partir de photos</span>{localPhotos.length > 0 ? <span className="font-normal"> ({localPhotos.length} ajoutée{localPhotos.length > 1 ? "s" : ""})</span> : null}</span>
-                      <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">Ajoute tes photos, le texte s’écrit autour.</span>
-                    </span>
-                    <ArrowRight size={17} aria-hidden="true" className="shrink-0 transition-transform group-hover:translate-x-0.5" />
-                  </button>
-                )}
-                <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
-                  <p className="max-w-56 text-xs leading-relaxed text-muted-foreground">Quelques mots suffisent pour commencer.</p>
-                  <Button onClick={() => onNext(idea.trim(), pickedIdeaId)} disabled={!idea.trim()} className="gap-2" size="lg" data-testid="creer-idea-next">
+                <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  {onPhotosNext ? (
+                    // Entrée photos à côté de « Continuer » (passe Auriana du 12/11 : il faut
+                    // la voir ; 14/11 : bouton discret pour laisser « Continuer » en premier).
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // L'idée déjà tapée devient le sujet des photos : elle se perdait
+                        // au clic (test LinkedIn d'Auriana, 12/11/2026).
+                        if (idea.trim() && !localPhotoSubject.trim()) setLocalPhotoSubject(idea.trim());
+                        setShowPhotosMode(true);
+                      }}
+                      data-testid="creer-start-photos"
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-primary transition-colors hover:border-primary/50 hover:bg-rose-pale/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
+                    >
+                      <Camera size={17} aria-hidden="true" />
+                      <span>Partir de photos{localPhotos.length > 0 ? <span className="font-normal"> ({localPhotos.length} ajoutée{localPhotos.length > 1 ? "s" : ""})</span> : null}</span>
+                    </button>
+                  ) : <span />}
+                  <Button onClick={() => onNext(idea.trim(), pickedIdeaId)} disabled={!idea.trim()} className="w-full gap-2 sm:w-auto" size="lg" data-testid="creer-idea-next">
                     Continuer <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -186,22 +178,20 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
             </div>
             <aside aria-label="Autres points de départ" className="min-w-0">
               {!isMobile && ideaPicks && <div className="mb-8">{ideaPicks}</div>}
-              <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">Un autre point de départ</p>
-              <div className="divide-y divide-border border-y border-border">
+              <p className="mb-2 text-sm text-muted-foreground">Ou bien</p>
+              <div className="divide-y divide-border border-t border-border">
                 {[
-                  { label: "J’ai déjà du contenu", description: "Recycler, adapter ou s’inspirer d’un texte, d’un post ou d’un document.", action: () => setShowTransform(true) },
-                  { label: "J’ai besoin d’une idée", description: "Des idées proposées directement, avec leur analyse.", action: () => setCoachOpen(true) },
-                  { label: "Réagir à une actualité", description: "Relier une actu à ton activité.", action: () => setShowNewsjacking(true) },
-                ].map(({ label, description, action }) => (
-                  <button key={label} type="button" onClick={action} className="group flex w-full items-center gap-4 py-5 text-left text-primary hover:bg-rose-pale/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2">
-                    <span className="min-w-0 flex-1"><span className="block text-base font-semibold">{label}</span><span className="mt-1 block text-sm leading-relaxed text-muted-foreground">{description}</span></span>
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card group-hover:border-primary/40"><ArrowRight size={17} aria-hidden="true" /></span>
+                  { label: "J’ai déjà du contenu", action: () => setShowTransform(true) },
+                  { label: "J’ai besoin d’une idée", action: () => setCoachOpen(true) },
+                  { label: "Réagir à une actualité", action: () => setShowNewsjacking(true) },
+                  { label: "Préparer ma semaine", action: () => navigate("/calendrier?coaching=1") },
+                ].map(({ label, action }) => (
+                  <button key={label} type="button" onClick={action} className="group flex w-full items-center justify-between gap-3 px-1 py-3 text-left text-sm font-medium text-primary hover:bg-rose-pale/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2">
+                    <span>{label}</span>
+                    <ArrowRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
                   </button>
                 ))}
               </div>
-              <button type="button" onClick={() => navigate("/calendrier?coaching=1")} className="mt-6 flex items-center gap-2 rounded-sm text-sm text-primary underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4">
-                <CalendarRange size={17} aria-hidden="true" /> Préparer ma semaine
-              </button>
             </aside>
           </div>
         </>
