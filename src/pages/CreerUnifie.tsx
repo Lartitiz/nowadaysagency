@@ -38,7 +38,6 @@ import RedoVisualsDialog, { useRedoVisualsConfirm } from "@/components/creer/Red
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Loader2, Undo2, Redo2 } from "lucide-react";
-import { creerStepCredits } from "@/components/creer/creer-step-credits";
 import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -168,7 +167,7 @@ function CreerWorkspace() {
   const isOwnSpace = useIsOwnSpace();
   const { data: charterData } = useBrandCharter();
   const { activityText } = useActivityExamples();
-  const { remainingWithBonus, loading: planLoading, verified: planVerified, plan, usage, refresh: refreshPlan } = useUserPlan();
+  const { remainingWithBonus, verified: planVerified, plan, refresh: refreshPlan } = useUserPlan();
 
   // URL params
   const paramFormat = searchParams.get("mode") === "transform" ? null : searchParams.get("format");
@@ -1568,13 +1567,13 @@ function CreerWorkspace() {
               // « Mes slides » : le « brief », c'est l'écran de saisie du texte.
               else if (key === "brief" && (step === "result" || step === "edit")) setStep(carouselSubMode === "user_slides" ? "user_slides" : "questions");
             };
-            const credits = creerStepCredits({ loading: planLoading, plan, totalLimit: usage?.total?.limit, remaining: remainingWithBonus() });
+            // Crédits : seulement la pastille du haut (même chiffre, bonus compris) ;
+            // le doublon à côté des étapes est retiré (Laetitia, 14/11/2026).
             return (
               <CreerStepper
                 current={stepperKey}
                 contentAvailable={!!result && result.type === selectedFormat && !generating && !streaming}
                 onStepClick={handleStepClick}
-                rightSlot={credits}
                 verbOverride={autoFlow && stepperKey === "brief" ? "Ton premier contenu" : undefined}
               />
             );
