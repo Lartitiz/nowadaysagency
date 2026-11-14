@@ -6,18 +6,21 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { forgetIdeaDrafts, hasTabFlowState, loadFlowState, setFlowWorkspaceId } from "@/hooks/use-flow-persistence";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function StaleDraftGate({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const workspaceId = useWorkspaceId();
+  // Tant que l'espace charge, useWorkspaceId renvoie un espace provisoire : on
+  // regarderait les copies du mauvais espace (vu en ligne le 14/11/2026).
+  const workspaceReady = useWorkspaceReady();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (ready) return;
-    if (!session?.user?.id || !workspaceId) { const t = setTimeout(() => setReady(true), 3000); return () => clearTimeout(t); }
+    if (!session?.user?.id || !workspaceId || !workspaceReady) { const t = setTimeout(() => setReady(true), 3000); return () => clearTimeout(t); }
     setFlowWorkspaceId(workspaceId);
     // Rechargement du même onglet : la suppression dans Mes idées l'a déjà nettoyé.
     if (hasTabFlowState()) { setReady(true); return; }
@@ -38,7 +41,7 @@ export default function StaleDraftGate({ children }: { children: ReactNode }) {
       .catch(() => { /* réseau : le brouillon reste */ })
       .finally(() => { if (alive) setReady(true); });
     return () => { alive = false; clearTimeout(timer); };
-  }, [ready, session?.user?.id, workspaceId]);
+  }, [ready, session?.user?.id, workspaceId, workspaceReady]);
 
   if (ready) return <>{children}</>;
   return (
