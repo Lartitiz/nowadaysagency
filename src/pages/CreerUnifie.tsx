@@ -1534,7 +1534,7 @@ function CreerWorkspace() {
       )}
 
 
-      <div className={`${step === "idea" || (step === "result" && (selectedFormat === "carousel" || selectedFormat === "story")) ? "max-w-6xl" : step === "format" ? "max-w-3xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${step === "result" ? "pt-3 sm:pt-4" : "py-6 sm:py-10"} pb-24 [--primary:330_55%_20%] [--ring:330_55%_20%] dark:[--primary:338_96%_61%] dark:[--ring:338_96%_61%]`}>
+      <div className={`${step === "idea" || (step === "result" && (selectedFormat === "carousel" || selectedFormat === "story")) ? "max-w-6xl" : step === "format" ? "max-w-3xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${step === "result" ? "pt-3 sm:pt-4" : step === "idea" ? "pt-3 sm:pt-5" : "py-6 sm:py-10"} pb-24 [--primary:330_55%_20%] [--ring:330_55%_20%] dark:[--primary:338_96%_61%] dark:[--ring:338_96%_61%]`}>
         {/* Sub-page header */}
         {paramFrom && (
           <SubPageHeader
@@ -1547,7 +1547,7 @@ function CreerWorkspace() {
 
         {/* Mode tabs — first visible choice */}
 
-        <div className="mt-4">
+        <div className={step === "idea" ? "mt-1" : "mt-4"}>
           {/* Unified stepper — visible from step 1, hidden on result/edit screens to give content full focus */}
           {(() => {
             const stepperKey: StepperKey | null = (() => {
