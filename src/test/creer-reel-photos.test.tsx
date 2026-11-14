@@ -8,7 +8,7 @@ import { photosToVideoReferences, reelPhotosVideoDraft } from "@/lib/reel-photos
 // Parcours « Reel à partir de photos » (passe qualité du 12/11/2026, compte d'une
 // marchande de biens avec ses photos avant / après de travaux).
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u-1" } }) }));
-vi.mock("@/hooks/use-library-photo-count", () => ({ useLibraryPhotoCount: () => 0 }));
+vi.mock("@/hooks/use-library-photo-count", () => ({ useLibraryPhotoCount: () => 0, usePickLibraryPhotos: () => async () => [] }));
 const plan = vi.hoisted(() => ({ value: "free" }));
 const mocks = vi.hoisted(() => ({ upload: vi.fn(), panel: vi.fn() }));
 vi.mock("@/hooks/use-user-plan", () => ({ useUserPlan: () => ({ plan: plan.value }) }));

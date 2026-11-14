@@ -570,7 +570,9 @@ export default function CreerStepResult({
     // dans CarouselPhotoResult, qui démarre alors sans aucune photo).
     const r = result?.raw || result;
     const hasCastingSlides = Array.isArray(r?.slides) && r.slides.some((s: any) => s?.photo_directive);
-    if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix") && ((photos && photos.length > 0) || hasCastingSlides)) {
+    // « Tes photos en fond » sans photo (14/11/2026) : toujours cet écran, qui affiche le texte de
+    // chaque slide et « Ajouter une photo » (l'écran texte montrait des slides vides).
+    if (format === "carousel" && (r?.carousel_type === "photo" || (r?.carousel_type === "mix" && ((photos && photos.length > 0) || hasCastingSlides)))) {
       return (
         <CarouselPhotoResult onOpenStudio={onOpenCarouselStudio} result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} colors={carouselColors} onColorsChange={onCarouselColorsChange} charterColors={charterColors} onStaleChange={onCarouselStaleChange} />
       );

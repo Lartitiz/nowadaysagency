@@ -1,6 +1,6 @@
 import CarouselModePicker, { defaultCarouselMode } from "./CarouselModePicker";
 import PhotoFormatHint from "./PhotoFormatHint";
-import CarouselPhotoWarning from "./CarouselPhotoWarning";
+import CarouselPhotoWarning, { CarouselPhotoLater } from "./CarouselPhotoWarning";
 import FormatChoiceCards, { type FormatChoice } from "./FormatChoiceCards";
 import FormatMoreOptions from "./FormatMoreOptions";
 import MultiSubjectChoice from "./MultiSubjectChoice";
@@ -30,7 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
-import { useLibraryPhotoCount } from "@/hooks/use-library-photo-count";
+import { useLibraryPhotoCount, usePickLibraryPhotos } from "@/hooks/use-library-photo-count";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -183,6 +183,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
   const { column, value } = useWorkspaceFilter();
   // « Mes photos » compte pour le type conseillé (choix du 16/10/2026). Lu après le choix du carrousel : appliqué tant qu'elle n'a pas choisi elle-même.
   const libraryPhotoCount = useLibraryPhotoCount({ column, value });
+  const pickFromLibrary = usePickLibraryPhotos({ column, value }, [idea, photoDescription].filter(Boolean).join(" "));
   const carouselModeTouched = useRef(!!initialCarouselSubMode);
   useEffect(() => { if (selectedFormat === "carousel" && carouselSubMode === "text" && !carouselModeTouched.current && uploadedPhotos.length === 0) setCarouselSubMode(defaultCarouselMode(0, libraryPhotoCount)); }, [libraryPhotoCount]);
 
@@ -442,20 +443,17 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
       toast.error("Choisis le type de carrousel (Texte, Photo ou Mixte) avant de continuer.");
       return;
     }
-    // Mixte hors newsjacking : la fourche doit avoir été tranchée (photos-d'abord
-    // ou texte-d'abord) avant de continuer.
+    // Mixte hors newsjacking : la fourche (photos d'abord / texte d'abord) doit être tranchée.
     if (mixForkPending) {
       toast.error("Choisis comment construire ton mixte : « J'ai mes photos » ou « J'écris d'abord ».");
       return;
     }
-    // Guard: photo/mix mode requires at least one photo.
-    // Exception : mixte en régime texte d'abord (newsjacking OU choix explicite) =
-    // aucune photo exigée, le casting des images se fait dans l'écran résultat.
+    // Mixte et Photos brutes exigent une photo, sauf mixte « texte d'abord » (newsjacking ou choix)
+    // et photo dump (l'app compose depuis la bibliothèque). « Tes photos en fond » : photos
+    // facultatives depuis le 14/11/2026, l'app écrit d'abord et les photos se posent ensuite.
     const textFirstMix = carouselSubMode === "mix" && (!!newsjackingActive || textFirstChoice === true);
-    // Exception : photo dump activé en « Photos brutes » = zéro photo attachée
-    // est un cas VALIDE (l'app compose depuis la bibliothèque + la génération).
     const dumpComposes = carouselSubMode === "pure_photo" && photoDump;
-    if (selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length === 0 && !textFirstMix && !dumpComposes) {
+    if (selectedFormat === "carousel" && (carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length === 0 && !textFirstMix && !dumpComposes) {
       setPhotoWarning(true);
       return;
     }
@@ -781,7 +779,8 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
               if (photos.length > 0) setPhotoWarning(false);
             }}
             onDescriptionChange={setPhotoDescription}
-            title={uploadedPhotos.length > 0 ? `Tes photos (${uploadedPhotos.length})` : undefined}
+            title={uploadedPhotos.length > 0 ? `Tes photos (${uploadedPhotos.length})` : carouselSubMode === "photo" ? "Tes photos (facultatif)" : undefined}
+            layout="tiles" pickFromLibrary={pickFromLibrary} hideDescription={uploadedPhotos.length === 0}
             compact={uploadedPhotos.length > 0}
             stockSearchSeed={idea}
             openStockSignal={stockSignal}
@@ -795,7 +794,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
             aiAutoPickCount={carouselSubMode === "mix" ? 3 : 6}
             libraryCount={libraryPhotoCount}
           />
-          {photoWarning && (
+          {carouselSubMode === "photo" && uploadedPhotos.length === 0 ? <CarouselPhotoLater /> : photoWarning && (
             <CarouselPhotoWarning libraryCount={libraryPhotoCount} onLibrary={() => setLibrarySignal((s) => s + 1)} onStock={() => setStockSignal((s) => s + 1)}
               onText={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); setPhotoWarning(false); }} />
           )}

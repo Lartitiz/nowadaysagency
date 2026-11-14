@@ -604,8 +604,15 @@ describe("saved photo recovery before paid generation", () => {
     expect(p.carousel.handleConfirmStructure.mock.calls[0][3]).toEqual(photos);
     expect(p.photo.setGeneratedWithPhotos).toHaveBeenCalledWith(photos);
   });
+  it("« Tes photos en fond » sans aucune photo enregistrée : la génération part quand même (14/11/2026)", async () => {
+    const p = makeParams({ carouselSubMode: "photo", restoreSavedPhotos: vi.fn().mockResolvedValue([]) });
+    mocks.invokeWithTimeout.mockResolvedValue({ data: { result: { slides: [{ type: "photo_full", photo_index: 1 }] } }, error: null });
+    const { result } = renderHook(() => useDoGenerate(p));
+    await act(async () => { await result.current.doGenerate({}); });
+    expect(mocks.invokeWithTimeout).toHaveBeenCalled();
+  });
   it.each(["failed", "empty", "stale"])("never resets the saved output or calls AI after %s recovery", async (kind) => {
-    const p = makeParams({ carouselSubMode: "photo", restoreSavedPhotos: kind === "failed" ? vi.fn().mockRejectedValue(new Error("offline")) : vi.fn().mockResolvedValue(kind === "empty" ? [] : [{base64:"photo"}]), isCurrent: () => kind !== "stale" });
+    const p = makeParams({ carouselSubMode: kind === "empty" ? "mix" : "photo", restoreSavedPhotos: kind === "failed" ? vi.fn().mockRejectedValue(new Error("offline")) : vi.fn().mockResolvedValue(kind === "empty" ? [] : [{base64:"photo"}]), isCurrent: () => kind !== "stale" });
     const { result } = renderHook(() => useDoGenerate(p));
     await act(async () => { await result.current.doGenerate({}); });
     expect(mocks.invokeWithTimeout).not.toHaveBeenCalled();

@@ -608,9 +608,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
               <p className="text-xs text-muted-foreground mt-0.5">
                 {uncastCount === 0
                   ? "Toutes les slides photo ont leur image : tu peux créer les visuels."
-                  : uncastCount === 1
-                    ? "Il reste 1 image à choisir. Les slides texte sont prêtes."
-                    : `Il reste ${uncastCount} images à choisir. Les slides texte sont prêtes.`}
+                  : `${uncastCount === 1 ? "Il reste 1 image à choisir." : `Il reste ${uncastCount} images à choisir.`}${r?.carousel_type === "photo" ? "" : " Les slides texte sont prêtes."}`}
               </p>
             </div>
             {onRegenerateVisuals && (

@@ -13,7 +13,8 @@ import { autoSelectStockPhotos, type StockKeywordContext } from "@/lib/stock-pho
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import { convertHeicIfNeeded, isHeic } from "@/lib/heic";
 
-import { carouselLibraryContext } from "@/lib/carousel-photo-context";
+import { autoPickPhotos, libraryRowsToItems } from "@/lib/library-photo-items";
+import PhotoSourceTiles from "./PhotoSourceTiles";
 
 const MAX_FILE_SIZE_MB = UX_UPLOAD_LIMITS.photo / MB;
 
@@ -99,6 +100,17 @@ export interface PhotoUploadZoneProps {
    * (choix de Laetitia du 16/10/2026 : ses photos avant la banque d'images).
    */
   libraryCount?: number;
+  /**
+   * Présentation en trois gros boutons (Mes photos / L'app choisit / Importer),
+   * pour les carrousels (maquette validée par Laetitia le 14/11/2026).
+   */
+  layout?: "tiles";
+  /**
+   * « L'app choisit » prend d'abord dans « Mes photos » (choix du 14/11/2026) :
+   * renvoie jusqu'à `count` photos de la bibliothèque, les plus pertinentes d'abord.
+   * Le reste est complété par des photos libres de droit.
+   */
+  pickFromLibrary?: (count: number) => Promise<UserPhotoRow[]>;
 }
 
 function resizeAndEncode(file: File, maxWidth = 1600, quality = 0.8): Promise<{ base64: string; preview: string }> {
@@ -145,6 +157,8 @@ export function PhotoUploadZone({
   stockAiContext,
   aiAutoPickCount,
   libraryCount = 0,
+  layout,
+  pickFromLibrary,
 }: PhotoUploadZoneProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -240,26 +254,7 @@ export function PhotoUploadZone({
       if (slice.length === 0) return;
       setImportingFromLibrary(true);
       try {
-        const results = await Promise.allSettled(slice.map((p) => userPhotoToBase64(p)));
-        const items: PhotoItem[] = [];
-        results.forEach((r, i) => {
-          if (r.status === "fulfilled") {
-            items.push({
-              id: crypto.randomUUID(),
-              base64: r.value.base64,
-              preview: r.value.base64,
-              name: r.value.name,
-              mimeType: r.value.mimeType,
-              context: "",
-              libraryContext: carouselLibraryContext(slice[i]),
-              userPhotoId: slice[i].id,
-            });
-          } else {
-            const name = slice[i].name || "photo";
-            console.warn("[photo-library-import] failed", name, r.reason);
-            toast.error(`Impossible d'importer "${name}". Réessaie dans un instant.`);
-          }
-        });
+        const items = await libraryRowsToItems(slice);
         if (items.length > 0) {
           updatePhotos([...photos, ...items].slice(0, maxPhotos));
         }
@@ -281,33 +276,38 @@ export function PhotoUploadZone({
 
   // « L'IA choisit les photos pour moi » : l'IA dérive le plan visuel du contenu,
   // cherche sur Pexels et sélectionne automatiquement une photo par slide.
+  // Avec des photos dans « Mes photos », on y pioche d'abord (les plus proches du
+  // sujet), et on complète seulement s'il en manque (choix du 14/11/2026).
   const handleAiAutoPick = useCallback(async () => {
     const subject = stockAiContext?.subject?.trim();
-    if (!subject || autoPicking) return;
+    const fromLibrary = !!pickFromLibrary && libraryCount > 0;
+    if ((!subject && !fromLibrary) || autoPicking) return;
     const remaining = maxPhotos - photos.length;
     if (remaining <= 0) {
       toast.error(`Tu as déjà ${maxPhotos} photos.`);
       return;
     }
+    const want = Math.min(aiAutoPickCount ?? 6, remaining);
     setAutoPicking(true);
     try {
-      const items = await autoSelectStockPhotos(stockAiContext!, {
-        count: Math.min(aiAutoPickCount ?? 6, remaining),
+      const { added, message } = await autoPickPhotos({
+        want,
+        takenIds: new Set(photos.map((p) => p.userPhotoId).filter(Boolean) as string[]),
+        pickFromLibrary: fromLibrary ? pickFromLibrary : undefined,
+        pickStock: subject ? (count) => autoSelectStockPhotos(stockAiContext!, { count }) : undefined,
       });
-      updatePhotos([...photos, ...items].slice(0, maxPhotos));
-      toast.success(
-        items.length > 1
-          ? `${items.length} photos choisies par l'IA. Tu peux en retirer ou en ajouter.`
-          : "1 photo choisie par l'IA. Tu peux en changer.",
-      );
+      if (added.length === 0) { toast.error(message); return; }
+      updatePhotos([...photos, ...added].slice(0, maxPhotos));
+      toast.success(message);
     } catch (e) {
-      toast.error(readableError(e, "L'IA n'a pas pu choisir de photos."));
+      toast.error(readableError(e, "L'app n'a pas pu choisir de photos."));
     } finally {
       setAutoPicking(false);
     }
-  }, [stockAiContext, aiAutoPickCount, autoPicking, photos, maxPhotos, updatePhotos]);
+  }, [stockAiContext, aiAutoPickCount, autoPicking, photos, maxPhotos, updatePhotos, pickFromLibrary, libraryCount]);
 
-  const showAiAutoPick = !!stockAiContext?.subject?.trim();
+  const showAiAutoPick = !!stockAiContext?.subject?.trim() || (!!pickFromLibrary && libraryCount > 0);
+  const tiles = layout === "tiles" && !compact;
   const libraryFirst = libraryCount > 0;
 
   const removePhoto = useCallback(
@@ -417,8 +417,14 @@ export function PhotoUploadZone({
       {title && (
         <p className="text-sm font-semibold text-foreground">{title}</p>
       )}
+      {tiles && (
+        <PhotoSourceTiles libraryCount={libraryCount} isFull={isFull} importing={importingFromLibrary} autoPicking={autoPicking} canAutoPick={showAiAutoPick}
+          libraryFirstPick={!!pickFromLibrary && libraryCount > 0} isDragOver={isDragOver} onLibrary={() => setLibraryOpen(true)} onAutoPick={handleAiAutoPick}
+          onImport={() => inputRef.current?.click()} dropHandlers={{ onDragEnter, onDragLeave, onDragOver: onDragOverZone, onDrop }}
+          onSite={() => { setLibraryAutoImport(true); setLibraryOpen(true); }} onStock={() => setStockOpen(true)} />
+      )}
       {/* Mes photos d'abord : au-dessus de la zone de dépôt, visible sans défiler sur téléphone. */}
-      {!compact && libraryFirst && (
+      {!compact && !tiles && libraryFirst && (
         <div className="flex justify-center">
           <button
             type="button"
@@ -433,7 +439,7 @@ export function PhotoUploadZone({
         </div>
       )}
       {/* ── Drop zone (hidden in compact mode) ─────────── */}
-      {!compact && (
+      {!compact && !tiles && (
         <div
           onClick={() => !isFull && inputRef.current?.click()}
           onDragEnter={onDragEnter}
@@ -460,7 +466,7 @@ export function PhotoUploadZone({
       )}
 
       {/* ── « L'IA choisit les photos pour moi » (si contexte fourni) ───────── */}
-      {!compact && showAiAutoPick && !libraryFirst && (
+      {!compact && !tiles && showAiAutoPick && !libraryFirst && (
         <div className="flex flex-col items-center gap-1 -mt-1">
           <button
             type="button"
@@ -487,7 +493,7 @@ export function PhotoUploadZone({
       )}
 
       {/* ── "Choose from library" / "Stock photos" links (non-compact mode) ───── */}
-      {!compact && (
+      {!compact && !tiles && (
         <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1.5 -mt-1">
           {libraryFirst && showAiAutoPick && (
             <button

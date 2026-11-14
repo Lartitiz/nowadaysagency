@@ -7,7 +7,7 @@ import { defaultCarouselMode } from "@/components/creer/CarouselModePicker";
 import { recommendContentFormat } from "@/lib/format-recommendation";
 
 const lib = vi.hoisted(() => ({ count: 0 }));
-vi.mock("@/hooks/use-library-photo-count", () => ({ useLibraryPhotoCount: () => lib.count }));
+vi.mock("@/hooks/use-library-photo-count", () => ({ useLibraryPhotoCount: () => lib.count, usePickLibraryPhotos: () => async () => [] }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: null }) }));
 vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceFilter: () => ({ column: "workspace_id", value: "test" }) }));
 vi.mock("@/components/ui/input-with-voice", () => ({ InputWithVoice: (props: any) => <input {...props} /> }));
@@ -34,7 +34,7 @@ describe("type de carrousel conseillé", () => {
     fireEvent.click(screen.getByTestId("creer-format-carousel"));
     expect(screen.getByTestId("carousel-mode-photo")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("carousel-mode-photo")).toHaveTextContent("Conseillé");
-    expect(screen.getByTestId("photo-zone-library-main")).toHaveTextContent("Choisir dans mes photos (4)");
+    expect(screen.getByTestId("photo-zone-library-main")).toHaveTextContent("Mes photos4 photos");
   });
 
   it("2 photos dans Mes photos : Texte design reste conseillé", () => {
@@ -64,6 +64,23 @@ describe("type de carrousel conseillé", () => {
     lib.count = 5;
     render(<CreerStepFormat {...base} forcedChannel="instagram" initialFormat="carousel" initialCarouselSubMode="text" />);
     expect(screen.getByTestId("carousel-mode-text")).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
+describe("zone photos en trois gros boutons (carrousels, 14/11/2026)", () => {
+  const props = { maxPhotos: 10, onPhotosChange: vi.fn(), onDescriptionChange: vi.fn(), stockAiContext: { subject: "Ma fabrication" }, layout: "tiles" as const };
+  it("Mes photos, L'app choisit, Importer ; site et libres de droit en liens", () => {
+    render(<PhotoUploadZone {...props} libraryCount={3} pickFromLibrary={vi.fn()} />);
+    expect(screen.getByTestId("photo-zone-library-main")).toHaveTextContent("3 photos");
+    expect(screen.getByTestId("photo-zone-auto-pick")).toHaveTextContent("Dans tes photos d'abord");
+    expect(screen.getByTestId("photo-zone-import")).toHaveTextContent("Importer");
+    expect(screen.getByRole("button", { name: /Depuis mon site ou Instagram/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Photos libres de droit/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Glisse tes photos ici/)).not.toBeInTheDocument();
+  });
+  it("Mes photos vide : « L'app choisit » prend des photos libres de droit", () => {
+    render(<PhotoUploadZone {...props} pickFromLibrary={vi.fn()} />);
+    expect(screen.getByTestId("photo-zone-auto-pick")).toHaveTextContent("Photos libres de droit");
   });
 });
 
@@ -103,22 +120,30 @@ describe("suite du 17/10/2026", () => {
     expect(screen.getByTestId("carousel-mode-photo")).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("alerte sans photo : « Choisir dans mes photos » en premier, et il ouvre la bibliothèque", () => {
+  it("« Tes photos en fond » sans photo : plus d'alerte, « Suivant » continue (14/11/2026)", () => {
+    const onNext = vi.fn();
     lib.count = 4;
-    render(<CreerStepFormat {...base} forcedChannel="instagram" initialFormat="carousel" initialCarouselSubMode="photo" />);
+    render(<CreerStepFormat {...base} onNext={onNext} forcedChannel="instagram" initialFormat="carousel" initialCarouselSubMode="photo" />);
+    expect(screen.getByText("Tes photos (facultatif)")).toBeInTheDocument();
+    expect(screen.getByTestId("carousel-photo-later")).toHaveTextContent("Pas de photo sous la main ?");
     fireEvent.click(screen.getByTestId("creer-format-next"));
-    const alerte = screen.getByTestId("carousel-photo-warning");
-    const liens = alerte.querySelectorAll("button");
-    expect(liens[0]).toHaveTextContent("Choisir dans mes photos (4)");
-    expect(screen.queryByText("Bibliothèque ouverte")).not.toBeInTheDocument();
-    fireEvent.click(liens[0]);
-    expect(screen.getByText("Bibliothèque ouverte")).toBeInTheDocument();
+    expect(screen.queryByTestId("carousel-photo-warning")).not.toBeInTheDocument();
+    expect(onNext).toHaveBeenCalledTimes(1);
+    expect(onNext.mock.calls[0][2]).toBe("photo");
+    expect(onNext.mock.calls[0][3]).toEqual([]);
   });
 
-  it("alerte sans photo et Mes photos vide : comme avant", () => {
-    render(<CreerStepFormat {...base} forcedChannel="instagram" initialFormat="carousel" initialCarouselSubMode="photo" />);
+  it("mixte « J'ai déjà mes photos » sans photo : l'alerte reste, « Choisir dans mes photos » en premier", () => {
+    const onNext = vi.fn();
+    lib.count = 4;
+    render(<CreerStepFormat {...base} onNext={onNext} forcedChannel="instagram" initialFormat="carousel" initialCarouselSubMode="mix" />);
+    fireEvent.click(screen.getByText("J'ai déjà mes photos"));
+    expect(screen.queryByTestId("carousel-photo-later")).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId("creer-format-next"));
-    expect(screen.getByTestId("carousel-photo-warning")).toHaveTextContent("Pas de photos sous la main ?");
-    expect(screen.getByTestId("carousel-photo-warning")).not.toHaveTextContent("Choisir dans mes photos");
+    expect(onNext).not.toHaveBeenCalled();
+    const liens = screen.getByTestId("carousel-photo-warning").querySelectorAll("button");
+    expect(liens[0]).toHaveTextContent("Choisir dans mes photos (4)");
+    fireEvent.click(liens[0]);
+    expect(screen.getByText("Bibliothèque ouverte")).toBeInTheDocument();
   });
 });
