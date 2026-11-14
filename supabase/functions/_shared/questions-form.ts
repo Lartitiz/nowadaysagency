@@ -15,7 +15,9 @@
 // interdisent. Laetitia : « on les a trop raccourcies, pas assez pertinentes ».
 // On garde la lisibilité (pas de parenthèses, pas de choix « A ou B », 30 mots
 // au plus) et on rend la profondeur : deux phrases courtes possibles, une
-// matière concrète demandée, jamais de oui/non.
+// matière concrète demandée, jamais de oui/non. Premier essai en ligne
+// (« 30 mots au plus ») : 32 à 38 mots, listes d'options et deux questions
+// en une → cible 15-25 mots, un seul point d'interrogation, pas de liste.
 //
 // Ce bloc se place EN DERNIER dans le prompt système des questions (carrousel :
 // carousel-ai/questions-address.ts ; autres formats : creative-flow
@@ -28,28 +30,30 @@ export const QUESTIONS_FORM_RULES = `
 
 ══ FORME DES QUESTIONS : LISIBLES ET CREUSÉES ══
 L'utilisatrice lit chaque question seule, souvent sur son téléphone. Elle doit la comprendre du premier coup ET avoir envie d'y répondre avec sa vraie matière. Une question courte mais générale ne sert à rien : la précision passe avant la brièveté.
-- 30 mots au plus, en une ou deux phrases courtes. La première peut poser le contexte précis du sujet, la seconde pose la question.
-- Chaque question va chercher une matière concrète que seule l'utilisatrice peut donner : un chiffre, un moment précis, une phrase entendue, une étape de sa méthode, une erreur fréquente qu'elle voit, un choix qu'elle a fait et pourquoi.
+- Vise 15 à 25 mots, jamais plus de 30. Une phrase suffit le plus souvent ; une courte phrase de contexte avant la question est permise quand elle aide.
+- Un seul point d'interrogation : une seule question par question, pas de seconde question ajoutée (« Et qu'est-ce que… ? », « Dis-moi aussi… »).
+- Cette question va chercher une matière concrète que seule l'utilisatrice peut donner : un chiffre, un moment précis, une phrase entendue, une étape de sa méthode, une erreur fréquente qu'elle voit, un choix qu'elle a fait et pourquoi.
 - Utilise le vocabulaire de son métier et un aspect précis du sujet. Une question qui irait à n'importe quel sujet ou à n'importe quelle utilisatrice est invalide.
 - Jamais de question à laquelle on répond par oui ou non (« Tu as un exemple ? », « Tu as un cas réel ? »). Demande directement l'exemple ou le cas.
-- Pas de parenthèses. Pas de choix entre deux options reliées par « ou » : si deux pistes sont possibles, choisis la plus utile.
+- Pas de parenthèses. Pas de liste d'options à cocher (« une lecture, une réaction ou une fiche ? ») : pose la question ouverte, elle trouvera sa réponse.
 - Les questions se complètent : chacune creuse un endroit différent du sujet, sans se répéter.
 - L'exemple de réponse (placeholder) tient en 15 mots au plus et montre une réponse concrète, propre au sujet.
 Trop lourd : « Ce post doit-il rester sur le principe général (la saison fixe le prix) ou s'appuyer sur un cas réel que tu as vécu, avec ses chiffres ? »
 Trop vague : « Tu as un cas réel à raconter pour illustrer ça ? »
-Lisible et creusée : « Pense à ta dernière opération bloquée par un lot. Combien de temps la revente a-t-elle été retardée, et qu'est-ce qui l'a débloquée ? »
+Trop chargée : « Qu'est-ce qui t'a décidée à te lancer : un burn-out, une rencontre ou une formation ? Et qu'est-ce que ça a changé ? »
+Lisible et creusée : « Pense à ta dernière opération bloquée par un lot : qu'est-ce qui a fini par débloquer la revente ? »
 Ces exemples parlent d'un autre sujet : ne les recopie pas, trouve les mots du sujet courant.`;
 
-export const QUESTIONS_COURTES_RETRY = `Certaines questions sont trop longues ou portent des parenthèses. Réécris les mêmes questions, dans le même ordre et le même format : 30 mots au plus chacune, en une ou deux phrases courtes, sans parenthèses. Garde ce qu'elles demandent de précis, le vocabulaire du métier et les détails du sujet : raccourcis la forme, pas le fond. Garde le tutoiement.`;
+export const QUESTIONS_COURTES_RETRY = `Certaines questions sont trop longues ou portent des parenthèses. Réécris les mêmes questions, dans le même ordre et le même format : 25 mots environ et jamais plus de 30 chacune, une seule question, sans parenthèses ni liste d'options. Garde ce qu'elles demandent de précis, le vocabulaire du métier et les détails du sujet : raccourcis la forme, pas le fond. Garde le tutoiement.`;
 
 function nbMots(text: string): number {
   return String(text || "").trim().split(/\s+/).filter(Boolean).length;
 }
 
-/** Vrai si une question est trop longue ou porte une parenthèse. */
+/** Vrai si une question est trop longue, porte une parenthèse ou pose deux questions. */
 export function questionTropLongue(question: string): boolean {
   const q = String(question || "");
-  return nbMots(q) > QUESTION_MAX_MOTS || /[()]/.test(q);
+  return nbMots(q) > QUESTION_MAX_MOTS || /[()]/.test(q) || (q.match(/\?/g) || []).length > 1;
 }
 
 /** Vrai si au moins une question de la réponse JSON `{questions:[…]}` est trop longue. */
