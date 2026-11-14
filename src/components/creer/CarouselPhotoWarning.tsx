@@ -29,7 +29,7 @@ export function CarouselPhotoLater() {
   return (
     <div className="mt-3 flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-sm text-foreground" data-testid="carousel-photo-later">
       <span aria-hidden="true">⏭️</span>
-      <span><span className="font-semibold">Pas de photo sous la main ?</span> Clique sur « Suivant » : l'app écrit d'abord, tu poses une photo sur chaque slide ensuite.</span>
+      <span><span className="font-semibold">Pas de photo sous la main ?</span> Clique sur « Suivant » : l'app écrit d'abord, tu poses une photo sur chaque slide ensuite.</span>
     </div>
   );
 }
