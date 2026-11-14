@@ -127,3 +127,15 @@ Deno.test("une ponctuation isolée reste collée au mot d'avant", () => {
   const words = screenWords("pour quel lot a-t-elle été pensée ?");
   assertEquals(words[words.length - 1], { word: "pensée ?", key: true });
 });
+
+Deno.test("phrase coupée : écrans de longueur égale, jamais un mot seul ni une ponctuation en tête (essai du 14/11/2026)", () => {
+  const text = "Troisième erreur : croire que la décote vient de l’immeuble lui-même. Peu d’acheteurs peuvent financer un bloc entier, alors que beaucoup de particuliers cherchent un seul lot. La marge se capte sur cet écart. Avant de signer, posez-vous la vraie question : qu’est-ce qui justifie vraiment la décote ?";
+  for (const scale of [1, 1.15, 1.3, 1.4]) {
+    const screens = splitScreens(text, scale);
+    assertEquals(screens.join(" "), text, `aucun mot perdu ni déplacé (×${scale})`);
+    for (const s of screens) {
+      assert(s.split(" ").filter((w) => /[\p{L}\p{N}]/u.test(w)).length >= 3, `écran trop court (×${scale}) : « ${s} »`);
+      assert(/^[\p{L}\p{N}«"'’]/u.test(s), `écran qui commence par une ponctuation (×${scale}) : « ${s} »`);
+    }
+  }
+});
