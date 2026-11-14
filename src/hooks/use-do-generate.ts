@@ -19,6 +19,7 @@ import type { UserPhotoRow } from "@/lib/photo-storage";
 import type { ReelHook } from "@/components/creer/HookSelectionStep";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 import type { Question } from "@/hooks/use-content-generator";
+import { withStoryAnswers, type TakenStory } from "@/features/creer/story/story-answers";
 
 type CarouselSubMode = "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
 
@@ -88,6 +89,8 @@ interface UseDoGenerateParams {
   questions: Question[];
   aurianaDemoActive: boolean;
   ideaText: string;
+  /** Histoire de « Je te pose des questions », déjà filtrée sur le sujet (story-answers.ts). */
+  story?: TakenStory | null;
   isDemoMode: boolean;
   demoData: any;
   existingCalendarContent: string | null;
@@ -143,6 +146,7 @@ export function useDoGenerate({
   questions,
   aurianaDemoActive,
   ideaText,
+  story,
   isDemoMode,
   demoData,
   existingCalendarContent,
@@ -271,7 +275,7 @@ export function useDoGenerate({
         if (!v || !v.trim()) continue;
         out[textById.get(id) || id] = v;
       }
-      return out;
+      return withStoryAnswers(out, story);
     })();
 
     // Auriana demo account: instant pre-built result ONLY if user followed the scripted path

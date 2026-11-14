@@ -7,6 +7,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { generateDeepIdeas } from "../_shared/ideas/pipeline.ts";
 import { parseDeepIdea } from "../_shared/ideas/contract.ts";
+import { STORY_MODES, handleStoryMode } from "./story-handler.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void } | undefined;
 
@@ -27,6 +28,8 @@ Deno.serve(async (req) => {
     if (workspace && (typeof workspace !== "string" || !/^[0-9a-f-]{36}$/i.test(workspace))) return json({ error: "Espace invalide" }, 400);
     const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     if (!(await assertWorkspaceMembership(service, user.id, workspace)).ok) return workspaceDeniedResponse(cors);
+    // « Je te pose des questions » : étapes gratuites, hors crédit (story-handler.ts).
+    if (STORY_MODES.has(body.mode)) return await handleStoryMode({ service, userId: user.id, workspace, body, json });
     const quota = await checkQuota(user.id, "suggestion", workspace);
     if (!quota.allowed) return json({ error: quota.message, quota }, 429);
     if (body.mode === "seeds") return json({ seeds: [] }); // old clients continue directly, without an extra charged generation

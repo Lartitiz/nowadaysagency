@@ -60,6 +60,7 @@ import CreerStepIdea from "@/components/creer/CreerStepIdea";
 // Code-splitting : les étapes après l'écran « idée » sont chargées à la demande
 // (chunk /creer initial allégé → premier écran plus rapide).
 const CreerStepFormat = lazy(() => import("@/components/creer/CreerStepFormat"));
+import { useTakenStory, storyStillApplies, storyContextForQuestions, withStoryAnswers } from "@/features/creer/story/use-taken-story";
 const CreerStepQuestions = lazy(() => import("@/components/creer/CreerStepQuestions"));
 import { NEWSJACKING_FIELD_QUESTION } from "@/lib/field-question";
 const CreerStepResult = lazy(() => import("@/components/creer/CreerStepResult"));
@@ -454,6 +455,7 @@ function CreerWorkspace() {
   // Appelé ici (et non plus haut) car il a besoin de setEditingIdeaId ; toujours
   // AVANT useCreerResultSession, qui relit ce que ce nettoyage efface.
   const CREER_RESULT_KEY = creerResultKey(session?.user?.id, workspaceId, creationId);
+  const takenStory = useTakenStory(CREER_RESULT_KEY); const activeStory = storyStillApplies(takenStory.story, ideaText) ? takenStory.story : null; // « Je te pose des questions » : son histoire part à l'écriture tant qu'elle suit le sujet (story-answers.ts)
   useFreshEntryCleanup({
     hasSomeContext, shouldRestore, conflictPending, isFreshStart, searchParams, setSearchParams, CREER_RESULT_KEY,
     setStep, setSelectedFormat, setEditorialAngle, setIdeaText, setObjective, setAnswers, setEditContent, setEditingIdeaId,
@@ -704,7 +706,7 @@ function CreerWorkspace() {
     // Idée du diagnostic ou nouveau sujet après un contenu écrit : l'ancienne fiche reste intacte (use-subject-baseline.ts).
     const link = nextIdeaLink({ pickedIdeaId: ideaId, editingIdeaId, subject: idea, previousSubject: subjectBaseline.current, hasContent: !!result || !!editContent || visualSlides.length > 0 });
     if (link.freshContent) { void carouselSave.flush(); resetGenerator(); streamReset(); setEditContent(""); setEditBaseline(null); setVisualSlides([]); setSavedId(null); sessionStorage.removeItem(CREER_RESULT_KEY); }
-    if (idea.trim() !== subjectBaseline.current.trim()) setAnswers({}); ideaHistory.change(idea); setEditingIdeaId(link.ideaId); setNewsjackingContext(null); setNewsjackingSuggestedFormat(null); // nouveau sujet : pas les réponses de l'ancien (QA 13/11/2026)
+    if (idea.trim() !== subjectBaseline.current.trim()) setAnswers({}); takenStory.followSubject(idea); ideaHistory.change(idea); setEditingIdeaId(link.ideaId); setNewsjackingContext(null); setNewsjackingSuggestedFormat(null); // nouveau sujet : pas les réponses de l'ancien (QA 13/11/2026)
     // Auriana demo: keep pre-filled format/angle if subject unchanged
     if (aurianaDemoActive && idea === AURIANA_DEMO_SUBJECT) { setStep("format"); return; }
     // Reset format-related state so the user starts fresh at channel selection.
@@ -733,7 +735,7 @@ function CreerWorkspace() {
 
   // ─── Lot 7 reels : étape de choix du hook (use-reel-hooks.ts) ───
   const fetchReelHooks = (ans: Record<string, string>, excludeHooks?: string[]) =>
-    reelHooksStep.fetchReelHooks(ans, excludeHooks, { questions, ideaText, objective, workspaceId, userId: session?.user?.id, photos: uploadedPhotos });
+    reelHooksStep.fetchReelHooks(withStoryAnswers(ans, activeStory), excludeHooks, { questions, ideaText, objective, workspaceId, userId: session?.user?.id, photos: uploadedPhotos });
   const handleHookSelect = (hook: ReelHook) =>
     reelHooksStep.handleHookSelect(hook, { generating, streaming, setStep, doGenerate });
   const handleHookSkip = () =>
@@ -936,7 +938,7 @@ function CreerWorkspace() {
       subject: enrichedSubject,
       objective: objective || undefined,
       editorialAngle: editorialAngle || undefined,
-      answers: Object.keys(rekeyedAnswers).length > 0 ? rekeyedAnswers : undefined,
+      answers: Object.keys(withStoryAnswers(rekeyedAnswers, activeStory)).length > 0 ? withStoryAnswers(rekeyedAnswers, activeStory) : undefined,
       channel: isLinkedInCarousel ? "linkedin" : undefined,
       slideCount: slideCountChoice,
       confirmedStructure: confirmedSlides,
@@ -978,7 +980,7 @@ function CreerWorkspace() {
     selectedReelHook,
     questions,
     aurianaDemoActive,
-    ideaText,
+    ideaText, story: activeStory,
     isDemoMode,
     demoData,
     existingCalendarContent,
@@ -1400,7 +1402,7 @@ function CreerWorkspace() {
     structureLoading,
     isDemoMode,
     demoData,
-    ideaText,
+    ideaText, storyContext: storyContextForQuestions(activeStory),
     editorialAngle,
     existingCalendarContent,
     aurianaDemoActive,
