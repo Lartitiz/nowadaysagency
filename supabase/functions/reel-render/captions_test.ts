@@ -62,3 +62,54 @@ Deno.test("écoute : échec, réponse incomplète ou rien entendu → null (repl
   assertEquals(await transcribeVoiceTracks([track], "Bearer t", fakeFetch(200, { items: [{ words: [] }] })), null);
   assertEquals(await transcribeVoiceTracks([track], null, fakeFetch(200, {})), null);
 });
+
+import { buildReelComposition, isHyperframesEligible, isSpokenHyperframesEligible } from "./hyperframes.ts";
+
+const filmed = {
+  mode: "filme" as const,
+  voice_mode: "tts" as const,
+  sections: [
+    { clip_url: "https://x/take1.mp4", seek: 1.5, duration: 4, overlay_text: "Texte qui ne doit pas s'afficher" },
+    { clip_url: "https://x/take2.mp4", duration: 3 },
+  ],
+};
+
+Deno.test("reel parlé : qui passe par HyperFrames", () => {
+  assert(isSpokenHyperframesEligible(filmed));
+  assert(!isHyperframesEligible(filmed));
+  const recorded = { voice_mode: "recorded" as const, sections: [{ clip_url: "https://x/a.mp4", duration: 3, voice_audio_url: "https://x/v.mp3" }] };
+  assert(isSpokenHyperframesEligible(recorded));
+  // Un passage sans enregistrement : JSON2Video le complète par une voix générée.
+  assert(!isSpokenHyperframesEligible({ ...recorded, sections: [...recorded.sections, { clip_url: "https://x/b.mp4", duration: 2 }] }));
+  assert(!isSpokenHyperframesEligible({ voice_mode: "silent", sections: recorded.sections }));
+});
+
+Deno.test("reel filmé : son du clip en piste séparée, sous-titres à 72 %, pas de texte à l'écran", () => {
+  const { html, duration } = buildReelComposition(filmed, {
+    captions: [[{ text: "Bonjour", start: 0.2, end: 0.6 }, { text: "à", start: 0.7, end: 0.8 }, { text: "toi", start: 0.8, end: 1.1 }], [{ text: "Suite", start: 0.1, end: 0.5 }]],
+  });
+  assertEquals(duration, 7);
+  assert(html.includes('<audio id="voice0" src="https://x/take1.mp4" data-start="0" data-duration="4" data-media-start="1.5" data-track-index="6"'));
+  assert(html.includes('<audio id="voice1" src="https://x/take2.mp4" data-start="4" data-duration="3" data-track-index="6"'));
+  assert(html.includes('id="cap1_0" data-start="4.1"'));
+  assert(html.includes("top: 1252px"));
+  assert(!html.includes("ne doit pas"));
+  // Les vidéos restent muettes à l'image : le son passe par la piste séparée, une seule fois.
+  assertEquals((html.match(/<video[^>]*muted/g) ?? []).length, 2);
+  // Pas de montée ni de coup sourd sur la fin d'un reel parlé.
+  assert(!html.includes("riser"));
+  assert(html.includes('id="bed"') && html.includes('data-volume="0.15"'));
+});
+
+Deno.test("reel parlé : couleur du mot dit = accent de la charte, éclairci si trop sombre", () => {
+  const { html } = buildReelComposition({ ...filmed, subtitle_settings: { "word-color": "#000000" } }, { captions: [[{ text: "Oui", start: 0, end: 0.3 }], []] });
+  assert(!html.includes('color: "#000000"'));
+  const plain = buildReelComposition(filmed, { captions: [[{ text: "Oui", start: 0, end: 0.3 }], []] }).html;
+  assert(plain.includes('"#ffe561"'));
+});
+
+Deno.test("reel sans voix : page inchangée quand il n'y a pas d'écoute", () => {
+  const silent = { voice_mode: "silent" as const, sections: [{ clip_url: "https://x/a.mp4", duration: 3, overlay_text: "Bonjour" }] };
+  assertEquals(buildReelComposition(silent).html, buildReelComposition(silent, { captions: null }).html);
+  assert(!buildReelComposition(silent).html.includes("voice0"));
+});

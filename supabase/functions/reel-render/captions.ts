@@ -123,20 +123,23 @@ const CAPTION_CENTER_PX = Math.round(HEIGHT * CAPTION_Y_RATIO);
 
 export const CAPTIONS_CSS = `.cap { position: absolute; left: 70px; right: 70px; top: ${CAPTION_CENTER_PX - 130}px; height: 260px;
   display: flex; align-items: center; justify-content: center; }
-.cap p { text-align: center; color: #ffffff; font-family: "Montserrat", sans-serif; font-weight: 800; font-size: 84px;
+.cap p { text-align: center; color: #ffffff; font-family: "Montserrat", sans-serif; font-weight: 700; font-size: 84px;
   line-height: 1.12; letter-spacing: -0.01em; -webkit-text-stroke: 10px #000; paint-order: stroke fill;
   text-shadow: 0 4px 18px rgba(0,0,0,0.55); }
 .cw { display: inline-block; white-space: pre; }`;
 
-/** Script à placer après la création de `tl` : chaque ligne apparaît, le mot dit passe en jaune. */
-export function captionsScript(lines: CaptionLine[]): string {
+/** Couleur du mot dit quand la cliente n'a pas de charte (jaune lumière Nowadays). */
+export const DEFAULT_ACTIVE_COLOR = "#ffe561";
+
+/** Script à placer après la création de `tl` : chaque ligne apparaît, le mot dit passe à la couleur active. */
+export function captionsScript(lines: CaptionLine[], activeColor = DEFAULT_ACTIVE_COLOR): string {
   const data = JSON.stringify(lines.map((l) => ({ id: l.id, s: l.start, w: l.words.map((w) => w.at) })));
   return `const CAP = ${data};
 CAP.forEach((l) => {
   tl.fromTo("#" + l.id + " p", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.12, ease: "power2.out" }, l.s);
   l.w.forEach((at, j) => {
     const el = "#" + l.id + "_" + j;
-    tl.fromTo(el, { color: "#ffffff", scale: 1 }, { color: "#FFE561", scale: 1.08, duration: 0.08, ease: "power1.out" }, at);
+    tl.fromTo(el, { color: "#ffffff", scale: 1 }, { color: ${JSON.stringify(activeColor)}, scale: 1.08, duration: 0.08, ease: "power1.out" }, at);
     if (j < l.w.length - 1) tl.to(el, { color: "#ffffff", scale: 1, duration: 0.08 }, l.w[j + 1]);
   });
 });`;

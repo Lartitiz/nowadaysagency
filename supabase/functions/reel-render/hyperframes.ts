@@ -29,7 +29,10 @@
 import { estimateOverlayLines, type ReelRenderInput } from "./recipe.ts";
 import { REEL_OVERLAY_MIN_FONT_PX } from "../_shared/socle.ts";
 import { DEFAULT_LOOK, sanitizeLook, type ReelLook } from "./tweaks.ts";
-import { brandFontLinks, sanitizeBrandLook, type BrandLook } from "./brand-look.ts";
+import { brandFontLinks, readableAccent, sanitizeBrandLook, type BrandLook } from "./brand-look.ts";
+import {
+  CAPTIONS_CSS, DEFAULT_ACTIVE_COLOR, captionLines, captionsHtml, captionsScript, voiceTracks, type CaptionLine, type CaptionWord,
+} from "./captions.ts";
 
 const WIDTH = 1080;
 const HEIGHT = 1920;
@@ -52,6 +55,19 @@ export interface ReelComposition {
 /** Le moteur HyperFrames ne prend en charge que le reel sans voix, monté sur clips (mode « cache »). */
 export function isHyperframesEligible(input: Pick<ReelRenderInput, "voice_mode" | "mode">): boolean {
   return input.voice_mode === "silent" && (input.mode ?? "cache") === "cache";
+}
+
+/**
+ * Reel parlé montable par HyperFrames (14/11/2026), avec sous-titres calés sur
+ * la voix (écoute Whisper) : « Je me filme » (son du clip), ou voix enregistrée
+ * sur TOUS les passages. Un passage sans enregistrement reste sur JSON2Video,
+ * qui le complète par une voix générée (HyperFrames n'en fabrique pas).
+ */
+export function isSpokenHyperframesEligible(input: Pick<ReelRenderInput, "sections" | "voice_mode" | "mode">): boolean {
+  const mode = input.mode ?? "cache";
+  if (!input.sections?.length) return false;
+  if (mode === "filme") return voiceTracks(input).length > 0;
+  return input.voice_mode === "recorded" && input.sections.every((s) => !!s.voice_audio_url);
 }
 
 const round = (n: number) => Math.round(n * 1000) / 1000;
@@ -158,6 +174,12 @@ export interface CompositionOptions {
   assetBase?: string;
   /** Charte de la cliente (brand-look.ts). Absente = couleur et polices par défaut. */
   brand?: Partial<BrandLook> | null;
+  /**
+   * Reel parlé : mots entendus pour chaque piste de `voiceTracks(input)` (même
+   * ordre). Présent = la voix est posée et sous-titrée mot à mot ; le texte à
+   * l'écran du mode sans voix n'est pas affiché.
+   */
+  captions?: CaptionWord[][] | null;
 }
 
 export function buildReelComposition(input: ReelRenderInput, options: CompositionOptions = {}): ReelComposition {
@@ -179,10 +201,17 @@ export function buildReelComposition(input: ReelRenderInput, options: Compositio
   const media: string[] = [];
   const sounds: string[] = [];
   const brolls: { id: string; start: number; duration: number }[] = [];
+  // Reel parlé : une piste son par passage qui parle (son du clip en mode filmé, voix enregistrée sinon).
+  const tracks = options.captions ? voiceTracks(input) : [];
+  const spoken = tracks.length > 0;
+  const voices: string[] = [];
+  const capLines: CaptionLine[] = [];
+  const sectionStarts: number[] = [];
 
   sections.forEach((s, i) => {
     const start = round(cursor);
     const visible = round(s.duration + (i < last ? CROSSFADE_S : 0));
+    sectionStarts.push(start);
     const shotId = `shot${i}`;
     shots.push({ id: shotId, start, duration: visible, sectionDuration: s.duration });
     const track = i % 2;
@@ -206,9 +235,13 @@ export function buildReelComposition(input: ReelRenderInput, options: Compositio
       );
     }
 
-    // Whoosh calé juste avant chaque coupe.
+    // Whoosh calé juste avant chaque coupe (plus discret sous une voix).
     if (i > 0) {
-      sounds.push(sfx(`w${i}`, i === last ? "whoosh-short" : "whoosh", Math.max(0, start - 0.25), 0.57, 0.45, 11));
+      sounds.push(sfx(`w${i}`, i === last ? "whoosh-short" : "whoosh", Math.max(0, start - 0.25), 0.57, spoken ? 0.2 : 0.45, 11));
+    }
+    if (spoken) {
+      cursor += s.duration;
+      return;
     }
 
     const isFinal = i === last && sections.length > 1;
@@ -238,6 +271,18 @@ export function buildReelComposition(input: ReelRenderInput, options: Compositio
   });
 
   const duration = round(cursor);
+  tracks.forEach((t, k) => {
+    const start = sectionStarts[t.section];
+    const dur = round(sections[t.section].duration);
+    voices.push(
+      `<audio id="voice${k}" src="${escapeHtml(t.url)}" data-start="${start}" data-duration="${dur}"${t.seek ? ` data-media-start="${round(t.seek)}"` : ""} data-track-index="6" data-volume="1"></audio>`,
+    );
+    capLines.push(...captionLines(options.captions?.[k] ?? [], start, dur, `cap${t.section}`));
+  });
+  const activeColor = (() => {
+    const raw = input.subtitle_settings?.["word-color"];
+    return typeof raw === "string" ? readableAccent(raw) : DEFAULT_ACTIVE_COLOR;
+  })();
   const textHtml = screens.map((sc) => {
     // Le mot clé est groupé (jamais coupé en fin de ligne, et grossi d'un bloc à la fin).
     const plain = sc.words.filter((w) => !w.key).map((w) => `<span class="w">${escapeHtml(w.word)}</span>`).join("");
@@ -247,11 +292,13 @@ export function buildReelComposition(input: ReelRenderInput, options: Compositio
   }).join("\n");
 
   const bedDuration = round(Math.min(duration, 60));
-  const bedVolume = Math.round(0.8 * look.volume * 100) / 100;
+  // Sous une voix, la nappe reste un fond à peine audible.
+  const bedVolume = Math.round((spoken ? 0.15 : 0.8) * look.volume * 100) / 100;
   const bed = `<audio id="bed" src="${escapeHtml(assetBase)}pad.mp3" data-start="0" data-duration="${bedDuration}" data-track-index="10" data-volume="${bedVolume}"></audio>`;
-  const audio = look.sounds && look.volume > 0 ? `${bed}\n${sounds.join("\n")}` : "";
+  const audio = [look.sounds && look.volume > 0 ? `${bed}\n${sounds.join("\n")}` : "", ...voices].filter(Boolean).join("\n");
 
-  const script = buildTimelineScript(shots, screens, brolls, duration, look.calm);
+  const script = buildTimelineScript(shots, screens, brolls, duration, look.calm) +
+    (capLines.length ? `\n${captionsScript(capLines, activeColor)}` : "");
 
   const html = `<!doctype html>
 <html lang="fr">
@@ -281,14 +328,14 @@ html, body { width: ${WIDTH}px; height: ${HEIGHT}px; overflow: hidden; backgroun
 .kg { display: inline-block; white-space: nowrap; }
 .k { padding-right: 0.04em; }
 .k { ${keyStyle} font-weight: 700; color: ${brand.accent}; }
-#fadeout { position: absolute; inset: 0; background: #000; opacity: 0; }
+#fadeout { position: absolute; inset: 0; background: #000; opacity: 0; }${capLines.length ? `\n${CAPTIONS_CSS}` : ""}
 </style>
 </head>
 <body>
 <div id="root" data-composition-id="main" data-start="0" data-duration="${duration}" data-width="${WIDTH}" data-height="${HEIGHT}">
 ${media.join("\n")}
 <div id="shade"></div>
-${textHtml}
+${textHtml}${capLines.length ? `\n${captionsHtml(capLines)}` : ""}
 <div id="fadeout"></div>
 ${audio}
 </div>
