@@ -103,3 +103,18 @@ Deno.test("les exemples de forme parlent d'un autre métier, à ne pas recopier"
   assertStringIncludes(s, "ne les recopie jamais");
   assert(!s.includes("séance avec une cliente"), "plus d'exemple tiré d'un métier de conseil");
 });
+
+Deno.test("scène : 22 mots permis ; exemple qui vouvoie remplacé seul ; refus notés pour le journal", () => {
+  const rejected: Array<{ id: string; reason: string; question: string }> = [];
+  const out = normalizeStoryQuestions({ questions: [
+    { id: "scene", question: "Raconte-moi la dernière visite d'un appartement où le propriétaire t'a surprise par ce qu'il a dit en ouvrant.", placeholder: "Il m'a dit : vous verrez, c'est calme." },
+    { id: "paroles", question: "Qu'a-t-il dit, mot pour mot, quand tu es entrée dans la grande cuisine du rez-de-chaussée ce matin-là avec ta cliente ?", placeholder: "" },
+    { id: "ressenti", question: "Qu'avez-vous ressenti ?", placeholder: "" },
+    { id: "declic", question: "Qu'en retenir ?", placeholder: "" },
+  ] }, rejected as any);
+  assertEquals(out[0].question, "Raconte-moi la dernière visite d'un appartement où le propriétaire t'a surprise par ce qu'il a dit en ouvrant.");
+  assertEquals(out[0].placeholder, GENERIC_STORY_QUESTIONS[0].placeholder);
+  assertEquals(out[1], GENERIC_STORY_QUESTIONS[1]);
+  assertEquals(rejected.map((r) => r.reason.split(":")[0]), ["lourde", "vouvoiement"]);
+  assertEquals(rejected.map((r) => r.id), ["paroles", "ressenti"]);
+});
