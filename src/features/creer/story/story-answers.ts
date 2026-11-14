@@ -25,7 +25,7 @@ export const GENERIC_STORY_QUESTIONS: StoryQuestion[] = [
   { id: "scene", question: "Raconte-moi un moment récent qui t'a marquée dans ton travail.", placeholder: "Le jour, le lieu, ce qui s'est passé." },
   { id: "paroles", question: "Qu'est-ce qui a été dit, mot pour mot ?", placeholder: "Sa phrase, puis ta réponse." },
   { id: "ressenti", question: "Qu'as-tu ressenti sur le moment ?", placeholder: "Agacée, touchée, surprise…" },
-  { id: "declic", question: "Qu'est-ce que tu veux que tes lectrices en retiennent ?", placeholder: "Une phrase qui résume ce que tu en as tiré." },
+  { id: "declic", question: "Qu'est-ce que tu veux que tes lectrices en retiennent ?", placeholder: "Ce que tu en as tiré, en une phrase." },
 ];
 
 /** Préfixe des clés : le modèle qui rédige voit que c'est son vécu, pas une précision. */
