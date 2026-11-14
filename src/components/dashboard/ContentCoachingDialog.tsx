@@ -12,15 +12,20 @@ import { ArrowRight, RefreshCw, Bookmark, BookmarkCheck, Loader2, SlidersHorizon
 import { toast } from "sonner";
 import { nextMarronniers } from "@/lib/marronniers";
 import { normalizeFormat } from "@/lib/format-normalizer";
-import { ideaToEditorialBrief, parseDeepIdea, type DeepIdea, type IdeaSource } from "../../../supabase/functions/_shared/ideas/contract";
+import { ideaSpring, ideaToEditorialBrief, parseDeepIdea, type DeepIdea, type IdeaSource } from "../../../supabase/functions/_shared/ideas/contract";
 
 export interface CoachingSelection { subject: string; format: string; objective: string; canal?: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; editorialAngle?: string }
 interface Props { open: boolean; onOpenChange: (open: boolean) => void; onSelect?: (data: CoachingSelection) => void; onNewsjackingRedirect?: () => void; initialChannel?: string | null; initialFormat?: string | null }
 interface Preferences { objectif: string; sujet: string; canal: string; format: string; activity: string; carouselSubMode: "text" | "photo" | "mix" | "pure_photo" }
 interface Card { id: string; idea: DeepIdea; saved?: boolean; slot?: number }
+/** Le ressort de l'idée, en pastille au-dessus du titre (rien pour les idées d'avant les ressorts). */
+function SpringBadge({ spring }: { spring?: string }) {
+  const s = ideaSpring(spring);
+  return s ? <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-secondary-foreground"><span aria-hidden="true">{s.emoji}</span>{s.label}</span> : null;
+}
 /** An idea still being written: its piste first, then its text as it grows. */
-interface Draft { piste?: string; fields?: { subject?: string; insight?: string; mechanism?: string; reader_benefit?: string } }
-interface Selection { cards: Card[]; preferences: Preferences; history: Array<{ subject: string; insight: string; feedback?: string }>; research_status?: string; needs_activity?: boolean; incomplete?: string }
+interface Draft { piste?: string; spring?: string; fields?: { subject?: string; insight?: string; mechanism?: string; reader_benefit?: string } }
+interface Selection { cards: Card[]; preferences: Preferences; history: Array<{ subject: string; insight: string; feedback?: string; spring?: string }>; research_status?: string; needs_activity?: boolean; incomplete?: string }
 /** Ideas shown while the selection is still being written (they arrive one by one). */
 interface Progress { stage: "preparation" | "research" | "writing"; cards: Card[]; drafts?: Record<number, Draft> }
 const STAGE_LABELS: Record<Progress["stage"], string> = { preparation: "Je cherche des pistes dans ton activité…", research: "Je vérifie quelques points…", writing: "J'écris tes idées…" };
@@ -60,6 +65,8 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
   }, [open, initialChannel, initialFormat]);
   const [refining, setRefining] = useState<string | null>(null);
   const [precision, setPrecision] = useState("");
+  /** Réponses de la cliente aux questions des idées (par carte). */
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const busyRef = useRef(false);
   const [saving, setSaving] = useState<string | null>(null);
@@ -80,7 +87,7 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
     const drafts = () => now()?.drafts || {};
     show({ stage: "preparation", cards: [] });
     const savedIds = () => new Set(current().filter(c => c.saved).map(c => c.id));
-    const withHistory = (cards: Card[]) => [...history, ...cards.map(c => ({ subject: c.idea.subject, insight: c.idea.insight }))].slice(-24);
+    const withHistory = (cards: Card[]) => [...history, ...cards.map(c => ({ subject: c.idea.subject, insight: c.idea.insight, spring: c.idea.spring }))].slice(-24);
     let data: any;
     try {
       data = await streamContentCoaching({
@@ -94,7 +101,7 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
         if (event.type === "draft") {
           const { [event.slot]: _old, ...others } = drafts();
           if (current().some(c => c.slot === event.slot)) return;
-          show({ stage: now()?.stage || "preparation", cards: current(), drafts: event.gone ? others : { ...others, [event.slot]: { piste: event.piste, fields: event.fields } } });
+          show({ stage: now()?.stage || "preparation", cards: current(), drafts: event.gone ? others : { ...others, [event.slot]: { piste: event.piste, spring: event.spring, fields: event.fields } } });
           return;
         }
         const raw = event.idea as DeepIdea;
@@ -152,9 +159,9 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
     if (card.saved || savingRef.current.has(card.id)) return;
     savingRef.current.add(card.id); setSaving(card.id);
     const payload = { id: card.id, user_id: userId, workspace_id: workspace !== userId ? workspace : null, titre: card.idea.subject,
-      angle: ideaToEditorialBrief(card.idea), format: normalizeFormat(preferences.format), canal: preferences.canal === "auto" ? null : preferences.canal,
+      angle: ideaToEditorialBrief(card.idea, answers[card.id]), format: normalizeFormat(preferences.format), canal: preferences.canal === "auto" ? null : preferences.canal,
       objectif: card.idea.objective_tag, type: "idea", status: "to_explore", notes: card.idea.mechanism,
-      personal_elements: JSON.parse(JSON.stringify({ editorial_brief: card.idea, carousel_sub_mode: preferences.carouselSubMode })), source_module: "content_coaching" };
+      personal_elements: JSON.parse(JSON.stringify({ editorial_brief: card.idea, carousel_sub_mode: preferences.carouselSubMode, ...(answers[card.id]?.trim() ? { answer: answers[card.id].trim() } : {}) })), source_module: "content_coaching" };
     try {
       const { data, error } = await supabase.from("saved_ideas").insert(payload).select("id").single();
       if (error) {
@@ -174,7 +181,7 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
     const format = normalizeFormat(preferences.format) || "";
     const data: CoachingSelection = { subject: card.idea.subject, format, objective: card.idea.objective_tag,
       canal: preferences.canal === "auto" ? undefined : preferences.canal,
-      carouselSubMode: format === "carousel" ? preferences.carouselSubMode : undefined, editorialAngle: ideaToEditorialBrief(card.idea) };
+      carouselSubMode: format === "carousel" ? preferences.carouselSubMode : undefined, editorialAngle: ideaToEditorialBrief(card.idea, answers[card.id]) };
     if (onSelect) onSelect(data);
     else { const params = new URLSearchParams({ sujet: data.subject, format, objectif: data.objective, angle: data.editorialAngle!, ...(data.canal ? { canal: data.canal } : {}) }); navigate(`/creer?${params}`); }
     onOpenChange(false);
@@ -211,13 +218,20 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
       {!live && status}
       {error && <div role="alert" className="rounded-xl border border-destructive/30 p-4 space-y-2"><p className="text-sm">{error}</p><Button variant="outline" disabled={loading} onClick={() => generate()}>Réessayer</Button></div>}
       {!!cards.length && <>
-        {!live && <p className="text-sm text-muted-foreground">{cards.length} idées pour commencer. Le format se choisit ensuite.</p>}
+        {!live && <p className="text-sm text-muted-foreground">{cards.length > 1 && cards.every(c => "idea" in c && ideaSpring(c.idea.spring)) ? `${cards.length} idées, ${cards.length} façons de toucher.` : `${cards.length} idées pour commencer.`} Le format se choisit ensuite.</p>}
         {!live && selection?.incomplete && <p className="text-xs text-muted-foreground">{selection.incomplete}</p>}
         {!live && selection?.research_status === "unavailable" && <p className="text-xs text-muted-foreground">La recherche externe n'a pas abouti. Les propositions s'appuient sur ton activité ; les points à vérifier sont indiqués.</p>}
         <div className="space-y-4">{cards.map(card => "draft" in card ? <DraftCard key={`draft-${card.slot}`} draft={card.draft} writing={progress?.stage === "writing"} /> : <article key={card.id} className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3">
+          <SpringBadge spring={card.idea.spring} />
           <h3 className="font-display text-lg leading-snug text-foreground break-words">{card.idea.subject}</h3>
           <p className="text-sm leading-relaxed">{card.idea.insight}</p>
           <p className="text-sm text-muted-foreground leading-relaxed">{card.idea.reader_benefit}</p>
+          {card.idea.share_reason && <p className="flex gap-2 rounded-xl bg-accent/30 px-3 py-2 text-sm leading-relaxed"><span aria-hidden="true">💌</span><span><strong>Pourquoi on l'enverra : </strong>{card.idea.share_reason}</span></p>}
+          {card.idea.ask && <div className="rounded-xl border-2 border-dashed border-secondary bg-muted/60 p-3 space-y-1.5">
+            <p className="text-sm font-semibold text-secondary-foreground">Il me faut ta vraie réponse</p>
+            <label className="block text-sm text-muted-foreground">Je n'invente rien à ta place. {card.idea.ask.question}
+              <Textarea value={answers[card.id] || ""} onChange={e => setAnswers(a => ({ ...a, [card.id]: e.target.value }))} maxLength={1000} rows={2} placeholder={card.idea.ask.placeholder || "Ta réponse en une ou deux phrases"} className="mt-1.5 bg-background text-foreground" /></label>
+          </div>}
           <details className="text-sm"><summary className="cursor-pointer font-medium text-primary">Voir l'analyse et le développement</summary><div className="mt-3 space-y-3 leading-relaxed">
             <p>{card.idea.mechanism}</p><ol className="list-decimal pl-5 space-y-1">{card.idea.outline.map((line, i) => <li key={i}>{line}</li>)}</ol>
             <p><strong>Pour l'illustrer : </strong>{card.idea.example}</p><p><strong>La nuance : </strong>{card.idea.nuance}</p>
@@ -226,7 +240,7 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
             {card.idea.sources.map(s => <p key={s.id} className="text-xs break-words"><a href={s.url} target="_blank" rel="noopener noreferrer" className="underline">{s.title}</a> — {s.claim}<br />Consultée le {s.accessed_at}</p>)}
             {!!card.idea.to_verify.length && <div><strong>À confirmer avant publication</strong><ul className="list-disc pl-5">{card.idea.to_verify.map((v, i) => <li key={i}>{v}</li>)}</ul></div>}
           </div></details>
-          <div className="flex flex-wrap gap-2 pt-1"><Button disabled={loading && !arriving.includes(card)} onClick={() => create(card)} className="gap-2">Créer <ArrowRight className="h-4 w-4" /></Button>
+          <div className="flex flex-wrap gap-2 pt-1"><Button disabled={(loading && !arriving.includes(card)) || (!!card.idea.ask && !answers[card.id]?.trim())} onClick={() => create(card)} className="gap-2">{card.idea.ask ? "Créer avec ma réponse" : "Créer"} <ArrowRight className="h-4 w-4" /></Button>
             <Button variant="outline" disabled={card.saved || saving === card.id} onClick={() => save(card)} className="gap-1.5">{saving === card.id ? <Loader2 className="h-4 w-4 animate-spin" /> : card.saved ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}{card.saved ? "Gardée" : "Garder"}</Button>
             <Button variant="ghost" disabled={loading} onClick={() => { setRefining(refining === card.id ? null : card.id); setPrecision(""); }}>Creuser</Button></div>
           {refining === card.id && <div className="space-y-2 border-t pt-3"><label className="block text-sm">Une précision à ajouter ? (facultatif)<Textarea value={precision} onChange={e => setPrecision(e.target.value)} maxLength={1000} rows={2} placeholder="Par exemple : montrer ce que cela change dans la pratique." /></label><Button variant="outline" disabled={loading} onClick={() => generate(card)}>Approfondir cette idée</Button></div>}
@@ -243,6 +257,7 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
 function DraftCard({ draft, writing }: { draft: Draft; writing: boolean }) {
   const f = draft.fields || {};
   return <article aria-busy="true" className="min-w-0 rounded-2xl border border-dashed border-border bg-card/60 p-4 sm:p-5 space-y-3">
+    <SpringBadge spring={draft.spring} />
     <p className="text-xs font-medium text-primary flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" />{f.subject ? "En cours d'écriture…" : writing ? "J'écris l'idée…" : "Piste trouvée"}</p>
     <h3 className={`font-display text-lg leading-snug break-words ${f.subject ? "text-foreground" : "text-muted-foreground"}`}>{f.subject || draft.piste}</h3>
     {f.insight && <p className="text-sm leading-relaxed">{f.insight}</p>}

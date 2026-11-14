@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     const base = formatContextForAI(ctx, { ...CONTEXT_PRESETS.content, includeStory: false, includePersona: false, includeCharter: false, includeMirror: false });
     const seasonal = (Array.isArray(body.upcoming_marronniers) ? body.upcoming_marronniers : []).slice(0, 3).map((m: any) => `${text(m?.label, 60)} ${text(m?.date, 10)}`).join("; ");
     const context = `${base.slice(0, 15000)}\nREPÈRES CALENDAIRES : ${seasonal}. Au plus une idée liée à un temps fort, uniquement si pertinent pour le métier.\nACTIVITÉ PRÉCISÉE : ${activity}\nPUBLICS DISPONIBLES (ne pas les confondre) :\n${JSON.stringify(personas).slice(0, 6500)}\nRÉCITS DISPONIBLES :\n${stories.map((s: any) => `${s.title || "Récit"} : ${text(s.step_7_polished || s.step_6_full_story || s.pitch_short, 1600)}`).join("\n")}`;
-    const previous = (Array.isArray(body.previous_ideas) ? body.previous_ideas : []).slice(-24).map((p: any) => ({ subject: text(p?.subject, 220), insight: text(p?.insight, 500), feedback: text(p?.feedback, 200) }));
+    const previous = (Array.isArray(body.previous_ideas) ? body.previous_ideas : []).slice(-24).map((p: any) => ({ subject: text(p?.subject, 220), insight: text(p?.insight, 500), feedback: text(p?.feedback, 200), spring: text(p?.spring, 20) || undefined }));
     // A previous idea is editorial material, not an authority for a new citation.
     // Research runs again when an assertion needs support. No client URL is trusted.
     const deepen = body.deepen_idea ? parseDeepIdea(body.deepen_idea) : undefined;
