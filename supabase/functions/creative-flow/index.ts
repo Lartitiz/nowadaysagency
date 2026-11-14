@@ -12,6 +12,7 @@ import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, type UsageSink } from "../_shared/anthropic.ts";
 import { runWithHeartbeatSSE, clientStillThere, type StatusEmitter } from "../_shared/anthropic-stream.ts";
+import { relancerQuestionsSiBesoin } from "../_shared/questions-form.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { livedCaseFromCreativeBody } from "../_shared/lived-case.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
@@ -413,6 +414,22 @@ serve(async (req) => {
       // libre illisible (audit slop 18/08 : ~1 génération non-streamée sur 3 sur ce
       // chemin). Un seul retry avant le 502 sec suffit à verrouiller ce point precis
       // (pas étendu aux autres steps ici, hors périmètre de ce fix).
+      // Questions et suivi (Haiku) : une question trop longue, à deux « ? », entre
+      // parenthèses ou qui vouvoie → une seule relance (14/11/2026, essai réel :
+      // 27 à 41 mots, listes d'options, malgré QUESTIONS_FORM_RULES).
+      if ((step === "questions" || step === "follow-up") && structuredTool) {
+        const firstMessages = [{ role: "user" as const, content: userContent }];
+        rawContent = await relancerQuestionsSiBesoin(rawContent, (consigne) => callAnthropic({
+          model: modelForCall,
+          system: systemPrompt,
+          messages: [...firstMessages, { role: "assistant", content: rawContent }, { role: "user", content: consigne }],
+          temperature: tempText,
+          max_tokens: maxTokens ?? 4096,
+          abortTimeoutMs: abortMs,
+          tool: structuredTool,
+        }, finalUsage));
+      }
+
       if (step === "adjust" && tryParseAiJson<any>(rawContent, `creative-flow:${step}`) === null) {
         console.warn("[creative-flow] parse échec (adjust), retry unique");
         rawContent = await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage, abortMs);
