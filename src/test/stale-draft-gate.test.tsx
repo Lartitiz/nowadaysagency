@@ -75,15 +75,25 @@ it("oublie toutes les copies orphelines, pas seulement la première", async () =
   expect(loadFlowState()).toBeNull();
 });
 
-it("attend que l'espace soit chargé avant de regarder les copies", async () => {
+it("oublie aussi les copies d'un autre espace que celui affiché", async () => {
   setFlowWorkspaceId("vrai-espace");
   saveFlowState({ step: "format", ideaText: "Le parquet", editingIdeaId: "gone", workspaceId: "vrai-espace" });
   nouvelOnglet();
-  ws.id = "owner"; ws.ready = false; // espace provisoire pendant le chargement
-  const view = page();
-  ws.id = "vrai-espace"; ws.ready = true;
-  view.rerender(<StaleDraftGate><p>Page Créer</p></StaleDraftGate>);
+  setFlowWorkspaceId("owner"); // l'espace n'est pas encore chargé : espace provisoire
+  page();
   expect(await screen.findByText("Page Créer")).toBeInTheDocument();
   setFlowWorkspaceId("vrai-espace");
   expect(loadFlowState()).toBeNull();
+});
+
+it("garde le brouillon d'un autre espace dont la fiche existe", async () => {
+  db.rows.add("here");
+  setFlowWorkspaceId("vrai-espace");
+  saveFlowState({ step: "format", ideaText: "Les portes", editingIdeaId: "here", workspaceId: "vrai-espace" });
+  nouvelOnglet();
+  setFlowWorkspaceId("owner");
+  page();
+  expect(await screen.findByText("Page Créer")).toBeInTheDocument();
+  setFlowWorkspaceId("vrai-espace");
+  expect(loadFlowState()?.ideaText).toBe("Les portes");
 });
