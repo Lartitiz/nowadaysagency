@@ -317,6 +317,31 @@ export function loadFlowState(): FlowState | null {
   }
 }
 
+/** Une fiche supprimée de Mes idées (editingIdeaId) ne doit plus revenir dans
+ *  Créer : on oublie la copie de l'onglet et les copies de secours (onglets
+ *  fermés) qui travaillaient dessus, avec leurs photos (QA du 13/11/2026 :
+ *  /creer rouvrait un brouillon déjà supprimé). Les autres brouillons restent. */
+export function forgetIdeaDrafts(ideaId: string | null | undefined) {
+  if (!ideaId) return;
+  const onIdea = (raw: string | null) => {
+    try { return !!raw && (JSON.parse(raw) as FlowState).editingIdeaId === ideaId; } catch { return false; }
+  };
+  try {
+    if (onIdea(sessionStorage.getItem(flowStorageKey()))) {
+      sessionStorage.removeItem(flowStorageKey());
+      sessionStorage.removeItem(photosStorageKey());
+    }
+    const userId = getFlowUserId();
+    if (!userId) return;
+    const photosBase = photosBackupKeyFor(userId);
+    for (const { key, tabId } of backupsUnder(backupKeyFor(userId))) {
+      if (!onIdea(localStorage.getItem(key))) continue;
+      localStorage.removeItem(key);
+      localStorage.removeItem(tabId ? tabBackupKey(photosBase, tabId) : photosBase);
+    }
+  } catch { /* stockage indisponible : rien à oublier */ }
+}
+
 export function clearFlowState() {
   try {
     sessionStorage.removeItem(flowStorageKey());

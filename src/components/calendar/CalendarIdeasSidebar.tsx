@@ -22,6 +22,7 @@ import { getIdeaState, ideaContentLabel, formatLabel } from "@/lib/idea-state";
 import { planSavedIdea } from "@/lib/idea-calendar-persistence";
 import { readIdeaSummaries } from "@/lib/saved-idea-summaries";
 import { calendarSaveError } from "@/lib/calendar-persistence";
+import { forgetIdeaDrafts } from "@/hooks/use-flow-persistence";
 
 export interface SavedIdea {
   id: string;
@@ -150,6 +151,7 @@ function IdeasInWorkspace({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse, re
       toast.error("Suppression impossible", { description: "Réessaie dans un instant." });
       return;
     }
+    forgetIdeaDrafts(id);
     setIdeas(prev => prev.filter(i => i.id !== id));
     toast.success("Idée supprimée");
   };

@@ -32,6 +32,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { calendarPlacementLabel, getIdeaState, ideaContentLabel, IDEA_STATE_LABELS, formatLabel, sourceLabel, type IdeaState } from "@/lib/idea-state";
 import { AddIdeaDialog } from "@/components/calendar/CalendarIdeasSidebar";
 import { BriefCover, IdeaCover, readCover, TextCover } from "@/components/ideas/IdeaCover";
+import { forgetIdeaDrafts } from "@/hooks/use-flow-persistence";
 
 
 /* ─── Types ─── */
@@ -308,6 +309,7 @@ function IdeasInWorkspace() {
     const deleted = ideas.find((i) => i.id === id);
     const twins = deleted && getIdeaState(deleted) !== "todo" ? twinBriefIds(briefs, deleted.titre) : [];
     if (twins.length) void supabase.from("content_briefs").delete().in("id", twins).then(({ error: e }) => { if (!e) setBriefs((prev) => prev.filter((b) => !twins.includes(b.id))); });
+    forgetIdeaDrafts(id);
     setIdeas((prev) => prev.filter((i) => i.id !== id));
     if (selectedIdea?.id === id) closeDetail();
     toast.success("Idée supprimée");
