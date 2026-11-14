@@ -317,35 +317,58 @@ export function loadFlowState(): FlowState | null {
   }
 }
 
-/** L'onglet a-t-il déjà sa propre copie du parcours (rechargement) ? Sinon,
- *  loadFlowState reprendra la copie de secours d'un onglet fermé. */
+/** L'onglet a-t-il déjà sa propre copie du parcours (rechargement), quel que
+ *  soit l'espace ? Sinon, la page reprendra la copie de secours d'un onglet fermé. */
 export function hasTabFlowState(): boolean {
-  try { return !!sessionStorage.getItem(flowStorageKey()); } catch { return false; }
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key === STORAGE_KEY || key?.startsWith(STORAGE_KEY + ":")) return true;
+    }
+  } catch { /* stockage indisponible */ }
+  return false;
+}
+
+/** Copies du parcours de ce compte, tous espaces confondus : celle de l'onglet
+ *  (sessionStorage) puis les copies de secours (localStorage). */
+function ownDraftCopies(): { store: Storage; key: string; photosKey: string }[] {
+  const out: { store: Storage; key: string; photosKey: string }[] = [];
+  const userId = getFlowUserId();
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key === STORAGE_KEY || key?.startsWith(STORAGE_KEY + ":")) out.push({ store: sessionStorage, key, photosKey: PHOTOS_KEY + key.slice(STORAGE_KEY.length) });
+    }
+    if (userId) {
+      const base = `${BACKUP_PREFIX}:${userId}`;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key === base || key?.startsWith(base + ":")) out.push({ store: localStorage, key, photosKey: PHOTOS_BACKUP_PREFIX + key.slice(BACKUP_PREFIX.length) });
+      }
+    }
+  } catch { /* stockage indisponible : aucune copie */ }
+  return out;
+}
+
+const copyIdeaId = (store: Storage, key: string): string | null => {
+  try { return (JSON.parse(store.getItem(key) || "null") as FlowState | null)?.editingIdeaId ?? null; } catch { return null; }
+};
+
+/** Fiches (editingIdeaId) portées par les copies du parcours de ce compte. */
+export function draftIdeaIds(): string[] {
+  return [...new Set(ownDraftCopies().map((c) => copyIdeaId(c.store, c.key)).filter((id): id is string => !!id))];
 }
 
 /** Une fiche supprimée de Mes idées (editingIdeaId) ne doit plus revenir dans
  *  Créer : on oublie la copie de l'onglet et les copies de secours (onglets
- *  fermés) qui travaillaient dessus, avec leurs photos (QA du 13/11/2026 :
- *  /creer rouvrait un brouillon déjà supprimé). Les autres brouillons restent. */
+ *  fermés, tous espaces) qui travaillaient dessus, avec leurs photos (QA du
+ *  13/11/2026 : /creer rouvrait un brouillon déjà supprimé). Les autres brouillons restent. */
 export function forgetIdeaDrafts(ideaId: string | null | undefined) {
   if (!ideaId) return;
-  const onIdea = (raw: string | null) => {
-    try { return !!raw && (JSON.parse(raw) as FlowState).editingIdeaId === ideaId; } catch { return false; }
-  };
-  try {
-    if (onIdea(sessionStorage.getItem(flowStorageKey()))) {
-      sessionStorage.removeItem(flowStorageKey());
-      sessionStorage.removeItem(photosStorageKey());
-    }
-    const userId = getFlowUserId();
-    if (!userId) return;
-    const photosBase = photosBackupKeyFor(userId);
-    for (const { key, tabId } of backupsUnder(backupKeyFor(userId))) {
-      if (!onIdea(localStorage.getItem(key))) continue;
-      localStorage.removeItem(key);
-      localStorage.removeItem(tabId ? tabBackupKey(photosBase, tabId) : photosBase);
-    }
-  } catch { /* stockage indisponible : rien à oublier */ }
+  for (const { store, key, photosKey } of ownDraftCopies()) {
+    if (copyIdeaId(store, key) !== ideaId) continue;
+    try { store.removeItem(key); store.removeItem(photosKey); } catch { /* stockage indisponible */ }
+  }
 }
 
 export function clearFlowState() {

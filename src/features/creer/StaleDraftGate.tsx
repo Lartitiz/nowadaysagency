@@ -1,47 +1,40 @@
-// Brouillon d'une fiche qui n'existe plus : avant d'ouvrir /creer, on vérifie
-// que la fiche de Mes idées liée au brouillon de l'onglet (editingIdeaId)
-// existe encore, quand le brouillon vient d'un onglet fermé. Supprimée (ici avant le 14/11/2026, ou sur un autre appareil),
-// le brouillon est oublié au lieu de revenir (QA du 13/11/2026). Une erreur
-// réseau ne supprime rien ; au-delà de 3 s, la page s'ouvre quand même.
+// Brouillons de fiches qui n'existent plus : avant d'ouvrir /creer, quand
+// l'onglet n'a pas sa propre copie (il va reprendre celle d'un onglet fermé),
+// on vérifie que chaque fiche de Mes idées portée par les copies de ce compte
+// (editingIdeaId, tous espaces confondus) existe encore. Supprimée (avant le
+// 14/11/2026 ou sur un autre appareil), ses copies sont oubliées au lieu de
+// revenir (QA des 13 et 14/11/2026). Une erreur réseau ne supprime rien ;
+// au-delà de 3 s, la page s'ouvre quand même.
 import { useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
-import { forgetIdeaDrafts, hasTabFlowState, loadFlowState, setFlowWorkspaceId } from "@/hooks/use-flow-persistence";
+import { draftIdeaIds, forgetIdeaDrafts, hasTabFlowState } from "@/hooks/use-flow-persistence";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function StaleDraftGate({ children }: { children: ReactNode }) {
   const { session } = useAuth();
-  const workspaceId = useWorkspaceId();
-  // Tant que l'espace charge, useWorkspaceId renvoie un espace provisoire : on
-  // regarderait les copies du mauvais espace (vu en ligne le 14/11/2026).
-  const workspaceReady = useWorkspaceReady();
+  const userId = session?.user?.id;
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (ready) return;
-    if (!session?.user?.id || !workspaceId || !workspaceReady) { const t = setTimeout(() => setReady(true), 3000); return () => clearTimeout(t); }
-    setFlowWorkspaceId(workspaceId);
+    if (!userId) { const t = setTimeout(() => setReady(true), 3000); return () => clearTimeout(t); }
     // Rechargement du même onglet : la suppression dans Mes idées l'a déjà nettoyé.
-    if (hasTabFlowState()) { setReady(true); return; }
-    if (!loadFlowState()?.editingIdeaId) { setReady(true); return; }
+    const ids = hasTabFlowState() ? [] : draftIdeaIds().slice(0, 10);
+    if (!ids.length) { setReady(true); return; }
     let alive = true;
     const timer = setTimeout(() => { if (alive) setReady(true); }, 3000);
-    // Plusieurs copies d'onglets fermés peuvent porter une fiche supprimée :
-    // chaque oubli fait remonter la suivante, on les passe toutes (5 au plus).
     (async () => {
-      for (let i = 0; i < 5 && alive; i++) {
-        const ideaId = loadFlowState()?.editingIdeaId;
-        if (!ideaId) return;
-        const { data, error } = await supabase.from("saved_ideas").select("id").eq("id", ideaId).maybeSingle();
-        if (error || data || !alive) return;
-        forgetIdeaDrafts(ideaId);
+      for (const id of ids) {
+        const { data, error } = await supabase.from("saved_ideas").select("id").eq("id", id).maybeSingle();
+        if (error || !alive) return;
+        if (!data) forgetIdeaDrafts(id);
       }
     })()
-      .catch(() => { /* réseau : le brouillon reste */ })
+      .catch(() => { /* réseau : les brouillons restent */ })
       .finally(() => { if (alive) setReady(true); });
     return () => { alive = false; clearTimeout(timer); };
-  }, [ready, session?.user?.id, workspaceId, workspaceReady]);
+  }, [ready, userId]);
 
   if (ready) return <>{children}</>;
   return (
