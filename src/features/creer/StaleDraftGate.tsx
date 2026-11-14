@@ -21,12 +21,20 @@ export default function StaleDraftGate({ children }: { children: ReactNode }) {
     setFlowWorkspaceId(workspaceId);
     // Rechargement du même onglet : la suppression dans Mes idées l'a déjà nettoyé.
     if (hasTabFlowState()) { setReady(true); return; }
-    const ideaId = loadFlowState()?.editingIdeaId;
-    if (!ideaId) { setReady(true); return; }
+    if (!loadFlowState()?.editingIdeaId) { setReady(true); return; }
     let alive = true;
     const timer = setTimeout(() => { if (alive) setReady(true); }, 3000);
-    (async () => supabase.from("saved_ideas").select("id").eq("id", ideaId).maybeSingle())()
-      .then(({ data, error }) => { if (alive && !error && !data) forgetIdeaDrafts(ideaId); })
+    // Plusieurs copies d'onglets fermés peuvent porter une fiche supprimée :
+    // chaque oubli fait remonter la suivante, on les passe toutes (5 au plus).
+    (async () => {
+      for (let i = 0; i < 5 && alive; i++) {
+        const ideaId = loadFlowState()?.editingIdeaId;
+        if (!ideaId) return;
+        const { data, error } = await supabase.from("saved_ideas").select("id").eq("id", ideaId).maybeSingle();
+        if (error || data || !alive) return;
+        forgetIdeaDrafts(ideaId);
+      }
+    })()
       .catch(() => { /* réseau : le brouillon reste */ })
       .finally(() => { if (alive) setReady(true); });
     return () => { alive = false; clearTimeout(timer); };

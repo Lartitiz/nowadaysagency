@@ -58,3 +58,17 @@ it("rechargement du même onglet : rien à vérifier", async () => {
   expect(await screen.findByText("Page Créer")).toBeInTheDocument();
   expect(loadFlowState()?.ideaText).toBe("Les moulures");
 });
+
+it("oublie toutes les copies orphelines, pas seulement la première", async () => {
+  saveFlowState({ step: "format", ideaText: "Le parquet", editingIdeaId: "gone-1" });
+  // Deuxième onglet fermé : une autre copie de secours, sur une autre fiche supprimée.
+  const key = Object.keys(localStorage).find((k) => k.includes("_backup:owner") && k.includes(":tab:"))!;
+  const copy = JSON.parse(localStorage.getItem(key)!);
+  localStorage.setItem(key.replace(/:tab:.*/, ":tab:autre-onglet"), JSON.stringify({ ...copy, ideaText: "Les portes", editingIdeaId: "gone-2", ts: copy.ts - 1000 }));
+  nouvelOnglet();
+  page();
+  expect(await screen.findByText("Page Créer")).toBeInTheDocument();
+  expect(loadFlowState()).toBeNull();
+  nouvelOnglet();
+  expect(loadFlowState()).toBeNull();
+});
