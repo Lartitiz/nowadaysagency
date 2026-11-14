@@ -29,6 +29,7 @@ import type { SavedIdea } from "./CalendarIdeasSidebar";
 import { renderIdeaDraft } from "@/lib/render-idea-draft";
 import { ContentPreview } from "@/components/ContentPreview";
 import { isAiGeneratedContent } from "@/lib/content-origin";
+import { forgetIdeaDrafts } from "@/hooks/use-flow-persistence";
 
 
 const FORMAT_OPTIONS = [
@@ -171,6 +172,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       toast.error("Erreur", { description: friendlyError(error) });
       return;
     }
+    forgetIdeaDrafts(idea.id);
     toast.success("Idée supprimée");
     onOpenChange(false);
     onUpdated();
