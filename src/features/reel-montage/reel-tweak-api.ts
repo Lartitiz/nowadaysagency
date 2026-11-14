@@ -2,6 +2,7 @@
 // demandes simples sont comprises dans le navigateur, sans IA ni crédit ; le
 // reste passe par l'edge `reel-render` (action "tweak", 1 crédit, jamais de HTML).
 import { supabase } from "@/integrations/supabase/client";
+import { quotaLimitMessage } from "@/lib/quota-message";
 import { quickTweakFromText, sanitizeTweaks, type ReelTweaks } from "./reel-preview";
 
 export interface TweakAnswer { tweaks: ReelTweaks; message: string; understood: boolean; usedAi: boolean }
@@ -22,6 +23,12 @@ export async function askReelTweak(args: {
       ...(args.workspaceId ? { workspace_id: args.workspaceId } : {}),
     },
   });
-  if (error || data?.error) throw new Error(data?.error || "Je n'ai pas réussi à comprendre la demande. Réessaie avec d'autres mots.");
+  if (error || data?.error) {
+    // Refus du serveur (ex. plus de crédit, 429) : le corps de la réponse porte le vrai message.
+    let body = data;
+    const context = (error as { context?: Response } | null)?.context;
+    if (!body && context && typeof context.json === "function") body = await context.json().catch(() => null);
+    throw new Error(quotaLimitMessage(body?.quota) || body?.error || "Je n'ai pas réussi à comprendre la demande. Réessaie avec d'autres mots.");
+  }
   return { tweaks: sanitizeTweaks(data?.tweaks, n), message: String(data?.message || "C'est changé."), understood: data?.understood !== false, usedAi: true };
 }
