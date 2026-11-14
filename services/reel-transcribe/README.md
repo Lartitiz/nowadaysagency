@@ -28,3 +28,9 @@ gcloud run services add-iam-policy-binding reel-transcribe \
   --member serviceAccount:reel-gateway@nowadays-reels-1113.iam.gserviceaccount.com \
   --role roles/run.invoker
 ```
+
+Adresse du service : https://reel-transcribe-506640252167.europe-west1.run.app (variable `TRANSCRIBE_URL` du relais).
+
+Piège vu à la mise en ligne (14/11/2026) : une PyAV plus récente que celle du Mac refusait
+`metadata_errors` (« open() got an unexpected keyword argument »). Versions figées dans
+`requirements.txt`, et le son est lu directement depuis le WAV préparé par ffmpeg.
