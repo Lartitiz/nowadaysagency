@@ -17,6 +17,13 @@ sons de design), sans filigrane et sans abonnement.
 Si le relais ne répond pas au lancement, l'edge repasse par JSON2Video (aucune cliente bloquée).
 Interrupteur : `HYPERFRAMES_ENABLED` dans `hyperframes-gateway.ts`.
 
+## Sous-titres des reels filmés / voix enregistrée (14/11/2026)
+
+`POST /transcribe` `{"items":[{"url","seek","duration"}]}` : le relais demande au service privé
+`reel-transcribe` (Whisper, voir `services/reel-transcribe/`) le moment de chaque mot, avec un jeton
+d'identité Google. Résultats gardés dans le bucket (`transcripts/<empreinte>.json`) : refaire un reel
+ne réécoute pas la voix. 20 écoutes nouvelles/heure par cliente (`transcribe-log/`). 75 s au plus par demande.
+
 ## Google Cloud (projet `nowadays-reels-1113`, région `europe-west1`)
 
 - Moteur : service `hyperframes-render` (4 vCPU, 8 Gi, 4 machines max) + workflow `hyperframes-render`
@@ -34,8 +41,8 @@ Interrupteur : `HYPERFRAMES_ENABLED` dans `hyperframes-gateway.ts`.
 gcloud run deploy reel-render-gateway --source services/reel-render-gateway \
   --project nowadays-reels-1113 --region europe-west1 \
   --service-account reel-gateway@nowadays-reels-1113.iam.gserviceaccount.com \
-  --max-instances 2 --memory 1Gi --cpu 1 --timeout 120 \
-  --set-env-vars SUPABASE_ANON_KEY=<clé publique anon de l'app>
+  --max-instances 2 --memory 1Gi --cpu 1 --timeout 180 \
+  --set-env-vars SUPABASE_ANON_KEY=<clé publique anon de l'app>,TRANSCRIBE_URL=<adresse du service reel-transcribe>
 ```
 
 Sons : Pixabay (licence libre, voir `assets/sfx/CREDITS.md`) ; `assets/pad.mp3` est une nappe
