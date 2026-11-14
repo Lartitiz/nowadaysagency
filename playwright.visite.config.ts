@@ -31,7 +31,7 @@ const AUTH_FILE = path.join(__dirname, "e2e-visite/.auth/camille.json");
 // `plan-carrousel-sonde` ne débite aucun crédit mais paie un appel Sonnet : même règle.
 // Leur nombre et leur coût réels se lisent chaque matin dans cron-health (`compte_test_24h`).
 const SPECS_PAYANTES =
-  /(fonctionnel-t1|perf-carousel|stories-visuelles|carousel-mix-live|carousel-photo-live|carousel-photo-fond-live|packshot-live|plan-carrousel-sonde)\.spec\.ts/;
+  /(fonctionnel-t1|perf-carousel|stories-visuelles|carousel-mix-live|carousel-photo-live|carousel-photo-fond-live|packshot-live|plan-carrousel-sonde|idees-ressorts-sonde)\.spec\.ts/;
 const estLundi = new Date().getDay() === 1;
 const sansSpecsPayantes = !!process.env.VISITE_SANS_CREDIT || (!estLundi && !process.env.VISITE_PAYANTE);
 // Tests de vérification manuelle des stories (e2e-visite/qa/, 12/11/2026) : JAMAIS dans la
