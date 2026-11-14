@@ -118,7 +118,7 @@ import { loadFlowState, saveFlowState as persistFlowState, clearFlowState, saveP
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import { useSilentDraftSwitch } from "@/hooks/use-silent-draft-switch";
 import { useCreerDraftIdea } from "@/hooks/use-creer-draft-idea";
-import DraftResumeGate from "@/features/creer/DraftResumeGate";
+import DraftResumeGate from "@/features/creer/DraftResumeGate"; import StaleDraftGate from "@/features/creer/StaleDraftGate";
 import LinkedInCarouselInvite from "@/components/creer/LinkedInCarouselInvite";
 import { useCreerKeepContent, KeepContentDialog } from "@/hooks/use-creer-keep-content";
 import { useCreerSettingsPersistence } from "@/hooks/use-creer-settings-persistence";
@@ -130,7 +130,7 @@ import { useUserPlan } from "@/hooks/use-user-plan";
 
 
 // « Reprendre » un brouillon de Mes idées passe d'abord par DraftResumeGate.
-export default function CreerUnifie() { return <DraftResumeGate><CreerUnifiePage /></DraftResumeGate>; }
+export default function CreerUnifie() { return <DraftResumeGate><StaleDraftGate><CreerUnifiePage /></StaleDraftGate></DraftResumeGate>; }
 
 function CreerUnifiePage() {
   const entryLocation = useLocation();

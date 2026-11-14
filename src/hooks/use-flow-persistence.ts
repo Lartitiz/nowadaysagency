@@ -317,6 +317,12 @@ export function loadFlowState(): FlowState | null {
   }
 }
 
+/** L'onglet a-t-il déjà sa propre copie du parcours (rechargement) ? Sinon,
+ *  loadFlowState reprendra la copie de secours d'un onglet fermé. */
+export function hasTabFlowState(): boolean {
+  try { return !!sessionStorage.getItem(flowStorageKey()); } catch { return false; }
+}
+
 /** Une fiche supprimée de Mes idées (editingIdeaId) ne doit plus revenir dans
  *  Créer : on oublie la copie de l'onglet et les copies de secours (onglets
  *  fermés) qui travaillaient dessus, avec leurs photos (QA du 13/11/2026 :
