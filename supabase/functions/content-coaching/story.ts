@@ -16,8 +16,7 @@
 // Si l'IA échoue ou rend une question illisible, la question générale du même
 // temps la remplace : la fenêtre ne reste jamais vide.
 
-import { QUESTIONS_FORM_RULES, questionTropLongue } from "../_shared/questions-form.ts";
-import { hasVouvoiement } from "../carousel-ai/questions-address.ts";
+import { QUESTIONS_FORM_RULES, hasVouvoiement, questionTropLongue } from "../_shared/questions-form.ts";
 
 export type StoryBeat = "scene" | "paroles" | "ressenti" | "declic";
 export const STORY_BEATS: StoryBeat[] = ["scene", "paroles", "ressenti", "declic"];
