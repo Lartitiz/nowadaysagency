@@ -6,6 +6,7 @@
 import { reelSourceKey } from "@/lib/reel-publication";
 import { subtitleSettingsFromCharter, type CharterForSubtitles } from "@/lib/reel-render";
 import type { VoiceClip } from "@/lib/reel-voice";
+import { isDefaultTweaks, type ReelTweaks } from "./reel-preview";
 import type { MontageMode, ReelMontageProject, Section, SelectedClip, StudioCutaway } from "./types";
 
 interface MontageInputs {
@@ -26,9 +27,19 @@ export function montageRenderKey({ sections, clips, cutaways, voiceClips, voiceM
     voiceClips, voiceMode, montageMode, subtitleSettingsFromCharter(charter)]);
 }
 
-export function savedMontageProject({ associationTexts, montageMode, voiceMode, clips, voiceClips, cutaways }:
-  MontageInputs & { associationTexts: string[] }): ReelMontageProject {
+export function savedMontageProject({ associationTexts, montageMode, voiceMode, clips, voiceClips, cutaways, tweaks }:
+  MontageInputs & { associationTexts: string[]; tweaks?: ReelTweaks }): ReelMontageProject {
   return { version: 1, sectionTexts: associationTexts, montageMode, voiceMode,
     clips: clips.map(clip => clip?.source === "studio" ? { ...clip, url: "" } : clip),
-    voiceClips, cutaways: cutaways.map(plan => plan ? { ...plan, url: "" } : plan) };
+    voiceClips, cutaways: cutaways.map(plan => plan ? { ...plan, url: "" } : plan),
+    // Retouches de l'aperçu : gardées seulement si la cliente en a fait (forme d'avant sinon).
+    ...(tweaks && !isDefaultTweaks(tweaks) ? { tweaks: { ...tweaks } } : {}) };
+}
+
+/**
+ * Clé de rendu avec les retouches de l'aperçu : une retouche détache le MP4
+ * déjà rangé (il ne correspond plus). Sans retouche, la clé est celle d'avant.
+ */
+export function withTweaksKey(key: string, tweaks: ReelTweaks, instantPreview: boolean): string {
+  return instantPreview && !isDefaultTweaks(tweaks) ? `${key}|${JSON.stringify(tweaks)}` : key;
 }

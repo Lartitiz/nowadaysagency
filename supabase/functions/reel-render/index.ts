@@ -27,7 +27,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildReelRecipe } from "./recipe.ts";
-import { SubmitSchema } from "./schema.ts";
+import { SubmitSchema, TweakSchema } from "./schema.ts";
+import { sanitizeTweaks } from "./tweaks.ts";
+import { TWEAK_SYSTEM, TWEAK_TOOL, tweakPrompt, tweaksFromAi } from "./ai-tweak.ts";
+import { callAnthropicToolSimple, HAIKU_MODEL, type UsageSink } from "../_shared/anthropic.ts";
+import { checkQuota, getServiceClient, logUsage } from "../_shared/plan-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { buildReelComposition, isHyperframesEligible } from "./hyperframes.ts";
 import {
   HYPERFRAMES_ENABLED,
@@ -51,7 +56,7 @@ const ArchiveSchema = z.object({
   url: z.string().url().refine(isAllowedReelRenderUrl, "URL de rendu inattendue."),
 });
 
-const BodySchema = z.discriminatedUnion("action", [SubmitSchema, StatusSchema, ArchiveSchema]);
+const BodySchema = z.discriminatedUnion("action", [SubmitSchema, StatusSchema, ArchiveSchema, TweakSchema]);
 
 // Plafond du bucket `calendar-media` (cf. src/lib/upload-limits.ts).
 const MAX_MP4_BYTES = 150 * 1024 * 1024;
@@ -72,6 +77,32 @@ serve(async (req) => {
     body = BodySchema.parse(await req.json());
   } catch (e) {
     return json({ error: "Requête invalide.", details: String(e) }, 400);
+  }
+
+  // ── action "tweak" : « Dis ce que tu veux changer » → réglages bornés ──
+  // Seule action IA de cette fonction : pattern quota strict (checkQuota →
+  // appel IA → logUsage). Les boutons de retouche et les demandes simples sont
+  // traités dans le navigateur, sans appel ici (donc sans crédit).
+  if (body.action === "tweak") {
+    const n = body.passages.length;
+    const current = sanitizeTweaks(body.current, n);
+    if (body.workspace_id) {
+      const membership = await assertWorkspaceMembership(getServiceClient(), userId, body.workspace_id);
+      if (!membership.ok) return workspaceDeniedResponse(corsHeaders);
+    }
+    const quota = await checkQuota(userId, "adaptation", body.workspace_id);
+    if (!quota.allowed) return json({ error: quota.message, quota }, 429);
+    const usage: UsageSink = {};
+    let raw: unknown;
+    try {
+      raw = await callAnthropicToolSimple(HAIKU_MODEL, TWEAK_SYSTEM, tweakPrompt(body.request, body.passages, current), TWEAK_TOOL, 0.2, 800, usage, 30_000);
+    } catch (e) {
+      console.error("[reel-render] tweak IA échouée", e);
+      return json({ error: "Je n'ai pas réussi à comprendre la demande. Réessaie avec d'autres mots." }, 502);
+    }
+    const result = tweaksFromAi(raw, current, n);
+    await logUsage(userId, "adaptation", "reel_tweak", usage.total_tokens, usage.model ?? HAIKU_MODEL, body.workspace_id);
+    return json(result);
   }
 
   // ── action "archive" : le MP4 devient NOTRE fichier ──
@@ -140,7 +171,7 @@ serve(async (req) => {
     return json(await hyperframesStatus(body.project, authorization));
   }
   if (body.action === "submit" && HYPERFRAMES_ENABLED && isHyperframesEligible(body)) {
-    const started = await submitHyperframes(buildReelComposition(body), authorization);
+    const started = await submitHyperframes(buildReelComposition(body, { look: body.look }), authorization);
     if (started.ok) {
       console.log(JSON.stringify({ event: "reel_render_engine", engine: "hyperframes", sections: body.sections.length }));
       return json({ project: started.project, status: "running" });

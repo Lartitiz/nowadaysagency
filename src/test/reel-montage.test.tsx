@@ -54,6 +54,11 @@ const project = (p: Partial<ReelMontageProject>): ReelMontageProject => ({
   clips: [null, null], cutaways: [null, null], voiceClips: [null, null], ...p,
 });
 const assemble = () => fireEvent.click(screen.getByRole("button", { name: "Assembler mon reel" }));
+/* Reel sans voix (14/11/2026) : « Assembler » ouvre l'aperçu immédiat ; le MP4 part au clic « Télécharger ma vidéo ». */
+const assembleSilent = async () => {
+  assemble();
+  fireEvent.click(await screen.findByRole("button", { name: "Télécharger ma vidéo" }));
+};
 const settle = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
 beforeEach(() => {
@@ -141,7 +146,7 @@ describe("ReelMontage — plan envoyé au moteur", () => {
   it("« Je ne me montre pas » + sans voix", async () => {
     render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent", clips: [stock(1), stock(2)] })} />);
     await settle();
-    assemble();
+    await assembleSilent();
     await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
     const expected = buildRenderPlan(SECTIONS, [{ url: stock(1).url, seek: 0 }, { url: stock(2).url, seek: 0 }], {
       mode: "cache", voice_mode: "silent", voiceAudioUrls: [null, null], voiceDurations: [null, null], brollBySection: [null, null],
@@ -208,7 +213,7 @@ describe("ReelMontage — fenêtre de lecture", () => {
     await settle();
     expect(screen.getAllByLabelText("Choisir la fenêtre de lecture dans ma vidéo")).toHaveLength(1);
     fireEvent.change(slider()!, { target: { value: "4" } });
-    assemble();
+    await assembleSilent();
     await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
     const expected = buildRenderPlan(SECTIONS, [{ url: mine(1).url, seek: 4 }, { url: stock(2).url, seek: 0 }], {
       mode: "cache", voice_mode: "silent", voiceAudioUrls: [null, null], voiceDurations: [null, null], brollBySection: [null, null],
@@ -420,13 +425,17 @@ describe("ReelMontage — message pendant l'assemblage, selon le mode", () => {
     m.voices = [];
     render(<ReelMontage sections={SECTIONS} initialProject={project(p)} />);
     await settle();
+    if (p.voiceMode === "silent" && p.montageMode !== "filme") {
+      await assembleSilent();
+      return screen.findByText(/Fabrication de ta vidéo/);
+    }
     assemble();
     return screen.findByText(/Assemblage des clips/);
   };
 
   it("sans voix : parle du texte à l'écran, jamais de la voix ni des sous-titres", async () => {
     const msg = await rendering({ voiceMode: "silent", clips: [stock(1), stock(2)] });
-    expect(msg.textContent).toMatch(/texte à l'écran/);
+    expect(msg.textContent).toMatch(/environ 2 minutes/);
     expect(msg.textContent).not.toMatch(/voix|sous-titres/);
   });
 
@@ -485,7 +494,7 @@ describe("ReelMontage — photo de départ du reel", () => {
     chooseHidden();
     await screen.findByText("Ta photo de départ");
     fireEvent.click(screen.getByText("Sans voix"));
-    assemble();
+    await assembleSilent();
     await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
     expect(m.submit.mock.calls[0][0].sections[0]).toMatchObject({ clip_url: "https://stockage.test/photo-depart.jpg", clip_type: "image" });
   });
@@ -511,5 +520,50 @@ describe("ReelMontage — photo de départ du reel", () => {
     render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent" })} />);
     await settle();
     expect(screen.queryByRole("button", { name: "Mettre ma photo de départ" })).toBeNull();
+  });
+});
+
+describe("ReelMontage — aperçu immédiat du reel sans voix (14/11/2026)", () => {
+  it("« Assembler » montre l'aperçu sans rien fabriquer ; une retouche part au MP4 seulement au téléchargement", async () => {
+    const onProjectChange = vi.fn();
+    render(<ReelMontage sections={SECTIONS} onProjectChange={onProjectChange} initialProject={project({ voiceMode: "silent", clips: [stock(1), stock(2)] })} />);
+    await settle();
+    assemble();
+    expect(await screen.findByRole("region", { name: "Aperçu de ton reel" })).toBeInTheDocument();
+    expect(screen.getByTestId("reel-preview-player")).toBeInTheDocument();
+    expect(m.submit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Texte plus grand" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sans sons" }));
+    await waitFor(() => expect(onProjectChange).toHaveBeenLastCalledWith(expect.objectContaining({
+      tweaks: expect.objectContaining({ textScale: 1.15, sounds: false }),
+    })));
+    expect(m.submit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Télécharger ma vidéo" }));
+    await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
+    expect(m.submit.mock.calls[0][1]).toEqual({ textScale: 1.15, calm: false, sounds: false, volume: 1 });
+  });
+
+  it("« Plus court » raccourcit les passages envoyés au rendu", async () => {
+    render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent", clips: [stock(1), stock(2)] })} />);
+    await settle();
+    assemble();
+    fireEvent.click(await screen.findByRole("button", { name: "Plus court" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ranger cette vidéo" }));
+    await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
+    const base = buildRenderPlan(SECTIONS, [{ url: stock(1).url, seek: 0 }, { url: stock(2).url, seek: 0 }], {
+      mode: "cache", voice_mode: "silent", voiceAudioUrls: [null, null], voiceDurations: [null, null], brollBySection: [null, null],
+    });
+    const sent = m.submit.mock.calls[0][0].sections.map((s: { duration: number }) => s.duration);
+    sent.forEach((d: number, i: number) => expect(d).toBeLessThan(base.sections[i].duration));
+  });
+
+  it("« Ma voix » garde l'assemblage direct, sans aperçu", async () => {
+    render(<ReelMontage sections={SECTIONS} initialProject={project({ clips: [stock(1), stock(2)], voiceClips: [voice(1), voice(2)] })} />);
+    await settle();
+    assemble();
+    await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("region", { name: "Aperçu de ton reel" })).toBeNull();
   });
 });

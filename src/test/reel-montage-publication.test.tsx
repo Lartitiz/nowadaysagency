@@ -140,6 +140,8 @@ it('restores a Studio clip by job ID and signs its URL again for rendering',asyn
  await act(async()=>{await Promise.resolve();});
  expect(onProjectChange).not.toHaveBeenCalled();
  fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
+ // Sans voix : aperçu immédiat d'abord, le MP4 part au téléchargement.
+ fireEvent.click(await screen.findByRole('button',{name:'Télécharger ma vidéo'}));
  await waitFor(()=>expect(mocks.submit).toHaveBeenCalledOnce());
  expect(mocks.readStudio).toHaveBeenCalledWith('space','studio-job');
  expect(mocks.submit.mock.calls[0][0].sections[0].clip_url).toBe('https://clips.test/fresh.mp4');
