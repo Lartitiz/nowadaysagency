@@ -46,6 +46,12 @@ export const SubmitSchema = z.object({
   mode: z.enum(["filme", "cache"]).optional(),
   // Retouches de rendu du reel « sans voix » (tweaks.ts, bornes vérifiées là aussi).
   look: LookSchema.optional(),
+  // Charte de la cliente (brand-look.ts) : couleur du mot clé et polices, revalidées à l'usage.
+  brand: z.object({
+    accent: z.string().max(9).optional(),
+    keyFont: z.string().max(60).nullable().optional(),
+    textFont: z.string().max(60).nullable().optional(),
+  }).optional(),
 });
 
 /** « Dis ce que tu veux changer » : demande libre → réglages bornés (jamais de HTML). */

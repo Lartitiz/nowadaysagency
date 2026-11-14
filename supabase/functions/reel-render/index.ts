@@ -171,7 +171,7 @@ serve(async (req) => {
     return json(await hyperframesStatus(body.project, authorization));
   }
   if (body.action === "submit" && HYPERFRAMES_ENABLED && isHyperframesEligible(body)) {
-    const started = await submitHyperframes(buildReelComposition(body, { look: body.look }), authorization);
+    const started = await submitHyperframes(buildReelComposition(body, { look: body.look, brand: body.brand }), authorization);
     if (started.ok) {
       console.log(JSON.stringify({ event: "reel_render_engine", engine: "hyperframes", sections: body.sections.length }));
       return json({ project: started.project, status: "running" });

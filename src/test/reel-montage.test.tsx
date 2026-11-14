@@ -567,3 +567,22 @@ describe("ReelMontage — aperçu immédiat du reel sans voix (14/11/2026)", () 
     expect(screen.queryByRole("region", { name: "Aperçu de ton reel" })).toBeNull();
   });
 });
+
+describe("ReelMontage — charte graphique dans le montage sans voix (14/11/2026)", () => {
+  it("couleur et polices de la charte partent au rendu ; rien en mode « ma voix »", async () => {
+    m.charter = { color_accent: "#FB3D80", font_title: "Libre Baskerville", font_body: "IBM Plex Sans" };
+    const { unmount } = render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent", clips: [stock(1), stock(2)] })} />);
+    await settle();
+    await assembleSilent();
+    await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
+    expect(m.submit.mock.calls[0][0].brand).toEqual({ accent: "#fb3d80", keyFont: "Libre Baskerville", textFont: "IBM Plex Sans" });
+    unmount();
+    m.submit.mockClear();
+    render(<ReelMontage sections={SECTIONS} initialProject={project({ clips: [stock(1), stock(2)], voiceClips: [voice(1), voice(2)] })} />);
+    await settle();
+    assemble();
+    await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
+    expect(m.submit.mock.calls[0][0].brand).toBeUndefined();
+    m.charter = null;
+  });
+});

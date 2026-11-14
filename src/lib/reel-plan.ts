@@ -62,6 +62,8 @@ export interface RenderPlan {
   subtitle_settings?: Record<string, unknown>;
   /** "filme" (prise face cam, son gardé) / "cache" (défaut, comportement existant). */
   mode?: "filme" | "cache";
+  /** Charte de la cliente pour le montage HyperFrames (reel sans voix) : voir reel-render/brand-look.ts. */
+  brand?: { accent: string; keyFont: string | null; textFont: string | null };
 }
 
 /**
@@ -111,6 +113,8 @@ const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i;
 export interface CharterForSubtitles {
   font_title?: string | null;
   color_accent?: string | null;
+  /** Police du texte : lue par le montage HyperFrames du reel sans voix (pas par les sous-titres). */
+  font_body?: string | null;
 }
 
 /**

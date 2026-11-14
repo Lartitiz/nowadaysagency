@@ -29,6 +29,7 @@
 import { estimateOverlayLines, type ReelRenderInput } from "./recipe.ts";
 import { REEL_OVERLAY_MIN_FONT_PX } from "../_shared/socle.ts";
 import { DEFAULT_LOOK, sanitizeLook, type ReelLook } from "./tweaks.ts";
+import { brandFontLinks, sanitizeBrandLook, type BrandLook } from "./brand-look.ts";
 
 const WIDTH = 1080;
 const HEIGHT = 1920;
@@ -155,11 +156,19 @@ export interface CompositionOptions {
   look?: Partial<ReelLook>;
   /** Où trouver les sons : "assets/" pour le relais, URL absolue du site pour l'aperçu. */
   assetBase?: string;
+  /** Charte de la cliente (brand-look.ts). Absente = couleur et polices par défaut. */
+  brand?: Partial<BrandLook> | null;
 }
 
 export function buildReelComposition(input: ReelRenderInput, options: CompositionOptions = {}): ReelComposition {
   const look = sanitizeLook({ ...DEFAULT_LOOK, ...options.look });
   const assetBase = options.assetBase ?? "assets/";
+  const brand = sanitizeBrandLook(options.brand);
+  const textFamily = brand.textFont ? `"${brand.textFont}", "Montserrat", sans-serif` : `"Montserrat", sans-serif`;
+  const keyStyle = brand.keyFont
+    ? `font-family: "${brand.keyFont}", "Playfair Display", serif; font-style: normal;`
+    : `font-family: "Playfair Display", serif; font-style: italic;`;
+  const fontLinks = brandFontLinks(brand);
   const sfx = (id: string, name: string, start: number, duration: number, volume: number, track: number, mediaStart?: number) =>
     sfxTag(assetBase, id, name, start, duration, Math.round(volume * look.volume * (look.calm ? 0.7 : 1) * 100) / 100, track, mediaStart);
   const sections = input.sections;
@@ -251,10 +260,10 @@ export function buildReelComposition(input: ReelRenderInput, options: Compositio
 <meta name="viewport" content="width=${WIDTH}, height=${HEIGHT}" />
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Playfair+Display:ital,wght@1,700&display=block" />
-<style>
+${fontLinks ? `${fontLinks}\n` : ""}<style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: ${WIDTH}px; height: ${HEIGHT}px; overflow: hidden; background: #0d0b09; }
-#root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #0d0b09; font-family: "Montserrat", sans-serif; }
+#root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #0d0b09; font-family: ${textFamily}; }
 .shot { position: absolute; inset: 0; overflow: hidden; }
 .shot .cam { position: absolute; inset: 0; }
 .shot video, .shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -271,7 +280,7 @@ html, body { width: ${WIDTH}px; height: ${HEIGHT}px; overflow: hidden; backgroun
 .w:last-child { margin-right: 0; }
 .kg { display: inline-block; white-space: nowrap; }
 .k { padding-right: 0.04em; }
-.k { font-family: "Playfair Display", serif; font-style: italic; font-weight: 700; color: #f6c98b; }
+.k { ${keyStyle} font-weight: 700; color: ${brand.accent}; }
 #fadeout { position: absolute; inset: 0; background: #000; opacity: 0; }
 </style>
 </head>

@@ -39,5 +39,6 @@ export function previewComposition(plan: RenderPlan, tweaks: ReelTweaks, maxDura
   return buildReelComposition(cut, {
     look: lookOf(sanitizeTweaks(tweaks, plan.sections.length)),
     assetBase: `${origin.replace(/\/$/, "")}/reel-assets/`,
+    brand: plan.brand,
   });
 }
