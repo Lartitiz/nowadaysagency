@@ -94,3 +94,12 @@ Deno.test("forme propre à l'histoire : les questions générales passent, le pr
   assertStringIncludes(storyQuestionsSystem(), "18 mots au plus");
   assert(!storyQuestionsSystem().includes("jamais plus de 30"), "pas la forme commune des Précisions");
 });
+
+// Essai réel du 14/11 (2e version) : la 1re question recopiait l'exemple « juste » du
+// prompt, écrit pour un métier de conseil. Les exemples de forme parlent d'un autre
+// métier et sont marqués à ne pas recopier.
+Deno.test("les exemples de forme parlent d'un autre métier, à ne pas recopier", () => {
+  const s = storyQuestionsSystem();
+  assertStringIncludes(s, "ne les recopie jamais");
+  assert(!s.includes("séance avec une cliente"), "plus d'exemple tiré d'un métier de conseil");
+});
