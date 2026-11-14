@@ -10,7 +10,9 @@ import ReelFromPhotosNote from "./ReelFromPhotosNote";
 import { photoCapForFormat } from "@/lib/format-photo-cap";
 import { multiSubjectChoicePending } from "../../../supabase/functions/_shared/multi-subject";
 import { recommendContentFormat } from "@/lib/format-recommendation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { classerParPertinence } from "@/lib/rank-library-photos";
+import type { UserPhotoRow } from "@/lib/photo-storage";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -183,6 +185,19 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
   const { column, value } = useWorkspaceFilter();
   // « Mes photos » compte pour le type conseillé (choix du 16/10/2026). Lu après le choix du carrousel : appliqué tant qu'elle n'a pas choisi elle-même.
   const libraryPhotoCount = useLibraryPhotoCount({ column, value });
+  // « L'app choisit » : ses photos les plus proches du sujet d'abord (classement sans IA).
+  const pickFromLibrary = useCallback(async (count: number) => {
+    const { data, error } = await supabase
+      .from("user_photos")
+      .select("*")
+      .eq(column as "workspace_id", value)
+      .eq("status", "ready")
+      .is("removed_from_library_at", null)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    return classerParPertinence((data ?? []) as UserPhotoRow[], [idea, photoDescription].filter(Boolean).join(" ")).slice(0, count);
+  }, [column, value, idea, photoDescription]);
   const carouselModeTouched = useRef(!!initialCarouselSubMode);
   useEffect(() => { if (selectedFormat === "carousel" && carouselSubMode === "text" && !carouselModeTouched.current && uploadedPhotos.length === 0) setCarouselSubMode(defaultCarouselMode(0, libraryPhotoCount)); }, [libraryPhotoCount]);
 
@@ -455,7 +470,9 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
     // Exception : photo dump activé en « Photos brutes » = zéro photo attachée
     // est un cas VALIDE (l'app compose depuis la bibliothèque + la génération).
     const dumpComposes = carouselSubMode === "pure_photo" && photoDump;
-    if (selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length === 0 && !textFirstMix && !dumpComposes) {
+    // « Tes photos en fond » : photos facultatives (choix de Laetitia du 14/11/2026) ;
+    // sans photo, l'app écrit d'abord et elle pose une photo sur chaque slide ensuite.
+    if (selectedFormat === "carousel" && (carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length === 0 && !textFirstMix && !dumpComposes) {
       setPhotoWarning(true);
       return;
     }
@@ -781,7 +798,10 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
               if (photos.length > 0) setPhotoWarning(false);
             }}
             onDescriptionChange={setPhotoDescription}
-            title={uploadedPhotos.length > 0 ? `Tes photos (${uploadedPhotos.length})` : undefined}
+            title={uploadedPhotos.length > 0 ? `Tes photos (${uploadedPhotos.length})` : carouselSubMode === "photo" ? "Tes photos (facultatif)" : undefined}
+            layout="tiles"
+            pickFromLibrary={pickFromLibrary}
+            hideDescription={uploadedPhotos.length === 0}
             compact={uploadedPhotos.length > 0}
             stockSearchSeed={idea}
             openStockSignal={stockSignal}
@@ -795,6 +815,12 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
             aiAutoPickCount={carouselSubMode === "mix" ? 3 : 6}
             libraryCount={libraryPhotoCount}
           />
+          {carouselSubMode === "photo" && uploadedPhotos.length === 0 && (
+            <div className="mt-3 flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-sm text-foreground" data-testid="carousel-photo-later">
+              <span aria-hidden="true">⏭️</span>
+              <span><span className="font-semibold">Pas de photo sous la main ?</span> Clique sur « Suivant » : l'app écrit d'abord, tu poses une photo sur chaque slide ensuite.</span>
+            </div>
+          )}
           {photoWarning && (
             <CarouselPhotoWarning libraryCount={libraryPhotoCount} onLibrary={() => setLibrarySignal((s) => s + 1)} onStock={() => setStockSignal((s) => s + 1)}
               onText={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); setPhotoWarning(false); }} />

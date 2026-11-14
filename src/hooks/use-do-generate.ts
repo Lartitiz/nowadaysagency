@@ -237,13 +237,15 @@ export function useDoGenerate({
       catch { toast.error("Les photos enregistrées n'ont pas pu être rechargées. Ton carrousel reste inchangé. Réessaie ou ajoute tes photos avant de générer."); return; }
       finally { restoringPhotos.current = false; }
       if (isCurrent && !isCurrent()) return;
-      if (!uploadedPhotos.length) {
+      if (uploadedPhotos.length) {
+        recoveredPhotos = true;
+        setUploadedPhotos(uploadedPhotos);
+        setGeneratedWithPhotos(uploadedPhotos);
+      } else if (carouselSubMode !== "photo") {
+        // « Tes photos en fond » se fait aussi sans photo (14/11/2026) : seuls le mixte et les photos brutes en exigent.
         toast.error("Ajoute les photos du carrousel avant de demander une nouvelle proposition.");
         return;
       }
-      recoveredPhotos = true;
-      setUploadedPhotos(uploadedPhotos);
-      setGeneratedWithPhotos(uploadedPhotos);
     }
     // Une ligne de contexte par photo avant un carrousel photo / mixte (pas pour
     // le premier contenu automatique, la démo, le mixte « texte d'abord » ni des

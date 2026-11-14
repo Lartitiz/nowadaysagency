@@ -99,6 +99,17 @@ export interface PhotoUploadZoneProps {
    * (choix de Laetitia du 16/10/2026 : ses photos avant la banque d'images).
    */
   libraryCount?: number;
+  /**
+   * Présentation en trois gros boutons (Mes photos / L'app choisit / Importer),
+   * pour les carrousels (maquette validée par Laetitia le 14/11/2026).
+   */
+  layout?: "tiles";
+  /**
+   * « L'app choisit » prend d'abord dans « Mes photos » (choix du 14/11/2026) :
+   * renvoie jusqu'à `count` photos de la bibliothèque, les plus pertinentes d'abord.
+   * Le reste est complété par des photos libres de droit.
+   */
+  pickFromLibrary?: (count: number) => Promise<UserPhotoRow[]>;
 }
 
 function resizeAndEncode(file: File, maxWidth = 1600, quality = 0.8): Promise<{ base64: string; preview: string }> {
@@ -130,6 +141,31 @@ function resizeAndEncode(file: File, maxWidth = 1600, quality = 0.8): Promise<{ 
   });
 }
 
+/** Photos de « Mes photos » prêtes pour un carrousel (une photo illisible est signalée et sautée). */
+async function libraryRowsToItems(rows: UserPhotoRow[], quiet = false): Promise<PhotoItem[]> {
+  const results = await Promise.allSettled(rows.map((p) => userPhotoToBase64(p)));
+  const items: PhotoItem[] = [];
+  results.forEach((r, i) => {
+    if (r.status === "fulfilled") {
+      items.push({
+        id: crypto.randomUUID(),
+        base64: r.value.base64,
+        preview: r.value.base64,
+        name: r.value.name,
+        mimeType: r.value.mimeType,
+        context: "",
+        libraryContext: carouselLibraryContext(rows[i]),
+        userPhotoId: rows[i].id,
+      });
+    } else {
+      const name = rows[i].name || "photo";
+      console.warn("[photo-library-import] failed", name, r.reason);
+      if (!quiet) toast.error(`Impossible d'importer "${name}". Réessaie dans un instant.`);
+    }
+  });
+  return items;
+}
+
 export function PhotoUploadZone({
   maxPhotos = 10,
   onPhotosChange,
@@ -145,6 +181,8 @@ export function PhotoUploadZone({
   stockAiContext,
   aiAutoPickCount,
   libraryCount = 0,
+  layout,
+  pickFromLibrary,
 }: PhotoUploadZoneProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -240,26 +278,7 @@ export function PhotoUploadZone({
       if (slice.length === 0) return;
       setImportingFromLibrary(true);
       try {
-        const results = await Promise.allSettled(slice.map((p) => userPhotoToBase64(p)));
-        const items: PhotoItem[] = [];
-        results.forEach((r, i) => {
-          if (r.status === "fulfilled") {
-            items.push({
-              id: crypto.randomUUID(),
-              base64: r.value.base64,
-              preview: r.value.base64,
-              name: r.value.name,
-              mimeType: r.value.mimeType,
-              context: "",
-              libraryContext: carouselLibraryContext(slice[i]),
-              userPhotoId: slice[i].id,
-            });
-          } else {
-            const name = slice[i].name || "photo";
-            console.warn("[photo-library-import] failed", name, r.reason);
-            toast.error(`Impossible d'importer "${name}". Réessaie dans un instant.`);
-          }
-        });
+        const items = await libraryRowsToItems(slice);
         if (items.length > 0) {
           updatePhotos([...photos, ...items].slice(0, maxPhotos));
         }
@@ -281,33 +300,59 @@ export function PhotoUploadZone({
 
   // « L'IA choisit les photos pour moi » : l'IA dérive le plan visuel du contenu,
   // cherche sur Pexels et sélectionne automatiquement une photo par slide.
+  // Avec des photos dans « Mes photos », on y pioche d'abord (les plus proches du
+  // sujet), et on complète seulement s'il en manque (choix du 14/11/2026).
   const handleAiAutoPick = useCallback(async () => {
     const subject = stockAiContext?.subject?.trim();
-    if (!subject || autoPicking) return;
+    const fromLibrary = !!pickFromLibrary && libraryCount > 0;
+    if ((!subject && !fromLibrary) || autoPicking) return;
     const remaining = maxPhotos - photos.length;
     if (remaining <= 0) {
       toast.error(`Tu as déjà ${maxPhotos} photos.`);
       return;
     }
+    const want = Math.min(aiAutoPickCount ?? 6, remaining);
     setAutoPicking(true);
     try {
-      const items = await autoSelectStockPhotos(stockAiContext!, {
-        count: Math.min(aiAutoPickCount ?? 6, remaining),
-      });
-      updatePhotos([...photos, ...items].slice(0, maxPhotos));
-      toast.success(
-        items.length > 1
-          ? `${items.length} photos choisies par l'IA. Tu peux en retirer ou en ajouter.`
-          : "1 photo choisie par l'IA. Tu peux en changer.",
-      );
+      const taken = new Set(photos.map((p) => p.userPhotoId).filter(Boolean));
+      let mine: PhotoItem[] = [];
+      if (fromLibrary) {
+        try {
+          const rows = (await pickFromLibrary!(want + taken.size)).filter((r) => !taken.has(r.id)).slice(0, want);
+          mine = await libraryRowsToItems(rows, true);
+        } catch (e) {
+          console.warn("[photo-auto-pick] bibliothèque", e);
+        }
+      }
+      let stock: PhotoItem[] = [];
+      if (mine.length < want && subject) {
+        try {
+          stock = await autoSelectStockPhotos(stockAiContext!, { count: want - mine.length });
+        } catch (e) {
+          if (mine.length === 0) throw e;
+          console.warn("[photo-auto-pick] libres de droit", e);
+        }
+      }
+      const added = [...mine, ...stock];
+      if (added.length === 0) {
+        toast.error("Aucune photo trouvée. Choisis-les toi-même ou continue sans photo.");
+        return;
+      }
+      updatePhotos([...photos, ...added].slice(0, maxPhotos));
+      const parts = [
+        mine.length > 0 ? `${mine.length} de tes photos` : "",
+        stock.length > 0 ? `${stock.length} photo${stock.length > 1 ? "s" : ""} libre${stock.length > 1 ? "s" : ""} de droit` : "",
+      ].filter(Boolean).join(" et ");
+      toast.success(`${parts.charAt(0).toUpperCase()}${parts.slice(1)} choisie${added.length > 1 ? "s" : ""}. Tu peux en retirer ou en ajouter.`);
     } catch (e) {
-      toast.error(readableError(e, "L'IA n'a pas pu choisir de photos."));
+      toast.error(readableError(e, "L'app n'a pas pu choisir de photos."));
     } finally {
       setAutoPicking(false);
     }
-  }, [stockAiContext, aiAutoPickCount, autoPicking, photos, maxPhotos, updatePhotos]);
+  }, [stockAiContext, aiAutoPickCount, autoPicking, photos, maxPhotos, updatePhotos, pickFromLibrary, libraryCount]);
 
-  const showAiAutoPick = !!stockAiContext?.subject?.trim();
+  const showAiAutoPick = !!stockAiContext?.subject?.trim() || (!!pickFromLibrary && libraryCount > 0);
+  const tiles = layout === "tiles" && !compact;
   const libraryFirst = libraryCount > 0;
 
   const removePhoto = useCallback(
@@ -417,8 +462,44 @@ export function PhotoUploadZone({
       {title && (
         <p className="text-sm font-semibold text-foreground">{title}</p>
       )}
+      {/* Trois gros boutons côte à côte (carrousels) : la tuile « Importer » reçoit aussi les photos glissées. */}
+      {tiles && (
+        <div className="space-y-2" data-testid="photo-zone-tiles">
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" data-testid="photo-zone-library-main" onClick={() => setLibraryOpen(true)} disabled={isFull || importingFromLibrary}
+              className="flex flex-col items-center gap-1 rounded-xl border-2 border-border bg-card px-2 py-3 text-center transition-colors hover:border-primary/40 disabled:opacity-50 disabled:cursor-not-allowed">
+              {importingFromLibrary ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <Library className="h-5 w-5 text-primary" />}
+              <span className="text-sm font-semibold text-foreground">Mes photos</span>
+              <span className="text-2xs text-muted-foreground">{importingFromLibrary ? "Import…" : libraryCount > 0 ? `${libraryCount} photo${libraryCount > 1 ? "s" : ""}` : "Ta photothèque"}</span>
+            </button>
+            <button type="button" data-testid="photo-zone-auto-pick" onClick={handleAiAutoPick} disabled={isFull || autoPicking || !showAiAutoPick}
+              className="flex flex-col items-center gap-1 rounded-xl border-2 border-border bg-card px-2 py-3 text-center transition-colors hover:border-primary/40 disabled:opacity-50 disabled:cursor-not-allowed">
+              {autoPicking ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <Sparkles className="h-5 w-5 text-primary" />}
+              <span className="text-sm font-semibold text-foreground">L'app choisit</span>
+              <span className="text-2xs text-muted-foreground">{autoPicking ? "Je cherche…" : libraryCount > 0 && pickFromLibrary ? "Dans tes photos d'abord" : "Photos libres de droit"}</span>
+            </button>
+            <button type="button" data-testid="photo-zone-import" onClick={() => !isFull && inputRef.current?.click()} disabled={isFull}
+              onDragEnter={onDragEnter} onDragLeave={onDragLeave} onDragOver={onDragOverZone} onDrop={onDrop}
+              className={cn("flex flex-col items-center gap-1 rounded-xl border-2 bg-card px-2 py-3 text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed", isDragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/40")}>
+              <Upload className="h-5 w-5 text-primary" />
+              <span className="text-sm font-semibold text-foreground">Importer</span>
+              <span className="text-2xs text-muted-foreground">{isDragOver ? "Dépose ici" : "Ordi, téléphone"}</span>
+            </button>
+          </div>
+          <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1.5">
+            <button type="button" onClick={() => { setLibraryAutoImport(true); setLibraryOpen(true); }} disabled={isFull || importingFromLibrary}
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed">
+              <Globe className="h-3.5 w-3.5" /> Depuis mon site ou Instagram
+            </button>
+            <button type="button" onClick={() => setStockOpen(true)} disabled={isFull}
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed">
+              <Images className="h-3.5 w-3.5" /> Photos libres de droit
+            </button>
+          </div>
+        </div>
+      )}
       {/* Mes photos d'abord : au-dessus de la zone de dépôt, visible sans défiler sur téléphone. */}
-      {!compact && libraryFirst && (
+      {!compact && !tiles && libraryFirst && (
         <div className="flex justify-center">
           <button
             type="button"
@@ -433,7 +514,7 @@ export function PhotoUploadZone({
         </div>
       )}
       {/* ── Drop zone (hidden in compact mode) ─────────── */}
-      {!compact && (
+      {!compact && !tiles && (
         <div
           onClick={() => !isFull && inputRef.current?.click()}
           onDragEnter={onDragEnter}
@@ -460,7 +541,7 @@ export function PhotoUploadZone({
       )}
 
       {/* ── « L'IA choisit les photos pour moi » (si contexte fourni) ───────── */}
-      {!compact && showAiAutoPick && !libraryFirst && (
+      {!compact && !tiles && showAiAutoPick && !libraryFirst && (
         <div className="flex flex-col items-center gap-1 -mt-1">
           <button
             type="button"
@@ -487,7 +568,7 @@ export function PhotoUploadZone({
       )}
 
       {/* ── "Choose from library" / "Stock photos" links (non-compact mode) ───── */}
-      {!compact && (
+      {!compact && !tiles && (
         <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1.5 -mt-1">
           {libraryFirst && showAiAutoPick && (
             <button
