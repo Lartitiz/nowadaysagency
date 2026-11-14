@@ -15,6 +15,13 @@ describe("carrousel « Tes photos en fond » écrit sans photo (14/11/2026)", ()
     expect(out.slides[1]).toMatchObject({ slide_type: "photo_full", photo_directive: "Une photo qui accompagne « Un texte assez long pour la slide »" });
     expect(out.slides[2].photo_directive).toBe("Une photo de ton univers.");
     expect(out.slides[3]).toEqual({ slide_type: "text_only", title: "Slide texte" });
+    expect(out.slides[0].photo_description).toBeUndefined();
     expect(raw.slides[0].photo_index).toBe(1);
+  });
+  it("retire « Photo choisie par … (description non fournie) : » et garde l'image idéale", () => {
+    const out: any = castPhotosLater({ slides: [
+      { slide_type: "photo_full", photo_index: 2, overlay_text: "x", photo_description: "Photo choisie par Camille (description non fournie) : texture de savon ou huiles idéalement." },
+    ] });
+    expect(out.slides[0].photo_directive).toBe("Texture de savon ou huiles.");
   });
 });

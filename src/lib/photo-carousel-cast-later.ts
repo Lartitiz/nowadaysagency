@@ -8,11 +8,18 @@
  * choisir » (même écran que le mixte « J'écris d'abord ») : plus de numéro, et
  * l'image idéale décrite par le serveur comme repère.
  */
-const GENERIC_DESCRIPTION = /photo fournie par l['’]utilisatrice/i;
+// « Photo fournie par l'utilisatrice (description non fournie) », « Photo choisie par Camille (description non fournie) : … »
+const NO_PHOTO_PREFIX = /^photo (?:fournie|choisie)[^:(]*(?:\(description non fournie\))?\s*:?\s*/i;
+
+function cleanDescription(desc: unknown): string {
+  const raw = typeof desc === "string" ? desc.trim() : "";
+  const cleaned = raw.replace(NO_PHOTO_PREFIX, "").replace(/\s*idéalement\.?$/i, "").trim();
+  return cleaned ? `${cleaned.charAt(0).toUpperCase()}${cleaned.slice(1)}${/[.!?]$/.test(cleaned) ? "" : "."}` : "";
+}
 
 function idealImage(slide: any): string {
-  const desc = typeof slide?.photo_description === "string" ? slide.photo_description.trim() : "";
-  if (desc && !GENERIC_DESCRIPTION.test(desc)) return desc;
+  const desc = cleanDescription(slide?.photo_description);
+  if (desc) return desc;
   const text = String(slide?.overlay_text || slide?.title || "").replace(/\s+/g, " ").trim();
   if (!text) return "Une photo de ton univers.";
   return `Une photo qui accompagne « ${text.length > 90 ? `${text.slice(0, 89).trimEnd()}…` : text} »`;
@@ -31,6 +38,8 @@ export function castPhotosLater<T>(raw: T): T {
         slide_type: s.slide_type === "photo_integrated" ? "photo_integrated" : "photo_full",
         photo_index: null,
         photo_directive: s.photo_directive || idealImage(s),
+        // Déjà dite dans « L'image idéale ici » : pas de seconde ligne 📷 identique sous la slide.
+        photo_description: undefined,
       };
     }),
   } as T;
