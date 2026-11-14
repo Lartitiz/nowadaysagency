@@ -125,14 +125,51 @@ export function splitScreens(raw: string, textScale = 1): string[] {
     if (current) screens.push(current);
     current = "";
     if (fits(sentence)) { current = sentence; continue; }
-    for (const word of sentence.split(" ")) {
-      const next = current ? `${current} ${word}` : word;
-      if (!current || fits(next)) current = next;
-      else { screens.push(current); current = word; }
-    }
+    // Phrase trop longue : coupée en écrans de longueur égale (jamais un mot seul
+    // en fin de phrase, vu à l'essai du 14/11/2026 : « décote ? » tout seul), et sa
+    // fin n'est pas collée à la phrase suivante.
+    screens.push(...balancedChunks(glueLonePunctuation(sentence.split(" ")), fits));
   }
   if (current) screens.push(current);
   return screens;
+}
+
+/** « question : » : une ponctuation isolée reste avec le mot d'avant (jamais en tête d'écran). */
+function glueLonePunctuation(tokens: string[]): string[] {
+  const out: string[] = [];
+  for (const t of tokens) {
+    if (out.length && !/[\p{L}\p{N}]/u.test(t)) out[out.length - 1] += ` ${t}`;
+    else out.push(t);
+  }
+  return out;
+}
+
+/** Plus petit nombre d'écrans qui tiennent, avec des écrans de longueur aussi égale que possible. */
+function balancedChunks(words: string[], fits: (t: string) => boolean): string[] {
+  const greedy: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (!current || fits(next)) current = next;
+    else { greedy.push(current); current = word; }
+  }
+  if (current) greedy.push(current);
+  const k = greedy.length;
+  if (k < 2) return greedy;
+  const total = words.join(" ").length;
+  // Coupe au plus près des k-1 repères de longueur égale, puis on vérifie que tout tient.
+  const chunks: string[] = [];
+  let chunk: string[] = [];
+  let done = 0;
+  words.forEach((word, i) => {
+    chunk.push(word);
+    done += word.length + 1;
+    const left = words.length - i - 1;
+    const target = (total * (chunks.length + 1)) / k;
+    if (chunks.length < k - 1 && left > 0 && done >= target) { chunks.push(chunk.join(" ")); chunk = []; }
+  });
+  if (chunk.length) chunks.push(chunk.join(" "));
+  return chunks.length === k && chunks.every(fits) ? chunks : greedy;
 }
 
 interface TextScreen {
