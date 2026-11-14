@@ -4,6 +4,7 @@
 // à la charte. Sans état React.
 import { buildRenderPlan, subtitleSettingsFromCharter, type CharterForSubtitles, type RenderPlan } from "@/lib/reel-render";
 import { readStudioVideo } from "@/features/studio-video/api";
+import { brandLookFromCharter } from "../../../supabase/functions/reel-render/brand-look.ts";
 import type { ChosenClip } from "./assemble-guards";
 import type { MontageMode, Section, SelectedClip, StudioCutaway } from "./types";
 
@@ -55,5 +56,7 @@ export async function buildMontagePlan({ spoken, clips, chosen, cutaways, montag
   // Police + couleur d'accent de la charte sur les sous-titres ; sans
   // charte (ou champs vides), le moteur retombe sur son style par défaut.
   plan.subtitle_settings = subtitleSettingsFromCharter(charter);
+  // Reel sans voix (HyperFrames) : couleur du mot clé et polices de la charte, bornées et contrastées en code.
+  if (montageMode === "cache" && voiceMode === "silent" && charter) plan.brand = brandLookFromCharter(charter);
   return plan;
 }
