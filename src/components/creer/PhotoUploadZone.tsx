@@ -13,7 +13,8 @@ import { autoSelectStockPhotos, type StockKeywordContext } from "@/lib/stock-pho
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import { convertHeicIfNeeded, isHeic } from "@/lib/heic";
 
-import { carouselLibraryContext } from "@/lib/carousel-photo-context";
+import { autoPickPhotos, libraryRowsToItems } from "@/lib/library-photo-items";
+import PhotoSourceTiles from "./PhotoSourceTiles";
 
 const MAX_FILE_SIZE_MB = UX_UPLOAD_LIMITS.photo / MB;
 
@@ -139,31 +140,6 @@ function resizeAndEncode(file: File, maxWidth = 1600, quality = 0.8): Promise<{ 
     img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("load")); };
     img.src = objectUrl;
   });
-}
-
-/** Photos de « Mes photos » prêtes pour un carrousel (une photo illisible est signalée et sautée). */
-async function libraryRowsToItems(rows: UserPhotoRow[], quiet = false): Promise<PhotoItem[]> {
-  const results = await Promise.allSettled(rows.map((p) => userPhotoToBase64(p)));
-  const items: PhotoItem[] = [];
-  results.forEach((r, i) => {
-    if (r.status === "fulfilled") {
-      items.push({
-        id: crypto.randomUUID(),
-        base64: r.value.base64,
-        preview: r.value.base64,
-        name: r.value.name,
-        mimeType: r.value.mimeType,
-        context: "",
-        libraryContext: carouselLibraryContext(rows[i]),
-        userPhotoId: rows[i].id,
-      });
-    } else {
-      const name = rows[i].name || "photo";
-      console.warn("[photo-library-import] failed", name, r.reason);
-      if (!quiet) toast.error(`Impossible d'importer "${name}". Réessaie dans un instant.`);
-    }
-  });
-  return items;
 }
 
 export function PhotoUploadZone({
@@ -314,36 +290,15 @@ export function PhotoUploadZone({
     const want = Math.min(aiAutoPickCount ?? 6, remaining);
     setAutoPicking(true);
     try {
-      const taken = new Set(photos.map((p) => p.userPhotoId).filter(Boolean));
-      let mine: PhotoItem[] = [];
-      if (fromLibrary) {
-        try {
-          const rows = (await pickFromLibrary!(want + taken.size)).filter((r) => !taken.has(r.id)).slice(0, want);
-          mine = await libraryRowsToItems(rows, true);
-        } catch (e) {
-          console.warn("[photo-auto-pick] bibliothèque", e);
-        }
-      }
-      let stock: PhotoItem[] = [];
-      if (mine.length < want && subject) {
-        try {
-          stock = await autoSelectStockPhotos(stockAiContext!, { count: want - mine.length });
-        } catch (e) {
-          if (mine.length === 0) throw e;
-          console.warn("[photo-auto-pick] libres de droit", e);
-        }
-      }
-      const added = [...mine, ...stock];
-      if (added.length === 0) {
-        toast.error("Aucune photo trouvée. Choisis-les toi-même ou continue sans photo.");
-        return;
-      }
+      const { added, message } = await autoPickPhotos({
+        want,
+        takenIds: new Set(photos.map((p) => p.userPhotoId).filter(Boolean) as string[]),
+        pickFromLibrary: fromLibrary ? pickFromLibrary : undefined,
+        pickStock: subject ? (count) => autoSelectStockPhotos(stockAiContext!, { count }) : undefined,
+      });
+      if (added.length === 0) { toast.error(message); return; }
       updatePhotos([...photos, ...added].slice(0, maxPhotos));
-      const parts = [
-        mine.length > 0 ? `${mine.length} de tes photos` : "",
-        stock.length > 0 ? `${stock.length} photo${stock.length > 1 ? "s" : ""} libre${stock.length > 1 ? "s" : ""} de droit` : "",
-      ].filter(Boolean).join(" et ");
-      toast.success(`${parts.charAt(0).toUpperCase()}${parts.slice(1)} choisie${added.length > 1 ? "s" : ""}. Tu peux en retirer ou en ajouter.`);
+      toast.success(message);
     } catch (e) {
       toast.error(readableError(e, "L'app n'a pas pu choisir de photos."));
     } finally {
@@ -462,41 +417,11 @@ export function PhotoUploadZone({
       {title && (
         <p className="text-sm font-semibold text-foreground">{title}</p>
       )}
-      {/* Trois gros boutons côte à côte (carrousels) : la tuile « Importer » reçoit aussi les photos glissées. */}
       {tiles && (
-        <div className="space-y-2" data-testid="photo-zone-tiles">
-          <div className="grid grid-cols-3 gap-2">
-            <button type="button" data-testid="photo-zone-library-main" onClick={() => setLibraryOpen(true)} disabled={isFull || importingFromLibrary}
-              className="flex flex-col items-center gap-1 rounded-xl border-2 border-border bg-card px-2 py-3 text-center transition-colors hover:border-primary/40 disabled:opacity-50 disabled:cursor-not-allowed">
-              {importingFromLibrary ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <Library className="h-5 w-5 text-primary" />}
-              <span className="text-sm font-semibold text-foreground">Mes photos</span>
-              <span className="text-2xs text-muted-foreground">{importingFromLibrary ? "Import…" : libraryCount > 0 ? `${libraryCount} photo${libraryCount > 1 ? "s" : ""}` : "Ta photothèque"}</span>
-            </button>
-            <button type="button" data-testid="photo-zone-auto-pick" onClick={handleAiAutoPick} disabled={isFull || autoPicking || !showAiAutoPick}
-              className="flex flex-col items-center gap-1 rounded-xl border-2 border-border bg-card px-2 py-3 text-center transition-colors hover:border-primary/40 disabled:opacity-50 disabled:cursor-not-allowed">
-              {autoPicking ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <Sparkles className="h-5 w-5 text-primary" />}
-              <span className="text-sm font-semibold text-foreground">L'app choisit</span>
-              <span className="text-2xs text-muted-foreground">{autoPicking ? "Je cherche…" : libraryCount > 0 && pickFromLibrary ? "Dans tes photos d'abord" : "Photos libres de droit"}</span>
-            </button>
-            <button type="button" data-testid="photo-zone-import" onClick={() => !isFull && inputRef.current?.click()} disabled={isFull}
-              onDragEnter={onDragEnter} onDragLeave={onDragLeave} onDragOver={onDragOverZone} onDrop={onDrop}
-              className={cn("flex flex-col items-center gap-1 rounded-xl border-2 bg-card px-2 py-3 text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed", isDragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/40")}>
-              <Upload className="h-5 w-5 text-primary" />
-              <span className="text-sm font-semibold text-foreground">Importer</span>
-              <span className="text-2xs text-muted-foreground">{isDragOver ? "Dépose ici" : "Ordi, téléphone"}</span>
-            </button>
-          </div>
-          <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1.5">
-            <button type="button" onClick={() => { setLibraryAutoImport(true); setLibraryOpen(true); }} disabled={isFull || importingFromLibrary}
-              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed">
-              <Globe className="h-3.5 w-3.5" /> Depuis mon site ou Instagram
-            </button>
-            <button type="button" onClick={() => setStockOpen(true)} disabled={isFull}
-              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed">
-              <Images className="h-3.5 w-3.5" /> Photos libres de droit
-            </button>
-          </div>
-        </div>
+        <PhotoSourceTiles libraryCount={libraryCount} isFull={isFull} importing={importingFromLibrary} autoPicking={autoPicking} canAutoPick={showAiAutoPick}
+          libraryFirstPick={!!pickFromLibrary && libraryCount > 0} isDragOver={isDragOver} onLibrary={() => setLibraryOpen(true)} onAutoPick={handleAiAutoPick}
+          onImport={() => inputRef.current?.click()} dropHandlers={{ onDragEnter, onDragLeave, onDragOver: onDragOverZone, onDrop }}
+          onSite={() => { setLibraryAutoImport(true); setLibraryOpen(true); }} onStock={() => setStockOpen(true)} />
       )}
       {/* Mes photos d'abord : au-dessus de la zone de dépôt, visible sans défiler sur téléphone. */}
       {!compact && !tiles && libraryFirst && (

@@ -7,7 +7,7 @@ import { defaultCarouselMode } from "@/components/creer/CarouselModePicker";
 import { recommendContentFormat } from "@/lib/format-recommendation";
 
 const lib = vi.hoisted(() => ({ count: 0 }));
-vi.mock("@/hooks/use-library-photo-count", () => ({ useLibraryPhotoCount: () => lib.count }));
+vi.mock("@/hooks/use-library-photo-count", () => ({ useLibraryPhotoCount: () => lib.count, usePickLibraryPhotos: () => async () => [] }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: null }) }));
 vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceFilter: () => ({ column: "workspace_id", value: "test" }) }));
 vi.mock("@/components/ui/input-with-voice", () => ({ InputWithVoice: (props: any) => <input {...props} /> }));

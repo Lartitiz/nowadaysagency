@@ -260,6 +260,13 @@ export function useContentGenerator() {
         stockAdded = applied.added;
       }
 
+      // « Tes photos en fond » écrit sans photo : chaque slide attend son image (14/11/2026).
+      if (format === "carousel" && params.carouselType === "photo" && params.carouselSubMode !== "pure_photo"
+          && !(params.photos?.length) && stockAdded.length === 0) {
+        const { castPhotosLater } = await import("@/lib/photo-carousel-cast-later");
+        shown = castPhotosLater(shown);
+      }
+
       const normalized: ContentResult = {
         type: format,
         raw: shown,
