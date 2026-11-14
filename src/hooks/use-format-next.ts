@@ -28,6 +28,8 @@ interface UseFormatNextParams {
   isDemoMode: boolean;
   demoData: any;
   ideaText: string;
+  /** Histoire racontée via « Je te pose des questions » : les Précisions la creusent sans la redemander. */
+  storyContext?: string;
   editorialAngle: string | null;
   existingCalendarContent: string | null;
   aurianaDemoActive: boolean;
@@ -81,6 +83,7 @@ export function useFormatNext({
   isDemoMode,
   demoData,
   ideaText,
+  storyContext,
   editorialAngle,
   existingCalendarContent,
   aurianaDemoActive,
@@ -284,7 +287,7 @@ export function useFormatNext({
 
     await generateQuestions({
       format,
-      subject: safeSubject,
+      subject: safeSubject + (storyContext || ""),
       editorialAngle: inheritedAngle || undefined,
       objective: objective || undefined,
       channel: channelForQuestions,
