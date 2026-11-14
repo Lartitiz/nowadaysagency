@@ -10,11 +10,11 @@ Deno.test("sous-titres : 3 mots par ligne au plus, temps décalés au début de 
     5,
     "c0",
   );
-  assertEquals(lines.map((l) => l.words.map((x) => x.text).join(" ")), ["Bonjour, je m’appelle", "Camille et"]);
-  assertEquals(lines[0].start, 10);
-  assertEquals(lines[0].words[2].at, 10.6);
-  // La première ligne s'arrête quand la suivante commence.
-  assertEquals(lines[0].duration, 1);
+  assertEquals(lines.map((l) => l.words.map((x) => x.text).join(" ")), ["Bonjour,", "je m’appelle", "Camille et"]);
+  assertEquals(lines[1].start, 10.5);
+  assertEquals(lines[1].words[1].at, 10.6);
+  // Une ligne s'arrête quand la suivante commence.
+  assertEquals(lines[0].duration, 0.5);
 });
 
 Deno.test("sous-titres : fin de phrase et silence ouvrent une ligne", () => {

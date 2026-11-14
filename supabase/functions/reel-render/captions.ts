@@ -43,7 +43,7 @@ const HEIGHT = 1920;
 /** Même hauteur que les sous-titres JSON2Video (SUBTITLE_Y_RATIO de recipe.ts). */
 export const CAPTION_Y_RATIO = 0.72;
 const MAX_WORDS_PER_LINE = 3;
-const MAX_CHARS_PER_LINE = 22;
+const MAX_CHARS_PER_LINE = 18;
 /** Un silence plus long que ça ouvre une nouvelle ligne. */
 const PAUSE_S = 0.45;
 /** Une ligne reste à l'écran au plus ce temps après son dernier mot. */
@@ -67,7 +67,7 @@ export function voiceTracks(input: Pick<ReelRenderInput, "sections" | "voice_mod
 
 /**
  * Range les mots d'une section en lignes de 3 mots au plus. Une ligne se coupe
- * aussi après une fin de phrase ou un silence. Temps rendus absolus (début de
+ * aussi après une ponctuation (fin de phrase, virgule) ou un silence. Temps rendus absolus (début de
  * la section dans le reel = `offset`) ; rien ne déborde sur la section suivante.
  */
 export function captionLines(words: CaptionWord[], offset: number, sectionDuration: number, idPrefix: string): CaptionLine[] {
@@ -83,7 +83,7 @@ export function captionLines(words: CaptionWord[], offset: number, sectionDurati
   usable.forEach((w, i) => {
     const prev = current[current.length - 1];
     const chars = current.reduce((n, x) => n + x.text.length + 1, 0) + w.text.length;
-    const breakBefore = prev && (current.length >= MAX_WORDS_PER_LINE || chars > MAX_CHARS_PER_LINE || w.start - prev.end > PAUSE_S || /[.!?…]["»”]?$/.test(prev.text));
+    const breakBefore = prev && (current.length >= MAX_WORDS_PER_LINE || chars > MAX_CHARS_PER_LINE || w.start - prev.end > PAUSE_S || /[.!?…,;:]["»”]?$/.test(prev.text));
     if (breakBefore) {
       groups.push(current);
       current = [];
@@ -113,7 +113,7 @@ export function captionsHtml(lines: CaptionLine[]): string {
   return lines
     .map((l) =>
       `<div class="cap clip" id="${l.id}" data-start="${l.start}" data-duration="${l.duration}" data-track-index="5"><p>${
-        l.words.map((w, j) => `<span class="cw" id="${l.id}_${j}">${escapeHtml(w.text)}</span>`).join(" ")
+        l.words.map((w, j) => `<span class="cw" id="${l.id}_${j}">${escapeHtml(w.text)}</span>`).join("")
       }</p></div>`
     )
     .join("\n");
@@ -123,10 +123,10 @@ const CAPTION_CENTER_PX = Math.round(HEIGHT * CAPTION_Y_RATIO);
 
 export const CAPTIONS_CSS = `.cap { position: absolute; left: 70px; right: 70px; top: ${CAPTION_CENTER_PX - 130}px; height: 260px;
   display: flex; align-items: center; justify-content: center; }
-.cap p { text-align: center; color: #ffffff; font-family: "Montserrat", sans-serif; font-weight: 700; font-size: 84px;
+.cap p { text-align: center; color: #ffffff; font-family: "Montserrat", sans-serif; font-weight: 700; font-size: 80px;
   line-height: 1.12; letter-spacing: -0.01em; -webkit-text-stroke: 10px #000; paint-order: stroke fill;
   text-shadow: 0 4px 18px rgba(0,0,0,0.55); }
-.cw { display: inline-block; white-space: pre; }`;
+.cw { display: inline-block; white-space: pre; margin: 0 0.16em; }`;
 
 /** Couleur du mot dit quand la cliente n'a pas de charte (jaune lumière Nowadays). */
 export const DEFAULT_ACTIVE_COLOR = "#ffe561";
@@ -139,7 +139,7 @@ CAP.forEach((l) => {
   tl.fromTo("#" + l.id + " p", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.12, ease: "power2.out" }, l.s);
   l.w.forEach((at, j) => {
     const el = "#" + l.id + "_" + j;
-    tl.fromTo(el, { color: "#ffffff", scale: 1 }, { color: ${JSON.stringify(activeColor)}, scale: 1.08, duration: 0.08, ease: "power1.out" }, at);
+    tl.fromTo(el, { color: "#ffffff", scale: 1 }, { color: ${JSON.stringify(activeColor)}, scale: 1.05, duration: 0.08, ease: "power1.out" }, at);
     if (j < l.w.length - 1) tl.to(el, { color: "#ffffff", scale: 1, duration: 0.08 }, l.w[j + 1]);
   });
 });`;

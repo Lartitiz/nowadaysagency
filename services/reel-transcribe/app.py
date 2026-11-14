@@ -99,9 +99,20 @@ def clean_words(raw: list[tuple[str, float, float]]) -> list[dict]:
     return words
 
 
+def read_wav(path: str):
+    """Son 16 kHz mono déjà préparé par ffmpeg → tableau de flottants (sans passer par PyAV)."""
+    import wave
+
+    import numpy as np
+
+    with wave.open(path, "rb") as f:
+        frames = f.readframes(f.getnframes())
+    return np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+
+
 def words_of(path: str) -> list[dict]:
     segments, _info = get_pipeline().transcribe(
-        path,
+        read_wav(path),
         language=LANGUAGE,
         word_timestamps=True,
         beam_size=5,
