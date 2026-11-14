@@ -100,3 +100,9 @@ Deno.test("couverture : sans passe IA disponible (temps), titre long gardé, cor
   assertEquals(doc.slides[0].body, "");
   assert(doc.slides[1].body.startsWith("Tu as une idée"));
 });
+
+Deno.test("couverture : la ponctuation isolée (« » ? !) ne compte pas comme des mots (14/11/2026)", () => {
+  assertEquals(coverWords("La « fatigue synthétique » ? On a toujours dit ça autrement."), 9);
+  assertEquals(checkCover({ slide_number: 1, overlay_text: "La « fatigue synthétique » ? On a toujours dit ça autrement." }, "photo").needsRewrite, false);
+  assertEquals(coverWords("Publier tous les jours ne sert à rien !"), 8);
+});
