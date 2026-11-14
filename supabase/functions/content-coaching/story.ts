@@ -29,9 +29,9 @@ export const STORY_PLACEHOLDER_MAX_WORDS = 9;
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
 
 /** Vrai si la question d'histoire est illisible : trop longue, parenthèses, deux questions ou deux demandes. */
-export function storyQuestionTooHeavy(question: string): boolean {
+export function storyQuestionTooHeavy(question: string, maxWords = STORY_QUESTION_MAX_WORDS): boolean {
   const q = question.trim();
-  return words(q) > STORY_QUESTION_MAX_WORDS
+  return words(q) > maxWords
     || /[()]/.test(q)
     || (q.match(/\?/g) || []).length > 1
     || /[,;]?\s+et\s+(qu['’]|que\b|quel|quoi|comment|pourquoi|as-tu|est-ce)/i.test(q);
@@ -117,16 +117,33 @@ export function storyQuestionsUser(context: string, alreadyTold: string): string
 
 const clean = (v: unknown, max: number) => typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "";
 
-/** Garde une question de l'IA seulement si elle est lisible et tutoie ; sinon la question générale du même temps. */
-export function normalizeStoryQuestions(raw: unknown): StoryQuestion[] {
+/** La scène porte le métier (un lieu, un objet, un type de rendez-vous) : un peu plus de place. */
+export const STORY_SCENE_MAX_WORDS = 22;
+
+/** Raison du refus d'une question de l'IA (journalisée), ou null si elle est gardée. */
+export function storyQuestionRejection(id: StoryBeat, question: string): string | null {
+  if (question.length < 8) return "vide";
+  if (!(question.endsWith("?") || question.endsWith("."))) return "fin";
+  if (storyQuestionTooHeavy(question, id === "scene" ? STORY_SCENE_MAX_WORDS : STORY_QUESTION_MAX_WORDS)) return `lourde:${words(question)}mots`;
+  if (hasVouvoiement(question)) return "vouvoiement";
+  return null;
+}
+
+/**
+ * Garde une question de l'IA seulement si elle est lisible et tutoie ; sinon la question
+ * générale du même temps. Un exemple de réponse qui vouvoie (une cliente citée) ou trop
+ * précis ne fait remplacer que l'exemple. `rejected` reçoit les refus pour le journal.
+ */
+export function normalizeStoryQuestions(raw: unknown, rejected: Array<{ id: StoryBeat; reason: string; question: string }> = []): StoryQuestion[] {
   const list = Array.isArray((raw as any)?.questions) ? (raw as any).questions : [];
   return STORY_BEATS.map((id, i) => {
     const fromAi = list.find((q: any) => q?.id === id) ?? list[i];
     const question = clean(fromAi?.question, 220);
     const placeholder = clean(fromAi?.placeholder, 140);
-    const ok = question.length >= 8 && (question.endsWith("?") || question.endsWith("."));
-    if (!ok || storyQuestionTooHeavy(question) || hasVouvoiement(`${question}\n${placeholder}`)) return GENERIC_STORY_QUESTIONS[i];
-    return { id, question, placeholder: placeholder && !storyPlaceholderTooSpecific(placeholder) ? placeholder : GENERIC_STORY_QUESTIONS[i].placeholder };
+    const reason = storyQuestionRejection(id, question);
+    if (reason) { rejected.push({ id, reason, question: question.slice(0, 220) }); return GENERIC_STORY_QUESTIONS[i]; }
+    const keepPlaceholder = placeholder && !storyPlaceholderTooSpecific(placeholder) && !hasVouvoiement(placeholder);
+    return { id, question, placeholder: keepPlaceholder ? placeholder : GENERIC_STORY_QUESTIONS[i].placeholder };
   });
 }
 

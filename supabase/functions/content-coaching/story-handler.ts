@@ -61,7 +61,11 @@ export async function handleStoryMode({ service, userId, workspace, body, json }
     ].filter(Boolean).map((t) => `- ${String(t).slice(0, 160)}`).join("\n");
     const raw = await callAnthropicToolSimple(getModelForAction("questions"), storyQuestionsSystem(), storyQuestionsUser(context, alreadyTold), STORY_QUESTIONS_TOOL, 0.7, 900, usage, 30000);
     await log();
-    return json({ questions: normalizeStoryQuestions(raw), fallback: false });
+    const rejected: Array<{ id: string; reason: string; question: string }> = [];
+    const questions = normalizeStoryQuestions(raw, rejected as any);
+    // Lu le 14/11/2026 : la question de la scène retombait sur la générale 3 fois sur 3, sans trace.
+    if (rejected.length) console.warn(JSON.stringify({ type: "story_question_rejected", rejected }));
+    return json({ questions, fallback: false });
   } catch (e) {
     console.error(JSON.stringify({ type: "story_questions_fallback", error: String((e as Error)?.message || e) }));
     return json({ questions: GENERIC_STORY_QUESTIONS, fallback: true });
