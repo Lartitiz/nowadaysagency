@@ -6,7 +6,8 @@ import { loadFlowState, saveFlowState, setFlowUserId, setFlowWorkspaceId } from 
 const db = vi.hoisted(() => ({ rows: new Set<string>(), fail: false }));
 vi.mock("sonner", () => ({ toast: { warning: vi.fn(), error: vi.fn(), success: vi.fn() } }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ session: { user: { id: "owner" } } }) }));
-vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "owner" }));
+const ws = vi.hoisted(() => ({ id: "owner", ready: true }));
+vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => ws.id, useWorkspaceReady: () => ws.ready }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => {
   let id = "";
   const q: any = { select: () => q, eq: (_c: string, v: string) => { id = v; return q; },
@@ -15,6 +16,7 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => {
 } } }));
 
 beforeEach(() => {
+  ws.id = "owner"; ws.ready = true;
   localStorage.clear(); sessionStorage.clear(); db.rows = new Set(); db.fail = false;
   setFlowUserId("owner"); setFlowWorkspaceId("owner");
 });
@@ -70,5 +72,18 @@ it("oublie toutes les copies orphelines, pas seulement la première", async () =
   expect(await screen.findByText("Page Créer")).toBeInTheDocument();
   expect(loadFlowState()).toBeNull();
   nouvelOnglet();
+  expect(loadFlowState()).toBeNull();
+});
+
+it("attend que l'espace soit chargé avant de regarder les copies", async () => {
+  setFlowWorkspaceId("vrai-espace");
+  saveFlowState({ step: "format", ideaText: "Le parquet", editingIdeaId: "gone", workspaceId: "vrai-espace" });
+  nouvelOnglet();
+  ws.id = "owner"; ws.ready = false; // espace provisoire pendant le chargement
+  const view = page();
+  ws.id = "vrai-espace"; ws.ready = true;
+  view.rerender(<StaleDraftGate><p>Page Créer</p></StaleDraftGate>);
+  expect(await screen.findByText("Page Créer")).toBeInTheDocument();
+  setFlowWorkspaceId("vrai-espace");
   expect(loadFlowState()).toBeNull();
 });
