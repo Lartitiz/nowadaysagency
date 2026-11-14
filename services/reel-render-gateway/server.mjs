@@ -16,7 +16,7 @@ import { mkdtemp, writeFile, cp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { Storage } from "@google-cloud/storage";
 import { renderToCloudRun, getRenderProgress } from "@hyperframes/gcp-cloud-run/sdk";
 
@@ -33,6 +33,12 @@ const MAX_DURATION_S = 65;
 const MAX_RENDERS_PER_HOUR = Number(env("MAX_RENDERS_PER_HOUR", "12"));
 const MAX_RENDERS_PER_DAY = Number(env("MAX_RENDERS_PER_DAY", "40"));
 const SIGNED_URL_MS = 2 * 60 * 60 * 1000;
+// Écoute de la voix (sous-titres mot à mot des reels filmés / voix enregistrée), voir services/reel-transcribe/.
+const TRANSCRIBE_URL = env("TRANSCRIBE_URL", "");
+const TRANSCRIBE_MODEL = "small-v1";
+const MAX_TRANSCRIBE_ITEMS = 12;
+const MAX_TRANSCRIBE_SECONDS = 75;
+const MAX_TRANSCRIBES_PER_HOUR = Number(env("MAX_TRANSCRIBES_PER_HOUR", "20"));
 const ASSETS_DIR = join(dirname(fileURLToPath(import.meta.url)), "assets");
 
 const storage = new Storage();
@@ -120,6 +126,91 @@ async function handleRender(req, res, userId) {
   }
 }
 
+/** Morceaux à écouter, validés ; null si la demande est invalide. */
+export function parseTranscribeItems(body) {
+  const items = Array.isArray(body?.items) ? body.items : null;
+  if (!items || items.length === 0 || items.length > MAX_TRANSCRIBE_ITEMS) return null;
+  const clean = [];
+  let total = 0;
+  for (const item of items) {
+    const url = typeof item?.url === "string" ? item.url : "";
+    const seek = Number(item?.seek ?? 0);
+    const duration = Number(item?.duration);
+    if (!/^https:\/\/[^\s]+$/.test(url) || url.length > 2000) return null;
+    if (!Number.isFinite(seek) || seek < 0 || !Number.isFinite(duration) || duration <= 0) return null;
+    total += duration;
+    clean.push({ url, seek: Math.round(seek * 1000) / 1000, duration: Math.round(duration * 1000) / 1000 });
+  }
+  return total <= MAX_TRANSCRIBE_SECONDS ? clean : null;
+}
+
+/** Clé de cache : même lien + même coupe = même écoute (refaire un reel ne réécoute pas la voix). */
+export function transcriptKey(item) {
+  const hash = createHash("sha256").update(JSON.stringify([TRANSCRIBE_MODEL, item.url, item.seek, item.duration])).digest("hex");
+  return `transcripts/${hash}.json`;
+}
+
+/** Jeton d'identité Google du relais, pour appeler le service privé d'écoute. */
+async function identityToken(audience) {
+  const res = await fetch(
+    `http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=${encodeURIComponent(audience)}`,
+    { headers: { "Metadata-Flavor": "Google" }, signal: AbortSignal.timeout(5000) },
+  );
+  if (!res.ok) throw new Error(`identity_token_${res.status}`);
+  return res.text();
+}
+
+async function readCachedTranscript(key) {
+  try {
+    const [buf] = await storage.bucket(BUCKET).file(key).download();
+    const data = JSON.parse(buf.toString("utf8"));
+    return Array.isArray(data?.words) ? data.words : null;
+  } catch {
+    return null;
+  }
+}
+
+async function handleTranscribe(req, res, userId) {
+  if (!TRANSCRIBE_URL) return send(res, 503, { error: "transcribe_disabled" });
+  const items = parseTranscribeItems(await readJson(req, 30_000));
+  if (!items) return send(res, 400, { error: "invalid_items" });
+
+  const keys = items.map(transcriptKey);
+  const cached = await Promise.all(keys.map(readCachedTranscript));
+  const missing = items.map((item, i) => ({ item, i })).filter(({ i }) => cached[i] === null);
+  if (missing.length > 0) {
+    const now = Date.now();
+    const logPrefix = `transcribe-log/u-${userId}-`;
+    const [files] = await storage.bucket(BUCKET).getFiles({ prefix: logPrefix, autoPaginate: true });
+    const lastHour = files.filter((f) => Number(f.name.slice(logPrefix.length).split("-")[0]) >= now - 3600_000).length;
+    if (lastHour >= MAX_TRANSCRIBES_PER_HOUR) return send(res, 429, { error: "rate_limited" });
+    await storage.bucket(BUCKET).file(`${logPrefix}${now}-${randomUUID().slice(0, 8)}`).save("");
+
+    const started = Date.now();
+    const response = await fetch(`${TRANSCRIBE_URL}/transcribe`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${await identityToken(TRANSCRIBE_URL)}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ items: missing.map(({ item }) => item) }),
+      signal: AbortSignal.timeout(150_000),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !Array.isArray(data?.items) || data.items.length !== missing.length) {
+      console.error(JSON.stringify({ event: "reel_transcribe_failed", status: response.status }));
+      return send(res, 502, { error: "transcribe_failed" });
+    }
+    await Promise.all(missing.map(async ({ i }, j) => {
+      const result = data.items[j];
+      cached[i] = Array.isArray(result?.words) ? result.words : [];
+      // Un morceau illisible n'est pas gardé : il sera réécouté au prochain essai.
+      if (!result?.error) {
+        await storage.bucket(BUCKET).file(keys[i]).save(JSON.stringify({ words: cached[i] }), { contentType: "application/json" });
+      }
+    }));
+    console.log(JSON.stringify({ event: "reel_transcribe_done", items: items.length, listened: missing.length, ms: Date.now() - started }));
+  }
+  return send(res, 200, { items: cached.map((words) => ({ words })) });
+}
+
 async function handleStatus(req, res, userId, id) {
   const m = /^(u-([0-9a-f-]{36})-\d+-[0-9a-f]{8})\.([A-Za-z0-9_-]{1,100})$/.exec(id || "");
   if (!m) return send(res, 400, { error: "invalid_id" });
@@ -152,6 +243,7 @@ const server = http.createServer(async (req, res) => {
     const userId = await userFromToken(req.headers.authorization);
     if (!userId) return send(res, 401, { error: "unauthorized" });
     if (req.method === "POST" && url.pathname === "/render") return await handleRender(req, res, userId);
+    if (req.method === "POST" && url.pathname === "/transcribe") return await handleTranscribe(req, res, userId);
     if (req.method === "GET" && url.pathname === "/status") return await handleStatus(req, res, userId, url.searchParams.get("id"));
     return send(res, 404, { error: "not_found" });
   } catch (error) {
@@ -160,4 +252,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(Number(env("PORT", "8080")), () => console.log("reel-render-gateway prêt"));
+if (process.env.NODE_ENV !== "test") server.listen(Number(env("PORT", "8080")), () => console.log("reel-render-gateway prêt"));

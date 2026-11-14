@@ -33,7 +33,9 @@ import { TWEAK_SYSTEM, TWEAK_TOOL, tweakPrompt, tweaksFromAi } from "./ai-tweak.
 import { callAnthropicToolSimple, HAIKU_MODEL, type UsageSink } from "../_shared/anthropic.ts";
 import { checkQuota, getServiceClient, logUsage } from "../_shared/plan-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
-import { buildReelComposition, isHyperframesEligible } from "./hyperframes.ts";
+import { buildReelComposition, isHyperframesEligible, isSpokenHyperframesEligible } from "./hyperframes.ts";
+import { voiceTracks } from "./captions.ts";
+import { transcribeVoiceTracks } from "./transcribe-gateway.ts";
 import {
   HYPERFRAMES_ENABLED,
   hyperframesStatus,
@@ -177,6 +179,23 @@ serve(async (req) => {
       return json({ project: started.project, status: "running" });
     }
     console.warn(JSON.stringify({ event: "reel_render_engine", engine: "json2video", fallback_reason: started.reason }));
+  }
+  // ── Reel parlé (« Je me filme » ou voix enregistrée) : HyperFrames + sous-titres
+  // calés sur la voix (écoute Whisper sur notre Google Cloud). Écoute ratée ou
+  // lancement refusé → JSON2Video, qui sous-titre lui-même.
+  if (body.action === "submit" && HYPERFRAMES_ENABLED && isSpokenHyperframesEligible(body)) {
+    const wantsCaptions = body.subtitles !== false;
+    const captions = wantsCaptions ? await transcribeVoiceTracks(voiceTracks(body), authorization) : voiceTracks(body).map(() => []);
+    if (captions) {
+      const started = await submitHyperframes(buildReelComposition(body, { look: body.look, brand: body.brand, captions }), authorization);
+      if (started.ok) {
+        console.log(JSON.stringify({ event: "reel_render_engine", engine: "hyperframes", spoken: body.mode ?? "cache", sections: body.sections.length }));
+        return json({ project: started.project, status: "running" });
+      }
+      console.warn(JSON.stringify({ event: "reel_render_engine", engine: "json2video", spoken: true, fallback_reason: started.reason }));
+    } else {
+      console.warn(JSON.stringify({ event: "reel_render_engine", engine: "json2video", spoken: true, fallback_reason: "transcribe_unavailable" }));
+    }
   }
 
   const apiKey = Deno.env.get("JSON2VIDEO_API_KEY");
