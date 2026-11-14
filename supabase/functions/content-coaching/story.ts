@@ -16,7 +16,44 @@
 // Si l'IA échoue ou rend une question illisible, la question générale du même
 // temps la remplace : la fenêtre ne reste jamais vide.
 
-import { QUESTIONS_FORM_RULES, hasVouvoiement, questionTropLongue } from "../_shared/questions-form.ts";
+import { hasVouvoiement } from "../_shared/questions-form.ts";
+
+// Forme PROPRE aux questions d'histoire, plus stricte que celle des Précisions
+// (_shared/questions-form.ts, assouplie le 14/11/2026 à 30 mots et « matière
+// concrète » chiffrée, #1980). Essai réel du 14/11 avec cette forme commune :
+// questions de 28 à 35 mots, deux demandes en une, exemples inventés (« dix posts
+// par semaine »). Une histoire se raconte mieux avec une question simple.
+export const STORY_QUESTION_MAX_WORDS = 18;
+export const STORY_PLACEHOLDER_MAX_WORDS = 9;
+
+const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+
+/** Vrai si la question d'histoire est illisible : trop longue, parenthèses, deux questions ou deux demandes. */
+export function storyQuestionTooHeavy(question: string): boolean {
+  const q = question.trim();
+  return words(q) > STORY_QUESTION_MAX_WORDS
+    || /[()]/.test(q)
+    || (q.match(/\?/g) || []).length > 1
+    || /[,;]?\s+et\s+(qu['’]|que\b|quel|quoi|comment|pourquoi|as-tu|est-ce)/i.test(q);
+}
+
+/** Vrai si l'exemple de réponse est trop long ou affirme un détail précis (chiffre). */
+export function storyPlaceholderTooSpecific(placeholder: string): boolean {
+  return words(placeholder) > STORY_PLACEHOLDER_MAX_WORDS || /\d/.test(placeholder);
+}
+
+const STORY_FORM_RULES = `
+
+FORME (PRIORITAIRE) :
+- Une seule phrase de 18 mots au plus. Vise 10 à 14 mots.
+- Une seule chose demandée : jamais « et qu'est-ce que… » ni deux questions en une.
+- Pas de parenthèses, pas de liste d'options, pas de jargon.
+- placeholder : un début de réponse vague de 9 mots au plus, sans chiffre ni détail précis, pour l'aider à démarrer.
+Trop lourd : « Pense à ta dernière séance avec une cliente qui n'arrivait pas à se rendre visible : qu'est-ce qu'elle t'a dit qui t'a fait comprendre le blocage ? »
+Juste : « Raconte-moi ta dernière séance avec une cliente qui t'a surprise. »
+Trop lourd : « Quelle étape de ta méthode a débloqué la situation, et que veux-tu que tes lectrices en retiennent ? »
+Juste : « Qu'est-ce que tu veux que tes lectrices en retiennent ? »
+Placeholder inventé : « Elle m'a montré son feed, dix posts par semaine. » Placeholder juste : « Ce jour-là, elle m'a dit… »`;
 
 export type StoryBeat = "scene" | "paroles" | "ressenti" | "declic";
 export const STORY_BEATS: StoryBeat[] = ["scene", "paroles", "ressenti", "declic"];
@@ -28,7 +65,7 @@ export const GENERIC_STORY_QUESTIONS: StoryQuestion[] = [
   { id: "scene", question: "Raconte-moi un moment récent qui t'a marquée dans ton travail.", placeholder: "Le jour, le lieu, ce qui s'est passé." },
   { id: "paroles", question: "Qu'est-ce qui a été dit, mot pour mot ?", placeholder: "Sa phrase, puis ta réponse." },
   { id: "ressenti", question: "Qu'as-tu ressenti sur le moment ?", placeholder: "Agacée, touchée, surprise…" },
-  { id: "declic", question: "Qu'est-ce que tu veux que tes lectrices en retiennent ?", placeholder: "Une phrase qui résume ce que tu en as tiré." },
+  { id: "declic", question: "Qu'est-ce que tu veux que tes lectrices en retiennent ?", placeholder: "Ce que tu en as tiré, en une phrase." },
 ];
 
 export const STORY_QUESTIONS_TOOL = {
@@ -70,7 +107,7 @@ RÈGLES :
 - Ne suppose aucun fait : la question demande, elle n'affirme pas ce qui s'est passé.
 - Évite les histoires listées comme déjà racontées : oriente la scène vers un autre type de moment.
 - Accorde selon ce que dit la fiche sur ses clientes ; sinon reste neutre (« une personne », « la personne en face »).
-- placeholder : un début de réponse possible, dans ses mots à elle, sans rien inventer de précis.${QUESTIONS_FORM_RULES}`;
+- Ne décris pas la personne en face ni son problème (pas de « qui n'arrivait pas à… », « qui se cache ») : c'est elle qui le racontera.${STORY_FORM_RULES}`;
 }
 
 export function storyQuestionsUser(context: string, alreadyTold: string): string {
@@ -87,8 +124,8 @@ export function normalizeStoryQuestions(raw: unknown): StoryQuestion[] {
     const question = clean(fromAi?.question, 220);
     const placeholder = clean(fromAi?.placeholder, 140);
     const ok = question.length >= 8 && (question.endsWith("?") || question.endsWith("."));
-    if (!ok || questionTropLongue(question) || hasVouvoiement(`${question}\n${placeholder}`)) return GENERIC_STORY_QUESTIONS[i];
-    return { id, question, placeholder: placeholder && !questionTropLongue(placeholder) ? placeholder : GENERIC_STORY_QUESTIONS[i].placeholder };
+    if (!ok || storyQuestionTooHeavy(question) || hasVouvoiement(`${question}\n${placeholder}`)) return GENERIC_STORY_QUESTIONS[i];
+    return { id, question, placeholder: placeholder && !storyPlaceholderTooSpecific(placeholder) ? placeholder : GENERIC_STORY_QUESTIONS[i].placeholder };
   });
 }
 

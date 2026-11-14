@@ -2,7 +2,7 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   GENERIC_STORY_QUESTIONS, fallbackStoryIdea, normalizeStoryIdea, normalizeStoryQuestions,
-  readStoryAnswers, storyQuestionsSystem,
+  readStoryAnswers, storyPlaceholderTooSpecific, storyQuestionTooHeavy, storyQuestionsSystem,
 } from "./story.ts";
 
 Deno.test("questions adaptées gardées dans l'ordre scène, paroles, ressenti, déclic", () => {
@@ -69,4 +69,28 @@ Deno.test("idée IA sans titre : repli sur ses mots ; tirets longs retirés", ()
   const pairs = [{ question: "scène", answer: "Zéro like, trois messages." }];
   assertEquals(normalizeStoryIdea({ titre: "" }, pairs).titre, "Zéro like, trois messages.");
   assertEquals(normalizeStoryIdea({ titre: "Zéro like — trois messages", angle: "x" }, pairs).titre, "Zéro like, trois messages");
+});
+
+// Sortie réelle de l'IA le 14/11/2026 (forme commune des Précisions, trop permissive pour l'histoire).
+Deno.test("essai réel du 14/11 : questions longues, double demande et exemples inventés refusés", () => {
+  const out = normalizeStoryQuestions({ questions: [
+    { id: "scene", question: "Pense à ta dernière séance de conseil avec une solopreneuse qui n'arrivait pas à se rendre visible : qu'est-ce qu'elle t'a montré ou dit qui t'a fait comprendre le blocage ?", placeholder: "Elle m'a montré son feed." },
+    { id: "paroles", question: "Qu'a-t-elle dit, mot pour mot ?", placeholder: "Elle m'a montré son feed, dix posts par semaine, aucun qui parlait vraiment de son offre." },
+    { id: "ressenti", question: "Qu'as-tu ressenti en l'écoutant ?", placeholder: "Un agacement doux…" },
+    { id: "declic", question: "Quelle étape concrète de ta méthode a débloqué la situation, et qu'est-ce que tu veux que tes lectrices en retiennent ?", placeholder: "" },
+  ] });
+  assertEquals(out[0], GENERIC_STORY_QUESTIONS[0]);
+  assertEquals(out[1].question, "Qu'a-t-elle dit, mot pour mot ?");
+  assertEquals(out[1].placeholder, GENERIC_STORY_QUESTIONS[1].placeholder);
+  assertEquals(out[2], { id: "ressenti", question: "Qu'as-tu ressenti en l'écoutant ?", placeholder: "Un agacement doux…" });
+  assertEquals(out[3], GENERIC_STORY_QUESTIONS[3]);
+});
+
+Deno.test("forme propre à l'histoire : les questions générales passent, le prompt donne 18 mots", () => {
+  for (const q of GENERIC_STORY_QUESTIONS) {
+    assertEquals(storyQuestionTooHeavy(q.question), false, q.question);
+    assertEquals(storyPlaceholderTooSpecific(q.placeholder), false, q.placeholder);
+  }
+  assertStringIncludes(storyQuestionsSystem(), "18 mots au plus");
+  assert(!storyQuestionsSystem().includes("jamais plus de 30"), "pas la forme commune des Précisions");
 });
