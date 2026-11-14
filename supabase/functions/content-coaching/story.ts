@@ -49,11 +49,12 @@ FORME (PRIORITAIRE) :
 - Une seule chose demandée : jamais « et qu'est-ce que… » ni deux questions en une.
 - Pas de parenthèses, pas de liste d'options, pas de jargon.
 - placeholder : un début de réponse vague de 9 mots au plus, sans chiffre ni détail précis, pour l'aider à démarrer.
-Trop lourd : « Pense à ta dernière séance avec une cliente qui n'arrivait pas à se rendre visible : qu'est-ce qu'elle t'a dit qui t'a fait comprendre le blocage ? »
-Juste : « Raconte-moi ta dernière séance avec une cliente qui t'a surprise. »
-Trop lourd : « Quelle étape de ta méthode a débloqué la situation, et que veux-tu que tes lectrices en retiennent ? »
-Juste : « Qu'est-ce que tu veux que tes lectrices en retiennent ? »
-Placeholder inventé : « Elle m'a montré son feed, dix posts par semaine. » Placeholder juste : « Ce jour-là, elle m'a dit… »`;
+Exemples pour une fleuriste, un AUTRE métier : ne les recopie jamais, trouve les mots du métier de cette entrepreneuse.
+Trop lourd : « Pense à la dernière mariée qui hésitait sur ses fleurs : qu'est-ce qu'elle t'a dit qui t'a fait comprendre son doute ? »
+Juste : « Raconte-moi le dernier bouquet de mariée qui t'a donné du fil à retordre. »
+Trop lourd : « Quel geste de ta méthode a tout changé, et que veux-tu que tes lectrices en retiennent ? »
+Juste : « Qu'est-ce que tu aimerais que tes lectrices retiennent de ce bouquet ? »
+Placeholder inventé : « Elle voulait trente pivoines blanches en décembre. » Placeholder juste : « Ce matin-là, elle est arrivée avec… »`;
 
 export type StoryBeat = "scene" | "paroles" | "ressenti" | "declic";
 export const STORY_BEATS: StoryBeat[] = ["scene", "paroles", "ressenti", "declic"];
