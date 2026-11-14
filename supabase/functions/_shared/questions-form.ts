@@ -56,16 +56,51 @@ export function questionTropLongue(question: string): boolean {
   return nbMots(q) > QUESTION_MAX_MOTS || /[()]/.test(q) || (q.match(/\?/g) || []).length > 1;
 }
 
-/** Vrai si au moins une question de la réponse JSON `{questions:[…]}` est trop longue. */
-export function questionsTropLongues(content: string): boolean {
+/** Questions d'une réponse JSON : `questions` (premier tour) ou `follow_up_questions` (suivi de creative-flow). */
+export function questionsDe(content: string): any[] {
   let parsed: any;
-  try { parsed = JSON.parse(content); } catch { return false; }
-  const questions = Array.isArray(parsed?.questions) ? parsed.questions : [];
-  return questions.some((q: any) => questionTropLongue(q?.question || ""));
+  try { parsed = JSON.parse(content); } catch { return []; }
+  if (Array.isArray(parsed?.questions)) return parsed.questions;
+  if (Array.isArray(parsed?.follow_up_questions)) return parsed.follow_up_questions;
+  return [];
+}
+
+/** Vrai si au moins une question de la réponse JSON est trop longue. */
+export function questionsTropLongues(content: string): boolean {
+  return questionsDe(content).some((q: any) => questionTropLongue(q?.question || ""));
 }
 
 /** Vrai si le texte vouvoie, hors citations entre guillemets (« … » ou "…"). */
 export function hasVouvoiement(text: string): boolean {
   const outsideQuotes = String(text || "").replace(/«[^»]*»/g, " ").replace(/"[^"]*"/g, " ").replace(/“[^”]*”/g, " ");
   return /(^|[^\p{L}])(vous|votre|vos)(?![\p{L}])/iu.test(outsideQuotes);
+}
+
+export const QUESTIONS_TUTOIEMENT_RETRY = "Tu as vouvoyé l'utilisatrice. Réécris exactement les mêmes questions en la tutoyant (« ta », « tu », « tes »), sans rien changer d'autre, avec le même format.";
+
+
+/** Vrai si au moins une question ou un exemple de réponse vouvoie. */
+export function questionsVouvoient(content: string): boolean {
+  return questionsDe(content).some((q: any) => hasVouvoiement(`${q?.question || ""}\n${q?.placeholder || ""}`));
+}
+
+/**
+ * Une relance au plus (carousel-ai et, depuis le 14/11/2026, creative-flow) quand une question vouvoie ou reste trop longue.
+ * `ask` reçoit la consigne de correction ; une relance en échec, ou qui ne
+ * règle rien, garde les premières questions plutôt que de tout perdre.
+ */
+export async function relancerQuestionsSiBesoin(content: string, ask: (consigne: string) => Promise<string>): Promise<string> {
+  const vouvoie = questionsVouvoient(content);
+  const longues = questionsTropLongues(content);
+  if (!vouvoie && !longues) return content;
+  const consigne = [vouvoie ? QUESTIONS_TUTOIEMENT_RETRY : "", longues ? QUESTIONS_COURTES_RETRY : ""].filter(Boolean).join("\n");
+  try {
+    const retried = await ask(consigne);
+    if (retried && !questionsVouvoient(retried) && (!longues || !questionsTropLongues(retried))) {
+      console.log(JSON.stringify({ event: "questions_relance", vouvoie, longues, corrige: true }));
+      return retried;
+    }
+  } catch (_) { /* on garde la première version */ }
+  console.log(JSON.stringify({ event: "questions_relance", vouvoie, longues, corrige: false }));
+  return content;
 }
