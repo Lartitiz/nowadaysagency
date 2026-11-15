@@ -14,7 +14,7 @@ import {
 import { isLinkedInMix, LINKEDIN_MIX_RECIT_LENGTH, LINKEDIN_MIX_SLIDE_WORDS, linkedinMixLongPassages } from "./variant-writing.ts";
 import { isPhotoOverlay, PHOTO_OVERLAY_RECIT_LENGTH, PHOTO_OVERLAY_SLIDE_WORDS, photoNarratorCheck, photoNarratorFix, photoNarratorRule, photoOverlayLongPassages } from "./photo-narrative.ts";
 import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
-import { narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount, closingAside, RECIT_RELECTURE_CARROUSEL } from "./narrative-thread.ts";
+import { narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount, closingAside, RECIT_RELECTURE_CARROUSEL, briefExamples } from "./narrative-thread.ts";
 import { findRecentEchoes, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { angleFamily, type AngleFamily } from "../_shared/angle-families.ts";
 import { narrativeCoverAccent, narrativeMixLayout, narrativePhotoLayout } from "./layout.ts";
@@ -455,7 +455,7 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
   const photoDefects = (n: Narrative) => ({
     long: photoOverlayLongPassages(n.paragraphs, body),
     voice: photoNarratorCheck([n.hook, ...n.paragraphs], body, options.brandVoiceText),
-    thread: narrativeThreadDefects(n.paragraphs),
+    thread: narrativeThreadDefects(n.paragraphs, briefExamples(body)),
   });
   const before = photoDefects(narrative);
   if ((before.long.length || before.voice || threadDefectCount(before.thread)) && remaining() >= 150000) {

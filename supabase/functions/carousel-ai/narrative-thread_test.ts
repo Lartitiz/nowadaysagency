@@ -7,7 +7,7 @@ import {
   narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_ACTU_SUR_SLIDE, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount,
 } from "./narrative-thread.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
-import { closingAside, RECIT_RELECTURE_CARROUSEL } from "./narrative-thread.ts";
+import { briefExamples, closingAside, RECIT_RELECTURE_CARROUSEL } from "./narrative-thread.ts";
 
 // Le carrousel réel jugé « incompréhensible à voix haute » (slides 2 à 6).
 const REEL = [
@@ -155,4 +155,29 @@ Deno.test("actu du récit continu : source en légende, question de fin dans cap
     assert(news.includes("sa source se nomme dans caption.body"), news);
     assert(news.includes("va dans caption.cta"), news);
   }
+});
+
+// Essai réel du 15/11/2026 : l'angle donnait la vitrine de pharmacie, le texte l'a laissée tomber.
+const ANGLE = "Distinguer la cible de l'activité et la situation nommée dans chaque post\n\nIdée centrale : Beaucoup refusent de « choisir une cible » par peur d'exclure des client·es. On ne s'arrête pas devant « Prenez soin de vous ». On s'arrête devant « Piqûres de moustiques ? ». Deuxième étape : « J'accompagne toutes les personnes qui veulent prendre soin d'elles » ne décrit aucun moment vécu.";
+
+Deno.test("exemple de l'angle : absent des slides → défaut, repris → rien", () => {
+  const ex = briefExamples({ editorial_angle: ANGLE });
+  assertEquals(ex.length, 4);
+  const sans = ["On se lasse des posts trop parfaits.", "Et on l'appelle comme ça maintenant ?", "Alors relisez votre post à voix haute."];
+  const d = narrativeThreadDefects(sans, ex);
+  assertEquals(d.missingExample.length, 4);
+  assert(narrativeThreadFix(d).includes("« Prenez soin de vous »"));
+  const avec = [...sans, "Dans une vitrine de pharmacie, entre « Prenez soin de vous » et « Piqûres de moustiques ? », laquelle vous arrête ?"];
+  assertEquals(narrativeThreadDefects(avec, ex).missingExample, []);
+  assertEquals(narrativeThreadDefects(sans, []).missingExample, []);
+  assertEquals(briefExamples({ editorial_angle: undefined }), []);
+});
+
+Deno.test("exemple de l'angle : le récit continu réécrit une fois quand il manque", async () => {
+  let writes = 0;
+  const avec = ["Je suis tombée sur ce mot.", "Et entre « Prenez soin de vous » et « Piqûres de moustiques ? », on s'arrête devant la seconde.", "Mais c'est une phrase.", "Alors on s'y reconnaît.", "Du coup, je nomme un moment vécu."];
+  const sans = ["Je suis tombée sur ce mot.", "Et j'ai souri.", "Mais le lisse, c'est aussi une phrase.", "Alors personne ne s'y reconnaît.", "Du coup, je préfère nommer un moment vécu."];
+  const result = await createContinuousNarrative({ ...base, body: { ...base.body, editorial_angle: ANGLE }, write: async () => JSON.stringify(draft(++writes === 1 ? sans : avec)) });
+  assertEquals(writes, 2);
+  assertEquals(result!.doc.narrative_draft.paragraphs, avec);
 });

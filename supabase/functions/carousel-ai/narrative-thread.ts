@@ -76,6 +76,31 @@ export interface ThreadDefects {
   triplets: number[];
   /** Paragraphes (depuis 1) qui citent une source en revue de presse. */
   pressSources: number[];
+  /** L'angle choisi cite des exemples entre « » et aucun n'est sur les slides. */
+  missingExample: string[];
+}
+
+/**
+ * Exemples concrets de l'angle choisi : les passages entre « » de 2 à 14 mots
+ * (essai réel du 15/11/2026 : « Prenez soin de vous » / « Piqûres de
+ * moustiques ? » dans l'angle, absents des slides malgré la consigne).
+ */
+export function briefExamples(body: any): string[] {
+  const angle = typeof body?.editorial_angle === "string" ? body.editorial_angle : "";
+  return [...angle.matchAll(/«\s*([^»]+?)\s*»/g)]
+    .map((m) => m[1].trim())
+    .filter((q) => { const n = q.split(/\s+/).length; return n >= 2 && n <= 14; })
+    .slice(0, 8);
+}
+
+const longWords = (s: string) => norm(s).split(/[^\p{L}]+/u).filter((w) => w.length >= 5);
+
+/** Un exemple compte comme repris si les deux tiers de ses mots longs sont sur les slides. */
+function exampleKept(example: string, text: string): boolean {
+  const words = longWords(example);
+  if (!words.length) return text.includes(norm(example));
+  const hits = words.filter((w) => text.includes(w)).length;
+  return hits >= Math.max(1, Math.ceil((words.length * 2) / 3));
 }
 
 const SLOGAN = [
@@ -89,7 +114,7 @@ const TRIPLET = new RegExp(`\\b${ART}\\s[^,.;:!?]{2,40},\\s*${ART}\\s[^,.;:!?]{2
 const PRESS = /\b(?:relayée?s? par|publiée? par|d après (?:une|un|le|la|les) (?:étude|analyse|rapport|article|enquête)|selon (?:une|un|le|la|les|l) ?(?:étude|analyse|rapport|article|enquête|média|agence|cabinet))/;
 
 /** Mesure déterministe du fil (aucun appel IA). */
-export function narrativeThreadDefects(paragraphs: unknown[]): ThreadDefects {
+export function narrativeThreadDefects(paragraphs: unknown[], examples: string[] = []): ThreadDefects {
   const texts = paragraphs.map((p) => (typeof p === "string" ? norm(p) : ""));
   const repeatedOpeners = OPINION_OPENERS.flatMap((opener) => {
     const hits = texts.flatMap((t, i) => (t.startsWith(opener) ? [i + 1] : []));
@@ -108,12 +133,14 @@ export function narrativeThreadDefects(paragraphs: unknown[]): ThreadDefects {
     yesNoEnding: /oui ou non\s*\??\s*$/.test(last),
     questionEnding: /\?\s*$/.test(last),
     slogans, triplets: where(TRIPLET), pressSources: where(PRESS),
+    missingExample: examples.length && !examples.some((e) => exampleKept(e, texts.join(" "))) ? examples : [],
   };
 }
 
 export const threadDefectCount = (d: ThreadDefects) =>
   d.repeatedOpeners.reduce((n, r) => n + r.paragraphs.length - 1, 0) + d.sameLiaison.length +
-  (d.questionEnding || d.yesNoEnding ? 1 : 0) + d.slogans.length + d.triplets.length + d.pressSources.length;
+  (d.questionEnding || d.yesNoEnding ? 1 : 0) + d.slogans.length + d.triplets.length + d.pressSources.length +
+  (d.missingExample.length ? 1 : 0);
 
 /** Consigne de réécriture ; chaîne vide quand le fil n'a pas de défaut mesuré. */
 export function narrativeThreadFix(d: ThreadDefects): string {
@@ -124,6 +151,7 @@ export function narrativeThreadFix(d: ThreadDefects): string {
     d.questionEnding && !d.yesNoEnding ? "La dernière slide finit sur une question : termine-la sur un regard plus large de la personne qui parle, et mets la question dans caption.cta." : "",
     d.slogans.length ? `Slogan en contraste (« X, pas Y », « ce n'est pas X, c'est Y », « Pas X. Juste Y. ») dans les paragraphes ${d.slogans.join(", ")} : dis directement ce qui est.` : "",
     d.triplets.length ? `Trois éléments empilés dans une phrase (paragraphes ${d.triplets.join(", ")}) : garde le plus parlant.` : "",
+    d.missingExample.length ? `L'exemple concret de l'angle choisi manque sur les slides : reprends-le avec ses mots, c'est lui qui montre l'idée (${d.missingExample.slice(0, 4).map((e) => `« ${e} »`).join(", ")}).` : "",
     d.pressSources.length ? `Source citée en revue de presse sur une slide (paragraphes ${d.pressSources.join(", ")}) : dis le fait simplement et mets la source dans caption.body.` : "",
   ].filter(Boolean);
   return asks.length ? `Fil à voix haute : ${asks.join(" ")}` : "";
