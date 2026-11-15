@@ -163,6 +163,15 @@ export function livedCaseFromCreativeBody(body: any): LivedCase {
 
 
 
+/**
+ * Passe de relecture quand elle raconte son propre cas (15/11/2026, essai réel de
+ * « Je te pose des questions ») : le premier jet ajoutait des faits à son
+ * histoire (« bio retravaillée trois fois », « on prépare un post, elle hésite,
+ * elle repousse »). Le relecteur retire ces phrases au lieu de les garder.
+ */
+export const LIVED_CASE_EDIT_CHECK = `13. FAITS AJOUTÉS À SON HISTOIRE (elle raconte son propre cas) :
+    → Chaque fait du récit (ce qui s'est passé, ce que la personne faisait avant ou d'habitude, ses gestes, ses paroles, le lieu, la durée) doit se lire dans les sources (sujet, réponses). Supprime la phrase ou la partie de phrase qui ajoute un fait absent des sources, sans la remplacer par un autre fait. Ses mots, son ressenti et sa conclusion restent. Cette correction passe avant « Garde les détails concrets de l'original ».`;
+
 /** Plafond des chiffres venus de la seule recherche : 1 pour son cas, 3 pour l'actu, aucun sinon. */
 export function researchNumbersCapFor(c: Pick<LivedCase, "mode">): number | undefined {
   if (c.mode === "own_case") return 1;
