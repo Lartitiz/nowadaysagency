@@ -7,6 +7,7 @@ import {
   narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_ACTU_SUR_SLIDE, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount,
 } from "./narrative-thread.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
+import { closingAside, RECIT_RELECTURE_CARROUSEL } from "./narrative-thread.ts";
 
 // Le carrousel réel jugé « incompréhensible à voix haute » (slides 2 à 6).
 const REEL = [
@@ -21,7 +22,9 @@ Deno.test("fil : le carrousel réel est mesuré (amorce répétée, fin en sonda
   const d = narrativeThreadDefects(REEL);
   assertEquals(d.repeatedOpeners, [{ opener: "pour moi", paragraphs: [2, 5] }]);
   assertEquals(d.yesNoEnding, true);
-  assertEquals(threadDefectCount(d), 2);
+  assertEquals(d.pressSources, [1], "« relayées par » : revue de presse sur la slide");
+  assertEquals(d.slogans, [3], "« ce n'est pas qu'un visuel…, c'est aussi… »");
+  assertEquals(threadDefectCount(d), 4);
   const fix = narrativeThreadFix(d);
   assert(fix.includes("« pour moi » ouvre les paragraphes 2, 5"), fix);
   assert(fix.includes("sondage « oui ou non ? »"), fix);
@@ -32,7 +35,7 @@ Deno.test("fil : un texte relié, sans répétition ni sondage, n'a aucun défau
     "Je suis tombée sur ce mot en lisant les tendances de l'année.",
     "Et j'ai souri, parce que je le dis depuis longtemps.",
     "Mais le lisse, ce n'est pas qu'une photo trop parfaite.",
-    "Alors je préfère montrer mes coulisses. Et vous, ce mot vous parle ?",
+    "Alors je préfère montrer mes coulisses, et je trouve ça plutôt rassurant.",
   ]);
   assertEquals(threadDefectCount(d), 0);
   assertEquals(narrativeThreadFix(d), "");
@@ -103,4 +106,53 @@ Deno.test("récit continu : réécriture qui ne répare pas le fil → texte d'o
   });
   assertEquals(writes, 2);
   assertEquals(result!.doc.narrative_draft.paragraphs, REEL);
+});
+
+// Relecture du 15/11/2026 (méthode carrousel) : la version refaite par l'app.
+const REFAIT = [
+  "CBC 35 parle d'une « fatigue synthétique », repérée dans des analyses de tendances com' pour 2026 : on saturerait des posts sans aspérité, faits à la chaîne.",
+  "Et ce qui reprendrait de la valeur, c'est l'inverse : les coulisses sans filtre, les témoignages spontanés, la signature humaine qu'on sent derrière une marque.",
+  "Alors le mot est neuf, mais l'idée, elle, ne l'est pas du tout. Un discours trop parfait pour être vrai, on l'a toujours senti venir.",
+  "Mais se montrer, ça fait peur. Du coup, on gomme ce qui dépasse pour se protéger.",
+  "Et c'est là que je tiens bon : votre voix mérite d'être amplifiée, pas déformée. Vos mots valent mieux qu'un template.",
+  "Finalement, ce mot, je l'appelle la confiance. Qu'avez-vous déjà gommé de vos posts par peur de ne pas faire assez pro ?",
+];
+
+Deno.test("relecture : triplet, slogan « X, pas Y » et question finale mesurés sur la version refaite", () => {
+  const d = narrativeThreadDefects(REFAIT);
+  assertEquals(d.triplets, [2]);
+  assertEquals(d.slogans, [5]);
+  assertEquals(d.questionEnding, true);
+  assertEquals(d.yesNoEnding, false);
+  const fix = narrativeThreadFix(d);
+  assert(fix.includes("caption.cta"), fix);
+  assert(fix.includes("dis directement ce qui est"), fix);
+});
+
+Deno.test("relecture : les autres slogans, et pas de fausse alerte sur une phrase simple", () => {
+  assertEquals(narrativeThreadDefects(["Ce n'est pas une question de photo, c'est une question de phrase.", "Pas besoin de tout dire. Juste de nommer un moment.", "Je ne le savais pas, et ça m'a surprise.", "Selon une étude, les gens lisent moins."]).slogans, [1, 2]);
+  assertEquals(narrativeThreadDefects(["On en parle souvent avec mes clientes.", "Le lundi, la lumière et le café.", "Elle sort de la pharmacie, un peu perdue."]).triplets, []);
+  assertEquals(narrativeThreadDefects(["15 000 selon les syndicats.", "Selon une étude, les gens lisent moins."]).pressSources, [2]);
+});
+
+Deno.test("relecture : la consigne est dans le système, la ligne d'humour finit en petit sous la dernière slide photo", async () => {
+  let system = "";
+  const fin = ["Je suis tombée sur ce mot.", "Et j'ai souri.", "Mais le lisse, c'est aussi une phrase.", "Alors personne ne s'y reconnaît.", "Du coup, je préfère nommer un moment vécu."];
+  const result = await createContinuousNarrative({ ...base, write: async (o) => { system ||= o.system || ""; return JSON.stringify({ ...draft(fin), closing_aside: "La pharmacie, elle, l'a compris depuis longtemps." }); } });
+  assert(system.includes(RECIT_RELECTURE_CARROUSEL));
+  assert(system.includes("La question simple pour les commentaires va dans caption.cta, jamais sur la dernière slide"));
+  const slides = result!.doc.slides;
+  assertEquals(slides[slides.length - 1].detail, "La pharmacie, elle, l'a compris depuis longtemps.");
+  assert(slides.slice(0, -1).every((s: any) => !s.detail));
+  assertEquals(closingAside("Une ligne bien trop longue pour tenir en petit sous la dernière slide du carrousel photo."), "");
+  assertEquals(closingAside("Vraiment ?"), "");
+});
+
+Deno.test("actu du récit continu : source en légende, question de fin dans caption.cta", () => {
+  for (const body of [{ carousel_type: "photo" }, { carousel_type: "photo", deepening_answers: { feeling: "Ça m'agace" } }]) {
+    const news = narrativeNewsWriting(body);
+    assert(!news.includes("et sa source comme point d'entrée visible"), news);
+    assert(news.includes("sa source se nomme dans caption.body"), news);
+    assert(news.includes("va dans caption.cta"), news);
+  }
 });

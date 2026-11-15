@@ -14,7 +14,7 @@ import {
 import { isLinkedInMix, LINKEDIN_MIX_RECIT_LENGTH, LINKEDIN_MIX_SLIDE_WORDS, linkedinMixLongPassages } from "./variant-writing.ts";
 import { isPhotoOverlay, PHOTO_OVERLAY_RECIT_LENGTH, PHOTO_OVERLAY_SLIDE_WORDS, photoNarratorCheck, photoNarratorFix, photoNarratorRule, photoOverlayLongPassages } from "./photo-narrative.ts";
 import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
-import { narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount } from "./narrative-thread.ts";
+import { narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount, closingAside, RECIT_RELECTURE_CARROUSEL } from "./narrative-thread.ts";
 import { findRecentEchoes, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { angleFamily, type AngleFamily } from "../_shared/angle-families.ts";
 import { narrativeCoverAccent, narrativeMixLayout, narrativePhotoLayout } from "./layout.ts";
@@ -70,7 +70,7 @@ export function usesContinuousNarrative(body: any): boolean {
 export const RECIT_CONTINU_SOLUTION_FIN = `SOLUTION, NUANCE ET FIN
 Ce qui répond à la question ouverte par le sujet (la solution, la méthode, les leviers concrets, le « comment » ; pour un exemple qui compare deux cas, les deux cas) reste dans paragraphs. Ce n'est jamais un détail secondaire à déplacer dans caption.body : si la place manque, ce sont les illustrations secondaires qui passent en légende, ou, quand le nombre de slides est libre, ajoute un paragraphe dans la limite permise.
 Une nuance ou une limite se place avant la solution ou la conclusion qu'elle encadre ; jamais en avant-dernier paragraphe, juste avant la fin, où elle casserait l'élan.
-FIN : le dernier paragraphe conclut sur ce que le lecteur doit retenir, en termes concrets (pas « son traitement » sans dire lequel), puis se termine par UNE ouverture tirée du sujet : soit un geste précis que le lecteur peut faire seul sur son propre cas, soit une question simple à laquelle il peut répondre en commentaire. Elle prolonge la dernière idée et se comprend sans la légende. Jamais commerciale, jamais vague (« N'hésitez pas », « Et vous ? »), aucune destination inventée (lien, message privé, offre, rendez-vous) sauf si la demande la donne.
+FIN : le dernier paragraphe conclut sur ce que le lecteur doit retenir, en termes concrets (pas « son traitement » sans dire lequel), puis se termine par UNE ouverture tirée du sujet : un geste précis que le lecteur peut faire seul sur son propre cas, ou un regard plus large de la personne qui parle. Elle prolonge la dernière idée et se comprend sans la légende. La question simple pour les commentaires va dans caption.cta, jamais sur la dernière slide (relecture du 15/11/2026). Jamais commerciale, jamais vague (« N'hésitez pas », « Et vous ? »), aucune destination inventée (lien, message privé, offre, rendez-vous) sauf si la demande la donne.
 La couverture (hook) promet ce que la fin conclut, avec la même force : ne lui fais pas dire plus, ni autre chose, que le texte (par exemple « en premier » quand la fin dit « en même temps »).`;
 
 /** Tout le texte public d'un récit (couverture, paragraphes, légende). */
@@ -85,6 +85,8 @@ export interface Narrative {
   /** Mot clé de l'accroche, mis en valeur sur la couverture (socle, règle 7). */
   cover_accent?: string;
   paragraphs: string[];
+  /** Petite ligne d'humour sous la dernière slide (relecture du 15/11/2026). */
+  closing_aside?: string;
   caption: { hook: string; body: string; cta: string; hashtags: string[] };
 }
 
@@ -113,6 +115,7 @@ const TOOL = {
       idea: { type: "string" },
       hook: { type: "string" },
       cover_accent: { type: "string" },
+      closing_aside: { type: "string" },
       paragraphs: {
         type: "array",
         items: { type: "string" },
@@ -180,6 +183,7 @@ export function parseNarrative(raw: string, exact?: number): Narrative {
     hook: n.hook,
     ...(typeof n.cover_accent === "string" && n.cover_accent.trim() ? { cover_accent: n.cover_accent.trim() } : {}),
     paragraphs: n.paragraphs,
+    ...(closingAside(n.closing_aside) ? { closing_aside: closingAside(n.closing_aside) } : {}),
     caption: {
       hook: typeof n.caption?.hook === "string" ? n.caption.hook : "",
       body: typeof n.caption?.body === "string" ? n.caption.body : "",
@@ -240,7 +244,7 @@ export function composeNarrative(n: Narrative, body: any) {
           ? null
           : ref.photo_index || (i % photos) + 1,
         ...(slide_type === "photo_full"
-          ? { overlay_text: text, ...narrativePhotoLayout(i, last, ref) }
+          ? { overlay_text: text, ...narrativePhotoLayout(i, last, ref), ...(last && n.closing_aside ? { detail: n.closing_aside } : {}) }
           : {
             title: i === 0 ? text : "",
             body: i === 0 ? "" : text,
@@ -333,12 +337,14 @@ Choisis UNE proposition précise qui mérite d'être développée avec les faits
 Une présentation factuelle bien liée ne suffit pas à une demande de récit : chaque paragraphe doit faire avancer ce que tu défends, pas ouvrir une nouvelle rubrique. Ne donne pas toute la réponse immédiatement pour remplir ensuite avec des descriptions. Pas de suspense artificiel. Une demande explicite de liste, tutoriel ou catalogue conserve sa forme.
 Les photos seront placées ensuite. Leur contexte peut éclairer les faits, mais leur ordre, leurs couleurs et leurs motifs ne dictent pas ton texte. Aucune référence « sur cette photo ». Ne fabrique ni conviction intime, ni souvenir ni fait technique pour rendre le propos intéressant. Tu peux développer une interprétation prudente de faits attestés.
 Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas à ordonner les paragraphes. photo_mismatch est réservé à une contradiction frontale avec une chose concrète que la demande promet de montrer ; retourne alors sa raison, sans inventer un récit. Un décalage d'ambiance ou une illustration indirecte ne justifient pas ce refus.
-Écris hook (accroche de couverture : 4 à 10 mots qui créent une tension ou un manque, jamais un titre-étiquette), puis paragraphs : les paragraphes PUBLICS successifs, sans titres de rubriques ni consignes pour un futur rédacteur. ${RECIT_CONTINU_PARAGRAPHE} Le dernier termine réellement ce propos (voir FIN ci-dessous), sans ouvrir automatiquement une offre commerciale. Caption résume fidèlement ; caption.cta reprend en une phrase l'ouverture de la fin. idea nomme précisément la proposition développée.`,
+Écris hook (accroche de couverture : 4 à 10 mots qui créent une tension ou un manque, jamais un titre-étiquette), puis paragraphs : les paragraphes PUBLICS successifs, sans titres de rubriques ni consignes pour un futur rédacteur. ${RECIT_CONTINU_PARAGRAPHE} Le dernier termine réellement ce propos (voir FIN ci-dessous), sans ouvrir automatiquement une offre commerciale. Caption résume fidèlement ; caption.cta porte en une phrase la question pour les commentaires, reliée à la fin. idea nomme précisément la proposition développée.`,
     recitContinuFond(livedCaseFromCarouselBody(body).mode),
     // Sa voix orale (socle, règle 4) : aussi sur le chemin par défaut photo et mixte.
     body?.channel === "linkedin" ? VOIX_ORALE_LINKEDIN : VOIX_ORALE,
     // Fil à voix haute (14/11/2026, narrative-thread.ts) : liaisons, concret, couverture comprise seule.
     RECIT_FIL_A_VOIX_HAUTE,
+    // Relecture du 15/11/2026 avec la méthode carrousel (narrative-thread.ts).
+    RECIT_RELECTURE_CARROUSEL,
     hasNews ? narrativeNewsWriting(body) : "",
     RECIT_CONTINU_COUVERTURE,
     RECIT_CONTINU_SOLUTION_FIN,
