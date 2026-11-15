@@ -10089,6 +10089,14 @@ snapshot[`handler carousel-ai — express_full — photo, récit continu (scéna
     \\"accepted\\": false,
     \\"reason\\": \\"not-needed\\",
     \\"passages\\": []
+   },
+   \\"thread_rewrite\\": {
+    \\"before\\": 0,
+    \\"after\\": null,
+    \\"accepted\\": false,
+    \\"reason\\": \\"not-needed\\",
+    \\"missing_example_before\\": false,
+    \\"missing_example_after\\": null
    }
   },
   \\"quality_check\\": {
@@ -11299,6 +11307,14 @@ snapshot[`handler carousel-ai — express_full — mixte, récit continu (scéna
     \\"accepted\\": false,
     \\"reason\\": \\"not-needed\\",
     \\"passages\\": []
+   },
+   \\"thread_rewrite\\": {
+    \\"before\\": 0,
+    \\"after\\": null,
+    \\"accepted\\": false,
+    \\"reason\\": \\"not-needed\\",
+    \\"missing_example_before\\": false,
+    \\"missing_example_after\\": null
    }
   },
   \\"quality_check\\": {

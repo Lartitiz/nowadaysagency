@@ -156,3 +156,14 @@ export function narrativeThreadFix(d: ThreadDefects): string {
   ].filter(Boolean);
   return asks.length ? `Fil à voix haute : ${asks.join(" ")}` : "";
 }
+
+/** Exemples de l'angle nommés dès la première rédaction (essai réel du 15/11/2026 :
+ * la consigne générale et la réécriture n'ont pas suffi). */
+export function briefExamplesPrompt(examples: string[]): string {
+  return examples.length
+    ? `EXEMPLE À REPRENDRE SUR LES SLIDES : l'angle choisi montre son idée avec ${examples.map((e) => `« ${e} »`).join(", ")}. Reprends sur une slide au moins un de ces exemples avec ses mots (le plus parlant, ou la comparaison entière), en phrases courtes ; c'est lui qui rend l'idée concrète.`
+    : "";
+}
+
+/** Reçu de la réécriture du fil : avant, après, gardée ou non, et pourquoi. */
+export interface ThreadRewriteReceipt { before: number; after: number | null; accepted: boolean; reason: string; missing_example_before: boolean; missing_example_after: boolean | null }

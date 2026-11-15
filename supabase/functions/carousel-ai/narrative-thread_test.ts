@@ -7,7 +7,7 @@ import {
   narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_ACTU_SUR_SLIDE, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount,
 } from "./narrative-thread.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
-import { briefExamples, closingAside, RECIT_RELECTURE_CARROUSEL } from "./narrative-thread.ts";
+import { briefExamples, briefExamplesPrompt, closingAside, RECIT_RELECTURE_CARROUSEL } from "./narrative-thread.ts";
 
 // Le carrousel réel jugé « incompréhensible à voix haute » (slides 2 à 6).
 const REEL = [
@@ -180,4 +180,28 @@ Deno.test("exemple de l'angle : le récit continu réécrit une fois quand il ma
   const result = await createContinuousNarrative({ ...base, body: { ...base.body, editorial_angle: ANGLE }, write: async () => JSON.stringify(draft(++writes === 1 ? sans : avec)) });
   assertEquals(writes, 2);
   assertEquals(result!.doc.narrative_draft.paragraphs, avec);
+  const receipt = (result!.doc.narrative_draft as any).thread_rewrite;
+  assertEquals(receipt.accepted, true);
+  assertEquals(receipt.reason, "accepted");
+  assertEquals([receipt.missing_example_before, receipt.missing_example_after], [true, false]);
+});
+
+Deno.test("exemple de l'angle : nommé dans le système dès la 1re rédaction, rien sans exemple", async () => {
+  let system = "";
+  await createContinuousNarrative({ ...base, body: { ...base.body, editorial_angle: ANGLE }, write: async (o) => { system ||= o.system || ""; return JSON.stringify(draft(["Un.", "Et deux « Prenez soin de vous ».", "Mais trois.", "Alors quatre.", "Du coup cinq."])); } });
+  assert(system.includes("EXEMPLE À REPRENDRE SUR LES SLIDES"), "exemples nommés");
+  assert(system.includes("« Piqûres de moustiques ? »"));
+  assertEquals(briefExamplesPrompt([]), "");
+});
+
+Deno.test("réécriture du fil refusée : le reçu dit pourquoi (slides plus longues)", async () => {
+  let writes = 0;
+  const sans = ["Je suis tombée sur ce mot.", "Et j'ai souri.", "Mais le lisse, c'est aussi une phrase.", "Alors personne ne s'y reconnaît.", "Du coup, je préfère nommer un moment vécu."];
+  const long = Array.from({ length: 45 }, () => "mot").join(" ");
+  const plusLong = [...sans.slice(0, 4), `Du coup, entre « Prenez soin de vous » et « Piqûres de moustiques ? », ${long}.`];
+  const result = await createContinuousNarrative({ ...base, body: { ...base.body, editorial_angle: ANGLE }, write: async () => JSON.stringify(draft(++writes === 1 ? sans : plusLong)) });
+  const receipt = (result!.doc.narrative_draft as any).thread_rewrite;
+  assertEquals(receipt.accepted, false);
+  assertEquals(receipt.reason, "longer");
+  assertEquals(result!.doc.narrative_draft.paragraphs, sans);
 });

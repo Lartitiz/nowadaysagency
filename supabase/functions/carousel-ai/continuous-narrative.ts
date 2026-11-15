@@ -14,7 +14,7 @@ import {
 import { isLinkedInMix, LINKEDIN_MIX_RECIT_LENGTH, LINKEDIN_MIX_SLIDE_WORDS, linkedinMixLongPassages } from "./variant-writing.ts";
 import { isPhotoOverlay, PHOTO_OVERLAY_RECIT_LENGTH, PHOTO_OVERLAY_SLIDE_WORDS, photoNarratorCheck, photoNarratorFix, photoNarratorRule, photoOverlayLongPassages } from "./photo-narrative.ts";
 import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
-import { narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount, closingAside, RECIT_RELECTURE_CARROUSEL, briefExamples } from "./narrative-thread.ts";
+import { narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount, closingAside, RECIT_RELECTURE_CARROUSEL, briefExamples, briefExamplesPrompt, type ThreadRewriteReceipt } from "./narrative-thread.ts";
 import { findRecentEchoes, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { angleFamily, type AngleFamily } from "../_shared/angle-families.ts";
 import { narrativeCoverAccent, narrativeMixLayout, narrativePhotoLayout } from "./layout.ts";
@@ -356,6 +356,7 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     recitContinuFamille(narrativeAngleFamily(body)),
     photoReadingContract(body),
     recentPassagesPrompt(options.recentTexts),
+    briefExamplesPrompt(briefExamples(body)),
   ].filter((part) => part.trim()).join("\n");
   const draft = async (feedback?: string, prior?: Narrative, final?: { exact: number; sink: UsageSink; timeout: number }) => {
     const sink: UsageSink = {};
@@ -458,7 +459,14 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     thread: narrativeThreadDefects(n.paragraphs, briefExamples(body)),
   });
   const before = photoDefects(narrative);
-  if ((before.long.length || before.voice || threadDefectCount(before.thread)) && remaining() >= 150000) {
+  const threadRewrite: ThreadRewriteReceipt = {
+    before: threadDefectCount(before.thread), after: null, accepted: false, reason: "not-needed",
+    missing_example_before: before.thread.missingExample.length > 0, missing_example_after: null,
+  };
+  const needsRewrite = !!(before.long.length || before.voice || threadDefectCount(before.thread));
+  if (needsRewrite) threadRewrite.reason = "time-budget";
+  if (needsRewrite && remaining() >= 150000) {
+    threadRewrite.reason = "repair-failed";
     try {
       const asks = [
         before.long.length ? `Paragraphes trop longs pour être posés sur une photo : ${before.long.join(", ")}. Ramène chacun à ${PHOTO_OVERLAY_SLIDE_WORDS} mots au plus, phrases courtes, sans perdre d'idée ; déplace les détails dans caption.body.` : "",
@@ -471,7 +479,16 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
       const threads = (d: typeof before) => threadDefectCount(d.thread);
       const noWorse = after.long.length <= before.long.length && offenders(after.voice) <= offenders(before.voice) && threads(after) <= threads(before);
       const better = after.long.length < before.long.length || offenders(after.voice) < offenders(before.voice) || threads(after) < threads(before);
-      if (fixed.paragraphs.length === narrative.paragraphs.length && noWorse && better) narrative = fixed;
+      threadRewrite.after = threads(after);
+      threadRewrite.missing_example_after = after.thread.missingExample.length > 0;
+      const accepted = fixed.paragraphs.length === narrative.paragraphs.length && noWorse && better;
+      threadRewrite.accepted = accepted;
+      threadRewrite.reason = accepted ? "accepted"
+        : fixed.paragraphs.length !== narrative.paragraphs.length ? "paragraph-count"
+        : after.long.length > before.long.length ? "longer"
+        : offenders(after.voice) > offenders(before.voice) ? "narrator"
+        : threads(after) > threads(before) ? "thread-worse" : "not-better";
+      if (accepted) narrative = fixed;
     } catch { /* le premier texte reste */ }
   }
   // Redite des contenus récents de la marque (bilan hebdo 05/10/2026) : mesure
@@ -531,6 +548,7 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
         review: await progressionReceipt(proof(narrative), "skipped", "final-review"),
         repair: { attempted: false, accepted: false, reason: "final-review" },
         recent_echo: recentEcho,
+        thread_rewrite: threadRewrite,
       },
     },
   };
