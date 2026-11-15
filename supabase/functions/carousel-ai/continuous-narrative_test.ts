@@ -451,7 +451,7 @@ Deno.test("fin du récit (13/11/2026) : solution sur les slides, nuance avant, u
     const system = await systemFor({ carousel_type, slide_count: undefined });
     assert(system.includes(RECIT_CONTINU_SOLUTION_FIN), carousel_type);
     assert(!system.includes("cta vide si aucune invitation utile"), "l'ancienne fin sans ouverture a disparu");
-    assert(system.includes("caption.cta reprend en une phrase l'ouverture de la fin"));
+    assert(system.includes("caption.cta porte en une phrase la question pour les commentaires"));
   }
   for (const part of ["reste dans paragraphs", "jamais en avant-dernier paragraphe", "UNE ouverture tirée du sujet", "Jamais commerciale", "La couverture (hook) promet ce que la fin conclut"]) {
     assert(RECIT_CONTINU_SOLUTION_FIN.includes(part), part);
