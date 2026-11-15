@@ -173,6 +173,25 @@ Deno.test("runLinkedInTwoStep : texte propre -> pas d'extraInstructions, mais cl
   }
 });
 
+Deno.test("runLinkedInTwoStep : son propre cas -> la relecture retire les faits ajoutés à son histoire (essai réel du 15/11/2026)", async () => {
+  const generated = { content: "Mardi, une cliente m'annonce qu'elle a publié trois fois. On prépare un post, elle hésite, elle repousse." };
+  const corrected = { content: "Mardi, une cliente m'annonce qu'elle a publié trois fois.", accroche: "a", corrections_applied: [] };
+  const reply = (b: unknown) => ({ status: 200, body: { content: [{ type: "text", text: JSON.stringify(b) }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } } });
+  const story = {
+    "Histoire vécue · Raconte-moi un moment récent ?": "Mardi, en visio, une cliente m'annonce qu'elle a publié trois fois cette semaine sans que je lui demande. Elle avait toujours eu peur de se montrer, depuis des mois, et là elle l'a fait seule.",
+    "Histoire vécue · Qu'as-tu ressenti ?": "De la fierté, et un peu d'émotion : je n'avais rien poussé, aucun rappel, aucune relance de ma part cette semaine-là.",
+  };
+  for (const [answers, expected] of [[story, true], [null, false]] as const) {
+    const { mock, capturedBodies } = installAnthropicBodyCapture([reply(generated), reply(corrected)]);
+    try {
+      await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, body: { ...LINKEDIN_BASE_PARAMS.body, answers } });
+      assertEquals(JSON.stringify(capturedBodies[1].system).includes("FAITS AJOUTÉS À SON HISTOIRE"), expected);
+    } finally {
+      mock.restore();
+    }
+  }
+});
+
 Deno.test("post LinkedIn avec photos : la photo ne fournit ni pensée ni dialogue", () => {
   const prompt = buildVisionGenerateBrief("post_linkedin").formatBrief;
   assertEquals(prompt.includes("Une image seule ne prouve ni ce qu'elle a pensé"), true);

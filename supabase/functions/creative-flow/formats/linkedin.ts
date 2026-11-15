@@ -18,6 +18,7 @@ import { streamAnthropicSSE, createClientSSEStream, clientStillThere, type Statu
 import { buildVisionGenerateBrief } from "../../_shared/vision-prompts.ts";
 import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceNoAddedLegalRules, enforceResearchNumberSources, fixElisionsInFields, runTextRedacGate, textRedacRawCount, textRedacViolations, hookEchoesBefore } from "../../_shared/redac-gate.ts";
 import { logContentQuality } from "../../_shared/content-quality.ts";
+import { LIVED_CASE_EDIT_CHECK, livedCaseFromCreativeBody } from "../../_shared/lived-case.ts";
 import { CORRECTION_ABORT_MS, GENERATE_ABORT_MS, POST_ADDRESS_FIELDS, addrOpts, extractImagePayload, gateNumbers, photoVoiceRule } from "../shared.ts";
 
 export function isExplicitlyFictionalBrief(context: string): boolean {
@@ -362,7 +363,7 @@ Lis le post à voix haute mentalement. Identifie les passages répétitifs, arti
 
 12. LONGUEUR :
     → Préserve la matière utile ; coupe les redites. N'allonge pas un post pour atteindre une cible de caractères.
-
+${livedCaseFromCreativeBody(body).mode === "own_case" ? `\n${LIVED_CASE_EDIT_CHECK}\n` : ""}
 ══ RÈGLES ABSOLUES ══
 
 - Garde le SENS et la CONVICTION du post. Tu corriges la FORME, pas le FOND.
