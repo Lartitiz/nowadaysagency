@@ -100,7 +100,7 @@ test("tier Haiku : questions d'approfondissement répondent (sans crédit)", asy
   } catch { /* signalé ci-dessous */ }
   const qc = lireQualite(questions);
   const qp = lireQualite(questionsPost);
-  const orange = qc.orange || qp.orange || questionsPost.length === 0;
+  const orange = qc.orange || qp.orange || questions.length === 0 || questionsPost.length === 0;
   console.log(
     `${orange ? "🟠" : "✅"} ❓ qualité des questions : carrousel ${qc.n} (max ${qc.maxMots} mots, ${qc.fermees.length} oui/non)` +
     ` · post ${post.status === 200 ? `${qp.n} (max ${qp.maxMots} mots, ${qp.fermees.length} oui/non)` : `HTTP ${post.status}`}` +
