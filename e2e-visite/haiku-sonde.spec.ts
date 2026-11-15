@@ -13,11 +13,17 @@
  *
  * Rouge : statut ≠ 200, réponse illisible ou 0 question. Ligne 🟡 seulement
  * au-delà de 20 s (normal : 3-6 s).
+ *
+ * Ligne ❓ (15/11/2026, #1980/#1985/#1990) : qualité des questions du carrousel ET
+ * d'un post (creative-flow step « questions », gratuit). 🟠 si une question
+ * dépasse 32 mots ou se répond par oui/non (« Tu as… ? », « Y a-t-il… ? »).
+ * Jamais rouge : c'est une lecture, pas une panne.
  */
 import { test, expect } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { lireQualite } from "./questions-qualite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SLOW_MS = 20_000;
@@ -70,6 +76,38 @@ test("tier Haiku : questions d'approfondissement répondent (sans crédit)", asy
   } catch { /* lu plus bas */ }
   console.log(`🧠 tier Haiku (questions d'approfondissement) : HTTP ${r.status} en ${(r.ms / 1000).toFixed(1)} s, ${questions.length} question(s)`);
   if (r.ms > SLOW_MS) console.log(`🟡 tier Haiku lent : ${(r.ms / 1000).toFixed(1)} s (normal 3-6 s)`);
+
+  // ❓ Qualité : carrousel (déjà appelé) + questions d'un post (creative-flow, gratuit).
+  const post = await page.evaluate(async ({ url, key }) => {
+    const k = Object.keys(localStorage).find((x) => x.endsWith("-auth-token"));
+    if (!k) return { status: 0, text: "pas de session" };
+    const token = JSON.parse(localStorage.getItem(k)!).access_token;
+    try {
+      const res = await fetch(`${url}/functions/v1/creative-flow`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: key, Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ step: "questions", contentType: "post", context: "Pourquoi je refuse de mettre du parfum de synthèse dans mes savons" }),
+      });
+      return { status: res.status, text: await res.text() };
+    } catch (e) {
+      return { status: 0, text: String(e) };
+    }
+  }, { url, key });
+  let questionsPost: unknown[] = [];
+  try {
+    const p = JSON.parse(post.text);
+    questionsPost = Array.isArray(p?.questions) ? p.questions : [];
+  } catch { /* signalé ci-dessous */ }
+  const qc = lireQualite(questions);
+  const qp = lireQualite(questionsPost);
+  const orange = qc.orange || qp.orange || questionsPost.length === 0;
+  console.log(
+    `${orange ? "🟠" : "✅"} ❓ qualité des questions : carrousel ${qc.n} (max ${qc.maxMots} mots, ${qc.fermees.length} oui/non)` +
+    ` · post ${post.status === 200 ? `${qp.n} (max ${qp.maxMots} mots, ${qp.fermees.length} oui/non)` : `HTTP ${post.status}`}` +
+    ` — seuils : > 32 mots ou ≥ 1 oui/non`,
+  );
+  for (const f of [...qc.fermees, ...qp.fermees]) console.log(`   oui/non : « ${f} »`);
+  for (const q of [qc, qp]) if (q.maxMots > 32) console.log(`   trop longue (${q.maxMots} mots) : « ${q.plusLongue} »`);
 
   expect(r.status, `réponse du tier Haiku : ${r.text.slice(0, 300)}`).toBe(200);
   expect(questions.length, `aucune question lisible : ${r.text.slice(0, 300)}`).toBeGreaterThan(0);

@@ -85,17 +85,50 @@ export function questionsVouvoient(content: string): boolean {
 }
 
 /**
+ * Coupe la liste de choix qui finit une question (15/11/2026, vue par la sonde ❓) :
+ * « …qu'est-ce qui t'a fait basculer : une réaction, une cliente, ou une lecture ? »
+ * → « …qu'est-ce qui t'a fait basculer ? ». Sans IA. Les exemples restent dans le placeholder.
+ * Ne touche qu'une fin « : a, b ou c ? » (au moins une virgule et un « ou »).
+ */
+export function couperListeOptions(q: string): string {
+  const m = String(q || "").match(/^(.*\S)\s*:\s*([^:?]+)\?\s*$/s);
+  if (!m) return q;
+  const [, avant, liste] = m;
+  if (!/,/.test(liste) || !/(^|\s)ou\s/i.test(liste)) return q;
+  if (avant.trim().split(/\s+/).length < 6) return q;
+  return `${avant.replace(/[\s,;]+$/, "")} ?`;
+}
+
+/** Applique couperListeOptions à chaque question d'une réponse JSON ; rend le texte tel quel s'il n'est pas lisible. */
+export function couperListesDesQuestions(content: string): string {
+  let parsed: any;
+  try { parsed = JSON.parse(content); } catch { return content; }
+  const cle = Array.isArray(parsed?.questions) ? "questions" : Array.isArray(parsed?.follow_up_questions) ? "follow_up_questions" : null;
+  if (!cle) return content;
+  let change = false;
+  parsed[cle] = parsed[cle].map((q: any) => {
+    if (!q || typeof q.question !== "string") return q;
+    const coupee = couperListeOptions(q.question);
+    if (coupee === q.question) return q;
+    change = true;
+    return { ...q, question: coupee };
+  });
+  return change ? JSON.stringify(parsed) : content;
+}
+
+/**
  * Une relance au plus (carousel-ai et, depuis le 14/11/2026, creative-flow) quand une question vouvoie ou reste trop longue.
  * `ask` reçoit la consigne de correction ; une relance en échec, ou qui ne
  * règle rien, garde les premières questions plutôt que de tout perdre.
  */
 export async function relancerQuestionsSiBesoin(content: string, ask: (consigne: string) => Promise<string>): Promise<string> {
+  content = couperListesDesQuestions(content);
   const vouvoie = questionsVouvoient(content);
   const longues = questionsTropLongues(content);
   if (!vouvoie && !longues) return content;
   const consigne = [vouvoie ? QUESTIONS_TUTOIEMENT_RETRY : "", longues ? QUESTIONS_COURTES_RETRY : ""].filter(Boolean).join("\n");
   try {
-    const retried = await ask(consigne);
+    const retried = couperListesDesQuestions(await ask(consigne));
     if (retried && !questionsVouvoient(retried) && (!longues || !questionsTropLongues(retried))) {
       console.log(JSON.stringify({ event: "questions_relance", vouvoie, longues, corrige: true }));
       return retried;

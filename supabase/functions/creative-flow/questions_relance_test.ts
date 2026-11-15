@@ -11,6 +11,8 @@ const handler = await captureStdServeHandler(new URL("./index.ts", import.meta.u
 const URL_FN = `${TEST_SUPABASE_URL}/functions/v1/creative-flow`;
 
 const LONGUE = "Quand tu as décidé de ne plus utiliser de parfum de synthèse dans tes savons, qu'est-ce qui t'a fait basculer : une réaction cutanée, une cliente qui t'a alertée, ou une lecture ?";
+// Trop longue SANS liste de choix finale (une liste finale est coupée en code, sans relance : test plus bas).
+const LONGUE_SANS_LISTE = "Quand tu as décidé de ne plus jamais utiliser de parfum de synthèse dans tes savons pour les peaux sensibles, quel moment précis de ta fabrication ou de tes échanges avec tes clientes t'a fait basculer pour de bon ?";
 const COURTE = "Quel moment précis t'a fait renoncer au parfum de synthèse dans tes savons ?";
 const qs = (q: string) => ({ questions: [{ question: q, placeholder: "Une cliente qui rougissait" }] });
 
@@ -42,7 +44,7 @@ async function run(inputs: unknown[], userId: string) {
 }
 
 Deno.test("creative-flow questions : une question trop longue est relancée une fois", async () => {
-  const r = await run([qs(LONGUE), qs(COURTE)], "test-user-relance-1");
+  const r = await run([qs(LONGUE_SANS_LISTE), qs(COURTE)], "test-user-relance-1");
   assertEquals(r.status, 200);
   assertEquals(r.calls, 2);
   assertEquals(r.body.questions[0].question, COURTE);
@@ -55,7 +57,14 @@ Deno.test("creative-flow questions : questions déjà lisibles, aucun appel de p
 });
 
 Deno.test("creative-flow questions : relance encore trop longue, on garde la première version", async () => {
-  const r = await run([qs(LONGUE), qs(LONGUE + " Et après ?")], "test-user-relance-3");
+  const r = await run([qs(LONGUE_SANS_LISTE), qs(LONGUE_SANS_LISTE + " Et après ?")], "test-user-relance-3");
   assertEquals(r.calls, 2);
-  assert(r.body.questions[0].question === LONGUE);
+  assert(r.body.questions[0].question === LONGUE_SANS_LISTE);
+});
+
+Deno.test("creative-flow questions : la liste de choix finale est coupée sans relance (sonde ❓ du 15/11)", async () => {
+  const r = await run([qs(LONGUE)], "test-user-relance-4");
+  assertEquals(r.calls, 1);
+  assertEquals(r.body.questions[0].question, "Quand tu as décidé de ne plus utiliser de parfum de synthèse dans tes savons, qu'est-ce qui t'a fait basculer ?");
+  assertEquals(r.body.questions[0].placeholder, "Une cliente qui rougissait");
 });
