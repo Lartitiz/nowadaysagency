@@ -751,7 +751,7 @@ function CreerWorkspace() {
       try {
         const briefId = await saveContentBrief({
           userId: session.user.id, workspaceId, incomingBriefId, ideaText, objective,
-          selectedFormat, editorialAngle, questions, answers: ans,
+          selectedFormat, editorialAngle, questions, answers: withStoryAnswers(ans, activeStory), // l'histoire reste dans le brief enregistré
         });
         if (briefId) setCurrentBriefId(briefId);
       } catch (e) {
@@ -1592,7 +1592,7 @@ function CreerWorkspace() {
                 (photoEntry ? photoSubjectHistory : ideaHistory).travel(action === "redo");
               }}>
                 {planVerified && <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />}
-                <CreerStepIdea initialFormat={selectedFormat} channel={(deriveCanalFromState({ selectedFormat, isLinkedInCarousel }) as ForcedChannel | null) ?? forcedChannel} onNext={(idea, id) => keepContent.guardSubject(idea, id, () => handleIdeaNext(idea, id))} onPickIdea={(idea) => keepContent.guardIdeaPick(idea, handleIdeaPick)} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
+                <CreerStepIdea initialFormat={selectedFormat} channel={(deriveCanalFromState({ selectedFormat, isLinkedInCarousel }) as ForcedChannel | null) ?? forcedChannel} onNext={(idea, id) => keepContent.guardSubject(idea, id, () => handleIdeaNext(idea, id))} onPickIdea={(idea) => keepContent.guardIdeaPick(idea, handleIdeaPick)} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject} onStoryTaken={(subject, answers) => { if (isCurrentCreation()) takenStory.takeStory({ subject, answers }); }}
                   onIdeaChange={(value) => { if (isCurrentCreation()) ideaHistory.change(value, true); }} onPhotosChange={(photos) => { if (!isCurrentCreation()) return; setUploadedPhotos(photos); void savePhotos(photos); }}
                   onPhotoDescriptionChange={setPhotoDescription} onPhotoSubjectChange={(value) => { if (isCurrentCreation()) photoSubjectHistory.change(value, true); }}
                   photoEntry={photoEntry} onPhotoEntryChange={setPhotoEntry}

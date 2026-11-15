@@ -22,7 +22,7 @@
       "any": 4
     },
     "src/components/creer/CreerStepFormat.tsx": {
-      "lignes": 984,
+      "lignes": 983,
       "any": 2
     },
     "src/components/creer/NewsjackingPanel.tsx": {
@@ -30,7 +30,7 @@
       "any": 3
     },
     "src/components/creer/formatRenderers/CarouselPhotoResult.tsx": {
-      "lignes": 1238,
+      "lignes": 1236,
       "any": 20
     },
     "src/components/creer/formatRenderers/StoryResult.tsx": {
@@ -66,7 +66,7 @@
       "any": 14
     },
     "src/pages/CreerUnifie.tsx": {
-      "lignes": 2136,
+      "lignes": 2135,
       "any": 21
     },
     "src/pages/InstagramAudit.tsx": {

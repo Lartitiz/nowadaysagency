@@ -6,6 +6,8 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { ArrowRight, Camera, ArrowLeft } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
+import StoryQuestionsDialog from "./StoryQuestionsDialog";
+import type { StoryAnswer } from "@/features/creer/story/story-answers";
 // Gros panneau (recherche d'actu) chargé à la demande — pas dans le chunk initial.
 const NewsjackingPanel = lazy(() => import("./NewsjackingPanel"));
 import CreerTransformTab from "./CreerTransformTab";
@@ -43,6 +45,8 @@ interface Props {
   /** Boutons Annuler / Rétablir, posés sur la ligne du titre du champ : leur
       apparition ne décale plus « Continuer » (passe du 16/10). */
   historyControls?: ReactNode;
+  /** « Je te pose des questions » : idée tirée de son histoire, et ses réponses pour l'écriture. */
+  onStoryTaken?: (subject: string, answers: StoryAnswer[]) => void;
 }
 
 const UNIVERSAL_PLACEHOLDER = "Ex : je raconte une expérience vécue / je réagis à un chiffre qui m'a marquée / j'ose un avis à contre-courant / je montre mon process en coulisses…";
@@ -56,9 +60,10 @@ const STARTER_IDEAS = [
   "Ce que j'aurais aimé savoir en débutant",
 ];
 
-export default function CreerStepIdea({ initialFormat, channel, onNext, onPickIdea, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry, historyControls }: Props) {
+export default function CreerStepIdea({ initialFormat, channel, onNext, onPickIdea, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry, historyControls, onStoryTaken }: Props) {
   const [fallbackIdea, setFallbackIdea] = useState(initialIdea || "");
   const [coachOpen, setCoachOpen] = useState(false);
+  const [storyOpen, setStoryOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
   const [fallbackPhotoEntry, setFallbackPhotoEntry] = useState(!!(initialPhotos && initialPhotos.length > 0));
   const [showTransform, setShowTransform] = useState(!!autoOpenTransform);
@@ -181,6 +186,8 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
               <p className="mb-2 text-sm text-muted-foreground">Ou bien</p>
               <div className="divide-y divide-border border-t border-border">
                 {[
+                  // Demande de Laetitia (14/11/2026) : des posts storytelling qui fonctionnent.
+                  ...(onStoryTaken ? [{ label: "Je te pose des questions pour trouver l’inspiration", action: () => setStoryOpen(true) }] : []),
                   { label: "J’ai déjà du contenu", action: () => setShowTransform(true) },
                   { label: "J’ai besoin d’une idée", action: () => setCoachOpen(true) },
                   { label: "Réagir à une actualité", action: () => setShowNewsjacking(true) },
@@ -283,6 +290,15 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
 
       {/* Coaching dialog */}
       <ContentCoachingDialog initialFormat={initialFormat} initialChannel={channel} open={coachOpen} onOpenChange={setCoachOpen} onSelect={onCoachingSelect} onNewsjackingRedirect={() => setShowNewsjacking(true)} />
+
+      {onStoryTaken && (
+        <StoryQuestionsDialog
+          open={storyOpen}
+          onOpenChange={setStoryOpen}
+          workspaceId={workspaceId}
+          onKeep={(subject, answers) => { setIdea(subject); onStoryTaken(subject, answers); }}
+        />
+      )}
 
       {/* Transform sheet : panneau latéral pour recycler / crossposter / s'inspirer */}
       <Sheet open={showTransform} onOpenChange={setShowTransform}>
