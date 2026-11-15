@@ -7,7 +7,8 @@
 export const QUESTION_MAX_MOTS_SONDE = 32;
 
 // Début de proposition fermée : « Tu as… ? », « As-tu… ? », « Est-ce que… ? », « Y a-t-il… ? »
-const FERMEE = /^(tu (as|peux|connais|fais|utilises|te souviens|aurais|veux)|as-tu|aurais-tu|peux-tu|connais-tu|est-ce qu|y a-t-il|il y a|existe-t-il)\b/i;
+// (même liste que questionFermee de _shared/questions-form.ts ; « Peux-tu raconter… » = invitation, pas un oui/non)
+const FERMEE = /^(tu (as|connais|fais|utilises|te souviens|aurais)|as-tu|aurais-tu|connais-tu|est-ce qu|y a-t-il|il y a|existe-t-il)\b/i;
 
 export function texteQuestion(q: unknown): string {
   if (typeof q === "string") return q;

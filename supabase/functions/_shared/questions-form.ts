@@ -46,6 +46,22 @@ Ces exemples parlent d'un autre sujet : ne les recopie pas, trouve les mots du s
 
 export const QUESTIONS_COURTES_RETRY = `Certaines questions sont trop longues ou portent des parenthèses. Réécris les mêmes questions, dans le même ordre et le même format : 25 mots environ et jamais plus de 30 chacune, une seule question, sans parenthèses ni liste d'options. Garde ce qu'elles demandent de précis, le vocabulaire du métier et les détails du sujet : raccourcis la forme, pas le fond. Garde le tutoiement.`;
 
+export const QUESTIONS_OUVERTES_RETRY = `Certaines questions se répondent par oui ou non (« Y a-t-il… ? », « Tu as… ? », « Est-ce que… ? »). Réécris-les en question ouverte qui demande directement le cas, le moment ou le détail (« Quelle question de tes clientes revient le plus… ? »), dans le même ordre et le même format, 30 mots au plus. Ne change pas les autres questions. Garde le tutoiement.`;
+
+// Question fermée (15/11/2026, vue par la sonde ❓ du matin) : la proposition qui porte le « ? »
+// commence comme un oui/non. « Peux-tu raconter… » n'en est pas une (invitation polie).
+const DEBUT_FERME = /^(tu (as|connais|fais|utilises|te souviens|aurais)|as-tu|aurais-tu|connais-tu|est-ce qu|y a-t-il|il y a|existe-t-il)(\s|\b)/i;
+export function questionFermee(q: string): boolean {
+  const avant = String(q || "").split("?")[0] ?? "";
+  const morceaux = avant.split(/[,:;.]/);
+  return DEBUT_FERME.test((morceaux[morceaux.length - 1] ?? "").trim());
+}
+
+/** Vrai si au moins une question de la réponse JSON se répond par oui ou non. */
+export function questionsFermees(content: string): boolean {
+  return questionsDe(content).some((q: any) => questionFermee(q?.question || ""));
+}
+
 function nbMots(text: string): number {
   return String(text || "").trim().split(/\s+/).filter(Boolean).length;
 }
@@ -117,7 +133,7 @@ export function couperListesDesQuestions(content: string): string {
 }
 
 /**
- * Une relance au plus (carousel-ai et, depuis le 14/11/2026, creative-flow) quand une question vouvoie ou reste trop longue.
+ * Une relance au plus (carousel-ai et, depuis le 14/11/2026, creative-flow) quand une question vouvoie, reste trop longue ou se répond par oui/non.
  * `ask` reçoit la consigne de correction ; une relance en échec, ou qui ne
  * règle rien, garde les premières questions plutôt que de tout perdre.
  */
@@ -125,15 +141,16 @@ export async function relancerQuestionsSiBesoin(content: string, ask: (consigne:
   content = couperListesDesQuestions(content);
   const vouvoie = questionsVouvoient(content);
   const longues = questionsTropLongues(content);
-  if (!vouvoie && !longues) return content;
-  const consigne = [vouvoie ? QUESTIONS_TUTOIEMENT_RETRY : "", longues ? QUESTIONS_COURTES_RETRY : ""].filter(Boolean).join("\n");
+  const fermees = questionsFermees(content);
+  if (!vouvoie && !longues && !fermees) return content;
+  const consigne = [vouvoie ? QUESTIONS_TUTOIEMENT_RETRY : "", longues ? QUESTIONS_COURTES_RETRY : "", fermees ? QUESTIONS_OUVERTES_RETRY : ""].filter(Boolean).join("\n");
   try {
     const retried = couperListesDesQuestions(await ask(consigne));
-    if (retried && !questionsVouvoient(retried) && (!longues || !questionsTropLongues(retried))) {
-      console.log(JSON.stringify({ event: "questions_relance", vouvoie, longues, corrige: true }));
+    if (retried && !questionsVouvoient(retried) && (!longues || !questionsTropLongues(retried)) && (!fermees || !questionsFermees(retried))) {
+      console.log(JSON.stringify({ event: "questions_relance", vouvoie, longues, fermees, corrige: true }));
       return retried;
     }
   } catch (_) { /* on garde la première version */ }
-  console.log(JSON.stringify({ event: "questions_relance", vouvoie, longues, corrige: false }));
+  console.log(JSON.stringify({ event: "questions_relance", vouvoie, longues, fermees, corrige: false }));
   return content;
 }
