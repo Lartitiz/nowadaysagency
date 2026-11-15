@@ -142,7 +142,7 @@ Deno.test("relecture : la consigne est dans le système, la ligne d'humour finit
   assert(system.includes(RECIT_RELECTURE_CARROUSEL));
   assert(system.includes("La question simple pour les commentaires va dans caption.cta, jamais sur la dernière slide"));
   const slides = result!.doc.slides;
-  assertEquals(slides[slides.length - 1].detail, "La pharmacie, elle, l'a compris depuis longtemps.");
+  assertEquals((slides[slides.length - 1] as any).detail, "La pharmacie, elle, l'a compris depuis longtemps.");
   assert(slides.slice(0, -1).every((s: any) => !s.detail));
   assertEquals(closingAside("Une ligne bien trop longue pour tenir en petit sous la dernière slide du carrousel photo."), "");
   assertEquals(closingAside("Vraiment ?"), "");
