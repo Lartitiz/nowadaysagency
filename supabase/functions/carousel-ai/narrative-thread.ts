@@ -86,11 +86,16 @@ export interface ThreadDefects {
  * moustiques ? » dans l'angle, absents des slides malgré la consigne).
  */
 export function briefExamples(body: any): string[] {
-  const angle = typeof body?.editorial_angle === "string" ? body.editorial_angle : "";
-  return [...angle.matchAll(/«\s*([^»]+?)\s*»/g)]
-    .map((m) => m[1].trim())
-    .filter((q) => { const n = q.split(/\s+/).length; return n >= 2 && n <= 14; })
-    .slice(0, 8);
+  // Dans l'app, le brief d'une idée arrive dans deepening_answers (« Brief
+  // éditorial choisi », src/lib/idea-brief-request.ts) et l'angle n'en garde que
+  // le titre (coupé à 100 caractères par index.ts) : on lit les deux.
+  const material = body?.deepening_answers && typeof body.deepening_answers === "object"
+    ? body.deepening_answers["Brief éditorial choisi"] : undefined;
+  const sources = [body?.editorial_angle, typeof material === "string" ? material.split("\n").slice(1).join("\n") : ""];
+  const quotes = sources.filter((t): t is string => typeof t === "string")
+    .flatMap((t) => [...t.matchAll(/«\s*([^»]+?)\s*»/g)].map((m) => m[1].trim()))
+    .filter((q) => { const n = q.split(/\s+/).length; return n >= 2 && n <= 14; });
+  return [...new Set(quotes)].slice(0, 8);
 }
 
 const longWords = (s: string) => norm(s).split(/[^\p{L}]+/u).filter((w) => w.length >= 5);
