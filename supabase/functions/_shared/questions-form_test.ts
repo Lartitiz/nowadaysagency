@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { couperListeOptions, couperListesDesQuestions, questionTropLongue, questionsTropLongues } from "./questions-form.ts";
+import { couperListeOptions, couperListesDesQuestions, questionFermee, questionTropLongue, questionsTropLongues } from "./questions-form.ts";
 import { relancerQuestionsSiBesoin } from "../carousel-ai/questions-address.ts";
 
 // Vraie question du 12/11/2026, jugée illisible par Laetitia.
@@ -60,4 +60,19 @@ Deno.test("questions-form : la liste de choix en fin de question est coupée (so
   assertEquals(out.questions[0].question, "Sur tes marchés, qu'est-ce qui fait revenir une cliente ?");
   assertEquals(out.questions[0].placeholder, "Par exemple : un échantillon");
   assertEquals(couperListesDesQuestions("pas du json"), "pas du json");
+});
+
+Deno.test("questions-form : questions fermées repérées, invitations et questions ouvertes non (sonde ❓ du 15/11)", async () => {
+  assert(questionFermee("Y a-t-il une question précise de tes clientes sur la peau sensible qui revient souvent ?"));
+  assert(questionFermee("Pour les deux autres erreurs du carrousel, tu as un exemple concret à donner ?"));
+  assert(questionFermee("As-tu déjà entendu une cliente comparer tes savons à un savon du supermarché ?"));
+  assert(!questionFermee("Peux-tu raconter une situation précise où une cliente a remarqué une différence ?"));
+  assert(!questionFermee("Quand un savon tourne, à quelle étape de ta méthode t'en rends-tu compte, et à quoi le reconnais-tu ?"));
+  // Une question fermée déclenche une relance, gardée si elle est ouverte.
+  const fermee = JSON.stringify({ questions: [{ question: "Y a-t-il une question de tes clientes qui revient souvent ?", placeholder: "x" }] });
+  const ouverte = JSON.stringify({ questions: [{ question: "Quelle question de tes clientes revient le plus souvent au stand ?", placeholder: "x" }] });
+  let appels = 0;
+  const out = await relancerQuestionsSiBesoin(fermee, async (consigne) => { appels++; assert(consigne.includes("oui ou non")); return ouverte; });
+  assertEquals(appels, 1);
+  assertEquals(out, ouverte);
 });
