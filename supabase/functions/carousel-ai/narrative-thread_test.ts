@@ -205,3 +205,12 @@ Deno.test("réécriture du fil refusée : le reçu dit pourquoi (slides plus lon
   assertEquals(receipt.reason, "longer");
   assertEquals(result!.doc.narrative_draft.paragraphs, sans);
 });
+
+Deno.test("exemple de l'angle : lu aussi dans le brief d'idée envoyé par l'app (deepening_answers)", () => {
+  // withIdeaBrief (src/lib/idea-brief-request.ts) : l'angle garde son titre, le brief part dans les réponses.
+  const material = "MATIÈRE ÉDITORIALE CHOISIE (proposition, pas un témoignage personnel, sauf « Sa réponse », fait réel donné par la cliente).\n" + ANGLE;
+  const ex = briefExamples({ editorial_angle: "Distinguer la cible de l'activité", deepening_answers: { q_0: "Ma réponse", "Brief éditorial choisi": material } });
+  assert(ex.includes("Prenez soin de vous"), JSON.stringify(ex));
+  assert(!ex.includes("Sa réponse"), "l'en-tête de la matière n'est pas un exemple");
+  assertEquals(briefExamples({ deepening_answers: { q_0: "« un mot » seul" } }), []);
+});
