@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { questionTropLongue, questionsTropLongues } from "./questions-form.ts";
+import { couperListeOptions, couperListesDesQuestions, questionTropLongue, questionsTropLongues } from "./questions-form.ts";
 import { relancerQuestionsSiBesoin } from "../carousel-ai/questions-address.ts";
 
 // Vraie question du 12/11/2026, jugée illisible par Laetitia.
@@ -42,4 +42,22 @@ Deno.test("relance : une seule, gardée seulement si elle règle le défaut", as
   assertEquals(await relancerQuestionsSiBesoin(json(LOURDE), async () => { throw new Error("réseau"); }), json(LOURDE));
   // Vouvoiement et longueur : une seule consigne qui demande les deux.
   await relancerQuestionsSiBesoin(json("Votre " + LOURDE), async (c) => { assert(c.includes("tutoyant") && c.includes("jamais plus de 30")); return courte; });
+});
+
+Deno.test("questions-form : la liste de choix en fin de question est coupée (sonde ❓ du 15/11)", () => {
+  assertEquals(
+    couperListeOptions("Quand tu as décidé de ne plus utiliser de parfum de synthèse dans tes savons, qu'est-ce qui t'a fait basculer : une réaction cutanée, une cliente qui te l'a dit, ou une lecture sur les ingrédients ?"),
+    "Quand tu as décidé de ne plus utiliser de parfum de synthèse dans tes savons, qu'est-ce qui t'a fait basculer ?",
+  );
+  // Pas une liste : on ne touche à rien.
+  const ouverte = "Pense à ta dernière opération bloquée : qu'est-ce qui a fini par débloquer la revente ?";
+  assertEquals(couperListeOptions(ouverte), ouverte);
+  const sansVirgule = "Quand un client hésite, que fais-tu : tu rappelles ou tu attends ?";
+  assertEquals(couperListeOptions(sansVirgule), sansVirgule);
+  // Dans une réponse JSON : seule la question change, le placeholder reste.
+  const json = JSON.stringify({ questions: [{ question: "Sur tes marchés, qu'est-ce qui fait revenir une cliente : un geste, une phrase, ou un échantillon glissé dans le sac ?", placeholder: "Par exemple : un échantillon" }] });
+  const out = JSON.parse(couperListesDesQuestions(json));
+  assertEquals(out.questions[0].question, "Sur tes marchés, qu'est-ce qui fait revenir une cliente ?");
+  assertEquals(out.questions[0].placeholder, "Par exemple : un échantillon");
+  assertEquals(couperListesDesQuestions("pas du json"), "pas du json");
 });
