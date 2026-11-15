@@ -40,7 +40,7 @@ async function sha256(text: string): Promise<string> {
 
 /** Empreintes prises sur origin/main (f2234d7b) AVANT le déplacement dans socle.ts. */
 const FROZEN: Record<string, string> = {
-  LIVED_CASE_FIRST: "bb61da20ef4e437fc367da98763601248764ca74f322a9683c40d529ba7adfd7",
+  LIVED_CASE_FIRST: "8adb1eb549ef416fbed73afbc5c290d62871f79c41d7485a017421838cb06103", // 15/11/2026 : rien ajouté à son histoire (bio « retravaillée trois fois » inventée)
   NEWS_FEELING_FIRST: "8f993be7ed971582d68c324586c2003e4cbc9e5f28363aa9cd1beea5a6a09bca",
   "audienceAddressRule(tu)": "1e455edbb8af8fa3962645c81697c776f87c907827cd9b6f62eaa464e731050a",
   "audienceAddressRule(vous)": "e40008f61d5fa6f67625514695ec922b115e886a9d0e07386c733ec6c65bd386",
