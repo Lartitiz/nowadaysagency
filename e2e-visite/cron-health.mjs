@@ -330,6 +330,13 @@ try {
     console.log(sr
       ? `   🔁 Slides refaites : ${sr.n} (${sr.clientes} cliente${sr.clientes > 1 ? "s" : ""}) · S-1 : ${sr.n_s1}${sr.internes ? ` · comptes internes : ${sr.internes}` : ""}`
       : "   🔁 Slides refaites : non mesuré (edge cron-health pas redéployée)");
+    // debits_doubles : edge ≥ 16/11/2026. Seuil : 0 attendu (13/11/2026 : 2 carrousels payés pour 1 affiché, création relancée pendant l'attente).
+    const dd = d.debits_doubles;
+    if (!dd) console.log("   💳 Débits en double : non mesuré (edge cron-health pas redéployée)");
+    else {
+      const ex = (dd.exemples || []).map((e) => `${e.action} à ${e.ecart_s} s d'écart le ${String(e.quand).slice(0, 16).replace("T", " ")} UTC`).join(" ; ");
+      console.log(`   💳 Débits en double : ${dd.n ? "🟠" : "✅"} ${dd.n} (${dd.clientes} cliente${dd.clientes > 1 ? "s" : ""}) · S-1 : ${dd.n_s1}${dd.internes ? ` · comptes internes : ${dd.internes}` : ""}${ex ? ` — ${ex}` : ""}`);
+    }
     // fiches_coincees : edge ≥ 26/10/2026. Seuil : 0 attendu (bug #1809, 4 inscrites bloquées 25 j sur « Ta fiche de marque t'attend »).
     const fc = d.fiches_coincees;
     if (!fc) console.log("   🪪 Fiches coincées : non mesuré (edge cron-health pas redéployée)");

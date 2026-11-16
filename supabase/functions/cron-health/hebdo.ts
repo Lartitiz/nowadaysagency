@@ -13,6 +13,7 @@ import { cohortes, comptesInternes, espacesOwnerMultiples, publications, topCons
 import { blocQualite, lireQualite } from "./qualite.ts";
 import { emailsCoupesStats, publicationsAlaMain } from "./emails-coupes.ts";
 import { slidesRefaites } from "./slides-refaites.ts";
+import { debitsDoubles } from "./debits-doubles.ts";
 import { horsCreditParSource, lireHorsCredit } from "./hors-credit.ts";
 import { fichesCoincees, lireFichesCoincees } from "./fiches-coincees.ts";
 import { connexionsFigees, PLATEFORMES_AUTO_RENOUVELEES } from "./connexions-figees.ts";
@@ -97,6 +98,8 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
     espaces_owner_multiples,
     // « 🔁 Slides refaites » (chantier AA), lu par la routine du lundi.
     slides_refaites: slidesRefaites({ ai, aiRows, internalIds, curFrom, curTo, prevFrom, prevTo }),
+    // « 💳 Débits en double » : 0 attendu (2 carrousels payés pour 1 affiché, 13/11/2026).
+    debits_doubles: debitsDoubles({ ai, aiRows, cqAll, internalIds, curFrom, curTo, prevFrom, prevTo }),
     // « 🪪 Fiches coincées » : 0 attendu depuis #1809.
     fiches_coincees: Array.isArray(fichesRows) ? fichesCoincees(fichesRows, { isClient, now }) : fichesRows,
     // « 🔌 Connexions figées » : 0 attendu ; > 0 = à reconnecter (ou app Google repassée en test).
