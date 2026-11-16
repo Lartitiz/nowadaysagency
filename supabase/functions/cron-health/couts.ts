@@ -55,6 +55,20 @@ export const summarize = (rows: any[]) => {
   };
 };
 
+/**
+ * Détail par modèle (appels, tokens, coût estimé) pour les lignes HORS totaux :
+ * comptes internes et hors crédit. Sans lui, un changement de modèle testé sur
+ * le compte de recette (16/11/2026, Fable 5.2) restait invisible dans le bilan
+ * tant qu'aucune cliente ne l'avait utilisé.
+ */
+export const coutParModele = (rows: any[]) =>
+  Object.entries(summarize(rows).byModel)
+    .map(([modele, v]) => ({
+      modele, appels: v.appels, tokens: v.tokens,
+      cout_estime_eur: round2((IMAGE_COST_EUR[modele] || 0) * v.appels + ((TEXT_COST_EUR_PER_MTOKEN[modele] || 0) * v.tokens) / 1_000_000),
+    }))
+    .sort((a, b) => b.cout_estime_eur - a.cout_estime_eur || b.tokens - a.tokens);
+
 // Relecture éditoriale (hors ai_usage, cf. REVIEW_COST_EUR_PER_MTOKEN) :
 // ajoutée au coût de la semaine et remontée par modèle. Un modèle de
 // relecture sans tarif rejoint `modeles_non_tarifes` comme les autres.

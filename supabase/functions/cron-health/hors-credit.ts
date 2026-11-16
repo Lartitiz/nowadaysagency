@@ -7,7 +7,7 @@
 // Weekly : `hors_credit_7j` par source + `cout_estime_total_7j`, le chiffre à
 // comparer chaque lundi au coût de la console Anthropic (sonde 💳 : alerte si la
 // console dépasse 3 fois ce total).
-import { summarize } from "./couts.ts";
+import { coutParModele, summarize } from "./couts.ts";
 import { inWindow } from "./fenetres.ts";
 import { DAY, fetchAllRows } from "./lecture.ts";
 
@@ -26,8 +26,9 @@ export function horsCreditParSource(rows: any[], from: number, to: number) {
   const fenetre = rows.filter((r) => inWindow(r.created_at, from, to));
   const sources = [...new Set(fenetre.map((r) => r.source))].sort();
   const par_source = sources.map((source) => {
-    const s = summarize(fenetre.filter((r) => r.source === source));
-    return { source, appels: s.appels, tokens: s.tokens, cout_estime_eur: s.cout_total_estime_eur, modeles_non_tarifes: s.modeles_non_tarifes };
+    const lignes = fenetre.filter((r) => r.source === source);
+    const s = summarize(lignes);
+    return { source, appels: s.appels, tokens: s.tokens, cout_estime_eur: s.cout_total_estime_eur, modeles_non_tarifes: s.modeles_non_tarifes, par_modele: coutParModele(lignes) };
   });
   const total = Math.round(par_source.reduce((t, s) => t + (s.cout_estime_eur || 0), 0) * 100) / 100;
   return { par_source, cout_estime_eur: total };

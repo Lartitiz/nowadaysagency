@@ -689,6 +689,26 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
     appels: 3,
     comptes: 3,
     cout_estime_eur: 2.23,
+    par_modele: [
+      {
+        appels: 1,
+        cout_estime_eur: 1.6,
+        modele: "claude-opus-5-5",
+        tokens: 200000,
+      },
+      {
+        appels: 1,
+        cout_estime_eur: 0.23,
+        modele: "gpt-6-astra",
+        tokens: 10000,
+      },
+      {
+        appels: 1,
+        cout_estime_eur: 0.2,
+        modele: "marketing-studio/image/flare",
+        tokens: 0,
+      },
+    ],
     tokens: 210000,
   },
   connexions_figees: {
@@ -772,6 +792,20 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
         appels: 3,
         cout_estime_eur: 1.44,
         modeles_non_tarifes: [],
+        par_modele: [
+          {
+            appels: 2,
+            cout_estime_eur: 1.36,
+            modele: "claude-opus-5-5",
+            tokens: 170000,
+          },
+          {
+            appels: 1,
+            cout_estime_eur: 0.08,
+            modele: "claude-sonnet-5",
+            tokens: 20000,
+          },
+        ],
         source: "compte_test",
         tokens: 190000,
       },
@@ -779,6 +813,14 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
         appels: 1,
         cout_estime_eur: 0.06,
         modeles_non_tarifes: [],
+        par_modele: [
+          {
+            appels: 1,
+            cout_estime_eur: 0.06,
+            modele: "claude-sonnet-5",
+            tokens: 15000,
+          },
+        ],
         source: "inscription",
         tokens: 15000,
       },
@@ -786,6 +828,14 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
         appels: 1,
         cout_estime_eur: 0.01,
         modeles_non_tarifes: [],
+        par_modele: [
+          {
+            appels: 1,
+            cout_estime_eur: 0.01,
+            modele: "google/gemini-2.5-flash",
+            tokens: 8000,
+          },
+        ],
         source: "passerelle_lovable",
         tokens: 8000,
       },
@@ -1192,6 +1242,26 @@ snapshot[`weekly qualité : colonne content_preview absente → relecture sans e
     appels: 3,
     comptes: 3,
     cout_estime_eur: 2.03,
+    par_modele: [
+      {
+        appels: 1,
+        cout_estime_eur: 1.6,
+        modele: "claude-opus-5-5",
+        tokens: 200000,
+      },
+      {
+        appels: 1,
+        cout_estime_eur: 0.23,
+        modele: "gpt-6-astra",
+        tokens: 10000,
+      },
+      {
+        appels: 1,
+        cout_estime_eur: 0.2,
+        modele: "marketing-studio/image/flare",
+        tokens: 0,
+      },
+    ],
     tokens: 210000,
   },
   ia_7j: {
