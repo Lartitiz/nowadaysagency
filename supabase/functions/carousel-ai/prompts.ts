@@ -10,6 +10,7 @@ import { buildIdentityBlock } from "../_shared/user-context.ts";
 import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { textWritingPrompt, photoWritingPrompt, newsWriting, mixWritingPrompt } from "./variant-writing.ts";
 import { buildConfirmedStructureBlock } from "./confirmed-structure.ts";
+import { RELECTURE_CARROUSEL_TEXTE, briefExamples, briefExamplesPrompt } from "./narrative-thread.ts";
 
 // ── Régime « texte d'abord » (lot 1 casting) ──
 // Le carrousel mixte est rédigé SANS photos : chaque slide photo sort avec une
@@ -85,8 +86,15 @@ Retourne ce JSON exact :
 }`;
 }
 
+/** Relecture du 15/11/2026 étendue au carrousel texte (16/11/2026) : règles de
+ * la méthode carrousel + exemples du brief d'idée à garder sur les slides. */
+export function textCarouselReviewRules(body: any): string {
+  const examples = briefExamplesPrompt(briefExamples(body));
+  return `\n${RELECTURE_CARROUSEL_TEXTE}${examples ? `\n${examples}` : ""}`;
+}
+
 export function buildSlidesPrompt(body: any, isLinkedIn = false): string {
-  return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread }));
+  return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread })) + textCarouselReviewRules(body);
 }
 
 export function buildSuggestTopicsPrompt(body: any, isLinkedIn = false): string {
@@ -225,7 +233,7 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
 }
 
 export function buildExpressFullPrompt(body: any, isLinkedIn = false): string {
-  return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread }));
+  return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread })) + textCarouselReviewRules(body);
 }
 
 export function buildPhotoCarouselPrompt(body: any, isLinkedIn = false): string {

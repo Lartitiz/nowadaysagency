@@ -29,12 +29,16 @@ export interface FinCarrousels {
 const texteSlide = (s: any) => [s?.title, s?.body, s?.overlay_text, s?.kicker, s?.detail, s?.cta_label]
   .filter((t) => typeof t === "string" && t.trim()).join(" ");
 
-/** Dernière ligne de la légende (hashtags retirés) finie par une question. */
+/** Dernière ligne de la légende (hashtags retirés) finie par une question, ou cta qui invite à commenter. */
 export function legendeFinitParQuestion(caption: unknown): boolean {
   const texte = typeof caption === "string" ? caption
     : caption && typeof caption === "object" ? String((caption as any).cta || (caption as any).body || "") : "";
   const lignes = texte.split("\n").map((l) => l.replace(/(^|\s)#[\p{L}\p{N}_]+/gu, " ").trim()).filter(Boolean);
-  return !!lignes.length && /\?\s*$/.test(lignes[lignes.length - 1]);
+  if (!lignes.length) return false;
+  // Depuis le 16/11/2026 la légende du carrousel texte finit sur une question OU
+  // sur une invitation à raconter un cas « en commentaire » (sans « ? ») : les deux comptent.
+  const cta = caption && typeof caption === "object" ? String((caption as any).cta || "") : "";
+  return /\?\s*$/.test(lignes[lignes.length - 1]) || /\bcommentaires?\b/i.test(cta);
 }
 
 export function finCarrouselsStats(

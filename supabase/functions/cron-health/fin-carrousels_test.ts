@@ -36,3 +36,12 @@ Deno.test("fin des carrousels : fin en geste + question en légende = ouverture 
   const ancien = { ...row("Le risque d'une découpe se concentre dans un lot."), caption: "Légende.\nCe lot dit tout de votre bilan.\n#immobilier" };
   assertEquals(typeof finCarrouselsStats([ancien, ancien], toujours).alerte, "string");
 });
+
+Deno.test("fin des carrousels : invitation à raconter un cas en commentaire = ouverture (16/11/2026)", () => {
+  const invitation = { ...row("Pour moi, la com' commence par comprendre l'autre."), caption: { body: "Corps.", cta: "Racontez-moi en commentaire la situation que vous nommerez demain." } };
+  const r = finCarrouselsStats([invitation, invitation], toujours);
+  assertEquals([r.legende_question, r.sans_question, r.alerte], [2, 0, null]);
+  // Une légende sans aucun appel reste comptée.
+  const sec = { ...row("Fin."), caption: { body: "Corps.", cta: "" } };
+  assertEquals(typeof finCarrouselsStats([sec, sec], toujours).alerte, "string");
+});

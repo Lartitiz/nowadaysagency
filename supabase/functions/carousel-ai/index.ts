@@ -1,4 +1,6 @@
 import { newsWriting } from "./variant-writing.ts";
+import { narrativeNewsWriting } from "./narrative-thread.ts";
+import { isTextCarousel } from "../_shared/carousel-length.ts";
 import { authoredContentSource, currentContentContract, testimonySourceText } from "../_shared/editorial-voice.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildBrandGuardText } from "../_shared/user-context.ts";
@@ -339,7 +341,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
 
     // Inject newsjacking context if present (separate field — not in `subject` to avoid 15k cap)
     const newsContextBlock = (typeof newsContext === "string" && newsContext.trim().length > 0)
-      ? `\n\nACTUALITÉ FOURNIE (faits de référence) :\n${newsContext.trim()}\n${newsWriting(body)}`
+      ? `\n\nACTUALITÉ FOURNIE (faits de référence) :\n${newsContext.trim()}\n${(type === "express_full" || type === "slides") && isTextCarousel(body) ? narrativeNewsWriting(body) : newsWriting(body)}`
       : "";
     if (newsContextBlock) {
       systemPrompt += newsContextBlock;
@@ -355,12 +357,13 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
     // désobéissait 4 fois sur 7 à la consigne seule) via captionEndingRule.
     let captionEndingRule: CaptionEndingRule | undefined;
     if (type === "express_full" && !isLinkedIn && !semanticReviewEnabled) {
+      // 16/11/2026 : la question quitte la dernière slide (relecture du 15/11) ;
+      // la légende porte donc toujours l'appel à commenter, question OU
+      // invitation à raconter un cas (choix de Laetitia). Conclusion, confidence
+      // et chute sobre sans appel ne sont plus tirées.
       const CAPTION_ENDINGS: Array<{ requiresQuestion: boolean; instruction: string }> = [
         { requiresQuestion: true, instruction: `une QUESTION spécifique au cœur du carrousel (jamais générique, elle reprend un mot ou une image des slides)` },
-        { requiresQuestion: false, instruction: `une conclusion spécifique au sujet — AUCUNE question, AUCUN point d'interrogation dans le cta` },
         { requiresQuestion: false, instruction: `une INVITATION à raconter UN cas précis en commentaire, à l'impératif — SANS point d'interrogation` },
-        { requiresQuestion: false, instruction: `une CONFIDENCE ou un aveu personnel qui clôt le propos — AUCUNE question` },
-        { requiresQuestion: false, instruction: `une CHUTE SOBRE : la dernière idée se suffit, pas d'appel explicite à commenter — AUCUNE question` },
       ];
       captionEndingRule = CAPTION_ENDINGS[Math.floor(Math.random() * CAPTION_ENDINGS.length)];
       console.log(`[carousel-ai] chute caption tirée : ${captionEndingRule.requiresQuestion ? "question" : "non-question"} — ${captionEndingRule.instruction.slice(0, 60)}`);
