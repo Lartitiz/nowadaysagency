@@ -6,7 +6,7 @@ import {
   carouselLengthPrompt,
 } from "../_shared/carousel-length.ts";
 import { AnthropicError, type UsageSink } from "../_shared/anthropic.ts";
-import { callCarouselWriter, pickCarouselWriter } from "./writer.ts";
+import { callCarouselWriter, isFableWriter, pickCarouselWriter } from "./writer.ts";
 import {
   progressionReceipt,
   type ProgressionSource,
@@ -393,10 +393,10 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
         }],
         tool: TOOL,
         max_tokens: 5500,
-        // Fable 5.1 (mode Max) écrit plus lentement qu'Opus : 115 s mesurées en
+        // Fable (mode Max, 5.2 comme 5.1) écrit plus lentement qu'Opus : 115 s mesurées en
         // live le 02/10 pour l'étape d'écriture → 140 s au lieu de 100 s. Le budget
         // global (remaining) borne toujours l'appel.
-        abortTimeoutMs: Math.max(1000, Math.min(final?.timeout ?? (pickCarouselWriter(body) === "claude-fable-5-1" ? 140000 : 100000), remaining() - 40000)),
+        abortTimeoutMs: Math.max(1000, Math.min(final?.timeout ?? (isFableWriter(pickCarouselWriter(body)) ? 140000 : 100000), remaining() - 40000)),
       }, sink));
       usage.model = sink.model || pickCarouselWriter(body);
       return parseNarrative(text, final?.exact ?? exact);

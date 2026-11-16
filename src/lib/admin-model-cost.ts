@@ -11,6 +11,8 @@
  */
 export const MODEL_COST_PER_TOKEN: { match: RegExp; rate: number }[] = [
   { match: /^gpt-6-astra(?:$|-)/i, rate: 0.00005 }, // $50/M output; conservative total-token estimate
+  { match: /^claude-fable-5-2(?:$|-)/i, rate: 0.00004 }, // $40/M output (mode Max des carrousels depuis le 16/11/2026)
+  { match: /^claude-fable-5(?:$|-)/i, rate: 0.00005 }, // $50/M output (Fable 5.1 et 5 ; sans ces lignes, compté au tarif Sonnet)
   { match: /^claude-opus-5-5(?:$|-)/i, rate: 0.00002 }, // $20/M output (avant Opus 5, que la regex suivante couvrirait)
   { match: /^claude-opus-5(?:$|-)/i, rate: 0.000025 }, // $25/M output (before generic legacy Opus)
   { match: /opus/i, rate: 0.00007 },          // ~75 $/M

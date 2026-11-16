@@ -21,8 +21,8 @@ export function carouselWriterDiagnostic(error: unknown): string {
   return "exception";
 }
 
-export const CAROUSEL_WRITER_VERSION = "opus55-fable51-medium-v2";
-export type CarouselWriterModel = "claude-opus-5" | "claude-opus-5-5" | "claude-fable-5-1" | "gpt-6-astra";
+export const CAROUSEL_WRITER_VERSION = "opus55-fable52-medium-v3";
+export type CarouselWriterModel = "claude-opus-5" | "claude-opus-5-5" | "claude-fable-5-2" | "claude-fable-5-1" | "gpt-6-astra";
 export type CarouselWriterOptions = Omit<AnthropicOptions, "model"> & {
   model: CarouselWriterModel;
   /**
@@ -35,15 +35,22 @@ export type CarouselWriterOptions = Omit<AnthropicOptions, "model"> & {
   onText?: (text: string) => void;
 };
 
-// Mode Max : Claude Fable 5.1 (le modèle Anthropic le plus capable) depuis le
-// 02/10 ; Astra (OpenAI) le faisait avant et tombait avec le crédit OpenAI.
-// Retour arrière SANS code : secret `CAROUSEL_MAX_WRITER` = "gpt-6-astra" (ou
-// "claude-opus-5-5"), lu à chaque requête.
-export const CAROUSEL_MAX_WRITER_DEFAULT = "claude-fable-5-1" as const;
+// Mode Max : Claude Fable 5.2 depuis le 16/11/2026 (successeur de Fable 5.1,
+// 8 $ / 40 $ par Mtok au lieu de 10 $ / 50 $, même transport : outil en auto,
+// réflexion toujours allumée, effort explicite). Fable 5.1 le faisait depuis le
+// 02/10 ; Astra (OpenAI) avant, qui tombait avec le crédit OpenAI.
+// Retour arrière SANS code : secret `CAROUSEL_MAX_WRITER` = "claude-fable-5-1"
+// (ou "gpt-6-astra", "claude-opus-5-5"), lu à chaque requête. Toute autre
+// valeur est ignorée : on reste sur le défaut.
+export const CAROUSEL_MAX_WRITER_DEFAULT = "claude-fable-5-2" as const;
+const CAROUSEL_MAX_WRITER_OVERRIDES: readonly CarouselWriterModel[] = ["claude-fable-5-1", "gpt-6-astra", "claude-opus-5-5"];
 export function carouselMaxWriter(): CarouselWriterModel {
   const override = Deno.env.get("CAROUSEL_MAX_WRITER");
-  return override === "gpt-6-astra" || override === "claude-opus-5-5" ? override : CAROUSEL_MAX_WRITER_DEFAULT;
+  return CAROUSEL_MAX_WRITER_OVERRIDES.find((model) => model === override) ?? CAROUSEL_MAX_WRITER_DEFAULT;
 }
+
+/** Fable 5.2 ou 5.1 : même transport, et une écriture plus lente qu'Opus (délai de 140 s). */
+export const isFableWriter = (model: CarouselWriterModel) => model === "claude-fable-5-2" || model === "claude-fable-5-1";
 
 // Rédacteur par défaut : Opus 5.5. `writer_bench: "claude-opus-5"` rejoue l'ancien
 // rédacteur pour comparaison ; carousel-ai ne le laisse passer que pour le compte
@@ -54,11 +61,11 @@ export function pickCarouselWriter(body: { quality_max?: boolean; writer_bench?:
   return "claude-opus-5-5";
 }
 
-// Opus 5.5 et Fable 5.1 refusent `tool_choice` forcé (400) et ne coupent jamais
+// Opus 5.5 et Fable (5.2, 5.1) refusent `tool_choice` forcé (400) et ne coupent jamais
 // leur réflexion : outil en `auto` + consigne explicite, et une marge de
 // max_tokens pour la réflexion (qui compte dans le plafond sans être renvoyée).
 const NO_FORCED_TOOL_MIN_MAX_TOKENS = 16000;
-const noForcedTool = (model: CarouselWriterModel) => model === "claude-opus-5-5" || model === "claude-fable-5-1";
+const noForcedTool = (model: CarouselWriterModel) => model === "claude-opus-5-5" || isFableWriter(model);
 
 export function writerRequest(options: CarouselWriterOptions): Record<string, unknown> {
   if (options.model !== "gpt-6-astra") {

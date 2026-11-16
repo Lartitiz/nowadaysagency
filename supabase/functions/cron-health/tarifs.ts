@@ -88,6 +88,11 @@ export const TEXT_COST_EUR_PER_MTOKEN: Record<string, number> = {
   // du mode Max depuis le 02/10. Il raisonne aussi (réflexion facturée en
   // sortie) → même mix mesuré qu'Astra en attendant une mesure propre : 23.
   "claude-fable-5-1": 23,
+  // Claude Fable 5.2 (8 $ / 40 $ par Mtok, page de prix Anthropic vérifiée le
+  // 16/11/2026) : rédacteur du mode Max depuis le 16/11. Même mix supposé que
+  // Fable 5.1 (68 % entrée / 32 % sortie) : 0,68×8 + 0,32×40 ≈ 18,4, soit 20 %
+  // de moins. La ligne 5.1 reste pour l'historique et le retour arrière.
+  "claude-fable-5-2": 18.4,
 };
 // Relecture éditoriale de CHAQUE carrousel (Astra jusqu’au 02/10, Claude ensuite) : elle n'écrit PAS dans
 // ai_usage (une ligne = un crédit décompté à l'utilisatrice), ses tokens
