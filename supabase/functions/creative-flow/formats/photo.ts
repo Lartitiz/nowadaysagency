@@ -5,7 +5,7 @@
 // Voir docs/creation-contenu/CARTE.md.
 
 import { type AudienceAddress } from "../../_shared/audience-address.ts";
-import { QUESTIONS_FORM_RULES } from "../../_shared/questions-form.ts";
+import { QUESTIONS_FORM_RULES, relancerQuestionsSiBesoin } from "../../_shared/questions-form.ts";
 import { callAnthropic, getModelForAction, type UsageSink } from "../../_shared/anthropic.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../../_shared/vision-prompts.ts";
 import { GENERATE_ABORT_MS, QUESTIONS_TOOL, extractImagePayload, photoVoiceRule } from "../shared.ts";
@@ -62,10 +62,10 @@ export async function runVisionQuestions(params: {
   const visionSystemPrompt = `${QUESTIONS_PREFIX}
 ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}${recentBriefsContext ? `\n══ MÉMOIRE ANTI-RÉPÉTITION ══\nSujets DIFFÉRENTS déjà traités récemment :\n${recentBriefsContext}\nN'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions sur le sujet courant — sert uniquement à ne pas reposer une question identique.\n` : ""}` + QUESTIONS_FORM_RULES;
 
-  return await callAnthropic({
+  const ask = (messages: any[]) => callAnthropic({
     model: getModelForAction("content"),
     system: visionSystemPrompt,
-    messages: [{ role: "user", content: questionsContent }],
+    messages,
     temperature: 0.8,
     max_tokens: 1500,
     // Questions ancrées sur photos : plus lourd (upload images) mais reste
@@ -73,6 +73,13 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
     abortTimeoutMs: 60000,
     tool: QUESTIONS_TOOL,
   }, finalUsage);
+  const firstMessages = [{ role: "user", content: questionsContent }];
+  const first = await ask(firstMessages);
+  // Même filet que les questions sans photo (16/11/2026) : liste de choix finale
+  // coupée en code, puis une seule relance si une question vouvoie, dépasse
+  // 30 mots ou se répond par oui/non ; gardée seulement si elle règle le défaut.
+  return await relancerQuestionsSiBesoin(first, (consigne) =>
+    ask([...firstMessages, { role: "assistant", content: first }, { role: "user", content: consigne }]));
 }
 
 // Photo mode with vision: send 1 to 10 images to Claude — format-aware prompt.

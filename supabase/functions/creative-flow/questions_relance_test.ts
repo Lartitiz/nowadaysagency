@@ -16,7 +16,7 @@ const LONGUE_SANS_LISTE = "Quand tu as décidé de ne plus jamais utiliser de pa
 const COURTE = "Quel moment précis t'a fait renoncer au parfum de synthèse dans tes savons ?";
 const qs = (q: string) => ({ questions: [{ question: q, placeholder: "Une cliente qui rougissait" }] });
 
-async function run(inputs: unknown[], userId: string) {
+async function run(inputs: unknown[], userId: string, extra: Record<string, unknown> = {}) {
   let calls = 0;
   const mock = installFetchMock({
     anthropic: (req: any) => {
@@ -35,7 +35,7 @@ async function run(inputs: unknown[], userId: string) {
   }) as typeof fetch;
   try {
     const res = await handler(new Request(URL_FN, { method: "POST", headers: { Authorization: "Bearer test-token", "Content-Type": "application/json" },
-      body: JSON.stringify({ step: "questions", contentType: "instagram_post", context: "Pourquoi je refuse le parfum de synthèse" }) }));
+      body: JSON.stringify({ step: "questions", contentType: "instagram_post", context: "Pourquoi je refuse le parfum de synthèse", ...extra }) }));
     return { status: res.status, body: await res.json(), calls };
   } finally {
     globalThis.fetch = harnessFetch;
@@ -67,4 +67,26 @@ Deno.test("creative-flow questions : la liste de choix finale est coupée sans r
   assertEquals(r.calls, 1);
   assertEquals(r.body.questions[0].question, "Quand tu as décidé de ne plus utiliser de parfum de synthèse dans tes savons, qu'est-ce qui t'a fait basculer ?");
   assertEquals(r.body.questions[0].placeholder, "Une cliente qui rougissait");
+});
+
+// Chemin photo (questions ancrées sur les photos, formats/photo.ts) : même filet (16/11/2026).
+const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+const PHOTO = { photo_mode: true, photos: [{ base64: PNG, mimeType: "image/png" }] };
+
+Deno.test("creative-flow questions photo : une question trop longue est relancée une fois", async () => {
+  const r = await run([qs(LONGUE_SANS_LISTE), qs(COURTE)], "test-user-relance-photo-1", PHOTO);
+  assertEquals(r.status, 200);
+  assertEquals(r.calls, 2);
+  assertEquals(r.body.questions[0].question, COURTE);
+});
+
+Deno.test("creative-flow questions photo : la liste de choix finale est coupée sans relance", async () => {
+  const r = await run([qs(LONGUE)], "test-user-relance-photo-2", PHOTO);
+  assertEquals(r.calls, 1);
+  assertEquals(r.body.questions[0].question, "Quand tu as décidé de ne plus utiliser de parfum de synthèse dans tes savons, qu'est-ce qui t'a fait basculer ?");
+});
+
+Deno.test("creative-flow questions photo : questions déjà lisibles, aucun appel de plus", async () => {
+  const r = await run([qs(COURTE)], "test-user-relance-photo-3", PHOTO);
+  assertEquals(r.calls, 1);
 });
