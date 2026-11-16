@@ -277,7 +277,10 @@ try {
     else if (hc.erreur) console.log(`   hors crédit 7 j : ⚠️ non lu (${hc.erreur.slice(0, 90)}) — migration ai_usage_hors_credit pas appliquée ?`);
     else {
       console.log(`   hors crédit 7 j : ≈ ${hc.cout_estime_eur} €`);
-      for (const s of hc.par_source || []) console.log(`      ${String(s.source).padEnd(20)} ${String(s.appels).padStart(4)} appels  ${String(s.tokens).padStart(9)} tokens  ≈ ${s.cout_estime_eur} €`);
+      for (const s of hc.par_source || []) {
+        console.log(`      ${String(s.source).padEnd(20)} ${String(s.appels).padStart(4)} appels  ${String(s.tokens).padStart(9)} tokens  ≈ ${s.cout_estime_eur} €`);
+        if (s.source === "compte_test") for (const m of s.par_modele || []) console.log(`         modèle ${m.modele} (compte de recette) : ${m.appels} appels, ${m.tokens} tokens ≈ ${m.cout_estime_eur} €`);
+      }
     }
     if (d.cout_estime_total_7j != null) {
       console.log(`   💳 coût estimé TOUT COMPRIS 7 j (clientes + internes + hors crédit) : ${d.cout_estime_total_7j} € → comparer au coût 7 j de la console Anthropic (alerte si la console dépasse 3 fois ce chiffre)`);
@@ -314,6 +317,8 @@ try {
     }
     const ci = d.comptes_internes_7j;
     if (ci) console.log(`   comptes internes (admin + recette, HORS totaux) : ${ci.comptes} compte(s), ${ci.appels} appels / ${ci.tokens} tokens ≈ ${ci.cout_estime_eur} €`);
+    // Détail par modèle (edge ≥ 16/11/2026) : un modèle neuf testé en recette se voit ici avant la 1re cliente.
+    for (const m of ci?.par_modele || []) console.log(`      modèle ${m.modele} (comptes internes) : ${m.appels} appels, ${m.tokens} tokens ≈ ${m.cout_estime_eur} €`);
     console.log("   top actions 7 j (vs S-1) :");
     const prevActions = Object.fromEntries((prev.topActions || []).map((a) => [a.action, a.count]));
     for (const a of cur.topActions || []) console.log(`      ${String(a.action).padEnd(28)} ${String(a.count).padStart(4)}  (S-1 : ${prevActions[a.action] ?? 0})`);

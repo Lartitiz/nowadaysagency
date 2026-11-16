@@ -5,7 +5,7 @@ import { ontGenere } from "./feedback-new.ts";
 import { isInternalEmail as isExcludedEmail, maskEmail } from "../_shared/internal-accounts.ts";
 import { DAY } from "./lecture.ts";
 import { inWindow, week } from "./fenetres.ts";
-import { addEditorialReview, summarize } from "./couts.ts";
+import { addEditorialReview, coutParModele, summarize } from "./couts.ts";
 
 export function espacesOwnerMultiples(ownerRows: any[], { emailOf, isClient, now }: {
   emailOf: Map<string, string>;
@@ -135,15 +135,15 @@ export function comptesInternes({ profiles, aiRows, cqAll, curFrom, curTo }: {
   const internalIds = new Set(
     profiles.filter((p: any) => isExcludedEmail(p.email)).map((p: any) => p.user_id),
   );
-  const aiInternes = summarize(
-    aiRows.filter((a: any) => internalIds.has(a.user_id) && inWindow(a.created_at, curFrom, curTo)),
-  );
+  const lignesInternes = aiRows.filter((a: any) => internalIds.has(a.user_id) && inWindow(a.created_at, curFrom, curTo));
+  const aiInternes = summarize(lignesInternes);
   addEditorialReview(aiInternes, curFrom, curTo, cqAll.filter((e: any) => internalIds.has(e.user_id)));
   const comptes_internes_7j = {
     comptes: aiInternes.utilisatrices,
     appels: aiInternes.appels,
     tokens: aiInternes.tokens,
     cout_estime_eur: aiInternes.cout_total_estime_eur,
+    par_modele: coutParModele(lignesInternes),
   };
   return { internalIds, comptes_internes_7j };
 }

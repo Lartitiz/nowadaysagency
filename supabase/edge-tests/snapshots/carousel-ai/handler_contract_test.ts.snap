@@ -129,7 +129,7 @@ snapshot[`handler carousel-ai — express_full — texte Instagram (schéma prop
   },
   \\"generation_receipt\\": {
    \\"writing_version\\": \\"fil-v12-voix-orale\\",
-   \\"writer_version\\": \\"opus55-fable51-medium-v2\\",
+   \\"writer_version\\": \\"opus55-fable52-medium-v3\\",
    \\"model\\": \\"claude-opus-5-5\\",
    \\"scenario_origin\\": \\"automatic\\",
    \\"source_manifest\\": [
@@ -168,7 +168,7 @@ snapshot[`handler carousel-ai — express_full — texte Instagram (schéma prop
  },
  \\"writing_version\\": \\"fil-v12-voix-orale\\",
  \\"writer\\": {
-  \\"version\\": \\"opus55-fable51-medium-v2\\",
+  \\"version\\": \\"opus55-fable52-medium-v3\\",
   \\"model\\": \\"claude-opus-5-5\\",
   \\"effort\\": \\"medium\\"
  },
@@ -1696,7 +1696,7 @@ snapshot[`handler carousel-ai — express_full — texte LinkedIn, longueur impo
   },
   \\"generation_receipt\\": {
    \\"writing_version\\": \\"fil-v12-voix-orale\\",
-   \\"writer_version\\": \\"opus55-fable51-medium-v2\\",
+   \\"writer_version\\": \\"opus55-fable52-medium-v3\\",
    \\"model\\": \\"claude-opus-5-5\\",
    \\"scenario_origin\\": \\"automatic\\",
    \\"source_manifest\\": [
@@ -1735,7 +1735,7 @@ snapshot[`handler carousel-ai — express_full — texte LinkedIn, longueur impo
  },
  \\"writing_version\\": \\"fil-v12-voix-orale\\",
  \\"writer\\": {
-  \\"version\\": \\"opus55-fable51-medium-v2\\",
+  \\"version\\": \\"opus55-fable52-medium-v3\\",
   \\"model\\": \\"claude-opus-5-5\\",
   \\"effort\\": \\"medium\\"
  },
@@ -3251,7 +3251,7 @@ snapshot[`handler carousel-ai — slides — texte 1`] = `
   },
   \\"generation_receipt\\": {
    \\"writing_version\\": \\"fil-v12-voix-orale\\",
-   \\"writer_version\\": \\"opus55-fable51-medium-v2\\",
+   \\"writer_version\\": \\"opus55-fable52-medium-v3\\",
    \\"model\\": \\"claude-opus-5-5\\",
    \\"scenario_origin\\": \\"automatic\\",
    \\"source_manifest\\": [
@@ -3288,7 +3288,7 @@ snapshot[`handler carousel-ai — slides — texte 1`] = `
  },
  \\"writing_version\\": \\"fil-v12-voix-orale\\",
  \\"writer\\": {
-  \\"version\\": \\"opus55-fable51-medium-v2\\",
+  \\"version\\": \\"opus55-fable52-medium-v3\\",
   \\"model\\": \\"claude-opus-5-5\\",
   \\"effort\\": \\"medium\\"
  },
@@ -3684,7 +3684,7 @@ snapshot[`handler carousel-ai — hooks — texte 1`] = `
  },
  "writing_version": "fil-v12-voix-orale",
  "writer": {
-  "version": "opus55-fable51-medium-v2",
+  "version": "opus55-fable52-medium-v3",
   "model": "claude-opus-5-5",
   "effort": "medium"
  },
@@ -3867,7 +3867,7 @@ snapshot[`handler carousel-ai — express_full — mixte, structure validée (di
   },
   \\"generation_receipt\\": {
    \\"writing_version\\": \\"fil-v12-voix-orale\\",
-   \\"writer_version\\": \\"opus55-fable51-medium-v2\\",
+   \\"writer_version\\": \\"opus55-fable52-medium-v3\\",
    \\"model\\": \\"claude-opus-5-5\\",
    \\"scenario_origin\\": \\"user_validated\\",
    \\"source_manifest\\": [
@@ -3911,7 +3911,7 @@ snapshot[`handler carousel-ai — express_full — mixte, structure validée (di
  },
  \\"writing_version\\": \\"fil-v12-voix-orale\\",
  \\"writer\\": {
-  \\"version\\": \\"opus55-fable51-medium-v2\\",
+  \\"version\\": \\"opus55-fable52-medium-v3\\",
   \\"model\\": \\"claude-opus-5-5\\",
   \\"effort\\": \\"medium\\"
  },
@@ -5398,7 +5398,7 @@ snapshot[`handler carousel-ai — express_full — mixte texte d'abord 1`] = `
   },
   \\"generation_receipt\\": {
    \\"writing_version\\": \\"fil-v12-voix-orale\\",
-   \\"writer_version\\": \\"opus55-fable51-medium-v2\\",
+   \\"writer_version\\": \\"opus55-fable52-medium-v3\\",
    \\"model\\": \\"claude-opus-5-5\\",
    \\"scenario_origin\\": \\"automatic\\",
    \\"source_manifest\\": [
@@ -5437,7 +5437,7 @@ snapshot[`handler carousel-ai — express_full — mixte texte d'abord 1`] = `
  },
  \\"writing_version\\": \\"fil-v12-voix-orale\\",
  \\"writer\\": {
-  \\"version\\": \\"opus55-fable51-medium-v2\\",
+  \\"version\\": \\"opus55-fable52-medium-v3\\",
   \\"model\\": \\"claude-opus-5-5\\",
   \\"effort\\": \\"medium\\"
  },
@@ -7066,7 +7066,7 @@ snapshot[`handler carousel-ai — express_full — photo, structure validée (ga
   },
   \\"generation_receipt\\": {
    \\"writing_version\\": \\"fil-v12-voix-orale\\",
-   \\"writer_version\\": \\"opus55-fable51-medium-v2\\",
+   \\"writer_version\\": \\"opus55-fable52-medium-v3\\",
    \\"model\\": \\"claude-opus-5-5\\",
    \\"scenario_origin\\": \\"user_validated\\",
    \\"source_manifest\\": [
@@ -7099,7 +7099,7 @@ snapshot[`handler carousel-ai — express_full — photo, structure validée (ga
  },
  \\"writing_version\\": \\"fil-v12-voix-orale\\",
  \\"writer\\": {
-  \\"version\\": \\"opus55-fable51-medium-v2\\",
+  \\"version\\": \\"opus55-fable52-medium-v3\\",
   \\"model\\": \\"claude-opus-5-5\\",
   \\"effort\\": \\"medium\\"
  },
@@ -8578,7 +8578,7 @@ snapshot[`handler carousel-ai — express_full — photos brutes (légende seule
   },
   \\"generation_receipt\\": {
    \\"writing_version\\": \\"fil-v12-voix-orale\\",
-   \\"writer_version\\": \\"opus55-fable51-medium-v2\\",
+   \\"writer_version\\": \\"opus55-fable52-medium-v3\\",
    \\"model\\": \\"claude-opus-5-5\\",
    \\"scenario_origin\\": \\"automatic\\",
    \\"source_manifest\\": [
@@ -8604,7 +8604,7 @@ snapshot[`handler carousel-ai — express_full — photos brutes (légende seule
  },
  \\"writing_version\\": \\"fil-v12-voix-orale\\",
  \\"writer\\": {
-  \\"version\\": \\"opus55-fable51-medium-v2\\",
+  \\"version\\": \\"opus55-fable52-medium-v3\\",
   \\"model\\": \\"claude-opus-5-5\\",
   \\"effort\\": \\"medium\\"
  },
@@ -10145,7 +10145,7 @@ snapshot[`handler carousel-ai — express_full — photo, récit continu (scéna
   },
   \\"generation_receipt\\": {
    \\"writing_version\\": \\"fil-v12-voix-orale\\",
-   \\"writer_version\\": \\"opus55-fable51-medium-v2\\",
+   \\"writer_version\\": \\"opus55-fable52-medium-v3\\",
    \\"model\\": \\"claude-opus-5-5\\",
    \\"scenario_origin\\": \\"automatic\\",
    \\"source_manifest\\": [
@@ -10178,7 +10178,7 @@ snapshot[`handler carousel-ai — express_full — photo, récit continu (scéna
  },
  \\"writing_version\\": \\"fil-v12-voix-orale\\",
  \\"writer\\": {
-  \\"version\\": \\"opus55-fable51-medium-v2\\",
+  \\"version\\": \\"opus55-fable52-medium-v3\\",
   \\"model\\": \\"claude-opus-5-5\\",
   \\"effort\\": \\"medium\\"
  },
@@ -11363,7 +11363,7 @@ snapshot[`handler carousel-ai — express_full — mixte, récit continu (scéna
   },
   \\"generation_receipt\\": {
    \\"writing_version\\": \\"fil-v12-voix-orale\\",
-   \\"writer_version\\": \\"opus55-fable51-medium-v2\\",
+   \\"writer_version\\": \\"opus55-fable52-medium-v3\\",
    \\"model\\": \\"claude-opus-5-5\\",
    \\"scenario_origin\\": \\"automatic\\",
    \\"source_manifest\\": [
@@ -11396,7 +11396,7 @@ snapshot[`handler carousel-ai — express_full — mixte, récit continu (scéna
  },
  \\"writing_version\\": \\"fil-v12-voix-orale\\",
  \\"writer\\": {
-  \\"version\\": \\"opus55-fable51-medium-v2\\",
+  \\"version\\": \\"opus55-fable52-medium-v3\\",
   \\"model\\": \\"claude-opus-5-5\\",
   \\"effort\\": \\"medium\\"
  },
@@ -12423,7 +12423,7 @@ snapshot[`handler carousel-ai — hooks — LinkedIn 1`] = `
  },
  "writing_version": "fil-v12-voix-orale",
  "writer": {
-  "version": "opus55-fable51-medium-v2",
+  "version": "opus55-fable52-medium-v3",
   "model": "claude-opus-5-5",
   "effort": "medium"
  },
@@ -12599,7 +12599,7 @@ snapshot[`handler carousel-ai — express_full — texte avec actu, ressenti et 
   },
   \\"generation_receipt\\": {
    \\"writing_version\\": \\"fil-v12-voix-orale\\",
-   \\"writer_version\\": \\"opus55-fable51-medium-v2\\",
+   \\"writer_version\\": \\"opus55-fable52-medium-v3\\",
    \\"model\\": \\"claude-opus-5-5\\",
    \\"scenario_origin\\": \\"automatic\\",
    \\"source_manifest\\": [
@@ -12643,7 +12643,7 @@ snapshot[`handler carousel-ai — express_full — texte avec actu, ressenti et 
  },
  \\"writing_version\\": \\"fil-v12-voix-orale\\",
  \\"writer\\": {
-  \\"version\\": \\"opus55-fable51-medium-v2\\",
+  \\"version\\": \\"opus55-fable52-medium-v3\\",
   \\"model\\": \\"claude-opus-5-5\\",
   \\"effort\\": \\"medium\\"
  },

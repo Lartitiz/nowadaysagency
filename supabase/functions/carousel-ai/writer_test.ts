@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertRejects, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { callCarouselWriter, pickCarouselWriter, writerRequest, writerResponse, type CarouselWriterOptions } from "./writer.ts";
+import { callCarouselWriter, isFableWriter, pickCarouselWriter, writerRequest, writerResponse, type CarouselWriterOptions } from "./writer.ts";
 import { AnthropicError } from "../_shared/anthropic.ts";
 
 const base: CarouselWriterOptions = { model: "claude-opus-5", system: "Sources et voix", messages: [{ role: "user", content: "Brief" }], temperature: 0.85, max_tokens: 8192 };
@@ -14,24 +14,32 @@ Deno.test("explicit normal/Max routing; no silent escalation", () => {
   try {
     assertEquals(pickCarouselWriter({}), "claude-opus-5-5");
     assertEquals(pickCarouselWriter({ quality_max: false }), "claude-opus-5-5");
-    assertEquals(pickCarouselWriter({ quality_max: true }), "claude-fable-5-1");
+    assertEquals(pickCarouselWriter({ quality_max: true }), "claude-fable-5-2");
     // Banc d'essai (retour à Opus 5) : valeur exacte seulement, Qualité Max prioritaire.
     assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5" }), "claude-opus-5");
-    assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5", quality_max: true }), "claude-fable-5-1");
+    assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5", quality_max: true }), "claude-fable-5-2");
     assertEquals(pickCarouselWriter({ writer_bench: "claude-fable-5-1" }), "claude-opus-5-5");
     // Retour arrière par secret : liste blanche stricte, le mode standard n'est jamais touché.
     Deno.env.set("CAROUSEL_MAX_WRITER", "gpt-6-astra");
     assertEquals(pickCarouselWriter({ quality_max: true }), "gpt-6-astra");
     assertEquals(pickCarouselWriter({}), "claude-opus-5-5");
-    Deno.env.set("CAROUSEL_MAX_WRITER", "claude-mythos-5-1");
+    // Retour arrière vers l'ancien rédacteur Max (Fable 5.1), sans toucher au standard.
+    Deno.env.set("CAROUSEL_MAX_WRITER", "claude-fable-5-1");
     assertEquals(pickCarouselWriter({ quality_max: true }), "claude-fable-5-1");
+    assertEquals(pickCarouselWriter({}), "claude-opus-5-5");
+    // Valeur hors liste (ou mal écrite) : ignorée, on reste sur le défaut.
+    for (const invalide of ["claude-mythos-5-1", "claude-fable-5-2 ", "fable", ""]) {
+      Deno.env.set("CAROUSEL_MAX_WRITER", invalide);
+      assertEquals(pickCarouselWriter({ quality_max: true }), "claude-fable-5-2");
+    }
   } finally {
     if (old === undefined) Deno.env.delete("CAROUSEL_MAX_WRITER"); else Deno.env.set("CAROUSEL_MAX_WRITER", old);
   }
 });
-Deno.test("Fable 5.1 (Max) : outil en auto, réflexion adaptative, effort medium, marge de tokens", () => {
-  const request = writerRequest({ ...base, model: "claude-fable-5-1", tool });
-  assertEquals(request.model, "claude-fable-5-1");
+for (const fable of ["claude-fable-5-2", "claude-fable-5-1"] as const) Deno.test(`${fable} (Max) : outil en auto, réflexion adaptative, effort medium, marge de tokens`, () => {
+  assert(isFableWriter(fable));
+  const request = writerRequest({ ...base, model: fable, tool });
+  assertEquals(request.model, fable);
   assertEquals(request.thinking, { type: "adaptive" });
   assertEquals(request.output_config, { effort: "medium" });
   assertEquals(request.tool_choice, { type: "auto", disable_parallel_tool_use: true });
@@ -157,7 +165,7 @@ Deno.test("Max : crédit fournisseur épuisé distingué d'une saturation sans e
     assert(!error.message.includes("PRIVATE_ACCOUNT_DETAILS"));
   }finally{globalThis.fetch=oldFetch;if(oldKey===undefined)Deno.env.delete("OPENAI_API_KEY");else Deno.env.set("OPENAI_API_KEY",oldKey);}
 });
-for(const model of ["claude-opus-5", "claude-opus-5-5", "claude-fable-5-1", "gpt-6-astra"] as const) Deno.test(`HTTP ${model}: correct destination; errors never retry/downgrade/leak provider body`, async () => {
+for(const model of ["claude-opus-5", "claude-opus-5-5", "claude-fable-5-2", "claude-fable-5-1", "gpt-6-astra"] as const) Deno.test(`HTTP ${model}: correct destination; errors never retry/downgrade/leak provider body`, async () => {
 const name = model === "gpt-6-astra" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY";
   const oldKey = Deno.env.get(name), oldFetch = globalThis.fetch;
   Deno.env.set(name, "fake-secret");
