@@ -28,7 +28,8 @@ export async function invokeWithHeartbeat(
 ): Promise<{ data: any; error: InvokeError | null }> {
   const result = await invokeWithHeartbeatRaw(functionName, options, timeoutMs);
   // Échec étiqueté par format dans Sentry (lot 5, voir generation-telemetry.ts).
-  if (result.error) reportGenerationFailure(functionName, options.body, result.error.code);
+  // Demande annulée par l'écran (génération remplacée ou abandonnée) : pas un échec.
+  if (result.error && !options.signal?.aborted) reportGenerationFailure(functionName, options.body, result.error.code);
   return result;
 }
 
@@ -43,6 +44,13 @@ async function invokeWithHeartbeatRaw(
      * barre de progression simulée.
      */
     onStatus?: (stage: string, data?: Record<string, unknown>) => void;
+    /**
+     * Annulation par l'appelant (16/11/2026) : une génération remplacée ou
+     * abandonnée coupe sa demande. Le serveur voit l'écran partir et ne débite
+     * pas (clientStillThere) ; sans cela elle allait au bout et était facturée
+     * pour un résultat que personne ne voyait.
+     */
+    signal?: AbortSignal;
   } = {},
   timeoutMs = 180000,
 ): Promise<{ data: any; error: InvokeError | null }> {
@@ -72,6 +80,8 @@ async function invokeWithHeartbeatRaw(
     phase = "request";
     const controller = new AbortController();
     timer = setTimeout(() => controller.abort(), timeoutMs);
+    if (options.signal?.aborted) controller.abort();
+    else options.signal?.addEventListener("abort", () => controller.abort(), { once: true });
 
     let resp: Response;
     try {

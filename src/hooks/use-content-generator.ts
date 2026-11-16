@@ -83,10 +83,16 @@ export function useContentGenerator() {
 
   const generationEpoch = useRef(0);
   const questionsEpoch = useRef(0);
-  useEffect(() => () => { generationEpoch.current++; questionsEpoch.current++; }, [defaultWorkspaceId]);
+  // Demande de génération en cours (carrousel, reel). Remplacée ou abandonnée,
+  // elle est annulée : le serveur ne débite pas un résultat que l'écran a jeté
+  // (13/11/2026 : retour à « Précisions » pendant l'attente puis 2e création,
+  // les deux carrousels débités, un seul affiché).
+  const inFlight = useRef<AbortController | null>(null);
+  useEffect(() => () => { generationEpoch.current++; questionsEpoch.current++; inFlight.current?.abort(); }, [defaultWorkspaceId]);
 
   const reset = useCallback(() => {
     generationEpoch.current++;
+    inFlight.current?.abort();
     questionsEpoch.current++;
     streamReset();
     setQuestionsError(null);
@@ -115,6 +121,9 @@ export function useContentGenerator() {
 
   const generate = useCallback(async (params: GenerateParams) => {
     const epoch = ++generationEpoch.current;
+    inFlight.current?.abort();
+    const cancel = new AbortController();
+    inFlight.current = cancel;
     const {
       format,
       subject,
@@ -178,6 +187,7 @@ export function useContentGenerator() {
       switch (format) {
         case "carousel": {
           const res = await invokeWithHeartbeat("carousel-ai", {
+            signal: cancel.signal,
             body: await buildCarouselGenerateBody(params, { effectiveSubject, existingContent, structurePrompt, effectiveWorkspaceId }),
             onStatus: (stage, event) => {
               if (epoch !== generationEpoch.current) return;
@@ -195,6 +205,7 @@ export function useContentGenerator() {
           const hook = chosenHookText(params.selectedHook);
           if (hook) setReelDraft({ hook, sections: [] });
           const res = await invokeWithHeartbeat("creative-flow", {
+            signal: cancel.signal,
             body: await buildReelGenerateBody(params, { effectiveSubject, existingContent, structurePrompt, structureId, effectiveWorkspaceId }),
             onStatus: (stage, event) => {
               if (epoch !== generationEpoch.current) return;

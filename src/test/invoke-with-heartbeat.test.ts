@@ -80,3 +80,20 @@ it("a broken JSON response cannot be returned as a successful empty generation",
   expect(result.data).toBeNull(); expect(result.error).not.toBeNull();
   expect(fetchMock).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
 });
+
+it("une demande annulée par l'écran coupe l'appel réseau et n'est pas rejouée", async () => {
+  let seen: AbortSignal | undefined;
+  fetchMock.mockImplementation((_url: string, init: RequestInit) => {
+    seen = init.signal as AbortSignal;
+    return new Promise((_, reject) => seen!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))));
+  });
+  const cancel = new AbortController();
+  const pending = invokeWithHeartbeat("carousel-ai", { signal: cancel.signal });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(seen?.aborted).toBe(false);
+  cancel.abort();
+  const result = await pending;
+  expect(seen?.aborted).toBe(true);
+  expect(result.data).toBeNull();
+  expect(fetchMock).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
+});

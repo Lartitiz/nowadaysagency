@@ -158,3 +158,45 @@ describe("generate — formats refusés", () => {
     });
   }
 });
+
+/* 13/11/2026 : pendant l'attente d'un carrousel, retour à « Précisions » par le
+   fil d'étapes puis 2e création. La 1re demande restait ouverte : menée au bout
+   et débitée, résultat jeté. Remplacée, remise à zéro ou écran quitté : sa
+   demande est annulée (le serveur ne débite pas une cliente partie). */
+describe("generate — une génération remplacée ou abandonnée annule sa demande", () => {
+  const pending = () => { mocks.invoke.mockImplementation(() => new Promise(() => {})); };
+  const signalOf = (i: number) => mocks.invoke.mock.calls[i][1].signal as AbortSignal;
+  for (const format of ["carousel", "reel"] as const) {
+    it(`${format} : une 2e création annule la 1re, pas elle-même`, async () => {
+      pending();
+      const { result } = renderHook(useContentGenerator);
+      await act(async () => { void result.current.generate({ format, subject: "Sujet" }); await Promise.resolve(); });
+      await vi.waitFor(() => expect(mocks.invoke).toHaveBeenCalledTimes(1));
+      expect(signalOf(0).aborted).toBe(false);
+      await act(async () => { void result.current.generate({ format, subject: "Sujet" }); await Promise.resolve(); });
+      await vi.waitFor(() => expect(mocks.invoke).toHaveBeenCalledTimes(2));
+      expect(signalOf(0).aborted).toBe(true);
+      expect(signalOf(1).aborted).toBe(false);
+    });
+  }
+  it("remise à zéro puis écran quitté : demande annulée à chaque fois", async () => {
+    pending();
+    const { result, unmount } = renderHook(useContentGenerator);
+    await act(async () => { void result.current.generate({ format: "carousel", subject: "Sujet" }); await Promise.resolve(); });
+    await vi.waitFor(() => expect(mocks.invoke).toHaveBeenCalledTimes(1));
+    act(() => result.current.reset());
+    expect(signalOf(0).aborted).toBe(true);
+    await act(async () => { void result.current.generate({ format: "carousel", subject: "Sujet" }); await Promise.resolve(); });
+    await vi.waitFor(() => expect(mocks.invoke).toHaveBeenCalledTimes(2));
+    expect(signalOf(1).aborted).toBe(false);
+    unmount();
+    expect(signalOf(1).aborted).toBe(true);
+  });
+  it("une création menée au bout n'est jamais annulée", async () => {
+    mocks.invoke.mockResolvedValue({ data: { content: JSON.stringify(OK.carousel) }, error: null });
+    const { result } = renderHook(useContentGenerator);
+    await act(async () => { await result.current.generate({ format: "carousel", subject: "Sujet" }); });
+    expect(signalOf(0).aborted).toBe(false);
+    expect(result.current.result?.type).toBe("carousel");
+  });
+});
