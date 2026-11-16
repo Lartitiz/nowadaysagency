@@ -311,6 +311,8 @@ function resetDeps() {
   _deps.prepareNarrative = async () => null;
   // Derniers contenus de la marque : aucun par défaut (aucun réseau).
   _deps.fetchRecentTexts = async () => [];
+  // Accroches déjà écrites sur le sujet : aucune par défaut (aucun réseau).
+  _deps.fetchHooks = async () => [];
   // Recherche « creuser le sujet » coupée par défaut (aucun réseau).
   _deps.fetchDepthMaterial = async () => "";
   // Compte rendu du plan : rien en base par défaut (aucun réseau).
@@ -2130,4 +2132,60 @@ for (const [subject, expected] of [
   await res.text();
   assertEquals(res.status, 200);
   assertEquals(system.includes("APPEL À INVESTIR"), expected);
+});
+
+// Bilan hebdo 16/11/2026 : une cliente lance 2 carrousels du même sujet à 2 min
+// d'écart. La ligne du 1er ne s'écrit qu'à sa fin (~3 min) : au départ du 2e la
+// lecture des accroches est vide, la garde anti-redite restait non armée (0/2).
+// Les accroches sont relues juste avant le gate : l'accroche arrivée entre-temps arme la garde.
+for (const variant of ["text", "photo", "mix"]) Deno.test(`garde anti-redite ${variant} : accroche arrivée pendant la rédaction → garde armée au gate`, async () => {
+  resetDeps(); if (variant !== "text") _deps.prepareNarrative = createContinuousNarrative;
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const lectures: Array<[string, string, unknown]> = [];
+  const SUJET = "Une pièce peinte à la main reste utile";
+  _deps.fetchHooks = (async (userId: string, subject: string, _limit: unknown, workspaceId: unknown) => {
+    lectures.push([userId, subject, workspaceId]);
+    // 1re lecture (départ de la requête) : rien. Ensuite : la 1re génération a fini.
+    return lectures.length === 1 ? [] : ["Ce qui m'a retenue si longtemps dans la robe d'avocate"];
+  }) as any;
+  const paragraphs = ["Le geste rend chaque dessin unique.", "Les formes restent utiles au quotidien.", "Quelques objets suffisent pour la table."];
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    if (sink) Object.assign(sink, { model: o.model, total_tokens: 10 });
+    return variant === "text"
+      ? JSON.stringify({ slides: ["Une pièce unique pour le quotidien", ...paragraphs.slice(0, 2)].map((title, i) => ({ slide_number: i + 1, role: i === 0 ? "hook" : i === 2 ? "conclusion" : "body", title })), caption: { body: "Le geste et l'usage vont ensemble.", hashtags: [] } })
+      : JSON.stringify({ idea: "Une singularité utile", hook: "Une pièce unique pour le quotidien", paragraphs, caption: {} });
+  }) as any;
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, subject: SUJET, slide_count: variant === "text" ? 3 : 4,
+      ...(variant !== "text" ? { scenario_origin: "automatic", photos: [1, 2].map(() => ({ base64: "aGVsbG8=" })) } : {}) }));
+    assertEquals(res.status, 200);
+    const doc = JSON.parse((await res.json()).content);
+    assert(lectures.length >= 2, "les accroches doivent être relues avant le gate");
+    for (const l of lectures) assertEquals(l, [TEST_USER_ID, SUJET, TEST_WORKSPACE_ID]);
+    // null = garde non armée ; 0 = armée, aucune redite (accroches différentes).
+    assertEquals(doc.quality_check.hook_echoes_before, 0);
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
+});
+
+Deno.test("garde anti-redite : une relecture en panne ne bloque pas la génération", async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  let lectures = 0;
+  _deps.fetchHooks = (async () => { if (++lectures > 1) throw new Error("Panne simulée"); return []; }) as any;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    Object.assign(sink, { model: o.model, total_tokens: 10 });
+    return JSON.stringify({ slides: [
+      { slide_number: 1, role: "hook", title: "Les retours demandent une direction commune." },
+      { slide_number: 2, role: "body", title: "Les remarques contradictoires restent à départager." },
+      { slide_number: 3, role: "conclusion", title: "Le choix validé guide les corrections." },
+    ], caption: { body: "Un choix commun précède les modifications.", hashtags: [] } });
+  }) as any;
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: "text", subject: "Choisir une direction avant de modifier", slide_count: 3 }));
+    assertEquals(res.status, 200);
+    assertEquals(lectures, 2);
+    assertEquals(JSON.parse((await res.json()).content).quality_check.hook_echoes_before, null);
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });

@@ -3,7 +3,7 @@
 // sujets et d'angles, et les questions texte. Fiche 2, lot 5 de
 // docs/robustesse/gros-fichiers.md : déplacé à l'identique depuis index.ts.
 
-import { type CarouselRequestContext, writerTimeoutMs, _deps, pickCarouselModel, echoContext, reviewAllowed, pickCorrectionModel, CORRECTION_ABORT_MS } from "../shared.ts";
+import { type CarouselRequestContext, writerTimeoutMs, _deps, pickCarouselModel, echoContext, refreshPreviousHooks, reviewAllowed, pickCorrectionModel, CORRECTION_ABORT_MS } from "../shared.ts";
 import { type UsageSink, type AnthropicOptions, getModelForAction } from "../../_shared/anthropic.ts";
 import { PHOTO_QUESTIONS_TOOL, QUESTIONS_TOOL } from "../tools.ts";
 import { draftSlidesTracker } from "../../_shared/carousel-draft-stream.ts";
@@ -124,6 +124,8 @@ export async function runGenerationAndRespond(
   if (type === "express_full" || type === "slides") {
     content = capVisualSchemas(content, "carousel-ai");
     // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
+    // Accroches du sujet relues au dernier moment (générations qui se chevauchent).
+    await refreshPreviousHooks(reqCtx);
     gateExpress = await timed("gate_ms", runRedacGate(content, {
       isLinkedIn,
       onStatus: emitStatus,
