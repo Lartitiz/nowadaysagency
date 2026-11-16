@@ -723,6 +723,13 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
     seuil_jours: 30,
   },
   cout_estime_total_7j: 4.68,
+  debits_doubles: {
+    clientes: 0,
+    exemples: [],
+    internes: 0,
+    n: 0,
+    n_s1: 0,
+  },
   emails_coupes: {
     alerte: false,
     envoyes_7j: 0,
