@@ -26,6 +26,8 @@ it("acceptation après chargement : initialise PostHog et Replay une seule fois"
   localStorage.setItem("cookie_consent", "accepted");
   p.enablePostHog(); p.enablePostHog(); s.enableSentryReplays();
   expect(sdk.init).toHaveBeenCalledTimes(1); expect(sentry.addIntegration).toHaveBeenCalledTimes(1);
+  // 1 opt-in à l'allumage + 1 au 2e appel (déjà initialisé), jamais 2 au premier.
+  expect(sdk.opt_in_capturing).toHaveBeenCalledTimes(2);
   localStorage.setItem("cookie_consent", "refused"); p.disablePostHog();
   expect(sdk.opt_out_capturing).toHaveBeenCalledOnce();
 });

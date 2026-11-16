@@ -24,8 +24,12 @@ export function initPostHog() {
 }
 
 export function enablePostHog() {
-  initPostHog();
-  if (initialized && hasAnalyticsConsent()) posthog.opt_in_capturing();
+  // Premier allumage : initPostHog fait déjà l'opt-in (sinon « $opt_in » part en double).
+  if (!initialized) {
+    initPostHog();
+    return;
+  }
+  if (hasAnalyticsConsent()) posthog.opt_in_capturing();
 }
 
 export function disablePostHog() {
