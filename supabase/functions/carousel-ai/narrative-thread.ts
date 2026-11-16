@@ -49,6 +49,13 @@ UNE SLIDE À GARDER : un paragraphe donne ce qu'on fait autrement, concrètement
 AUCUNE ÉMOTION PRÊTÉE : ce que le sujet fait à la personne (agacement, sourire, soulagement) ne s'écrit que si les sources le donnent ; sinon le texte part du fait ou de sa position.
 DERNIÈRE SLIDE : elle rassemble, puis ouvre sur un regard plus large de la personne qui parle (au « je » quand la marque parle au « je »), sans morale qui ferme et sans question ; la question pour les commentaires va dans caption.cta. closing_aside : une petite ligne d'humour de 12 mots au plus, posée en petit sous la dernière slide, qui se comprend seule et renvoie au sujet ou à la couverture ; laisse-la vide sur un sujet grave (violences, deuil, mineur·es) ou si rien de juste ne vient.`;
 
+/** Mêmes règles pour le carrousel TEXTE (16/11/2026) : une slide au lieu d'un
+ * paragraphe, et pas de petite ligne d'humour (le gabarit texte n'a pas de
+ * place pour elle). La forme de l'appel en légende suit la chute tirée par index.ts. */
+export const RELECTURE_CARROUSEL_TEXTE = RECIT_RELECTURE_CARROUSEL
+  .replace("UNE SLIDE À GARDER : un paragraphe donne", "UNE SLIDE À GARDER : une slide donne")
+  .replace(/ la question pour les commentaires va dans caption\.cta\. closing_aside : [^\n]*$/, " l'appel à commenter (une question, ou une invitation à raconter un cas, selon la chute de légende imposée) va dans caption.cta.");
+
 /** Petite ligne d'humour de la dernière slide : gardée seulement courte. */
 export function closingAside(v: unknown): string {
   const t = typeof v === "string" ? v.trim() : "";
