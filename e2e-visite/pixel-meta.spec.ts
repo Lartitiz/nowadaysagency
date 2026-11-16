@@ -2,20 +2,16 @@
  * Pixel Meta sur la page d'arrivée des pubs (https://nowadays-assistant.fr/).
  *
  * Code (src/lib/meta-pixel.ts, appelé par src/main.tsx) : le pixel ne démarre
- * QUE si localStorage.cookie_consent === "accepted". Cette valeur n'est posée
- * qu'à un seul endroit : Paramètres > Cookies et traceurs (SettingsPage.tsx),
- * page réservée aux comptes connectés. Il n'y a AUCUN bandeau cookies sur le
- * site public : une visiteuse venue d'une pub ne peut donc pas consentir, et
- * aucun PageView ne part.
+ * QUE si localStorage.cookie_consent === "accepted". Depuis le 16/11/2026, une
+ * visiteuse non connectée le pose via le bandeau cookies (CookieConsentBanner),
+ * et une connectée peut changer d'avis dans Paramètres > Cookies et traceurs.
  *
  * Deux contrôles, en contexte NON connecté (comme landing.spec) :
  * 1) « branchement » : avec consentement déjà accepté, fbevents.js se charge,
  *    window.fbq existe et un PageView part vers facebook.com/tr. Prouve que l'ID
  *    du pixel est bien dans le build en ligne et que le code marche.
- * 2) « visiteuse de pub » : sans consentement préalable → fixme. Ce n'est pas
- *    un bug technique mais un choix produit (bandeau cookies ou pas, RGPD) que
- *    Laetitia doit trancher. Quand un bandeau existera, retirer le fixme et
- *    cliquer « Accepter » dans ce test.
+ * 2) « visiteuse de pub » : sans choix préalable, clic « Accepter » dans le
+ *    bandeau → un PageView part.
  *
  * Les requêtes vers facebook.com/tr sont INTERCEPTÉES puis neutralisées :
  * on voit qu'elles partent, mais Meta ne compte pas les passages du robot.
@@ -59,16 +55,12 @@ test.describe("pixel Meta landing", () => {
     await page.screenshot({ path: info.outputPath("landing-pixel.png") });
   });
 
-  test("visiteuse de pub : sans bandeau cookies, le pixel peut-il partir ?", async ({ page }) => {
-    test.fixme(
-      true,
-      "Pas de bandeau cookies sur le site public : une visiteuse venue d'une pub ne peut pas consentir, " +
-        "donc AUCUN PageView Meta ne part (meta-pixel.ts exige cookie_consent=accepted, posé seulement depuis " +
-        "Paramètres, page connectée). Choix produit à trancher par Laetitia avant les pubs.",
-    );
+  test("visiteuse de pub : « Accepter » dans le bandeau fait partir un PageView", async ({ page }) => {
     const hits = await captureMetaHits(page);
-    await page.goto("/", { waitUntil: "networkidle", timeout: 45_000 });
-    // Quand un bandeau existera : cliquer « Accepter » ici.
-    await expect.poll(() => hits.some((u) => /[?&]ev=PageView\b/.test(u)), { timeout: 20_000 }).toBe(true);
+    await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await page.getByTestId("cookie-banner").getByRole("button", { name: "Accepter" }).click({ timeout: 20_000 });
+    await expect
+      .poll(() => hits.some((u) => /[?&]ev=PageView\b/.test(u)), { timeout: 20_000, message: "aucun PageView après « Accepter »" })
+      .toBe(true);
   });
 });

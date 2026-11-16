@@ -73,6 +73,9 @@ async function apiLogin(email: string, password: string): Promise<boolean> {
             origin,
             localStorage: [
               { name: `sb-${projectRef}-auth-token`, value: JSON.stringify(session) },
+              // Choix cookies déjà fait : pas de bandeau sur les écrans, et la
+              // visite n'envoie rien à PostHog / Meta (stats non polluées).
+              { name: "cookie_consent", value: "refused" },
             ],
           },
         ],
@@ -112,6 +115,7 @@ setup("authentifie le compte test Camille", async ({ page }) => {
   // observé le 07/07/2026 alors que le login fonctionnait — vérifié via diagnostic direct).
   await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 45_000 });
   await page.waitForTimeout(1500); // laisse la session Supabase se poser dans localStorage
+  await page.evaluate(() => localStorage.setItem("cookie_consent", "refused"));
 
   fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
   await page.context().storageState({ path: AUTH_FILE });
