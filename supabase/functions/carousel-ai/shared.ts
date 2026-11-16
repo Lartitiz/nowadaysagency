@@ -5,6 +5,7 @@
 // tests peuvent toujours remplacer `_deps.callAnthropic`.
 // Ce fichier n'importe aucun mode ni aucune étape (boundaries_test.ts).
 
+import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, type AnthropicModel, SONNET_MODEL, type UsageSink, HAIKU_MODEL } from "../_shared/anthropic.ts";
@@ -42,6 +43,7 @@ export const _deps = {
   reviewThread: reviewCarouselProgression,
   prepareNarrative: createContinuousNarrative,
   fetchRecentTexts: fetchRecentContentTexts,
+  fetchHooks: fetchPreviousHooks,
   matchPhotos: matchFinalPhotos,
   stockAmbient: addStockAmbientPhotos,
   fetchDepthMaterial,
@@ -316,6 +318,26 @@ export interface CarouselRequestContext {
   startedAt: number;
   /** Plan envisagé en cours (carrousels photo et mixte) : ses jetons rejoignent la ligne de crédit. */
   outline?: { done: Promise<void>; usage: UsageSink };
+}
+
+/**
+ * Relit les accroches du sujet juste avant le gate (bilan hebdo 16/11/2026).
+ * La ligne d'une génération ne s'écrit qu'à sa fin (~3 min) : une 2e génération
+ * du même sujet lancée entre-temps lisait une liste vide au départ, et sa garde
+ * anti-redite n'était pas armée (cliente du 13/11 : 2 carrousels à 2 min
+ * d'écart, armée 0/2). Relue ici, l'accroche de la 1re est le plus souvent là.
+ * Même contrat que fetchPreviousHooks : jamais bloquant, une erreur ne change rien.
+ */
+export async function refreshPreviousHooks(c: CarouselRequestContext): Promise<void> {
+  try {
+    const late = await _deps.fetchHooks(c.userId, c.body?.subject, undefined, c.workspaceId);
+    if (!Array.isArray(late) || !late.length) return;
+    const merged = [...new Set([...late, ...c.previousHooks])].slice(0, 6);
+    if (merged.length > c.previousHooks.length) console.log(`[carousel-ai] ${merged.length - c.previousHooks.length} accroche(s) arrivée(s) pendant la rédaction — garde anti-redite armée`);
+    c.previousHooks = merged;
+  } catch (e) {
+    console.error("[carousel-ai] relecture des accroches ignorée (génération intacte) :", (e as Error)?.message || e);
+  }
 }
 
 /** Contexte inter-contenus du gate : accroches du sujet + derniers contenus de la marque. */

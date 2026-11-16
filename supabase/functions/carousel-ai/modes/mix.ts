@@ -4,7 +4,7 @@
 // docs/robustesse/gros-fichiers.md : déplacé à l'identique depuis index.ts.
 // N'importe aucun autre mode (boundaries_test.ts).
 
-import { type CarouselRequestContext, stageTimer, firstDraftStream, buildPhotoContextRecap, pushPhotoWithContext, _deps, pickCarouselModel, retryIfTooShort, carouselSlideFloor, carouselMismatchResponse, echoContext, reviewAllowed, pickCorrectionModel, CORRECTION_ABORT_MS } from "../shared.ts";
+import { type CarouselRequestContext, stageTimer, firstDraftStream, buildPhotoContextRecap, pushPhotoWithContext, _deps, pickCarouselModel, retryIfTooShort, carouselSlideFloor, carouselMismatchResponse, echoContext, refreshPreviousHooks, reviewAllowed, pickCorrectionModel, CORRECTION_ABORT_MS } from "../shared.ts";
 import { continuousCarouselResponse } from "../steps/continuous.ts";
 import { buildMixCarouselNewsReactionPrompt, buildMixCarouselPrompt } from "../prompts.ts";
 import { isLinkedInMix, LINKEDIN_MIX_LONG_WORDS } from "../variant-writing.ts";
@@ -222,6 +222,8 @@ export async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): 
   }
   content = capVisualSchemas(content, "carousel-ai(mix)");
   // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
+  // Accroches du sujet relues au dernier moment (générations qui se chevauchent).
+  await refreshPreviousHooks(reqCtx);
   const gateMix = await clock.timed("gate_ms", runRedacGate(content, {
     isLinkedIn,
     onStatus: emitStatus,

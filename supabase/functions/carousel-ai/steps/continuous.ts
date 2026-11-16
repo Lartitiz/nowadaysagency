@@ -3,7 +3,7 @@
 // parcours l'appellent. Fiche 2, lot 5 de docs/robustesse/gros-fichiers.md :
 // déplacé à l'identique depuis index.ts.
 
-import { type CarouselRequestContext, stageTimer, _deps, buildPhotoContextRecap, carouselMismatchResponse, echoContext } from "../shared.ts";
+import { type CarouselRequestContext, stageTimer, _deps, buildPhotoContextRecap, carouselMismatchResponse, echoContext, refreshPreviousHooks } from "../shared.ts";
 import { type UsageSink } from "../../_shared/anthropic.ts";
 import { photoMatchReserveMs, photoMatchPhotoCount } from "../final-photo-match.ts";
 import { NarrativePhotoMismatch } from "../continuous-narrative.ts";
@@ -38,6 +38,8 @@ export async function continuousCarouselResponse(ctx: CarouselRequestContext): P
     throw error;
   }
   if (!output) return null;
+  // Accroches du sujet relues au dernier moment (générations qui se chevauchent).
+  await refreshPreviousHooks(ctx);
   const measured = await clock.timed("gate_ms", runRedacGate(JSON.stringify(output.doc), {
     isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,researchText:ctx.researchText,researchNumbersCap:ctx.researchNumbersCap,testimonySource:ctx.testimonySource,
     // Mesure seule (correction coupée, aucun appel IA) : sans la fiche ni les

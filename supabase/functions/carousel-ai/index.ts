@@ -12,7 +12,6 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { parseAudienceAddress } from "../_shared/audience-address.ts";
 import { type CaptionEndingRule } from "../_shared/redac-gate.ts";
-import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { recentPassagesPrompt } from "../_shared/recent-passages.ts";
 // Mise en forme (schémas, disposition, gabarits) : étape isolée dans layout.ts (lot 8).
 import { assignTemplatesToProvidedSlides } from "./layout.ts";
@@ -377,7 +376,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
     // MESURE qui va avec (déterministe) : le gate compare l'accroche produite
     // aux précédentes et déclenche une re-passe si elle les redit. Lecture
     // best-effort — une erreur renvoie [] et ne change rien au flux.
-    const previousHooks = await fetchPreviousHooks(userId, body.subject, undefined, workspace_id);
+    const previousHooks = await _deps.fetchHooks(userId, body.subject, undefined, workspace_id);
     // Derniers contenus de la marque, tous sujets (bilan hebdo 05/10/2026) : le
     // rédacteur ne les redit pas (consigne) et le gate mesure toute phrase reprise
     // mot pour mot (re-passe gardée). Lecture best-effort, [] en cas d'erreur.

@@ -3,7 +3,7 @@
 // docs/robustesse/gros-fichiers.md : déplacé à l'identique depuis index.ts.
 // N'importe aucun autre mode (boundaries_test.ts).
 
-import { type CarouselRequestContext, stageTimer, firstDraftStream, buildPhotoContextRecap, pushPhotoWithContext, _deps, pickCarouselModel, retryIfTooShort, carouselSlideFloor, carouselMismatchResponse, echoContext, reviewAllowed, pickCorrectionModel, CORRECTION_ABORT_MS } from "../shared.ts";
+import { type CarouselRequestContext, stageTimer, firstDraftStream, buildPhotoContextRecap, pushPhotoWithContext, _deps, pickCarouselModel, retryIfTooShort, carouselSlideFloor, carouselMismatchResponse, echoContext, refreshPreviousHooks, reviewAllowed, pickCorrectionModel, CORRECTION_ABORT_MS } from "../shared.ts";
 import { continuousCarouselResponse } from "../steps/continuous.ts";
 import { buildPhotoCarouselNewsReactionPrompt, buildPhotoCarouselPrompt } from "../prompts.ts";
 import { type UsageSink } from "../../_shared/anthropic.ts";
@@ -197,6 +197,8 @@ export async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext)
   // Un overlay long en style « minimal »/« technique » rend un pavé (lot E).
   content = normalizeOverlayStyles(content);
   content = capVisualSchemas(content, "carousel-ai(photo)");
+  // Accroches du sujet relues au dernier moment (générations qui se chevauchent).
+  await refreshPreviousHooks(reqCtx);
   const gatePhoto = await clock.timed("gate_ms", runRedacGate(content, {
     isLinkedIn,
     onStatus: emitStatus,
