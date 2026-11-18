@@ -1616,3 +1616,40 @@ Deno.test("a stuck version whose stored result is missing becomes uncertain, nev
     } finally { f.restore(); }
   }
 });
+
+// 18/11/2026 : « il y a quelques traces blanches sur mon sac, j'aimerais les
+// enlever » avec la photo jointe répondait « choisis sa photo dans la
+// bibliothèque ». Le modèle marquait la photo edit_source sans nommer
+// source_reference_id : la garde ne voyait ni source ni référence d'identité.
+for (const [label, extra] of [
+  ["edit_source sans source_reference_id", {}],
+  ["scene sans source_reference_id", { role: "scene" }],
+] as const) {
+  Deno.test(`a retouch of the attached photo goes straight to a proposal (${label})`, async () => {
+    const f = fixture();
+    f.session.source_photo_id = null;
+    f.session.source_path = null;
+    f.session.proposal = null;
+    const bag = { id: id(1801), photo_id: id(1802), path: "pochette", role: "auto", name: "IMG_1234" };
+    f.session.references = [bag];
+    f.setIntent({
+      operation: "edit", visual_kind: "photo",
+      summary: "Je retouche ta photo de la pochette rouge pour effacer les petites traces blanches sur le cuir.",
+      image_prompt: "Remove the small white marks on the red leather; keep everything else identical.",
+      reference_use: [{ id: bag.id, role: (extra as { role?: string }).role || "edit_source" }],
+      requires_real_subject: true,
+    });
+    try {
+      const res = await handleStudioRequest(request({
+        ...base, studio_version: 4, action: "message",
+        message: "il y a quelques traces blanches sur mon sac j'aimerais les enlever",
+        revision: 0, reference_ids: [bag.id], request_id: id(1803),
+      }));
+      const data = await res.json();
+      assertEquals(res.status, 200);
+      assertEquals(data.session.messages.at(-1).operation === "clarify", false, data.session.messages.at(-1).text);
+      assertEquals(data.session.proposal.input_path, "pochette");
+      assertEquals(data.session.proposal.operation, "edit");
+    } finally { f.restore(); }
+  });
+}

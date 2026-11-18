@@ -184,6 +184,14 @@ export async function applyGuardrails(ctx: TurnContext, input: GuardrailsInput) 
       if ((!newPhoto || usedReferences.some(r => r.id === ref.id)) && ["product", "person", "casting", "person_product"].includes(role) && !resolvedReferences.some(r => r.id === ref.id)) resolvedReferences.push({ ...ref, role });
     }
   }
+  // The contract requires source_reference_id for scene/edit_source, but the
+  // model sometimes only tags the attached photo in reference_use. A single
+  // such image IS the source: without this, « enlève les traces sur mon sac »
+  // with the photo attached asked to « choisir sa photo » (18/11/2026).
+  if (!intent.source_reference_id && ["edit", "background", "product"].includes(intent.operation)) {
+    const bases = resolvedReferences.filter(ref => ["scene", "edit_source"].includes(ref.role));
+    if (bases.length === 1) intent.source_reference_id = bases[0].id;
+  }
   // Never generate without an exact original the user attached: an omitted
   // product or person would silently vanish while the summary still promises it.
   const forgotten = p.studio_version === 4 && !newPhoto && generative(intent.operation)
