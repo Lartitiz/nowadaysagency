@@ -5,6 +5,7 @@ import { PHOTO_PRESERVATION } from "./photo-preservation.ts";
 import { referenceInstruction } from "./competencies.ts";
 import { compactIntegrationPrompt } from "./compact-integration-prompt.ts";
 import { refineStudioResult } from "./product-fidelity-studio.ts";
+import { imageSize } from "../_shared/product-fidelity.ts";
 import {
   higgsfieldApi as api, higgsfieldCredentials as credentials, higgsfieldImagesEnabled, higgsfieldUpload as upload,
   marketingPayload, marketingReserveUsd, MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL, MARKETING_PROMPT_MAX,
@@ -129,7 +130,28 @@ export function routeToMarketingStudio<T extends Proposal>(proposal: T): T {
   const fromScratch = proposal.operation === "create" && !proposal.input_path && !proposal.references?.length;
   return { ...proposal, provider: "higgsfield", model: fromScratch ? MARKETING_CREATE_MODEL : MARKETING_FIDELITY_MODEL };
 }
-export function imageInput(proposal: Proposal, urls: string[]) {
+// Ratios accepted by Marketing Studio (docs.higgsfield.ai, sunburst/flare, 18/11/2026).
+const MARKETING_RATIOS = ["1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16", "21:9"] as const;
+/** A retouch keeps the shape of the photo it edits: closest accepted ratio, as
+ * long as it has the orientation the proposal asks for (an explicit change to
+ * square or landscape still wins). Without this, a 9:16 photo came back 2:3
+ * with invented edges (18/11/2026). */
+export function editAspectRatio(proposal: Proposal, size: { width: number; height: number } | null) {
+  if (proposal.operation !== "edit" || !proposal.input_path || !size || size.width <= 0 || size.height <= 0) return null;
+  const target = Math.log(size.width / size.height);
+  const [best] = [...MARKETING_RATIOS].sort((a, b) => {
+    const r = (v: string) => { const [w, h] = v.split(":").map(Number); return Math.abs(Math.log(w / h) - target); };
+    return r(a) - r(b);
+  });
+  const [w, h] = best.split(":").map(Number);
+  const orientation = w === h ? "square" : w > h ? "landscape" : "portrait";
+  return orientation === (proposal.format || "square") ? best : null;
+}
+export async function sourceImageSize(blob: Blob | undefined) {
+  if (!blob) return null;
+  return imageSize(new Uint8Array(await blob.slice(0, 256 * 1024).arrayBuffer()));
+}
+export function imageInput(proposal: Proposal, urls: string[], sourceSize: { width: number; height: number } | null = null) {
   if (!IMAGE_MODELS.some((model) => model === proposal.model)) {
     throw new Error("studio_provider_model");
   }
@@ -158,7 +180,9 @@ export function imageInput(proposal: Proposal, urls: string[]) {
   }
   const prompt = marketingPrompt(proposal);
   if (!prompt) throw new Error("studio_prompt_too_long");
-  return marketingPayload(prompt, proposal.format, urls);
+  const payload = marketingPayload(prompt, proposal.format, urls);
+  const ratio = editAspectRatio(proposal, sourceSize);
+  return ratio ? { ...payload, aspect_ratio: ratio } : payload;
 }
 export async function failHiggsfieldImage(db: DB, versionId: string, message = "La création a échoué. Aucune image décomptée.") {
   const result = await db.from("visual_studio_versions").update({
@@ -318,9 +342,11 @@ export async function submitHiggsfieldImage(
     stage = "prompt";
     // Validate the prompt before any upload so an oversized request costs nothing.
     imageInput(version.proposal, inputs.map(() => "https://placeholder.invalid/x.png"));
+    // inputs follow imageInputPaths: the edited image (input_path) comes first.
+    const sourceSize = await sourceImageSize(version.proposal.input_path ? inputs[0] : undefined).catch(() => null);
     stage = "upload";
     const urls = await Promise.all(inputs.map(upload));
-    const input = imageInput(version.proposal, urls);
+    const input = imageInput(version.proposal, urls, sourceSize);
     stage = "estimate";
     const quote = await api(
       `estimate/${version.proposal.model}`,

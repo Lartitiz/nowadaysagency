@@ -3,7 +3,8 @@ import {
   assertEquals,
   assertThrows,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { higgsfieldImagesEnabled, imageInput, SOUL2_MODEL, soul2Enabled, soul2Eligible } from "./higgsfield-image.ts";
+import { editAspectRatio, higgsfieldImagesEnabled, imageInput, MARKETING_FIDELITY_MODEL, SOUL2_MODEL, soul2Enabled, soul2Eligible } from "./higgsfield-image.ts";
+import type { Proposal } from "./media.ts";
 Deno.test("Soul2 accepts only source-free photographs without rendered text", () => {
   const photo = { operation: "create", visual_kind: "photo" as const, image_prompt: "Portrait éditorial", format: "portrait" };
   assertEquals(soul2Eligible(photo), true);
@@ -326,4 +327,25 @@ Deno.test("provider 'failed' (12/11/2026 hiccup) tells the user to retry; a refu
       f.restore();
     }
   }
+});
+
+// 18/11/2026 : une photo 674×1158 (≈ 9:16) retouchée revenait en 2:3 avec un
+// bord de décor inventé. La retouche garde désormais la forme de l'original.
+Deno.test("a retouch keeps the closest accepted ratio of the edited photo", () => {
+  const edit = { operation: "edit", input_path: "src", format: "portrait" } as Proposal;
+  assertEquals(editAspectRatio(edit, { width: 674, height: 1158 }), "9:16");
+  assertEquals(editAspectRatio(edit, { width: 1536, height: 2048 }), "3:4");
+  assertEquals(editAspectRatio(edit, { width: 1024, height: 1536 }), "2:3");
+  assertEquals(editAspectRatio({ ...edit, format: "landscape" }, { width: 4032, height: 3024 }), "4:3");
+  assertEquals(editAspectRatio({ ...edit, format: "square" }, { width: 1000, height: 1010 }), "1:1");
+  // An explicit change of orientation still wins, and creations are untouched.
+  assertEquals(editAspectRatio({ ...edit, format: "square" }, { width: 674, height: 1158 }), null);
+  assertEquals(editAspectRatio({ ...edit, operation: "create" }, { width: 674, height: 1158 }), null);
+  assertEquals(editAspectRatio(edit, null), null);
+});
+Deno.test("the Marketing payload of a retouch carries the source ratio", () => {
+  const p = { operation: "edit", input_path: "src", format: "portrait", model: MARKETING_FIDELITY_MODEL,
+    summary: "Effacer les traces de café.", image_prompt: "Remove coffee stains; keep everything else identical." } as Proposal;
+  assertEquals((imageInput(p, ["https://example.com/0.jpg"], { width: 674, height: 1158 }) as { aspect_ratio: string }).aspect_ratio, "9:16");
+  assertEquals((imageInput(p, ["https://example.com/0.jpg"]) as { aspect_ratio: string }).aspect_ratio, "2:3");
 });
