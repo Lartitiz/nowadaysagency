@@ -1624,6 +1624,7 @@ Deno.test("a stuck version whose stored result is missing becomes uncertain, nev
 for (const [label, extra] of [
   ["edit_source sans source_reference_id", {}],
   ["scene sans source_reference_id", { role: "scene" }],
+  ["reference_use vide", { role: "none" }],
 ] as const) {
   Deno.test(`a retouch of the attached photo goes straight to a proposal (${label})`, async () => {
     const f = fixture();
@@ -1636,7 +1637,7 @@ for (const [label, extra] of [
       operation: "edit", visual_kind: "photo",
       summary: "Je retouche ta photo de la pochette rouge pour effacer les petites traces blanches sur le cuir.",
       image_prompt: "Remove the small white marks on the red leather; keep everything else identical.",
-      reference_use: [{ id: bag.id, role: (extra as { role?: string }).role || "edit_source" }],
+      reference_use: (extra as { role?: string }).role === "none" ? [] : [{ id: bag.id, role: (extra as { role?: string }).role || "edit_source" }],
       requires_real_subject: true,
     });
     try {

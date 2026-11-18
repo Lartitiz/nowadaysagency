@@ -123,6 +123,13 @@ export async function applyGuardrails(ctx: TurnContext, input: GuardrailsInput) 
     intent.reference_use = intent.reference_use.filter(use => !(use.id === parent.id && ["composition", "scene", "edit_source"].includes(use.role)));
     intent.uses_selected_version = true;
   }
+  // A retouch with one attached photo, no selected version and no image named
+  // by the model can only mean that photo (18/11/2026, « traces sur mon sac »).
+  if (!dialogueOnly && ["edit", "background"].includes(intent.operation) && !intent.source_reference_id &&
+    !intent.uses_selected_version && !parent?.result_path && !intent.reference_use.length && requestReferences.length === 1) {
+    intent.source_reference_id = requestReferences[0].id;
+    intent.reference_use.push({ id: requestReferences[0].id, role: "edit_source" });
+  }
   // A known source image omitted from reference_use is still that image.
   const namedSource = intent.source_reference_id && requestReferences.find(ref => ref.id === intent.source_reference_id);
   if (namedSource && !intent.reference_use.some(use => use.id === namedSource.id)) {
