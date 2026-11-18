@@ -123,6 +123,13 @@ export async function applyGuardrails(ctx: TurnContext, input: GuardrailsInput) 
     intent.reference_use = intent.reference_use.filter(use => !(use.id === parent.id && ["composition", "scene", "edit_source"].includes(use.role)));
     intent.uses_selected_version = true;
   }
+  // A retouch with one attached photo, no selected version and no image named
+  // by the model can only mean that photo (18/11/2026, « traces sur mon sac »).
+  if (!dialogueOnly && ["edit", "background"].includes(intent.operation) && !intent.source_reference_id &&
+    !intent.uses_selected_version && !parent?.result_path && !intent.reference_use.length && requestReferences.length === 1) {
+    intent.source_reference_id = requestReferences[0].id;
+    intent.reference_use.push({ id: requestReferences[0].id, role: "edit_source" });
+  }
   // A known source image omitted from reference_use is still that image.
   const namedSource = intent.source_reference_id && requestReferences.find(ref => ref.id === intent.source_reference_id);
   if (namedSource && !intent.reference_use.some(use => use.id === namedSource.id)) {
@@ -183,6 +190,14 @@ export async function applyGuardrails(ctx: TurnContext, input: GuardrailsInput) 
       const role = intent.reference_use.find(use => use.id === ref.id)?.role || ref.role;
       if ((!newPhoto || usedReferences.some(r => r.id === ref.id)) && ["product", "person", "casting", "person_product"].includes(role) && !resolvedReferences.some(r => r.id === ref.id)) resolvedReferences.push({ ...ref, role });
     }
+  }
+  // The contract requires source_reference_id for scene/edit_source, but the
+  // model sometimes only tags the attached photo in reference_use. A single
+  // such image IS the source: without this, « enlève les traces sur mon sac »
+  // with the photo attached asked to « choisir sa photo » (18/11/2026).
+  if (!intent.source_reference_id && ["edit", "background", "product"].includes(intent.operation)) {
+    const bases = resolvedReferences.filter(ref => ["scene", "edit_source"].includes(ref.role));
+    if (bases.length === 1) intent.source_reference_id = bases[0].id;
   }
   // Never generate without an exact original the user attached: an omitted
   // product or person would silently vanish while the summary still promises it.
