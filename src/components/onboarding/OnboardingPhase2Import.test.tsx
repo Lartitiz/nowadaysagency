@@ -10,7 +10,7 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "user-a" } }) }));
 vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "space-a" }));
 vi.mock("@/hooks/use-social-connections", () => ({ useSocialConnections: () => ({ isConnected: () => false, accountNames: {} }) }));
-vi.mock("@/lib/social-connect", () => ({ startSocialConnect: vi.fn() }));
+vi.mock("@/lib/social-connect", () => ({ startSocialConnect: vi.fn(async () => ({})) }));
 
 const answers = (website = ""): Answers => ({
   prenom: "Léa", activite: "Céramiste", activity_type: "artisane",
@@ -70,12 +70,21 @@ describe("import de l'onboarding", () => {
     expect(isValidUrl("ftp://exemple.fr")).toBe(false);
   });
 
-  it("propose les captures sous le @ Instagram, sans ouvrir « Plus d'options »", () => {
+  it("plus de champ @ : Instagram et LinkedIn se connectent, les captures sont juste dessous", async () => {
+    const { startSocialConnect } = await import("@/lib/social-connect");
     render(<OnboardingPhase2Import
-      answers={{ ...answers(), instagram: "@savons_lina" }} set={vi.fn()} files={[]}
+      answers={answers()} set={vi.fn()} files={[]}
       uploading={false} onUpload={vi.fn()} onRemove={vi.fn()} onNext={vi.fn()}
     />);
-    expect(screen.getByTestId("insta-captures-hint")).toHaveTextContent("ne me laisse pas lire ton profil avec le @ seul");
+    expect(screen.queryByPlaceholderText("@toncompte")).not.toBeInTheDocument();
+    const comptes = screen.getByTestId("onb-comptes");
+    expect(comptes).toHaveTextContent("Instagram");
+    expect(comptes).toHaveTextContent("LinkedIn");
+    const boutons = screen.getAllByRole("button", { name: "Connecter" });
+    expect(boutons).toHaveLength(2);
+    fireEvent.click(boutons[1]);
+    expect(startSocialConnect).toHaveBeenCalledWith("linkedin", "space-a", expect.anything());
+    expect(screen.getByTestId("insta-captures-hint")).toHaveTextContent("Ajoute 1 à 3 captures");
     expect(screen.getByRole("button", { name: "📸 Ajouter des captures" })).toBeInTheDocument();
     expect(screen.queryByText(/Des exemples de ton univers/)).not.toBeInTheDocument();
   });

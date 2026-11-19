@@ -22,11 +22,15 @@ export const ACTIVITY_SECTIONS = [
   },
 ];
 
+// LinkedIn juste après Instagram et Facebook ajouté (retours d'une cliente
+// en rendez-vous, 19/11/2026). Facebook n'a pas encore de format à lui :
+// il sert au diagnostic et au plan, la création viendra ensuite.
 export const CHANNELS = [
   { key: "instagram", emoji: "📱", label: "Instagram" },
+  { key: "linkedin", emoji: "💼", label: "LinkedIn" },
+  { key: "facebook", emoji: "👥", label: "Facebook" },
   { key: "website", emoji: "🌐", label: "Site web" },
   { key: "newsletter", emoji: "✉️", label: "Newsletter" },
-  { key: "linkedin", emoji: "💼", label: "LinkedIn" },
   { key: "pinterest", emoji: "📌", label: "Pinterest" },
   { key: "podcast", emoji: "🎙️", label: "Podcast" },
   { key: "none", emoji: "🤷", label: "Rien pour l'instant" },
@@ -34,9 +38,10 @@ export const CHANNELS = [
 
 export const DESIRED_CHANNELS = [
   { key: "instagram", emoji: "📱", label: "Instagram" },
+  { key: "linkedin", emoji: "💼", label: "LinkedIn" },
+  { key: "facebook", emoji: "👥", label: "Facebook" },
   { key: "website", emoji: "🌐", label: "Site web / blog" },
   { key: "newsletter", emoji: "✉️", label: "Newsletter" },
-  { key: "linkedin", emoji: "💼", label: "LinkedIn" },
   { key: "pinterest", emoji: "📌", label: "Pinterest" },
   { key: "tiktok", emoji: "🎵", label: "TikTok" },
   { key: "podcast", emoji: "🎙️", label: "Podcast" },

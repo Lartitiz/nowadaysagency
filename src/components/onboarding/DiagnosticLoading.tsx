@@ -513,6 +513,7 @@ function mapEdgeResponseToDiagnostic(data: any, answers?: { canaux?: string[] })
     website: { emoji: "🌐", label: "Site web" },
     newsletter: { emoji: "✉️", label: "Newsletter" },
     linkedin: { emoji: "💼", label: "LinkedIn" },
+    facebook: { emoji: "👥", label: "Facebook" },
     pinterest: { emoji: "📌", label: "Pinterest" },
     tiktok: { emoji: "🎵", label: "TikTok" },
     podcast: { emoji: "🎙️", label: "Podcast" },
