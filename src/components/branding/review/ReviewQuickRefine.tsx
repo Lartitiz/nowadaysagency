@@ -5,13 +5,13 @@
 // ~7 crédits par carte (mesuré le 22/10). Mon identité garde la conversation,
 // sauf pour la proposition de valeur, qui n'en a pas (24/10/2026).
 import { useState } from "react";
-import { ArrowLeft, CheckCircle2, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, Sparkles } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { readableError } from "@/lib/error-messages";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
-import { QUICK_REFINE_QUESTIONS, refineContext } from "./quick-refine";
+import { QUICK_REFINE_QUESTIONS, refineContext, storyEditableText } from "./quick-refine";
 import { RENDERERS } from "./SectionViews";
 import { SECTIONS, type AnalysisResult, type SectionKey } from "./types";
 
@@ -32,6 +32,15 @@ export function ReviewQuickRefine({ sectionKey, analysis, saving, onSave, onCanc
   const [error, setError] = useState<string | null>(null);
   const [proposal, setProposal] = useState<NonNullable<AnalysisResult[SectionKey]> | null>(null);
   const ready = answers.some((a) => a.trim());
+  // « Ton histoire » : corriger le texte lui-même, directement (retour d'une
+  // cliente en rendez-vous, 19/11/2026 : « Je corrige » ouvrait des questions
+  // alors qu'elle voulait juste changer une phrase). Les questions restent
+  // en dessous, repliées, pour qui préfère que je réécrive.
+  const directText = sectionKey === "story";
+  const initialText = directText ? storyEditableText(analysis.story) : "";
+  const [text, setText] = useState(initialText);
+  const [questionsOpen, setQuestionsOpen] = useState(!directText || !initialText);
+  const saveText = () => onSave({ ...(analysis.story || {}), confidence: "high", full_story: text.trim() } as NonNullable<AnalysisResult[SectionKey]>);
 
   const rewrite = async () => {
     setLoading(true);
@@ -65,7 +74,33 @@ export function ReviewQuickRefine({ sectionKey, analysis, saving, onSave, onCanc
         <h2 className="font-display text-lg text-foreground" style={{ fontWeight: 400 }}>{sec.title}</h2>
       </div>
 
-      {!proposal ? (
+      {!proposal && directText && initialText && (
+        <div className="mt-3 mb-5" data-testid="story-direct-edit">
+          <label htmlFor="story-direct-text" className="block text-sm text-muted-foreground mb-2">Corrige ton texte directement, puis enregistre.</label>
+          <TextareaWithVoice
+            id="story-direct-text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            disabled={saving || loading}
+            className="min-h-[200px] text-sm leading-relaxed"
+          />
+          <button onClick={saveText} disabled={!text.trim() || saving || loading} className="mt-3 inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-5 py-2 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100">
+            {saving ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
+            Enregistrer mon texte
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuestionsOpen((o) => !o)}
+            aria-expanded={questionsOpen}
+            className="mt-5 flex items-center gap-1.5 text-sm font-medium text-primary hover:underline underline-offset-4"
+          >
+            <ChevronDown className={`h-4 w-4 transition-transform ${questionsOpen ? "rotate-180" : ""}`} />
+            Ou réponds à quelques questions et je la réécris
+          </button>
+        </div>
+      )}
+
+      {!proposal ? (questionsOpen && (
         <>
           <p className="text-sm text-muted-foreground mb-4">Réponds à une, deux ou trois questions, puis je réécris ta carte avec tes mots.</p>
           <div className="space-y-4 mb-5">
@@ -89,7 +124,7 @@ export function ReviewQuickRefine({ sectionKey, analysis, saving, onSave, onCanc
           </button>
           <p className="text-xs text-muted-foreground mt-2">{loading ? "Une quinzaine de secondes." : "1 crédit, environ 15 secondes."}</p>
         </>
-      ) : (
+      )) : (
         <>
           <p className="text-sm text-muted-foreground mb-4">Voici ta carte réécrite. Elle te va ?</p>
           <div className="mb-5">{RENDERERS[sectionKey]({ [sectionKey]: proposal } as AnalysisResult)}</div>

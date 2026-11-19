@@ -8,7 +8,9 @@ export const QUICK_REFINE_QUESTIONS: Record<SectionKey, string[]> = {
   story: [
     "Qu'est-ce qui t'a donné envie de te lancer ?",
     "Un moment difficile ou un déclic dont tu te souviens ?",
-    "Où tu veux emmener ton activité ?",
+    // « Où tu veux emmener ton activité ? » parlait d'avenir, pas d'histoire
+    // (retour d'une cliente en rendez-vous, 19/11/2026) : une anecdote vécue à la place.
+    "Une cliente ou une situation qui t'a marquée ?",
   ],
   persona: [
     "Qui est la personne que tu aides le mieux ?",
@@ -52,4 +54,15 @@ export function refineContext(analysis: AnalysisResult, key: SectionKey): Record
     }
   }
   return others;
+}
+
+/** Texte de départ de « Ton histoire » quand on corrige à la main : le récit
+ *  complet s'il existe, sinon les morceaux trouvés mis bout à bout. */
+export function storyEditableText(story: AnalysisResult["story"]): string {
+  if (!story) return "";
+  if (story.full_story?.trim()) return story.full_story.trim();
+  return [story.origin, story.trigger, story.struggles, story.uniqueness, story.vision]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join("\n\n");
 }
