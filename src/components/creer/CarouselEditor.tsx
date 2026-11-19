@@ -390,7 +390,14 @@ export default function CarouselEditor({
     }
     return false;
   };
-  const onEditorKey = useEditorKeys({ editorRoot, copySelection, paste, shortcut, onHistoryKey, removeMany, selected, group, slide });
+  // Slide précédente / suivante (flèches de l'en-tête et du clavier).
+  const goToSlide = (index: number) => {
+    const next = Math.max(0, Math.min(current.current.slides.length - 1, index));
+    if (next === active) return;
+    setActive(next);
+    setSelected(null);
+  };
+  const onEditorKey = useEditorKeys({ editorRoot, copySelection, paste, shortcut, onHistoryKey, removeMany, selected, group, slide, goBy: (delta) => goToSlide(active + delta) });
   // Réordonner en glissant une vignette (souris ou doigt).
   const thumbDrag = useRef<{ from: number; x: number; y: number; moved: boolean } | null>(null);
   const justDragged = useRef(false);
@@ -724,7 +731,7 @@ export default function CarouselEditor({
   if (!slide) return null;
   return (
     <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-3" onKeyDown={(event) => onEditorKey(event.nativeEvent, event.target as HTMLElement)}>
-      <EditorHeader showInstagramPreview={channel !== "linkedin"} active={active} count={document.slides.length} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
+      <EditorHeader showInstagramPreview={channel !== "linkedin"} active={active} count={document.slides.length} goTo={goToSlide} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
         redo={slideRedo && slide && <SlideRedo api={slideRedo} raw={raw} slide={slide} getDocument={() => current.current} onKeep={(next) => commit(replaceSlide(current.current, next))} />} />
       {toolsPortal && createPortal(
         <QualityPanel cloudTools={cloudTools} commit={commit} current={current} document={document} fixAll={fixAll} quality={quality} setActive={setActive} setSelected={setSelected} />,

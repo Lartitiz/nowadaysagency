@@ -7,7 +7,7 @@
 // Chantier X (18/10/2026) : en mode simple, monter, descendre et dupliquer sous la
 // vignette choisie ; l'aide « glisse pour changer l'ordre » écrite (plus seulement
 // au survol) ; « Slide supprimée · Annuler » après une suppression.
-import { Fragment, type MutableRefObject } from "react";
+import { Fragment, useEffect, type MutableRefObject } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, LockKeyhole, Plus, Trash2, Unlock } from "lucide-react";
@@ -40,6 +40,11 @@ export function SlideStrip({ channel, simple = false, active, add, changeSlide, 
   thumbDrag: MutableRefObject<{ from: number; x: number; y: number; moved: boolean } | null>;
   thumbIndexAt: (x: number, y: number) => number;
 }) {
+  // La vignette ouverte reste visible quand on change de slide par les flèches.
+  useEffect(() => {
+    const thumb = window.document.querySelector<HTMLElement>(`[data-thumb="${active}"]`);
+    thumb?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [active]);
   // Boutons de la colonne (ordinateur) : pleine largeur, libellé sur deux lignes si besoin.
   const colButton = "h-8 md:h-auto md:w-full md:justify-start md:whitespace-normal md:px-2 md:py-1 md:text-left md:text-2xs md:leading-tight";
   const last = document.slides.length - 1;
