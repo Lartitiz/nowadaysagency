@@ -12,7 +12,7 @@ exports[`generateQuestions — autres formats (creative-flow questions) > angle 
         "Point clé 2",
         "Point clé 3",
         "Synthèse",
-        "CTA",
+        "Invitation finale",
       ],
       "title": "Mythe à déconstruire",
       "tone": "direct, chaleureux, oral assumé",
@@ -183,7 +183,7 @@ exports[`generateQuestions — carrousel (carousel-ai deepening_questions) > tex
   "body": {
     "carousel_type": "<undefined>",
     "channel": "instagram",
-    "content_structure": "<577 car.>",
+    "content_structure": "<591 car.>",
     "editorial_angle": "mythe",
     "objective": "vente",
     "photo_description": "<undefined>",

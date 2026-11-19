@@ -12,7 +12,7 @@ exports[`generate — LinkedIn (chemin de secours) > sujet du calendrier → lib
         "Point clé 2",
         "Point clé 3",
         "Synthèse",
-        "CTA",
+        "Invitation finale",
       ],
       "title": "Mythe à déconstruire",
       "tone": "direct, chaleureux, professionnel",
@@ -464,7 +464,7 @@ exports[`generate — carrousel (carousel-ai express_full) > texte 1`] = `
     "carousel_type": null,
     "channel": "instagram",
     "confirmed_structure": null,
-    "content_structure": "<577 car.>",
+    "content_structure": "<591 car.>",
     "deepening_answers": {
       "Q1 ?": "R1",
     },
@@ -731,7 +731,7 @@ exports[`generate — post Instagram (creative-flow) > angle connu (titre et ét
         "Point clé 2",
         "Point clé 3",
         "Synthèse",
-        "CTA",
+        "Invitation finale",
       ],
       "title": "Mythe à déconstruire",
       "tone": "direct, chaleureux, oral assumé",
@@ -853,7 +853,7 @@ exports[`generate — reel (creative-flow) > preGenAnswers fournis, hook choisi,
       },
     ],
     "contentType": "reel",
-    "content_structure": "<525 car.>",
+    "content_structure": "<530 car.>",
     "context": "Mon sujet
 
 [Contenu existant à approfondir]
