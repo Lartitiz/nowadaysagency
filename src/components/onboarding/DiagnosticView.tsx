@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { type DiagnosticData, type DiagnosticStrength, type DiagnosticWeakness, normalizeStrength, getScoreMessage, diagnosticLevel, channelLevelLabel } from "@/lib/diagnostic-data";
 import { channelLabel } from "@/lib/channel-labels";
+import { sansJargonDeep } from "@/lib/sans-jargon";
 import BrandLearnedSection from "./BrandLearnedSection";
 import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 
@@ -50,8 +51,11 @@ const INSTAGRAM_NOT_READ_TEXT = "📱 Je n'ai pas pu lire ton Instagram : il blo
 /* Fin d'onboarding = UN récapitulatif court, sans défilement (15/10/2026).
    Les 9 diapositives d'avant restent à un clic (« Voir le diagnostic
    complet ») : rien n'est retiré, tout est rangé. */
-export default function DiagnosticView(props: Props) {
+export default function DiagnosticView(rawProps: Props) {
   const [full, setFull] = useState(false);
+  // Plus jamais « CTA » à l'écran, même si l'IA l'écrit (retour cliente 19/11).
+  const data = useMemo(() => sansJargonDeep(rawProps.data), [rawProps.data]);
+  const props = { ...rawProps, data };
   return full
     ? <SlideView {...props} onBackToRecap={() => setFull(false)} />
     : <RecapView {...props} onShowFull={() => setFull(true)} />;
