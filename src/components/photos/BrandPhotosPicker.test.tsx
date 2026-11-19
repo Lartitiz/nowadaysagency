@@ -122,7 +122,7 @@ describe("BrandPhotosPicker", () => {
     await screen.findByText(/Je n'ai pas trouvé de photo exploitable/);
     expect(m.scan).toHaveBeenCalledTimes(2);
   });
-  it("scanne le site tout seul, puis ajoute les photos cochées à la bibliothèque", async () => {
+  it("scanne le site tout seul, coche tout d'office, puis ajoute celles qui restent cochées", async () => {
     m.scan.mockImplementation(async (_fn: string, { body }: { body: { mode: string } }) =>
       body.mode === "scan"
         ? { data: { images } }
@@ -131,8 +131,12 @@ describe("BrandPhotosPicker", () => {
     m.upload.mockResolvedValue({ uploaded: 1, failed: 0, photoIds: ["p1"] });
     render(<BrandPhotosPicker placement="welcome" />);
 
-    fireEvent.click(await screen.findByAltText("Portrait"));
-    fireEvent.click(screen.getByRole("button", { name: "Ajouter 1 photo à ma bibliothèque" }));
+    await screen.findByAltText("Portrait");
+    // Les deux photos arrivent cochées : un seul clic suffirait à tout ajouter.
+    expect(screen.getByRole("button", { name: "Ajouter ces 2 photos" })).toBeEnabled();
+    expect(screen.getByAltText("Portrait").closest("button")).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByAltText("Atelier"));
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter cette photo" }));
 
     await screen.findByText(/1 photo ajoutée à ta bibliothèque/);
     expect(m.scan).toHaveBeenCalledWith(
@@ -148,6 +152,14 @@ describe("BrandPhotosPicker", () => {
     const files = m.upload.mock.calls[0][0] as File[];
     expect(files).toHaveLength(1);
     expect(files[0].name).toBe("b.jpg");
+  });
+
+  it("« Tout décocher » vide la sélection", async () => {
+    m.scan.mockResolvedValue({ data: { images } });
+    render(<BrandPhotosPicker placement="brand_review" />);
+    await screen.findByAltText("Portrait");
+    fireEvent.click(screen.getByRole("button", { name: "Tout décocher" }));
+    expect(screen.getByRole("button", { name: "Choisis tes photos" })).toBeDisabled();
   });
 
   it("ne s'affiche pas sans site ni Instagram connecté (aucun scan)", async () => {
