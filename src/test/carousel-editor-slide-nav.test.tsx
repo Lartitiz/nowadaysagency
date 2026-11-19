@@ -3,7 +3,7 @@
 // quand rien n'est choisi sur la slide.
 import React, { useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import CarouselEditor from "@/components/creer/CarouselEditor";
 
 vi.mock("@/components/creer/PhotoSwapDialog", () => ({ default: () => null }));
@@ -21,8 +21,9 @@ const opened = () => screen.getAllByRole("button", { name: /^Sélectionner la sl
 describe("passer d'une slide à l'autre", () => {
   it("les flèches de l'en-tête avancent et reculent, bornées aux extrémités", () => {
     render(<Harness />);
-    const prev = screen.getByRole("button", { name: "Slide précédente" });
-    const next = screen.getByRole("button", { name: "Slide suivante" });
+    const header = screen.getByRole("group", { name: "Personnaliser mon carrousel" });
+    const prev = within(header).getByRole("button", { name: "Slide précédente" });
+    const next = within(header).getByRole("button", { name: "Slide suivante" });
     expect(opened()).toBe(1);
     expect(prev).toBeDisabled();
     expect(screen.getByText("1 / 3")).toBeInTheDocument();
@@ -34,6 +35,15 @@ describe("passer d'une slide à l'autre", () => {
     fireEvent.click(prev);
     expect(opened()).toBe(2);
     expect(screen.getByText("2 / 3")).toBeInTheDocument();
+  });
+
+  it("flèches rondes sur les bords de la slide, sans précédente sur la première", () => {
+    render(<Harness />);
+    expect(screen.queryByTestId("slide-edge-prev")).toBeNull();
+    fireEvent.click(screen.getByTestId("slide-edge-next"));
+    expect(opened()).toBe(2);
+    fireEvent.click(screen.getByTestId("slide-edge-prev"));
+    expect(opened()).toBe(1);
   });
 
   it("← → au clavier changent de slide quand rien n'est choisi", () => {

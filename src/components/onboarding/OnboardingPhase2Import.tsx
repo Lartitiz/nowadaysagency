@@ -288,7 +288,7 @@ function AccountRow({ emoji, name, connected, account, hint, busy, onConnect }: 
     <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background p-3">
       <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">{emoji} {name}</p>
-        <p className="text-xs text-muted-foreground truncate">{connected ? `✅ Connecté${account ? ` (${account})` : ""}` : hint}</p>
+        <p className="text-xs leading-snug text-muted-foreground break-words">{connected ? `✅ Connecté${account ? ` (${account})` : ""}` : hint}</p>
       </div>
       {!connected && (
         <Button type="button" size="sm" variant="outline" className="rounded-full shrink-0" disabled={busy} onClick={onConnect}>

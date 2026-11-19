@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
 import { Button } from "@/components/ui/button";
-import { LockKeyhole, Minimize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, LockKeyhole, Minimize2 } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
@@ -763,7 +763,20 @@ export default function CarouselEditor({
               <Minimize2 size={14} /> Quitter le plein écran
             </Button>
           )}
-          <div {...(fullscreen ? { className: "w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]" } : slideBoxProps(fit))}>
+          {(() => { const box = fullscreen ? { className: "w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]", style: undefined } : slideBoxProps(fit); return (
+          <div className={`relative ${box.className}`} style={box.style}>
+          {/* Flèches rondes sur les bords, comme sur Instagram (19/11/2026) ; cachées
+              dès qu'un élément est choisi, pour ne pas gêner ses poignées. */}
+          {!selected && document.slides.length > 1 && ([
+            ["Slide précédente", -1, active === 0, "left-2", <ChevronLeft key="l" size={20} />],
+            ["Slide suivante", 1, active === document.slides.length - 1, "right-2", <ChevronRight key="r" size={20} />],
+          ] as const).map(([label, delta, off, side, icon]) => !off && (
+            <button key={label} type="button" aria-label={label} title={label} data-testid={delta < 0 ? "slide-edge-prev" : "slide-edge-next"}
+              onClick={() => goToSlide(active + delta)}
+              className={`absolute top-1/2 z-10 -translate-y-1/2 ${side} flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-md backdrop-blur-sm transition hover:scale-105 hover:bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary`}>
+              {icon}
+            </button>
+          ))}
           <SlideCanvas
             onHistoryKey={onHistoryKey}
             slide={slide}
@@ -813,6 +826,7 @@ export default function CarouselEditor({
             simple={mode === "simple"}
           />
           </div>
+          ); })()}
         </div>
         {/* Panneau sous la slide sur téléphone ; à côté (avec son propre défilement, à la hauteur de la slide) sur ordinateur. */}
         <div className="order-3 min-w-0 space-y-4 md:sticky md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:max-h-[var(--editor-room,calc(100vh-15rem))] md:overflow-y-auto md:rounded-xl md:border md:bg-card md:p-4">
