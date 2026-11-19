@@ -6,6 +6,7 @@ import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { finalizeDiagnosticEvidence } from "./evidence.ts";
+import { sansJargonDeep } from "./jargon.ts";
 import { runFastDiagnostic } from "./fast-diagnostic.ts";
 import { DIAGNOSTIC_SYSTEM_PROMPT, buildDiagnosticUserPrompt } from "./prompts.ts";
 import { collectDiagnosticSources } from "./sources.ts";
@@ -147,6 +148,8 @@ export async function handleDeepDiagnostic(req: Request): Promise<Response> {
       isOnboarding: inscription,
     });
     finalizeDiagnosticEvidence(analysisResult, sourcesUsed, sourcesFailed, instagramScreenshots.length);
+    // « CTA » → « appel à l'action » avant d'enregistrer (retour cliente 19/11).
+    Object.assign(analysisResult, sansJargonDeep(analysisResult));
 
     // ====== SAVE TO DB (fast: only diagnostic essentials) ======
     const { savedDiagId, fastSaves } = await saveDiagnostic(supabaseAdmin, {

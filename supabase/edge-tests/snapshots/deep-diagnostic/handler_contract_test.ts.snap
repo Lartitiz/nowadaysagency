@@ -84,7 +84,7 @@ Ce qui te rend unique : pièces uniques faites main
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -96,7 +96,7 @@ Ce qui te rend unique : pièces uniques faites main
         },
       ],
       model: "claude-sonnet-4-6",
-      system: "<prompt système : 7071 car., voir prompts_snapshot_test.ts>",
+      system: "<prompt système : 7245 car., voir prompts_snapshot_test.ts>",
       temperature: 0.7,
       tool_choice: {
         name: "rendre_diagnostic",
@@ -135,7 +135,7 @@ Ce qui te rend unique : pièces uniques faites main
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -403,7 +403,7 @@ Je façonne des bols et des tasses en grès dans mon atelier à Lyon.
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -415,7 +415,7 @@ Je façonne des bols et des tasses en grès dans mon atelier à Lyon.
         },
       ],
       model: "claude-sonnet-4-6",
-      system: "<prompt système : 7071 car., voir prompts_snapshot_test.ts>",
+      system: "<prompt système : 7245 car., voir prompts_snapshot_test.ts>",
       temperature: 0.7,
       tool_choice: {
         name: "rendre_diagnostic",
@@ -455,7 +455,7 @@ Je façonne des bols et des tasses en grès dans mon atelier à Lyon.
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -722,7 +722,7 @@ Ce qui te rend unique : pièces uniques faites main
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -734,7 +734,7 @@ Ce qui te rend unique : pièces uniques faites main
         },
       ],
       model: "claude-sonnet-4-6",
-      system: "<prompt système : 7071 car., voir prompts_snapshot_test.ts>",
+      system: "<prompt système : 7245 car., voir prompts_snapshot_test.ts>",
       temperature: 0.7,
       tool_choice: {
         name: "rendre_diagnostic",
@@ -780,7 +780,7 @@ Ce qui te rend unique : pièces uniques faites main
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -1072,7 +1072,7 @@ Ce qui te rend unique : pièces uniques faites main
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -1084,7 +1084,7 @@ Ce qui te rend unique : pièces uniques faites main
         },
       ],
       model: "claude-sonnet-4-6",
-      system: "<prompt système : 7071 car., voir prompts_snapshot_test.ts>",
+      system: "<prompt système : 7245 car., voir prompts_snapshot_test.ts>",
       temperature: 0.7,
       tool_choice: {
         name: "rendre_diagnostic",
@@ -1122,7 +1122,7 @@ Ce qui te rend unique : pièces uniques faites main
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -1855,7 +1855,7 @@ Ce qui te rend unique : pièces uniques faites main
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -2073,7 +2073,7 @@ Ce qui te rend unique : pièces uniques faites main
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -2353,7 +2353,7 @@ Atelier de céramique à Lyon. Réserver un atelier.
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -2385,7 +2385,7 @@ Atelier de céramique à Lyon. Réserver un atelier.
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -2439,7 +2439,7 @@ Atelier de céramique à Lyon.
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -2550,7 +2550,7 @@ Ce qui te rend unique : pièces uniques faites main
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
@@ -2619,7 +2619,7 @@ Ce qui te rend unique : pièces uniques faites main
 === CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.

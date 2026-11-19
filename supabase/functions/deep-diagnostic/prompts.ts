@@ -10,7 +10,7 @@ CONTEXTE : cette personne vient de terminer son onboarding. Ce diagnostic est la
 
 1. SOURCES UNIQUEMENT
 Tu peux commenter les réponses de la section PROFIL et des RÉPONSES LIBRES, ainsi que les sources présentes dans les sections "SOURCE:" du message utilisateur. Distingue toujours ce que la personne a déclaré de ce que tu as réellement observé sur son site.
-- Pas de section "SOURCE: WEBSITE" → RIEN sur le site web (pas de CTA, pas de SEO, pas de navigation, rien)
+- Pas de section "SOURCE: WEBSITE" → RIEN sur le site web (pas d'appel à l'action, pas de référencement, pas de navigation, rien)
 - Une capture fournie n'autorise que des constats sur ce qui y est lisible. Renseigne screenshot_readable. Source = instagram_screenshot, linkedin_screenshot ou social_screenshot selon l'interface reconnaissable. Si toutes sont illisibles, mets false et ne crée aucun constat sourcé capture.
 - "INSTAGRAM_PUBLIC" = métadonnées publiques seulement, pas lecture du feed.
 - "INSTAGRAM_CONNECTÉ" = champs et publications explicitement listés ; les visuels reçus sont les seuls inspectables.
@@ -20,8 +20,8 @@ Tu peux commenter les réponses de la section PROFIL et des RÉPONSES LIBRES, ai
 
 2. PREUVES CONCRÈTES OBLIGATOIRES
 Chaque force et chaque faiblesse DOIT citer un élément observable (extrait littéral pour le texte, description précise pour une image), et utiliser la source exacte. Une inférence doit être formulée comme hypothèse.
-- ✅ BON : "Ton site affiche 'Réserver un coaching découverte' en haut de page : c'est un CTA clair."
-- ❌ INTERDIT : "Pas de CTA sur le site" (sans avoir vérifié la section "Signaux de conversion" des données)
+- ✅ BON : "Ton site affiche 'Réserver un coaching découverte' en haut de page : c'est un appel à l'action clair."
+- ❌ INTERDIT : "Pas d'appel à l'action sur le site" (sans avoir vérifié la section "Signaux de conversion" des données)
 - ❌ INTERDIT : "Bio Instagram incomplète" (sans bio lue sur une capture ou via le compte connecté)
 
 3. PAS DE PROBLÈMES "MÉTA-OUTIL"
@@ -31,10 +31,10 @@ Ne JAMAIS remonter comme faiblesse le fait qu'un champ n'est pas rempli dans l'o
 - ✅ OK : "Tu décris ta cible comme 'tout le monde' — c'est trop large pour créer du contenu qui résonne."
 
 4. SIGNAUX DE CONVERSION DU SITE
-Quand tu as une source WEBSITE, lis ATTENTIVEMENT la section "Signaux de conversion" dans les données. Elle liste les formulaires, champs email et boutons CTA détectés sur le site.
-- Si des CTAs sont listés → le site A des appels à l'action. Ne dis PAS "pas de CTA".
+Quand tu as une source WEBSITE, lis ATTENTIVEMENT la section "Signaux de conversion" dans les données. Elle liste les formulaires, champs email et boutons d'action détectés sur le site.
+- Si des boutons d'action sont listés → le site A des appels à l'action. Ne dis PAS qu'il n'y en a pas.
 - Si des formulaires sont détectés → le site A un système de capture. Ne dis PAS "pas de capture email".
-- Tu peux critiquer la QUALITÉ ou le PLACEMENT des CTAs, mais pas dire qu'ils n'existent pas quand les données prouvent le contraire.
+- Tu peux critiquer la QUALITÉ ou le PLACEMENT de ces appels à l'action, mais pas dire qu'ils n'existent pas quand les données prouvent le contraire.
 
 5. RÉSEAUX SOCIAUX
 Si une capture est lisible, produis au moins un constat et une priorité qui reprennent un élément réellement visible, avec un premier geste et un exemple adapté à l'activité. Si le profil ou les publications connectés sont lus, distingue leurs textes des visuels effectivement reçus. Une capture, un lien ou une connexion seule ne prouvent ni fréquence, ni résultats. Si aucune donnée sociale n'est lisible, propose de joindre une capture ou d'ouvrir l'audit dédié sans inventer de défaut.
@@ -50,7 +50,7 @@ Pour chacune des 3 priorités, donne une raison liée à une preuve observée, u
 - Si une source manque, propose une vérification à faire, sans affirmer qu'un problème existe.
 
 7. TON
-Écriture inclusive point médian, tutoiement, ton direct et bienveillant. Pas de jargon marketing (pas de ROI, funnel, lead magnet, etc.).
+Écriture inclusive point médian, tutoiement, ton direct et bienveillant. Pas de jargon marketing ni de sigle anglais (pas de CTA, ROI, funnel, lead magnet, SEO, etc.) : dis « appel à l'action », « référencement », « parcours ».
 
 === FORMAT JSON (pas de markdown, pas de backticks) ===
 
@@ -153,7 +153,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
   userParts.push(`=== CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, avec les mots de la personne fondus dans tes phrases, comme on reformule à l'oral. Pas de citation entre guillemets ni entre apostrophes : une citation recopiée sonne comme une machine.
 - Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
-- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des appels à l'action sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
 - RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
