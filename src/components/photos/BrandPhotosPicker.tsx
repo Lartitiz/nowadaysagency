@@ -263,6 +263,9 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
         }
       }
       setCandidates(merged);
+      // Toutes cochées d'office (retour d'une cliente en rendez-vous, 19/11/2026) :
+      // elle décoche celles qui ne lui ressemblent pas, puis un seul clic les ajoute.
+      setSelectedUrls(merged.slice(0, MAX_SELECTABLE).map((c) => c.url));
       setStatus(merged.length > 0 ? "ready" : "hidden");
       if (merged.length > 0) {
         posthog.capture("brand_photos_picker_shown", {
@@ -335,13 +338,15 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
             continue;
           }
           const contentType: string = data.contentType || "image/jpeg";
-          files.push(
-            base64ToFile(
-              data.base64,
-              contentType,
-              fileNameFromUrl(imageUrl, contentType, byUrl.get(imageUrl)?.name),
-            ),
+          const file = base64ToFile(
+            data.base64,
+            contentType,
+            fileNameFromUrl(imageUrl, contentType, byUrl.get(imageUrl)?.name),
           );
+          // Cochées d'office, certaines n'ont jamais été affichées (« Voir les autres ») :
+          // on écarte ici les vignettes trop petites, comme le fait l'aperçu.
+          if (!(await usablePhoto(file).catch(() => true))) continue;
+          files.push(file);
         }
       };
       await Promise.all(
@@ -402,7 +407,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
                   ? "Je n'ai pas pu lire les photos de ton site. Réessaie ou ajoute-les dans la préparation du carrousel."
                 : status === "importing" && isProduct
                   ? "J'ajoute les photos de ton site à Mes photos…"
-                : `Je les ai trouvées ${sourceLabel}. Choisis celles qui te ressemblent : elles serviront à tes contenus.`}
+                : `Je les ai trouvées ${sourceLabel} et je les ai toutes cochées. Décoche celles qui ne te ressemblent pas, puis ajoute-les : elles serviront à tes contenus.`}
           </p>
         </div>
       </div>
@@ -494,6 +499,9 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-muted-foreground">
               {selectedUrls.length} / {MAX_SELECTABLE} sélectionnée{selectedUrls.length > 1 ? "s" : ""}
+              {selectedUrls.length > 0 && status !== "importing" && (
+                <button type="button" onClick={() => setSelectedUrls([])} className="ml-2 underline underline-offset-2 hover:text-foreground">Tout décocher</button>
+              )}
             </span>
             <Button
               size="sm"
@@ -508,7 +516,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
               ) : selectedUrls.length === 0 ? (
                 "Choisis tes photos"
               ) : (
-                `Ajouter ${selectedUrls.length} photo${selectedUrls.length > 1 ? "s" : ""} à ma bibliothèque`
+                selectedUrls.length > 1 ? `Ajouter ces ${selectedUrls.length} photos` : "Ajouter cette photo"
               )}
             </Button>
           </div>

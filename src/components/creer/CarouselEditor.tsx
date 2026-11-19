@@ -73,7 +73,7 @@ import { AllSlidesPanel, SavedStylesPanel } from "@/components/creer/CarouselEdi
 import { SimplePanel } from "@/components/creer/CarouselEditorParts/SimplePanel";
 import { brandInk, isIcon, setIconColor } from "@/components/creer/CarouselEditorParts/editor-icons";
 import { CaptionField } from "@/components/creer/CarouselEditorParts/CaptionField";
-import { EDITOR_GRID, roomStyle, slideBoxProps, useSlideFit } from "@/components/creer/CarouselEditorParts/EditorLayout";
+import { EDITOR_GRID, roomStyle, SlideEdgeArrows, slideBoxProps, useSlideFit } from "@/components/creer/CarouselEditorParts/EditorLayout";
 import { useEditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
 import { SlideRedo } from "@/components/creer/CarouselEditorParts/SlideRedoDialog";
 import { replaceSlide, type SlideRedoApi } from "@/components/creer/CarouselEditorParts/slide-redo";
@@ -390,7 +390,8 @@ export default function CarouselEditor({
     }
     return false;
   };
-  const onEditorKey = useEditorKeys({ editorRoot, copySelection, paste, shortcut, onHistoryKey, removeMany, selected, group, slide });
+  const goToSlide = (index: number) => { const next = Math.max(0, Math.min(current.current.slides.length - 1, index)); if (next !== active) { setActive(next); setSelected(null); } };
+  const onEditorKey = useEditorKeys({ editorRoot, copySelection, paste, shortcut, onHistoryKey, removeMany, selected, group, slide, goBy: (delta) => goToSlide(active + delta) });
   // Réordonner en glissant une vignette (souris ou doigt).
   const thumbDrag = useRef<{ from: number; x: number; y: number; moved: boolean } | null>(null);
   const justDragged = useRef(false);
@@ -724,7 +725,7 @@ export default function CarouselEditor({
   if (!slide) return null;
   return (
     <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-3" onKeyDown={(event) => onEditorKey(event.nativeEvent, event.target as HTMLElement)}>
-      <EditorHeader showInstagramPreview={channel !== "linkedin"} active={active} count={document.slides.length} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
+      <EditorHeader showInstagramPreview={channel !== "linkedin"} active={active} count={document.slides.length} goTo={goToSlide} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
         redo={slideRedo && slide && <SlideRedo api={slideRedo} raw={raw} slide={slide} getDocument={() => current.current} onKeep={(next) => commit(replaceSlide(current.current, next))} />} />
       {toolsPortal && createPortal(
         <QualityPanel cloudTools={cloudTools} commit={commit} current={current} document={document} fixAll={fixAll} quality={quality} setActive={setActive} setSelected={setSelected} />,
@@ -751,12 +752,11 @@ export default function CarouselEditor({
             if (fullscreen && e.key === "Escape" && !selected) setFullscreen(false);
           }}
         >
-          {fullscreen && (
-            <Button size="sm" variant="ghost" className="h-7 gap-1 self-end px-2 text-2xs" aria-label="Quitter le plein écran" onClick={() => setFullscreen(false)}>
+          {fullscreen && <Button size="sm" variant="ghost" className="h-7 gap-1 self-end px-2 text-2xs" aria-label="Quitter le plein écran" onClick={() => setFullscreen(false)}>
               <Minimize2 size={14} /> Quitter le plein écran
-            </Button>
-          )}
-          <div {...(fullscreen ? { className: "w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]" } : slideBoxProps(fit))}>
+            </Button>}
+          <div {...(fullscreen ? { className: "relative w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]" } : slideBoxProps(fit))}>
+          {!selected && <SlideEdgeArrows active={active} count={document.slides.length} goTo={goToSlide} />}
           <SlideCanvas
             onHistoryKey={onHistoryKey}
             slide={slide}

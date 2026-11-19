@@ -8,7 +8,7 @@
 import { Fragment, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Keyboard, Maximize2, Redo2, SlidersHorizontal, Smartphone, Undo2, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Keyboard, Maximize2, Redo2, SlidersHorizontal, Smartphone, Undo2, ZoomIn, ZoomOut } from "lucide-react";
 import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import type { CarouselDocument } from "@/lib/carousel-editor";
 import type { EditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
@@ -42,10 +42,12 @@ const SHORTCUTS: [string, string][] = [
 ];
 
 /** Ligne d'outils du haut de l'éditeur (une ligne), avec le passage au mode complet. */
-export function EditorHeader({ showInstagramPreview = true, active, count, history, mode, redo, setFullscreen, setInstaOpen, setMode, setZoom, undo, zoom }: {
+export function EditorHeader({ showInstagramPreview = true, active, count, goTo, history, mode, redo, setFullscreen, setInstaOpen, setMode, setZoom, undo, zoom }: {
   showInstagramPreview?: boolean;
   active: number;
   count: number;
+  /** Passer à une autre slide (flèches ‹ ›). */
+  goTo?: (index: number) => void;
   setFullscreen: (on: boolean) => void;
   setZoom: Dispatch<SetStateAction<number>>;
   zoom: number;
@@ -73,7 +75,20 @@ export function EditorHeader({ showInstagramPreview = true, active, count, histo
       <div role="group" aria-labelledby="carousel-editor-title" data-editor-toolbar className="sticky top-[var(--app-header-h,49px)] z-30 -mx-1 flex items-center justify-between gap-1.5 bg-background/95 px-1 py-1 backdrop-blur-sm md:top-[var(--app-header-h,57px)] lg:top-[var(--app-header-h,81px)]">
         <h2 id="carousel-editor-title" className="sr-only 2xl:not-sr-only 2xl:shrink-0 2xl:whitespace-nowrap 2xl:font-display 2xl:text-base 2xl:text-primary">Personnaliser mon carrousel</h2>
         <p className="mr-auto flex min-w-0 shrink items-center gap-1 overflow-hidden whitespace-nowrap text-2xs text-muted-foreground md:text-xs">
-          Slide {active + 1} / {count}<span className="hidden 2xl:inline"> · Double-clic : écrire · Glisser : déplacer</span>
+          {/* Flèches ‹ › : passer d'une slide à l'autre sans chercher la vignette
+              (retour d'une cliente en rendez-vous, 19/11/2026 : sur 14 slides, la
+              colonne n'en montrait que 4 et il fallait la faire défiler). */}
+          {goTo && (
+            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" aria-label="Slide précédente" aria-keyshortcuts="ArrowLeft PageUp" title="Slide précédente (←)" disabled={active === 0} onClick={() => goTo(active - 1)}>
+              <ChevronLeft size={16} />
+            </Button>
+          )}
+          <span className={goTo ? "min-w-[3.25rem] text-center font-medium text-foreground" : undefined}>{goTo ? `${active + 1} / ${count}` : `Slide ${active + 1} / ${count}`}</span>
+          {goTo && (
+            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" aria-label="Slide suivante" aria-keyshortcuts="ArrowRight PageDown" title="Slide suivante (→)" disabled={active >= count - 1} onClick={() => goTo(active + 1)}>
+              <ChevronRight size={16} />
+            </Button>
+          )}<span className="hidden 2xl:inline"> · Double-clic : écrire · Glisser : déplacer</span>
           <HelpTip label="gestes sur la slide"><span className="md:hidden">Touche un texte, puis « Écrire » pour le modifier. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses. Glisse une photo plein écran pour la recadrer, les poignées pour agrandir. Tes retouches ne coûtent aucun crédit.</span><span className="hidden md:inline">Double-clique (ou touche « Écrire ») pour écrire dans un texte. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses (⌘/Ctrl pour placer librement). Glisse une photo plein écran pour la recadrer (double-clic pour une photo encadrée), les poignées pour agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre. Tes retouches ne coûtent aucun crédit.</span></HelpTip>
         </p>
         <div className="flex shrink-0 items-center gap-1">

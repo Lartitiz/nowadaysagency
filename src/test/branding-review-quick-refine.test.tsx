@@ -67,8 +67,12 @@ describe("BrandingReview — « On affine ensemble » en une passe (onboarding)"
     invoke.mockResolvedValue({ data: { section_data: { full_story: "Tout a commencé avec un savon." } }, error: null });
     render(<BrandingReview analysis={ANALYSIS} mandatory onDone={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
+    // Histoire déjà écrite : le texte d'abord, les questions repliées dessous.
+    expect(screen.queryByLabelText("Qu'est-ce qui t'a donné envie de te lancer ?")).toBeNull();
+    fireEvent.click(screen.getByText("Ou réponds à quelques questions et je la réécris"));
     expect(screen.getByLabelText("Qu'est-ce qui t'a donné envie de te lancer ?")).toBeInTheDocument();
-    expect(screen.getByLabelText("Où tu veux emmener ton activité ?")).toBeInTheDocument();
+    expect(screen.getByLabelText("Une cliente ou une situation qui t'a marquée ?")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Où tu veux emmener ton activité ?")).toBeNull();
     expect(screen.queryByText(/^Carte \d sur 7$/)).toBeNull();
     const reecrire = screen.getByText("Réécrire ma carte").closest("button")!;
     expect(reecrire).toBeDisabled();
@@ -89,6 +93,19 @@ describe("BrandingReview — « On affine ensemble » en une passe (onboarding)"
     expect(invoke).toHaveBeenCalledTimes(1);
   });
 
+  it("« Ton histoire » : corriger le texte à la main, sans IA ni crédit", async () => {
+    render(<BrandingReview analysis={ANALYSIS} mandatory onDone={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
+    const box = screen.getByLabelText("Corrige ton texte directement, puis enregistre.") as HTMLTextAreaElement;
+    expect(box.value).toBe("Ancienne histoire");
+    fireEvent.change(box, { target: { value: "Ma vraie histoire, corrigée." } });
+    fireEvent.click(screen.getByText("Enregistrer mon texte"));
+    await screen.findByText("1/7 validées");
+    expect(invoke).not.toHaveBeenCalled();
+    expect(m.writes.some(w => w.table === "storytelling")).toBe(true);
+    expect(currentCard()).toBe("Carte 2 sur 7");
+  });
+
   it("« Revenir à mes cartes » ne coûte rien et revient sur la même carte", () => {
     render(<BrandingReview analysis={ANALYSIS} mandatory onDone={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
@@ -102,6 +119,7 @@ describe("BrandingReview — « On affine ensemble » en une passe (onboarding)"
     invoke.mockResolvedValue({ data: null, error: { message: "Le service est momentanément indisponible. Réessaie dans quelques instants.", code: "NETWORK" } });
     render(<BrandingReview analysis={ANALYSIS} mandatory onDone={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
+    fireEvent.click(screen.getByText("Ou réponds à quelques questions et je la réécris"));
     fireEvent.change(screen.getByLabelText("Un moment difficile ou un déclic dont tu te souviens ?"), { target: { value: "Un marché raté." } });
     fireEvent.click(screen.getByText("Réécrire ma carte"));
     await screen.findByRole("alert");

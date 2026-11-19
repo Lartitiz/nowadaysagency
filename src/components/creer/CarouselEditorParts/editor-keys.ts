@@ -17,15 +17,26 @@ type EditorKeys = {
   selected: string | null;
   group: string[];
   slide: EditorSlide;
+  /** ← → (et Page préc./suiv.) sans rien de choisi : slide précédente / suivante. */
+  goBy?: (delta: number) => void;
 };
+
+const SLIDE_KEYS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, PageUp: -1, PageDown: 1 };
 
 export function useEditorKeys(keys: EditorKeys) {
   const latest = useRef(keys);
   latest.current = keys;
   // Touches reçues par la section de l'éditeur.
   const onEditorKey = (event: KeyboardEvent, target: HTMLElement) => {
-    const { copySelection, paste, shortcut, onHistoryKey } = latest.current;
+    const { copySelection, paste, shortcut, onHistoryKey, goBy, selected, editorRoot } = latest.current;
     const typing = /INPUT|TEXTAREA|SELECT/.test(target.tagName) || target.isContentEditable;
+    // Sur la section elle-même ou une vignette, rien de choisi : les flèches changent de slide.
+    if (goBy && !selected && !typing && SLIDE_KEYS[event.key] && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey
+      && (target === editorRoot.current || target.hasAttribute("data-thumb"))) {
+      event.preventDefault();
+      goBy(SLIDE_KEYS[event.key]);
+      return;
+    }
     if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && (event.key === "c" || event.key === "v") && !typing && !window.getSelection()?.toString()) {
       event.preventDefault();
       if (event.key === "c") copySelection();
@@ -41,7 +52,7 @@ export function useEditorKeys(keys: EditorKeys) {
   };
   // Touches reçues par la page quand aucun champ n'a le focus.
   const onPageKey = (event: KeyboardEvent) => {
-    const { editorRoot, removeMany, selected, group, slide } = latest.current;
+    const { editorRoot, removeMany, selected, group, slide, goBy } = latest.current;
     const body = window.document.body;
     const root = editorRoot.current;
     if ((event.target !== body && event.target !== window.document.documentElement) || !root?.isConnected) return;
@@ -52,6 +63,11 @@ export function useEditorKeys(keys: EditorKeys) {
       event.preventDefault();
       removeMany(removable);
       root.focus({ preventScroll: true });
+      return;
+    }
+    if (goBy && !selected && !mod && !event.altKey && !event.shiftKey && SLIDE_KEYS[event.key]) {
+      event.preventDefault();
+      goBy(SLIDE_KEYS[event.key]);
       return;
     }
     if (!mod) return;

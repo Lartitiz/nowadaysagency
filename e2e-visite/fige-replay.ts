@@ -253,6 +253,9 @@ export async function expectZoneMatches(page: Page, locator: Locator, name: stri
   // collent sous le menu (#1859), quelques px de défilement suffisaient à prendre la
   // ligne d'outils sur la photo et à couper le bas de la slide.
   await page.evaluate(() => window.scrollTo(0, 0));
+  // Flèches ‹ › posées sur les bords de la slide (19/11/2026) : de l'interface, pas du
+  // contenu ; masquées pour que la photo ne compare que la slide.
+  await page.addStyleTag({ content: '[data-testid^="slide-edge-"]{visibility:hidden!important}' });
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   // La slide de l'éditeur prend la place mesurée sur la page (W élargi, 18/10/2026) : au
   // chargement à froid elle peut encore s'ajuster de 1 ou 2 px. On attend une taille stable.

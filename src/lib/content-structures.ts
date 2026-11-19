@@ -394,7 +394,7 @@ export const CONTENT_STRUCTURES: Record<string, ContentStructure> = {
       { role: "explication_2", label: "Point clé 2", desc: "Deuxième élément de la démonstration" },
       { role: "explication_3", label: "Point clé 3", desc: "Troisième élément ou nuance" },
       { role: "synthese", label: "Synthèse", desc: "Résumé du message principal" },
-      { role: "cta", label: "CTA", desc: "Appel à l'action ou ouverture de discussion" },
+      { role: "cta", label: "Invitation finale", desc: "Appel à l'action ou ouverture de discussion" },
     ],
   },
   conseil_pratique: {
@@ -406,7 +406,7 @@ export const CONTENT_STRUCTURES: Record<string, ContentStructure> = {
       { role: "conseil_2", label: "Conseil 2", desc: "Deuxième conseil actionnable" },
       { role: "conseil_3", label: "Conseil 3", desc: "Troisième conseil actionnable" },
       { role: "mise_en_garde", label: "Mise en garde", desc: "Ce qu'il faut éviter ou nuance importante" },
-      { role: "cta", label: "CTA", desc: "Invitation à passer à l'action" },
+      { role: "cta", label: "Invitation finale", desc: "Invitation à passer à l'action" },
     ],
   },
   coup_de_gueule: {
@@ -417,7 +417,7 @@ export const CONTENT_STRUCTURES: Record<string, ContentStructure> = {
       { role: "pourquoi", label: "Pourquoi ça pose problème", desc: "Les conséquences négatives" },
       { role: "alternative", label: "Alternative proposée", desc: "Ce qu'on devrait faire à la place" },
       { role: "manifeste", label: "Manifeste", desc: "Prise de position claire et assumée" },
-      { role: "cta", label: "CTA", desc: "Appel à rejoindre le mouvement ou réagir" },
+      { role: "cta", label: "Invitation finale", desc: "Appel à rejoindre le mouvement ou réagir" },
     ],
   },
   storytelling: {
@@ -429,7 +429,7 @@ export const CONTENT_STRUCTURES: Record<string, ContentStructure> = {
       { role: "declencheur", label: "Déclencheur", desc: "Le moment de bascule" },
       { role: "transformation", label: "Transformation", desc: "Ce qui a changé concrètement" },
       { role: "lecon", label: "Leçon universelle", desc: "Ce que le lecteur peut en tirer" },
-      { role: "cta", label: "CTA émotionnel", desc: "Question ouverte ou invitation au partage" },
+      { role: "cta", label: "Invitation à réagir", desc: "Question ouverte ou invitation au partage" },
     ],
   },
   tuto: {
@@ -442,7 +442,7 @@ export const CONTENT_STRUCTURES: Record<string, ContentStructure> = {
       { role: "etape_3", label: "Étape 3", desc: "Troisième action concrète" },
       { role: "etape_4", label: "Étape 4", desc: "Quatrième action ou vérification" },
       { role: "resultat", label: "Résultat attendu", desc: "Ce qu'on obtient en suivant les étapes" },
-      { role: "cta", label: "CTA", desc: "Enregistre / partage / essaie maintenant" },
+      { role: "cta", label: "Invitation finale", desc: "Enregistre / partage / essaie maintenant" },
     ],
   },
   etude_de_cas: {
@@ -458,7 +458,7 @@ export const CONTENT_STRUCTURES: Record<string, ContentStructure> = {
       { role: "resultats", label: "Résultats concrets", desc: "Chiffres, témoignage, preuves tangibles" },
       { role: "apprentissage", label: "Apprentissage clé", desc: "La leçon principale à retenir" },
       { role: "lien_offre", label: "Lien vers l'offre", desc: "Transition naturelle vers ton accompagnement" },
-      { role: "cta", label: "CTA", desc: "Invitation à passer à l'action" },
+      { role: "cta", label: "Invitation finale", desc: "Invitation à passer à l'action" },
     ],
   },
   lancement: {
@@ -472,7 +472,7 @@ export const CONTENT_STRUCTURES: Record<string, ContentStructure> = {
       { role: "preuve", label: "Preuve sociale", desc: "Témoignage, résultat, garantie" },
       { role: "offre", label: "Détails de l'offre", desc: "Prix, contenu, modalités" },
       { role: "urgence", label: "Urgence / rareté", desc: "Pourquoi agir maintenant" },
-      { role: "cta", label: "CTA direct", desc: "Lien, bouton, action immédiate" },
+      { role: "cta", label: "Invitation directe", desc: "Lien, bouton, action immédiate" },
     ],
   },
 };

@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { getOnboardingVariant } from "@/lib/onboarding-variants";
 import type { Answers } from "@/hooks/use-onboarding";
+import { useSocialConnections } from "@/hooks/use-social-connections";
 
 /* ── Canaux Combined (Step 5) ── */
 export function CanauxCombinedScreen({ answers, set, onNext }: {
@@ -14,11 +15,12 @@ export function CanauxCombinedScreen({ answers, set, onNext }: {
   set: <K extends keyof Answers>(k: K, v: Answers[K]) => void;
   onNext: () => void;
 }) {
+  const { isConnected } = useSocialConnections();
   useEffect(() => {
     const preSelected = [
-      ...(answers.instagram ? ["instagram"] : []),
+      ...(answers.instagram || isConnected("instagram") ? ["instagram"] : []),
+      ...(answers.linkedin || isConnected("linkedin") ? ["linkedin"] : []),
       ...(answers.website ? ["website"] : []),
-      ...(answers.linkedin ? ["linkedin"] : []),
     ];
     if (preSelected.length > 0 && answers.canaux.length === 0) {
       set("canaux", preSelected);
