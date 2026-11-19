@@ -6,6 +6,8 @@
 // l'éditeur et la barre « Publier » collée en bas, et la slide la prend
 // (plafond 540 px de large : la moitié des 1080 px exportés, toujours net).
 import { useLayoutEffect, useState, type CSSProperties, type RefObject } from "react";
+// Flèches ‹ › sur les bords de la slide (19/11/2026), posées dans la boîte ci-dessous (relative).
+export { SlideEdgeArrows } from "./SlideEdgeArrows";
 
 export type SlideFit = { width: number; room: number };
 
@@ -66,8 +68,8 @@ export const roomStyle = (fit: SlideFit | null): CSSProperties | undefined =>
 /** Cadre de la slide : la largeur mesurée, sinon l'ancienne règle (avant la première mesure). */
 export const slideBoxProps = (fit: SlideFit | null) =>
   fit
-    ? { className: "mx-auto w-full", style: { maxWidth: fit.width } }
-    : { className: "mx-auto w-full max-w-[min(540px,30vh)] md:max-w-[min(540px,max(240px,calc((100vh-456px)*0.8)))]", style: undefined };
+    ? { className: "relative mx-auto w-full", style: { maxWidth: fit.width } }
+    : { className: "relative mx-auto w-full max-w-[min(540px,30vh)] md:max-w-[min(540px,max(240px,calc((100vh-456px)*0.8)))]", style: undefined };
 
 /** Grille de l'éditeur : vignettes en colonne à gauche, slide, panneau (ordinateur) ; slide, puis vignettes ou réglages (téléphone). */
 export const EDITOR_GRID =
