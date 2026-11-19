@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { sansJargonDeep } from "../_shared/jargon.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
@@ -454,7 +455,7 @@ serve(async (req) => {
       if (p.headings.h3.length) lines.push(`H3 : ${p.headings.h3.join(" | ")}`);
       if (p.navLinks.length) lines.push(`Navigation : ${p.navLinks.join(" | ")}`);
       lines.push(`Images : ${p.images.count} (alt renseignés : ${p.images.alts.length})`);
-      if (p.ctas.length) lines.push(`CTA détectés : ${p.ctas.join(" | ")}`);
+      if (p.ctas.length) lines.push(`Boutons d'action détectés : ${p.ctas.join(" | ")}`);
       lines.push(`Formulaires : ${p.hasForms ? "oui" : "non"}`);
       if (p.socialLinks.length) lines.push(`Réseaux sociaux : ${p.socialLinks.join(", ")}`);
       lines.push(`\nContenu visible :\n${p.visibleText}`);
@@ -489,7 +490,7 @@ Analyse ce site et produis un audit complet en évaluant ces 8 piliers :
 3. PARCOURS UTILISATEUR·ICE (score /100)
 - Le menu est-il simple (< 6 éléments) ?
 - Chaque page a-t-elle un objectif clair ?
-- Le CTA est-il visible sans scroller ?
+- L'appel à l'action est-il visible sans scroller ?
 
 4. CONFIANCE (score /100)
 - Y a-t-il des témoignages ?
@@ -507,9 +508,9 @@ Analyse ce site et produis un audit complet en évaluant ces 8 piliers :
 - Le positionnement est-il cohérent avec le branding déclaré ?
 
 7. APPELS À L'ACTION (score /100)
-- Le CTA principal est-il clair et visible ?
-- Y a-t-il plusieurs CTA répartis dans la page ?
-- Le texte du CTA est-il orienté bénéfice ?
+- L'appel à l'action principal est-il clair et visible ?
+- Y a-t-il plusieurs appels à l'action répartis dans la page ?
+- Le texte de l'appel à l'action est-il orienté bénéfice ?
 
 8. STRUCTURE & HIÉRARCHIE (score /100)
 - Les sections sont-elles dans un ordre logique ?
@@ -525,7 +526,7 @@ Pour chaque pilier, donne :
 - Si possible, un lien vers le module de l'outil qui peut aider
 
 En plus des 8 piliers, produis :
-- Un score global (moyenne pondérée ; clarté et CTA comptent double)
+- Un score global (moyenne pondérée ; clarté et appel à l'action comptent double)
 - Une synthèse en 3 phrases (ton direct, pas corporate)
 - Les 3 points forts principaux
 - Les 3 priorités d'action (classées par impact)
@@ -630,6 +631,9 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
         { status: 502, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
+
+    // « CTA » → « appel à l'action » (retour cliente 19/11).
+    Object.assign(parsed, sansJargonDeep(parsed));
 
     // Inject metadata
     parsed.pages_analysees = pagesOk.map(p => p.path);

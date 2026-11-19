@@ -6,7 +6,7 @@
  * probabilité : ce filet déterministe garantit que le mot n'atteint jamais
  * l'écran, et il corrige aussi les diagnostics déjà enregistrés.
  *
- * ⚠️ Copie exacte dans supabase/functions/deep-diagnostic/jargon.ts (le
+ * ⚠️ Copie exacte dans supabase/functions/_shared/jargon.ts (le
  * serveur ne peut pas importer src/). Le test sans-jargon.test.ts vérifie que
  * les deux donnent le même résultat.
  */

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { sansJargon } from "../_shared/jargon.ts";
 import { LINKEDIN_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
@@ -150,7 +151,7 @@ Profil : 30% du score total
 - Bannière (5 pts) : communique le positionnement, pas vide, dimensions 1584×396
 - Titre (10 pts) : contient mots-clés SEO, formule valeur, max 220 car., PAS de buzzwords vides ("passionné", "expert en tout")
 - URL (3 pts) : personnalisée, sans chiffres aléatoires
-- Résumé (7 pts) : hook dans les 265 premiers car., 5 éléments (hook/passion/parcours/offre/CTA)
+- Résumé (7 pts) : hook dans les 265 premiers car., 5 éléments (hook/passion/parcours/offre/appel à l'action)
 
 Contenu : 35% du score total
 - Fréquence (8 pts) : 2-4 posts/semaine = optimal. < 1/semaine = quasi-invisible
@@ -222,7 +223,7 @@ HEADLINE (score /25) :
 ABOUT / RÉSUMÉ (score /25) :
 - Hook des 3 premières lignes (/8) : avant le clic "voir plus", ça accroche ou c'est plat ?
 - Storytelling ou structure narrative (/5) : il y a un fil conducteur, pas juste une liste
-- CTA clair (/4) : le résumé dit quoi faire ensuite (contacter, visiter, suivre)
+- Appel à l'action clair (/4) : le résumé dit quoi faire ensuite (contacter, visiter, suivre)
 - Preuve sociale ou crédibilité (/4) : chiffres, témoignages, expérience, enseignement
 - Ton cohérent avec le branding (/4) : le ton LinkedIn correspond au branding déclaré
 
@@ -309,7 +310,7 @@ Réponds UNIQUEMENT en JSON sans backticks :
 
     await logUsage(userId, "audit", "audit_linkedin", usage.total_tokens, usage.model, workspace_id);
 
-    return new Response(JSON.stringify({ content }), {
+    return new Response(JSON.stringify({ content: sansJargon(content) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {

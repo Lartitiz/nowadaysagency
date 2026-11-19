@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { sansJargon } from "../_shared/jargon.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { WEBSITE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -191,7 +192,7 @@ serve(async (req) => {
       // Generate, save, and return
       systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + systemPrompt;
       const diagnosticUsage: UsageSink = {};
-      const diagnosticRaw = await callAnthropicSimple(getModelForAction("website"), systemPrompt, userPrompt, 0.8, undefined, diagnosticUsage, 60_000);
+      const diagnosticRaw = sansJargon(await callAnthropicSimple(getModelForAction("website"), systemPrompt, userPrompt, 0.8, undefined, diagnosticUsage, 60_000));
 
       // Save diagnostic + recommendations to website_audit
       const serviceClient = createClient(

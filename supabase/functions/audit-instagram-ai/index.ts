@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { sansJargonDeep } from "../_shared/jargon.ts";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
@@ -292,7 +293,7 @@ ANALYSE DE PERFORMANCE DES CONTENUS :
 - Identifie minimum 2-3 patterns positifs et 1-2 patterns négatifs
 - Le "combo gagnant" est LA combinaison format x angle qui performe le mieux
 
-Score global = moyenne pondérée (photo 10, nom 10, bio 25, feed 15, highlights 15, posts épinglés 10, CTA 10, lien 5).
+Score global = moyenne pondérée (photo 10, nom 10, bio 25, feed 15, highlights 15, posts épinglés 10, appel à l'action 10, lien 5).
 
 Sois directe mais bienveillante. Compare TOUJOURS avec le branding.
 
@@ -339,14 +340,14 @@ Réponds en JSON :
         "label": "Bio",
         "status": "improve",
         "current": "La bio complète",
-        "verdict": "Positionnement OK mais promesse floue et pas de CTA.",
+        "verdict": "Positionnement OK mais promesse floue et pas d'appel à l'action.",
         "lignes": [
           {"texte": "Première ligne de la bio", "status": "ok", "commentaire": "Positionnement clair."},
           {"texte": "Deuxième ligne", "status": "improve", "commentaire": "Remplace par ta promesse concrète."},
-          {"texte": "(absent)", "status": "critical", "commentaire": "Il manque un CTA avec emoji pointant vers le lien."}
+          {"texte": "(absent)", "status": "critical", "commentaire": "Il manque un appel à l'action avec emoji pointant vers le lien."}
         ],
-        "conseil": "Ajouter une ligne avec bénéfice client et CTA.",
-        "proposition": "Ligne 1\nLigne 2\nLigne 3\nLigne 4 CTA"
+        "conseil": "Ajouter une ligne avec bénéfice client et appel à l'action.",
+        "proposition": "Ligne 1\nLigne 2\nLigne 3\nLigne 4 appel à l'action"
       },
       {
         "element": "feed",
@@ -379,7 +380,7 @@ Réponds en JSON :
         "element": "cta",
         "label": "Call to action",
         "status": "improve",
-        "current": "Description du CTA actuel",
+        "current": "Description de l'appel à l'action actuel",
         "verdict": "Le lien existe mais rien ne donne envie de cliquer.",
         "conseil": "Ajouter une ligne avec emoji et bénéfice.",
         "proposition": null
@@ -611,6 +612,9 @@ Réponds en JSON :
       console.warn(`[audit-instagram-ai] audit partiel rendu, parts manquantes : ${missingParts.join(", ")}`);
       (merged as any).missing_parts = missingParts;
     }
+
+    // « CTA » → « appel à l'action » avant d'enregistrer (retour cliente 19/11).
+    Object.assign(merged, sansJargonDeep(merged));
 
     // Sauvegarde serveur de l'audit AVANT de rendre la main. Le crédit est débité
     // côté serveur (logUsage juste après) : si on laissait l'insert au client (comme

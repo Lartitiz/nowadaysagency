@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
+import { sansJargonDeep } from "../_shared/jargon.ts";
 import { callAnthropicToolSimple, SONNET_MODEL, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
 
 // Tool forcé : transport JSON garanti (chantier éradication parse texte, 26/07).
@@ -309,7 +310,7 @@ persona, positionnement, offres, bio, storytelling, ton, editorial, contenu, ins
 | Highlights pas organisés | highlights | Structurer mon profil IG |
 | Pas de preuve sociale | contenu | Créer un post témoignage |
 | Engagement faible | engagement | Lancer ma routine engagement |
-| Pas de CTA clair | bio | Ajouter un CTA dans ma bio |
+| Pas d'appel à l'action clair | bio | Ajouter un appel à l'action dans ma bio |
 | Cohérence cross-canal manque | branding | Unifier ma communication |
 | Fréquence irrégulière | calendrier | Créer mon calendrier |
 
@@ -399,6 +400,9 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
     // généré avec succès (crédit débité juste après) — un échec de sauvegarde ne
     // doit pas priver l'utilisatrice du résultat déjà obtenu, juste dégrader
     // l'historique.
+    // « CTA » → « appel à l'action » avant d'enregistrer (retour cliente 19/11).
+    auditResult = sansJargonDeep(auditResult);
+
     const { error: auditInsertError } = await sbService.from("branding_audits").insert({
       user_id: user.id,
       workspace_id: workspace_id || null,

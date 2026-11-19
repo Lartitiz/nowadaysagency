@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { sansJargon, sansJargonDeep } from "@/lib/sans-jargon";
-import * as serveur from "../../supabase/functions/deep-diagnostic/jargon";
+import * as serveur from "../../supabase/functions/_shared/jargon";
 
 const CAS: [string, string][] = [
   ["Ton site affiche 'Réserver' en haut : c'est un CTA clair.", "Ton site affiche 'Réserver' en haut : c'est un appel à l'action clair."],
