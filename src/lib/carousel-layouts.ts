@@ -293,7 +293,8 @@ export function composeLayout(
   // Charte d'origine, relue au prochain changement de mise en page (cf. withCharte).
   const charte = esc(JSON.stringify({ titleColor: tokens.titleColor, bodyColor: tokens.bodyColor, background: paper, accent: tokens.accent || "", outBackground: bg, outTitle: heading }));
   const usesPhoto = !!LAYOUTS.find((l) => l.variant === variant)?.photo;
-  const kept = photo && !usesPhoto && photo.length <= 4000 ? ` ${KEPT_PHOTO}="${esc(photo)}"` : "";
+  // Photo collée (data:) comprise : la slide la portait déjà, son poids ne change pas.
+  const kept = photo && !usesPhoto ? ` ${KEPT_PHOTO}="${esc(photo)}"` : "";
   const html = `${tokens.fontImports}<div ${CHARTE}="${charte}"${kept} style="width:${W}px;height:${H}px;position:relative;overflow:hidden;background:${bg};color:${ink};font-family:${bodyFont};text-align:${align}">${inner}</div>`;
   const slideType = !photo || !usesPhoto ? "text_only" : variant === "photo-plein" ? "photo_full" : "photo_integrated";
   return { id: crypto.randomUUID(), data: { ...data, title, body, slide_type: slideType, layout_variant: variant }, html: prepareSlideHtml(html) };
