@@ -37,10 +37,12 @@ export function measureSlideFit(grid: HTMLElement): SlideFit {
   const tools = grid.querySelector<HTMLElement>('[data-canvas-sticky] [data-testid="slide-order-tools"]')?.offsetHeight ?? 0;
   const under = phone ? 0 : (window.innerHeight < 800 ? STRIP_RESERVE_SHORT : STRIP_RESERVE) + (tools ? tools + 4 : 0);
   const free = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, column - (phone ? 0 : ARROWS_RESERVE), (room - under) * 0.8));
-  // Ordinateur : largeur par paliers de 8 px. Un ou deux pixels de place en plus ou en moins (hauteur du
-  // menu, d'une ligne de texte) ne changent plus la taille de la slide : les photos de référence de la
-  // visite du matin restent comparables (20/11/2026 : 446 px en local, 445 en ligne).
-  const fitted = phone ? Math.floor(free) : Math.floor(free / 8) * 8;
+  // Ordinateur : largeur par paliers de 16 px (…, 424, 440, 456, …). Quelques pixels de place en plus ou
+  // en moins (hauteur du menu, d'une ligne de texte) ne changent plus la taille de la slide : les photos
+  // de référence de la visite du matin restent comparables. Paliers calés pour que l'écran de référence
+  // (1440 × 900 : 445 à 449 px de place mesurés le 20/11/2026, en local et en ligne) tombe au milieu de
+  // son palier, pas au bord (un palier à 448 px donnait 440 en local et 448 en ligne).
+  const fitted = phone ? Math.floor(free) : Math.floor((free - 8) / 16) * 16 + 8;
   // Slide centrée au pixel près : une marge d'un demi-pixel de chaque côté rendait l'image floue d'un passage à l'autre.
   const width = fitted - ((column - fitted) % 2 ? 1 : 0);
   return { width, room };
