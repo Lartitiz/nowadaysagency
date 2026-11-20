@@ -107,3 +107,16 @@ export function caretRange(doc: Document, el: HTMLElement, at?: { x: number; y: 
   range.collapse(true);
   return range;
 }
+
+// Éditeur facile (20/11/2026) : sur téléphone, tant que rien n'est choisi, un doigt
+// qui glisse à l'horizontale sur la slide passe à la slide voisine (comme sur
+// Instagram) ; pour déplacer un bloc, on le touche d'abord. Rangé ici pour ne pas
+// faire grossir canvas-events.ts (cliquet anti-dette).
+/** Vrai quand cet appui doit être lu comme un geste « slide suivante » possible. */
+export const swipeStart = (e: PointerEvent, now: { onSwipe?: (delta: number) => void; selected: string | null; group: string[] }) =>
+  e.pointerType === "touch" && !!now.onSwipe && !now.selected && !(now.group || []).length;
+/** Sens du geste (+1 suivante, −1 précédente), 0 si le doigt n'a pas assez glissé à l'horizontale (coordonnées de la slide, 1080 de large). */
+export const swipeDelta = (from: { x: number; y: number }, e: PointerEvent) => {
+  const dx = e.clientX - from.x, dy = e.clientY - from.y;
+  return Math.abs(dx) >= 130 && Math.abs(dx) > 1.5 * Math.abs(dy) ? (dx < 0 ? 1 : -1) : 0;
+};

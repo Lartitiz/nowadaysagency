@@ -39,15 +39,22 @@ describe("mode simple de l'éditeur", () => {
     render(<Harness />);
     expect(screen.queryByRole("tab", { name: "Slide" })).toBeNull();
     expect(screen.queryByText(/Calques/)).toBeNull();
-    for (const part of ["Texte", "Photo", "Couleur", "Police"]) expect(within(panel()).getAllByText(part).length).toBeGreaterThan(0);
+    // Éditeur facile (20/11/2026) : trois blocs, dans l'ordre où on en a besoin.
+    expect(within(panel()).getByRole("region", { name: "Textes de cette slide" })).toBeTruthy();
+    expect(within(panel()).getByRole("region", { name: "Style de la slide" })).toBeTruthy();
+    for (const part of ["Photo", "Couleur", "Police", "Mise en page"]) expect(within(panel()).getAllByText(part).length).toBeGreaterThan(0);
     expect(screen.getByText(/Touche un texte ou une photo sur la slide/)).toBeTruthy();
     const controls = panel().querySelectorAll("button, input, select, textarea");
     expect(controls.length).toBeLessThanOrEqual(MAX_SIMPLE_PANEL_CONTROLS);
   });
 
-  it("le bouton « Texte » choisit le premier texte : on l'écrit, le grossit et le centre", () => {
+  it("les textes de la slide sont dans des cases, sans rien toucher sur la slide : on écrit, grossit et centre", () => {
     render(<Harness />);
-    fireEvent.click(within(panel()).getByRole("button", { name: "Texte" }));
+    // Toutes les cases sont là dès l'arrivée ; la première se choisit en y entrant.
+    const first = within(panel()).getByLabelText("Texte 1 de la slide") as HTMLTextAreaElement;
+    expect(first.value).toBe("Mon atelier");
+    expect(within(panel()).getByText("Gratuit")).toBeTruthy();
+    fireEvent.focus(first);
     const field = screen.getByLabelText("Texte sélectionné") as HTMLTextAreaElement;
     expect(field.value).toBe("Mon atelier");
     fireEvent.change(field, { target: { value: "Mon nouvel atelier" } });
@@ -86,7 +93,7 @@ describe("mode simple de l'éditeur", () => {
     fireEvent.click(screen.getByRole("button", { name: "Aide : gestes sur la slide" }));
     expect(screen.getByText(/Double-clique \(ou touche « Écrire »\)/)).toBeTruthy();
     // Téléphone (passe du 16/10/2026) : une version au doigt, sans raccourcis clavier.
-    const touch = screen.getByText(/^Touche un texte, puis « Écrire »/);
+    const touch = screen.getByText(/^Glisse la slide du doigt pour passer à la suivante/);
     expect(touch.className).toContain("md:hidden");
     expect(touch.textContent).not.toMatch(/Ctrl|Alt|Échap|Suppr|Flèches|clic/);
   });
@@ -122,7 +129,7 @@ describe("mode simple de l'éditeur", () => {
       expect(within(toolbar).queryByLabelText("Verrouiller l’élément")).toBeNull();
       fireEvent.click(within(toolbar).getByLabelText("Plus d’actions sur l’élément"));
       expect(screen.getByText(/Verrouiller \(il ne bougera plus\)/)).toBeTruthy();
-      expect(screen.getByText("Dupliquer")).toBeTruthy();
+      expect(screen.getAllByText("Dupliquer").some((el) => !el.closest('[data-testid="slide-order-tools"]'))).toBe(true);
     } finally {
       width.mockRestore();
     }

@@ -7,19 +7,23 @@
 // Chantier X (18/10/2026) : en mode simple, monter, descendre et dupliquer sous la
 // vignette choisie ; l'aide « glisse pour changer l'ordre » écrite (plus seulement
 // au survol) ; « Slide supprimée · Annuler » après une suppression.
-import { Fragment, useEffect, type MutableRefObject } from "react";
+// Éditeur facile (20/11/2026, maquette validée par Laetitia après le retour d'une
+// cliente) : sur ordinateur, toutes les vignettes en une rangée sous la slide (la
+// colonne n'en montrait que 4 sur 14) et les boutons des slides dans la ligne du haut
+// (`SlideTools`) ; sur téléphone, une slide à la fois : des points sous la slide et
+// « Toutes » pour ouvrir les vignettes.
+import { useEffect, useState, type MutableRefObject } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, LockKeyhole, Plus, Trash2, Unlock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Copy, LayoutGrid, LockKeyhole, Plus, Trash2, Unlock } from "lucide-react";
 import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/features/creer/publish-guards";
 import { CAROUSEL_MAX_SLIDES, renumberDocument, type CarouselDocument, type EditorSlide } from "@/lib/carousel-editor";
 import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import { SlideThumb } from "@/components/creer/CarouselEditorParts/PanelBits";
 
-/** Bande des miniatures et boutons des slides. */
-export function SlideStrip({ channel, simple = false, active, add, changeSlide, commit, current, document, dragSlide, dropAt, justDragged, move, reorder, setActive, setDragSlide, setDropAt, setSelected, slide, thumbDrag, thumbIndexAt }: {
+type StripProps = {
   channel?: "linkedin" | "instagram";
-  /** Mode simple : flèches et dupliquer sous la vignette choisie, verrouiller dans « Plus d'outils ». */
+  /** Mode simple : verrouiller reste dans « Plus d'outils ». */
   simple?: boolean;
   active: number;
   add: (duplicate?: boolean) => void;
@@ -39,14 +43,10 @@ export function SlideStrip({ channel, simple = false, active, add, changeSlide, 
   slide: EditorSlide;
   thumbDrag: MutableRefObject<{ from: number; x: number; y: number; moved: boolean } | null>;
   thumbIndexAt: (x: number, y: number) => number;
-}) {
-  // La vignette ouverte reste visible quand on change de slide par les flèches.
-  useEffect(() => {
-    const thumb = window.document.querySelector<HTMLElement>(`[data-thumb="${active}"]`);
-    thumb?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-  }, [active]);
-  // Boutons de la colonne (ordinateur) : pleine largeur, libellé sur deux lignes si besoin.
-  const colButton = "h-8 md:h-auto md:w-full md:justify-start md:whitespace-normal md:px-2 md:py-1 md:text-left md:text-2xs md:leading-tight";
+};
+
+/** Boutons de la slide ouverte : ajouter, dupliquer, supprimer, déplacer (ligne du haut sur ordinateur, sous les vignettes sur téléphone). */
+export function SlideTools({ simple = false, active, add, changeSlide, commit, current, document, move, setActive, setSelected, slide, className = "" }: StripProps & { className?: string }) {
   const last = document.slides.length - 1;
   const full = document.slides.length >= CAROUSEL_MAX_SLIDES;
   const remove = () => {
@@ -69,32 +69,69 @@ export function SlideStrip({ channel, simple = false, active, add, changeSlide, 
       },
     });
   };
-  // Mode simple : petits boutons sous la vignette choisie (à côté, sur téléphone).
-  const orderTools = (
-    <div className="flex shrink-0 flex-col items-center justify-center gap-0.5 md:flex-row" data-testid="slide-order-tools">
-      {/* Sur téléphone, les flèches seules passaient pour « slide suivante » (audit du 01/11). */}
-      <span className="text-[9px] leading-none text-muted-foreground md:hidden">Déplacer</span>
-      {([
-        ["Monter la slide", () => move(-1), active === 0, <><ArrowLeft size={13} className="md:hidden" /><ArrowUp size={13} className="hidden md:block" /></>],
-        ["Descendre la slide", () => move(1), active === last, <><ArrowRight size={13} className="md:hidden" /><ArrowDown size={13} className="hidden md:block" /></>],
-        ["Dupliquer la slide", () => add(true), full, <Copy size={13} />],
-      ] as const).map(([label, onClick, disabled, icon]) => (
-        <Button key={label} size="icon" variant="outline" className="h-6 w-6" aria-label={label} title={label} onClick={onClick} disabled={disabled}>
-          {icon}
+  const tool = "h-8 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground";
+  return (
+    <div className={`flex flex-wrap items-center gap-0.5 ${className}`} role="group" aria-label="Slide ouverte" data-testid="slide-order-tools">
+      <Button size="sm" variant="ghost" className={tool} disabled={full} onClick={() => add()} aria-label="Ajouter une slide">
+        <Plus size={14} className="shrink-0" /> Ajouter
+      </Button>
+      <Button size="sm" variant="ghost" className={tool} disabled={full} onClick={() => add(true)} aria-label="Dupliquer la slide">
+        <Copy size={14} className="shrink-0" /> Dupliquer
+      </Button>
+      <Button size="sm" variant="ghost" className={tool} disabled={document.slides.length <= 2 || slide.locked} onClick={remove} aria-label="Supprimer la slide">
+        <Trash2 size={14} className="shrink-0" /> Supprimer
+      </Button>
+      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" aria-label="Monter la slide" title="Déplacer la slide avant" disabled={active === 0} onClick={() => move(-1)}>
+        <ArrowLeft size={14} />
+      </Button>
+      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" aria-label="Descendre la slide" title="Déplacer la slide après" disabled={active === last} onClick={() => move(1)}>
+        <ArrowRight size={14} />
+      </Button>
+      {!simple && (
+        <Button size="sm" variant="ghost" className={tool} onClick={() => changeSlide({ ...slide, locked: !slide.locked })}>
+          {slide.locked ? <Unlock size={14} className="shrink-0" /> : <LockKeyhole size={14} className="shrink-0" />}
+          {slide.locked ? "Déverrouiller" : "Verrouiller"}
         </Button>
-      ))}
+      )}
     </div>
   );
+}
+
+/** Vignettes des slides : une rangée sous la slide (ordinateur) ; des points, et les vignettes à la demande (téléphone). */
+export function SlideStrip(props: StripProps) {
+  const { channel, active, current, document, dragSlide, dropAt, justDragged, reorder, setActive, setDragSlide, setDropAt, setSelected, thumbDrag, thumbIndexAt, add } = props;
+  // Téléphone : les vignettes s'ouvrent avec « Toutes » et se referment au choix d'une slide.
+  const [all, setAll] = useState(false);
+  // La vignette ouverte reste visible quand on change de slide par les flèches.
+  useEffect(() => {
+    const thumb = window.document.querySelector<HTMLElement>(`[data-thumb="${active}"]`);
+    thumb?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [active]);
+  const full = document.slides.length >= CAROUSEL_MAX_SLIDES;
+  const open = (i: number) => {
+    setActive(i);
+    setSelected(null);
+  };
   return (
-    <>
-    <div className="flex flex-col gap-1.5 md:max-h-[var(--editor-room,calc(100vh-15rem))] md:gap-2">
-      <div
-        className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 md:min-h-0 md:flex-1 md:flex-col md:items-center md:overflow-x-hidden md:overflow-y-auto md:pb-0"
-        aria-label="Slides du carrousel"
-      >
+    <div className="flex min-w-0 flex-col items-center gap-1">
+      <div className="flex w-full items-center gap-2 md:hidden">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center" role="group" aria-label="Aller à une slide" data-testid="slide-dots">
+          {document.slides.map((s, i) => (
+            <button key={s.id} type="button" aria-label={`Aller à la slide ${i + 1}`} aria-current={i === active ? "true" : undefined} onClick={() => open(i)} className="p-1">
+              <span className={`block h-2 rounded-full transition-all ${i === active ? "w-5 bg-primary" : "w-2 bg-primary/25"}`} />
+            </button>
+          ))}
+        </div>
+        <Button size="sm" variant="outline" className="h-8 shrink-0 gap-1 px-2 text-xs" aria-expanded={all} aria-label={all ? "Fermer la liste des slides" : "Voir toutes les slides"} data-testid="all-slides-toggle" onClick={() => setAll((a) => !a)}>
+          <LayoutGrid size={14} /> {all ? "Fermer" : "Toutes"}
+        </Button>
+      </div>
+      {/* Le « + » est à côté des vignettes, pas dedans : la liste « Slides du carrousel » ne compte que des slides. */}
+      <div className={`${all ? "flex" : "hidden"} min-w-0 max-w-full flex-wrap justify-center gap-1.5 p-1 md:flex md:w-fit md:flex-nowrap md:justify-start md:gap-1 md:overflow-x-auto`}>
+      <div className="contents" aria-label="Slides du carrousel">
         {document.slides.map((s, i) => (
-          <Fragment key={s.id}>
           <button
+            key={s.id}
             type="button"
             data-thumb={i}
             style={{ touchAction: "none" }}
@@ -130,107 +167,40 @@ export function SlideStrip({ channel, simple = false, active, add, changeSlide, 
                 justDragged.current = false;
                 return;
               }
-              setActive(i);
-              setSelected(null);
+              open(i);
+              setAll(false);
             }}
             aria-label={`Sélectionner la slide ${i + 1}`}
             aria-pressed={i === active}
             title="Clique pour ouvrir, glisse pour changer l’ordre"
             className={`relative shrink-0 cursor-grab rounded-lg border p-0.5 text-2xs ${i === active ? "border-primary ring-2 ring-primary/40" : "bg-background"} ${dragSlide === i ? "opacity-50" : ""} ${dropAt === i && dragSlide !== i ? "outline outline-2 outline-offset-2 outline-primary" : ""}`}
           >
-            <SlideThumb html={s.html} width={56} />
-            <span className="block text-center font-semibold leading-tight">
+            <SlideThumb html={s.html} width={34} />
+            <span className={`block text-center leading-tight ${i === active ? "font-semibold text-primary" : "text-muted-foreground"}`}>
               {i + 1}
               {s.locked ? " 🔒" : ""}
             </span>
           </button>
-          {simple && i === active && orderTools}
-          </Fragment>
         ))}
       </div>
-      {document.slides.length > 1 && (
-        // Téléphone (chantier AB) : l'aide passe sous « Ajouter / Supprimer la slide »,
-        // qui restent ainsi au-dessus de la barre « Publier » à l'arrivée.
-        <p className="order-last shrink-0 text-2xs leading-tight text-muted-foreground md:order-none">Glisse une vignette pour changer l’ordre.</p>
-      )}
-      {/* Boutons des slides, avec l'avertissement « plus de 10 slides » dessous : en bas
-          de la colonne sur ordinateur, sous les miniatures sur téléphone. */}
-      <div className="flex shrink-0 flex-col gap-1">
-      <div className="flex flex-wrap gap-1.5 md:flex-col md:gap-1">
-        {!simple && (<>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => move(-1)}
-          disabled={active === 0}
-          aria-label="Monter la slide"
-          className={colButton}
-        >
-          <ArrowLeft size={14} className="md:hidden" /><ArrowUp size={14} className="hidden md:block" />
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => move(1)}
-          disabled={active === last}
-          aria-label="Descendre la slide"
-          className={colButton}
-        >
-          <ArrowRight size={14} className="md:hidden" /><ArrowDown size={14} className="hidden md:block" />
-        </Button>
-        </>)}
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={full}
-          onClick={() => add()}
-          className={colButton}
-        >
-          <Plus size={14} className="mr-1 shrink-0" />
-          Ajouter une slide
-        </Button>
-        {!simple && (<>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={full}
-          onClick={() => add(true)}
-          className={colButton}
-        >
-          <Copy size={14} className="mr-1 shrink-0" />
-          Dupliquer
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => changeSlide({ ...slide, locked: !slide.locked })}
-          className={colButton}
-        >
-          {slide.locked ? <Unlock size={14} className="shrink-0" /> : <LockKeyhole size={14} className="shrink-0" />}
-          <span className="ml-1">
-            {slide.locked ? "Déverrouiller" : "Verrouiller"}
-          </span>
-        </Button>
-        </>)}
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={document.slides.length <= 2 || slide.locked}
-          className={colButton}
-          onClick={remove}
-        >
-          <Trash2 size={14} className="mr-1 shrink-0" />
-          Supprimer la slide
-        </Button>
+        <button type="button" disabled={full} onClick={() => add()} aria-label="Ajouter une slide à la suite" title="Ajouter une slide" className="flex h-[47px] w-10 shrink-0 items-center justify-center self-start rounded-lg border border-dashed text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-40">
+          <Plus size={16} />
+        </button>
       </div>
-      {channel !== "linkedin" && document.slides.length > INSTAGRAM_DIRECT_MAX_IMAGES && (
-        <p className="text-xs text-muted-foreground md:text-2xs md:leading-tight">
-          {document.slides.length} slides : au-delà de {INSTAGRAM_DIRECT_MAX_IMAGES}, publie-le depuis l’appli Instagram.{" "}
-          <HelpTip label="nombre de slides">{instagramTooManyImagesReason(document.slides.length)}</HelpTip>
-        </p>
-      )}
+      {/* Téléphone : les boutons de la slide avec les vignettes ouvertes (ordinateur : ligne du haut). */}
+      {all && <SlideTools {...props} className="justify-center md:hidden" />}
+      {/* Une seule ligne sous les vignettes : elle doit tenir au-dessus de la barre « Publier » (EditorLayout.tsx). */}
+      <div className="flex flex-wrap items-center justify-center gap-x-3 text-center text-2xs leading-tight text-muted-foreground">
+        {document.slides.length > 1 && (
+          <p className={`${all ? "block" : "hidden"} md:block md:[@media(max-height:799px)]:hidden`}>Clique une vignette pour l’ouvrir, glisse-la pour changer l’ordre.</p>
+        )}
+        {channel !== "linkedin" && document.slides.length > INSTAGRAM_DIRECT_MAX_IMAGES && (
+          <p>
+            {document.slides.length} slides : au-delà de {INSTAGRAM_DIRECT_MAX_IMAGES}, publie-le depuis l’appli Instagram.{" "}
+            <HelpTip label="nombre de slides">{instagramTooManyImagesReason(document.slides.length)}</HelpTip>
+          </p>
+        )}
       </div>
     </div>
-    </>
   );
 }

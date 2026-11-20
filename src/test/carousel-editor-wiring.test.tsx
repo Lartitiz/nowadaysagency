@@ -297,9 +297,9 @@ describe("boutons des slides", () => {
     render(<Harness />);
     const before = saved();
     fireEvent.click(screen.getByLabelText("Sélectionner la slide 2"));
-    fireEvent.click(buttonText("Supprimer la slide"));
+    fireEvent.click(screen.getByRole("button", { name: "Supprimer la slide" }) as HTMLButtonElement);
     expect(saved().slides.map((s: any) => s.title)).toEqual(["Un", undefined]);
-    expect(buttonText("Supprimer la slide").disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Supprimer la slide" }) as HTMLButtonElement).disabled).toBe(true);
     undo();
     expect(saved()).toEqual(before);
   });

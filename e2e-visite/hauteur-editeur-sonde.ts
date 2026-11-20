@@ -34,8 +34,12 @@ import { mesureBoutonBeta } from "./beta-bouton-sonde";
 // 18/10/2026 : 67 commandes après X (ordre des slides), AA (« Refaire cette slide ») et AB
 // (« Mise en page », « Thème du carrousel », « Ajouter une icône »), ajouts validés par
 // Laetitia dans le plan design : seuil carrousel relevé de 65 à 72.
+// 20/11/2026, éditeur facile (maquette validée par Laetitia après le retour d'une cliente) :
+// sur téléphone, les textes de la slide et la demande à l'IA sont maintenant écrits sous la
+// slide (avant : cachés derrière « Écrire » et une baguette sans nom) : 3,05 écrans mesurés,
+// seuil relevé de 2,45 à 3,35. Ordinateur inchangé (1,84), 66 commandes.
 const SEUILS = {
-  carrousel: { ordi: 2.05, telephone: 2.45, commandes: 72 },
+  carrousel: { ordi: 2.05, telephone: 3.35, commandes: 72 },
   stories: { ordi: 2.3, telephone: 3.3, commandes: 70 },
 } as const;
 
@@ -45,7 +49,10 @@ const VIEWPORTS = [
   { nom: "telephone", width: 390, height: 844 },
 ] as const;
 // Largeur minimale de la slide par taille (W élargi : 521 / 377 / 356 px le 18/10/2026).
-const SLIDE_MIN: Record<string, number> = { ordi: 440, "petit écran": 330, telephone: 320 };
+// 20/11/2026, éditeur facile : sur ordinateur, toutes les vignettes sont en rangée SOUS la
+// slide (la colonne n'en montrait que 4 sur 14), qui leur laisse environ 80 px de haut.
+// Seuils : 420 / 295 / 320 (environ 5 % sous la mesure du jour).
+const SLIDE_MIN: Record<string, number> = { ordi: 420, "petit écran": 295, telephone: 320 };
 
 const fr = (n: number) => n.toFixed(2).replace(".", ",");
 

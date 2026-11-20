@@ -303,7 +303,7 @@ describe("carousel editor interaction", () => {
   });
   it("duplicates a slide with its visual, selects it, and supports removal and undo", () => {
     render(<Harness />);
-    fireEvent.click(screen.getByRole("button", { name: "Dupliquer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dupliquer la slide" }));
     expect(screen.getByLabelText("Sélectionner la slide 3")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^Supprimer la slide$/ }));
     expect(screen.queryByLabelText("Sélectionner la slide 3")).toBeNull();

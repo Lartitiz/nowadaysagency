@@ -60,6 +60,8 @@ describe("slide thumbnails", () => {
 
 describe("preview zoom and full screen", () => {
   it("zooms the preview and opens it full screen", () => {
+    // Éditeur facile (20/11/2026) : zoom et « En grand » sont dans « Plus d'outils ».
+    window.localStorage.setItem("carousel-editor:mode", "complet");
     render(<Harness />);
     fireEvent.click(screen.getByLabelText("Zoomer l’aperçu"));
     expect(screen.getByText("150 %")).toBeTruthy();

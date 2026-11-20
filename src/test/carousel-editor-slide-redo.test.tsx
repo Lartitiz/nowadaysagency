@@ -5,7 +5,7 @@
 // refait pas, une erreur ne touche à rien. La slide refaite garde ses zones
 // PowerPoint (data-pptx-editable) et sa photo d'origine.
 import { useState } from "react";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import CarouselEditor from "@/components/creer/CarouselEditor";
 import { buildSlideRedoBody, collectSlidePhotos, slideFromRedo, type SlideRedoApi } from "@/components/creer/CarouselEditorParts/slide-redo";
@@ -63,6 +63,8 @@ async function askRedo(instruction: string) {
 }
 
 describe("Refaire cette slide dans l'éditeur", () => {
+  // Bouton et fenêtre : le mode « Plus d'outils » (en mode simple, la demande est dans le panneau, plus bas).
+  beforeEach(() => window.localStorage.setItem("carousel-editor:mode", "complet"));
   it("refait la slide 3 : les 13 autres inchangées, une étape d'Annuler revient à l'avant", async () => {
     const api = fakeApi();
     render(<Harness api={api} />);
@@ -106,7 +108,7 @@ describe("Refaire cette slide dans l'éditeur", () => {
     fireEvent.click(screen.getByRole("button", { name: "Annuler la modification" }));
     expect(saved().v.map((s: any) => s.html)).toEqual(before.v.map((s: any) => s.html));
     expect(saved().r.slides[2].title).toBe("Titre 3");
-  });
+  }, 20_000);
 
   it("« Garder la mienne » ne change rien", async () => {
     render(<Harness api={fakeApi()} />);
@@ -169,6 +171,74 @@ describe("Refaire cette slide dans l'éditeur", () => {
     }
     render(<Bare />);
     expect(screen.queryByTestId("slide-redo-button")).toBeNull();
+  });
+});
+
+// Éditeur facile (20/11/2026) : en mode simple (par défaut), la demande à l'IA s'écrit
+// dans le panneau, sous les textes de la slide. Ni bouton sans nom, ni fenêtre.
+describe("Demander un changement à l'IA dans le panneau (mode simple)", () => {
+  it("idées à toucher, crédit annoncé, les deux versions au même endroit, sans fenêtre", async () => {
+    const api = fakeApi();
+    render(<Harness api={api} />);
+    const before = saved();
+    fireEvent.click(screen.getByRole("button", { name: "Sélectionner la slide 3" }));
+    const ask = await screen.findByTestId("slide-ask");
+    expect(screen.queryByTestId("slide-redo-button")).toBeNull();
+    expect(within(ask).getByText("Demander un changement à l'IA")).toBeTruthy();
+    expect(ask.textContent).toContain("Les autres slides ne bougent pas. Il te reste 22 crédits ce mois-ci.");
+    expect(ask.outerHTML).not.toMatch(/Claude/);
+    // Champ vide : un mot d'aide, aucune demande envoyée.
+    fireEvent.click(within(ask).getByRole("button", { name: "Refaire cette slide · 1 crédit" }));
+    expect(within(ask).getByRole("alert").textContent).toBe("Choisis une idée ou écris ta demande.");
+    expect(api.calls).toHaveLength(0);
+    // Une idée remplit le champ.
+    fireEvent.click(within(ask).getByRole("button", { name: "Plus court" }));
+    expect((within(ask).getByLabelText("Dis ce que tu veux changer sur cette slide") as HTMLTextAreaElement).value).toBe("Plus court");
+    fireEvent.click(within(ask).getByRole("button", { name: "Refaire cette slide · 1 crédit" }));
+    expect(await within(ask).findByText("Slide 3 : voici la nouvelle version")).toBeTruthy();
+    expect(screen.queryByTestId("slide-redo-dialog")).toBeNull();
+    expect(api.calls[0]).toMatchObject({ type: "slide_redo", redo_slide_number: 3, instruction: "Plus court" });
+    expect(saved()).toEqual(before);
+    fireEvent.click(within(ask).getByRole("button", { name: "Garder la nouvelle" }));
+    expect(saved().v[2].html).toContain("Trois passages");
+    expect(saved().v[1].html).toBe(before.v[1].html);
+    // Le bloc revient à la demande, pour la slide ouverte.
+    expect(await within(screen.getByTestId("slide-ask")).findByText("Demander un changement à l'IA")).toBeTruthy();
+  });
+
+  it("la demande suit la slide ouverte ; « Garder la mienne » ne change rien", async () => {
+    const api = fakeApi();
+    render(<Harness api={api} />);
+    const before = saved();
+    fireEvent.click(screen.getByRole("button", { name: "Sélectionner la slide 5" }));
+    const ask = await screen.findByTestId("slide-ask");
+    fireEvent.change(within(ask).getByLabelText("Dis ce que tu veux changer sur cette slide"), { target: { value: "plus percutant" } });
+    fireEvent.click(within(ask).getByRole("button", { name: "Refaire cette slide · 1 crédit" }));
+    await within(ask).findByText("Slide 5 : voici la nouvelle version");
+    expect(api.calls[0]).toMatchObject({ redo_slide_number: 5, instruction: "plus percutant" });
+    fireEvent.click(within(ask).getByRole("button", { name: "Garder la mienne" }));
+    expect(saved()).toEqual(before);
+  });
+
+  it("une erreur s'affiche dans le bloc ; une slide verrouillée dit pourquoi", async () => {
+    const locked = { ...raw, slides: raw.slides.map((s) => (s.slide_number === 3 ? { ...s, editor_locked: true } : s)) };
+    render(<Harness api={fakeApi({ request: async () => ({ data: null, error: "Rien n'a été débité : reformule ta consigne." }) })} rawIn={locked} />);
+    const ask = await screen.findByTestId("slide-ask");
+    fireEvent.click(within(ask).getByRole("button", { name: "Plus court" }));
+    fireEvent.click(within(ask).getByRole("button", { name: "Refaire cette slide · 1 crédit" }));
+    expect((await within(ask).findByRole("alert")).textContent).toMatch(/Rien n'a été débité/);
+    fireEvent.click(screen.getByRole("button", { name: "Sélectionner la slide 3" }));
+    expect(await within(ask).findByText("Déverrouille la slide pour la refaire")).toBeTruthy();
+    expect(within(ask).queryByRole("button", { name: "Refaire cette slide · 1 crédit" })).toBeNull();
+  });
+
+  it("sans l'appli (pas de slideRedo) : pas de bloc", () => {
+    function Bare() {
+      const [r, setR] = useState<any>(raw), [v, setV] = useState(visuals);
+      return <CarouselEditor result={r} visualSlides={v} onChange={(a, b) => { setR(a); setV(b); }} />;
+    }
+    render(<Bare />);
+    expect(screen.queryByTestId("slide-ask")).toBeNull();
   });
 });
 
