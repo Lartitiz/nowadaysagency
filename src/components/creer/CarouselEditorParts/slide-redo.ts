@@ -3,7 +3,7 @@
 // la slide choisie puis la fait redessiner par carousel-visual ; ici on prépare
 // la demande à partir du carrousel tel qu'il est dans l'éditeur, et on construit
 // la slide refaite. Les autres slides ne sont jamais touchées.
-import { prepareSlideHtml, slidePhotoSource, type CarouselDocument, type EditorSlide } from "@/lib/carousel-editor";
+import { prepareSlideHtml, visiblePhotoSource, type CarouselDocument, type EditorSlide } from "@/lib/carousel-editor";
 import { visualSlidePayload } from "@/lib/visual-slide-payload";
 
 /** Exemples qui tournent dans le champ vide (pas de boutons tout faits, choix C6). */
@@ -34,14 +34,14 @@ export const PHOTO_ONLY_REASON = "Cette slide est une photo seule, sans texte : 
 export function isPhotoOnlySlide(slide: EditorSlide): boolean {
   const d = slide.data || {};
   const text = ["title", "body", "overlay_text", "kicker", "detail", "cta_label"].some((k) => typeof d[k] === "string" && d[k].trim());
-  return !text && !d.visual_schema && !!slidePhotoSource(slide.html);
+  return !text && !d.visual_schema && !!visiblePhotoSource(slide.html);
 }
 
 /** Photos du carrousel lues dans les slides (une par adresse, 10 au plus) et leur numéro par slide. */
 export function collectSlidePhotos(document: CarouselDocument): { sources: string[]; indexBySlide: (number | undefined)[] } {
   const sources: string[] = [];
   const indexBySlide = document.slides.map((s) => {
-    const src = slidePhotoSource(s.html);
+    const src = visiblePhotoSource(s.html);
     if (!src || !/^(data:image\/|https?:\/\/)/.test(src)) return undefined;
     let i = sources.indexOf(src);
     if (i < 0 && sources.length < 10) { sources.push(src); i = sources.length - 1; }

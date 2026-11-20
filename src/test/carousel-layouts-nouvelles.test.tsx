@@ -1,6 +1,6 @@
 // Nouvelles mises en page (20/11/2026) : charte gardée, texte jamais coupé.
 import { describe, expect, it } from "vitest";
-import { composeLayout, extractStyleTokens, LAYOUTS, prepareSlideHtml } from "@/lib/carousel-editor";
+import { composeLayout, extractStyleTokens, LAYOUTS, prepareSlideHtml, slidePhotoSource, slideExtraTexts, visiblePhotoSource } from "@/lib/carousel-editor";
 import { contrast, fitText } from "@/lib/carousel-layouts";
 
 const dom = (html: string) => new DOMParser().parseFromString(html, "text/html");
@@ -50,6 +50,17 @@ describe("mises en page : la charte de la slide est gardée", () => {
       const bg = card?.style.backgroundColor || root.style.backgroundColor || root.style.background;
       for (const el of d.querySelectorAll<HTMLElement>("[data-slide-text]")) expect(contrast(el.style.color, bg), `${variant} ${el.dataset.slideText}`).toBeGreaterThanOrEqual(3);
     }
+  });
+  it("passer par une mise en page sans photo ne perd pas la photo", () => {
+    // Vu en ligne le 20/11/2026 : après « Carte », la galerie ne proposait plus les mises en page photo.
+    const PHOTO = "https://example.com/p.jpg";
+    const photoSlide = composeLayout(DATA, "photo-haut", PHOTO, extractStyleTokens(BRAND));
+    const textSlide = composeLayout(photoSlide.data, "carte", slidePhotoSource(photoSlide.html), extractStyleTokens(photoSlide.html), slideExtraTexts(photoSlide));
+    expect(visiblePhotoSource(textSlide.html)).toBe("");
+    expect(textSlide.data.slide_type).toBe("text_only");
+    expect(slidePhotoSource(textSlide.html)).toBe(PHOTO);
+    const again = composeLayout(textSlide.data, "photo-arche", slidePhotoSource(textSlide.html), extractStyleTokens(textSlide.html));
+    expect(visiblePhotoSource(again.html)).toBe(PHOTO);
   });
   it("une ancienne slide « photo à gauche » reste recomposable", () => {
     expect(composeLayout(DATA, "photo-gauche", "https://example.com/p.jpg").data.layout_variant).toBe("photo-haut");
