@@ -306,6 +306,10 @@ test("contenus figés — post Instagram", async ({ page }) => {
     locator: result,
     // Aperçu replié (« … plus ») : on le déplie pour comparer TOUT le texte.
     before: async () => {
+      // Ligne « Tout est enregistré dans ton compte » (post rangé tout seul, #1951) : elle
+      // est dans la zone et son texte change (« Enregistrement en cours… », versions).
+      // Retirée le temps de la comparaison, qui ne porte que sur le post.
+      await page.addStyleTag({ content: '[data-testid="result-content"] [aria-label="Sauvegarde automatique"]{display:none!important}' });
       const more = result.getByRole("button", { name: /^plus$/i }).first()
         .or(result.getByText(/^plus$/i).first());
       if (await more.isVisible().catch(() => false)) await more.click();
