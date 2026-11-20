@@ -51,8 +51,9 @@ const VIEWPORTS = [
 // Largeur minimale de la slide par taille (W élargi : 521 / 377 / 356 px le 18/10/2026).
 // 20/11/2026, éditeur facile : sur ordinateur, toutes les vignettes sont en rangée SOUS la
 // slide (la colonne n'en montrait que 4 sur 14), qui leur laisse environ 80 px de haut.
-// Seuils : 420 / 295 / 320 (environ 5 % sous la mesure du jour).
-const SLIDE_MIN: Record<string, number> = { ordi: 420, "petit écran": 295, telephone: 320 };
+// Seuils : 420 / 290 / 320 (environ 5 % sous la mesure du jour ; la largeur va par paliers de 16 px
+// sur ordinateur : 440 et 296 ou 312 px).
+const SLIDE_MIN: Record<string, number> = { ordi: 420, "petit écran": 290, telephone: 320 };
 
 const fr = (n: number) => n.toFixed(2).replace(".", ",");
 
