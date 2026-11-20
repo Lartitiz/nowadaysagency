@@ -132,7 +132,9 @@ export function SimplePanel({ applyCarouselTheme, canvasApi, changeLayout, chang
           <Button size="sm" variant="ghost" className="h-7 gap-1 px-1.5 text-xs text-primary"><Icon size={14} aria-hidden="true" /> {label}</Button>
         )}
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-80 space-y-2 p-3" aria-label={label}>
+      {/* 20/11/2026 : la bulle ne dépasse jamais de l'écran (8 mises en page = 3 rangées) : elle
+          se cale sur la hauteur libre et défile au besoin. */}
+      <PopoverContent align="start" collisionPadding={8} className="max-h-[var(--radix-popover-content-available-height)] w-80 space-y-2 overflow-y-auto p-3" aria-label={label}>
         <p className="text-xs font-semibold">{label}</p>
         {content}
       </PopoverContent>
