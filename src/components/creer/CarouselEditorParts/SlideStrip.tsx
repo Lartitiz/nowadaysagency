@@ -71,15 +71,15 @@ export function SlideTools({ simple = false, active, add, changeSlide, commit, c
   };
   const tool = "h-8 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground";
   return (
-    <div className={`flex flex-wrap items-center gap-0.5 ${className}`} role="group" aria-label="Slide ouverte" data-testid="slide-order-tools">
+    <div className={`flex shrink-0 items-center gap-0.5 ${className}`} role="group" aria-label="Slide ouverte" data-testid="slide-order-tools">
       <Button size="sm" variant="ghost" className={tool} disabled={full} onClick={() => add()} aria-label="Ajouter une slide">
-        <Plus size={14} className="shrink-0" /> Ajouter
+        <Plus size={14} className="shrink-0" /> <span className="max-lg:sr-only">Ajouter</span>
       </Button>
       <Button size="sm" variant="ghost" className={tool} disabled={full} onClick={() => add(true)} aria-label="Dupliquer la slide">
-        <Copy size={14} className="shrink-0" /> Dupliquer
+        <Copy size={14} className="shrink-0" /> <span className="max-lg:sr-only">Dupliquer</span>
       </Button>
       <Button size="sm" variant="ghost" className={tool} disabled={document.slides.length <= 2 || slide.locked} onClick={remove} aria-label="Supprimer la slide">
-        <Trash2 size={14} className="shrink-0" /> Supprimer
+        <Trash2 size={14} className="shrink-0" /> <span className="max-lg:sr-only">Supprimer</span>
       </Button>
       <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" aria-label="Monter la slide" title="Déplacer la slide avant" disabled={active === 0} onClick={() => move(-1)}>
         <ArrowLeft size={14} />
@@ -90,7 +90,7 @@ export function SlideTools({ simple = false, active, add, changeSlide, commit, c
       {!simple && (
         <Button size="sm" variant="ghost" className={tool} onClick={() => changeSlide({ ...slide, locked: !slide.locked })}>
           {slide.locked ? <Unlock size={14} className="shrink-0" /> : <LockKeyhole size={14} className="shrink-0" />}
-          {slide.locked ? "Déverrouiller" : "Verrouiller"}
+          <span className="max-lg:sr-only">{slide.locked ? "Déverrouiller" : "Verrouiller"}</span>
         </Button>
       )}
     </div>
@@ -113,7 +113,7 @@ export function SlideStrip(props: StripProps) {
     setSelected(null);
   };
   return (
-    <div className="flex min-w-0 flex-col items-center gap-1">
+    <div className="mt-2 flex min-w-0 flex-col items-center gap-1">
       <div className="flex w-full items-center gap-2 md:hidden">
         <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center" role="group" aria-label="Aller à une slide" data-testid="slide-dots">
           {document.slides.map((s, i) => (
@@ -187,8 +187,9 @@ export function SlideStrip(props: StripProps) {
           <Plus size={16} />
         </button>
       </div>
-      {/* Téléphone : les boutons de la slide avec les vignettes ouvertes (ordinateur : ligne du haut). */}
-      {all && <SlideTools {...props} className="justify-center md:hidden" />}
+      {/* Les boutons de la slide : avec les vignettes ouvertes sur téléphone ; sous les vignettes en mode
+          « Plus d'outils » (la ligne du haut y est pleine) ; dans la ligne du haut en mode simple. */}
+      {(all || !props.simple) && <SlideTools {...props} className={`flex-wrap justify-center ${props.simple ? "md:hidden" : all ? "" : "max-md:hidden"}`} />}
       {/* Une seule ligne sous les vignettes : elle doit tenir au-dessus de la barre « Publier » (EditorLayout.tsx). */}
       <div className="flex flex-wrap items-center justify-center gap-x-3 text-center text-2xs leading-tight text-muted-foreground">
         {document.slides.length > 1 && (
