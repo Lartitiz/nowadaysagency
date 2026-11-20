@@ -53,7 +53,8 @@ describe("mises en page : la charte de la slide est gardée", () => {
   });
   it("passer par une mise en page sans photo ne perd pas la photo", () => {
     // Vu en ligne le 20/11/2026 : après « Carte », la galerie ne proposait plus les mises en page photo.
-    const PHOTO = "https://example.com/p.jpg";
+    // Photo importée = adresse data: très longue (cas réel en ligne) : gardée aussi.
+    const PHOTO = `data:image/jpeg;base64,${"A".repeat(9000)}`;
     const photoSlide = composeLayout(DATA, "photo-haut", PHOTO, extractStyleTokens(BRAND));
     const textSlide = composeLayout(photoSlide.data, "carte", slidePhotoSource(photoSlide.html), extractStyleTokens(photoSlide.html), slideExtraTexts(photoSlide));
     expect(visiblePhotoSource(textSlide.html)).toBe("");
