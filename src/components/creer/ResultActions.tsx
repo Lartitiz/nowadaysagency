@@ -256,8 +256,8 @@ export default function ResultActions(p: ResultActionsProps) {
   const redoButton = redoVisible && (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" data-testid="redo-version" aria-label="Refaire une version" title="Refaire une version (1 carrousel)" className="h-10 shrink-0 gap-1.5 px-2.5 lg:px-3">
-          <RefreshCw className="h-4 w-4 shrink-0" /> <span className="lg:hidden">Refaire</span><span className="hidden lg:inline">Refaire une version</span> <ChevronDown className="hidden h-3 w-3 shrink-0 lg:inline" />
+        <Button variant="outline" data-testid="redo-version" aria-label="Refaire tout le carrousel" title="Refaire tout le carrousel (1 carrousel) : pour une seule slide, « Demander un changement à l'IA »" className="h-10 shrink-0 gap-1.5 px-2.5 lg:px-3">
+          <RefreshCw className="h-4 w-4 shrink-0" /> <span className="lg:hidden">Refaire tout</span><span className="hidden lg:inline">Refaire tout le carrousel</span> <ChevronDown className="hidden h-3 w-3 shrink-0 lg:inline" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72 max-h-96 overflow-y-auto">

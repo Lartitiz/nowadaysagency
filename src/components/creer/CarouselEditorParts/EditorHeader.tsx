@@ -5,10 +5,15 @@
 // la slide : « Slide 1 / 14 », Annuler, Rétablir, Aperçu Instagram, zoom, En grand,
 // Plus d'outils. Le titre devient le nom de la ligne (lu par les lecteurs d'écran,
 // petit libellé sur grand écran).
+// Éditeur facile (20/11/2026, maquette validée par Laetitia) : moins de boutons. À
+// gauche « Slide 1 sur 14 » et les boutons de la slide (ajouter, dupliquer,
+// supprimer) ; les flèches ‹ › sont à côté de la slide. Zoom, « En grand » et le
+// bouton « Refaire cette slide » ne restent que dans « Plus d'outils » (en mode
+// simple, la demande à l'IA est dans le panneau).
 import { Fragment, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronLeft, ChevronRight, Keyboard, Maximize2, Redo2, SlidersHorizontal, Smartphone, Undo2, ZoomIn, ZoomOut } from "lucide-react";
+import { Keyboard, Maximize2, Redo2, SlidersHorizontal, Smartphone, Undo2, ZoomIn, ZoomOut } from "lucide-react";
 import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import type { CarouselDocument } from "@/lib/carousel-editor";
 import type { EditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
@@ -42,12 +47,12 @@ const SHORTCUTS: [string, string][] = [
 ];
 
 /** Ligne d'outils du haut de l'éditeur (une ligne), avec le passage au mode complet. */
-export function EditorHeader({ showInstagramPreview = true, active, count, goTo, history, mode, redo, setFullscreen, setInstaOpen, setMode, setZoom, undo, zoom }: {
+export function EditorHeader({ showInstagramPreview = true, active, count, slideTools, history, mode, redo, setFullscreen, setInstaOpen, setMode, setZoom, undo, zoom }: {
   showInstagramPreview?: boolean;
   active: number;
   count: number;
-  /** Passer à une autre slide (flèches ‹ ›). */
-  goTo?: (index: number) => void;
+  /** Boutons de la slide ouverte (ordinateur). */
+  slideTools?: ReactNode;
   setFullscreen: (on: boolean) => void;
   setZoom: Dispatch<SetStateAction<number>>;
   zoom: number;
@@ -56,7 +61,7 @@ export function EditorHeader({ showInstagramPreview = true, active, count, goTo,
   setInstaOpen: (open: boolean) => void;
   setMode: (mode: EditorMode) => void;
   undo: (redo?: boolean) => unknown;
-  /** « Refaire cette slide » (chantier AA), en tête des outils, dans les deux modes. */
+  /** « Refaire cette slide » (chantier AA) : bouton en mode complet, bloc du panneau en mode simple. */
   redo?: ReactNode;
 }) {
   // La place du fil d'Ariane et du sous-titre va à la slide (17/10/2026) ; « Tes retouches
@@ -74,23 +79,11 @@ export function EditorHeader({ showInstagramPreview = true, active, count, goTo,
       // (passe Auriana du 12/11). La slide se colle juste dessous (CarouselEditor.tsx).
       <div role="group" aria-labelledby="carousel-editor-title" data-editor-toolbar className="sticky top-[var(--app-header-h,49px)] z-30 -mx-1 flex items-center justify-between gap-1.5 bg-background/95 px-1 py-1 backdrop-blur-sm md:top-[var(--app-header-h,57px)] lg:top-[var(--app-header-h,81px)]">
         <h2 id="carousel-editor-title" className="sr-only 2xl:not-sr-only 2xl:shrink-0 2xl:whitespace-nowrap 2xl:font-display 2xl:text-base 2xl:text-primary">Personnaliser mon carrousel</h2>
-        <p className="mr-auto flex min-w-0 shrink items-center gap-1 overflow-hidden whitespace-nowrap text-2xs text-muted-foreground md:text-xs">
-          {/* Flèches ‹ › : passer d'une slide à l'autre sans chercher la vignette
-              (retour d'une cliente en rendez-vous, 19/11/2026 : sur 14 slides, la
-              colonne n'en montrait que 4 et il fallait la faire défiler). */}
-          {goTo && (
-            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" aria-label="Slide précédente" aria-keyshortcuts="ArrowLeft PageUp" title="Slide précédente (←)" disabled={active === 0} onClick={() => goTo(active - 1)}>
-              <ChevronLeft size={16} />
-            </Button>
-          )}
-          <span className={goTo ? "min-w-[3.25rem] text-center font-medium text-foreground" : undefined}>{goTo ? `${active + 1} / ${count}` : `Slide ${active + 1} / ${count}`}</span>
-          {goTo && (
-            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" aria-label="Slide suivante" aria-keyshortcuts="ArrowRight PageDown" title="Slide suivante (→)" disabled={active >= count - 1} onClick={() => goTo(active + 1)}>
-              <ChevronRight size={16} />
-            </Button>
-          )}<span className="hidden 2xl:inline"> · Double-clic : écrire · Glisser : déplacer</span>
-          <HelpTip label="gestes sur la slide"><span className="md:hidden">Touche un texte, puis « Écrire » pour le modifier. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses. Glisse une photo plein écran pour la recadrer, les poignées pour agrandir. Tes retouches ne coûtent aucun crédit.</span><span className="hidden md:inline">Double-clique (ou touche « Écrire ») pour écrire dans un texte. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses (⌘/Ctrl pour placer librement). Glisse une photo plein écran pour la recadrer (double-clic pour une photo encadrée), les poignées pour agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre. Tes retouches ne coûtent aucun crédit.</span></HelpTip>
-        </p>
+        <div className="mr-auto flex min-w-0 shrink items-center gap-1.5 overflow-hidden whitespace-nowrap text-2xs text-muted-foreground md:text-xs">
+          <span className="shrink-0 text-sm font-semibold text-foreground" data-testid="slide-count">Slide {active + 1} <span className="font-normal text-muted-foreground">sur {count}</span></span>
+          {slideTools}
+          <HelpTip label="gestes sur la slide"><span className="md:hidden">Glisse la slide du doigt pour passer à la suivante. Écris dans les cases sous la slide pour changer un texte. Pour déplacer un bloc, touche-le d’abord, puis glisse-le : il s’aligne sur les repères roses. Glisse une photo plein écran pour la recadrer, les poignées pour agrandir. Tes retouches ne coûtent aucun crédit.</span><span className="hidden md:inline">Double-clique (ou touche « Écrire ») pour écrire dans un texte. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses (⌘/Ctrl pour placer librement). Glisse une photo plein écran pour la recadrer (double-clic pour une photo encadrée), les poignées pour agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre. Tes retouches ne coûtent aucun crédit.</span></HelpTip>
+        </div>
         <div className="flex shrink-0 items-center gap-1">
           {redo}
           <Button
@@ -102,7 +95,7 @@ export function EditorHeader({ showInstagramPreview = true, active, count, goTo,
             aria-keyshortcuts="Meta+Z Control+Z"
             className={tool}
           >
-            <Undo2 size={15} /> <span className="hidden lg:inline">Annuler</span>
+            <Undo2 size={15} /> <span className="hidden xl:inline">Annuler</span>
           </Button>
           <Button
             variant="outline"
@@ -113,13 +106,14 @@ export function EditorHeader({ showInstagramPreview = true, active, count, goTo,
             aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z Control+Y"
             className={tool}
           >
-            <Redo2 size={15} /> <span className="hidden lg:inline">Rétablir</span>
+            <Redo2 size={15} /> <span className="hidden xl:inline">Rétablir</span>
           </Button>
           {showInstagramPreview && (
             <Button variant="outline" size="sm" className={tool} onClick={() => setInstaOpen(true)} aria-label="Aperçu Instagram">
               <Smartphone size={15} /> <span className="hidden lg:inline">Aperçu Instagram</span>
             </Button>
           )}
+          {mode === "complet" && (<>
           <Button size="sm" variant="ghost" className="hidden h-8 px-1.5 md:inline-flex" aria-label="Dézoomer l’aperçu" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
             <ZoomOut size={14} />
           </Button>
@@ -130,6 +124,7 @@ export function EditorHeader({ showInstagramPreview = true, active, count, goTo,
           <Button size="sm" variant="outline" className={tool} aria-label="Ouvrir l’aperçu en grand" onClick={() => setFullscreen(true)}>
             <Maximize2 size={14} /> <span className="hidden lg:inline">En grand</span>
           </Button>
+          </>)}
           {mode === "complet" && (
           <Popover>
             <PopoverTrigger asChild>

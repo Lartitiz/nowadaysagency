@@ -92,13 +92,13 @@ describe("écran du résultat : barre d'actions courte", () => {
     expect(screen.queryByTestId("save-as-idea")).toBeNull();
   });
 
-  it("carrousel : « Refaire une version » est un bouton visible de la barre, coût écrit dans son menu (passe du 12/11)", () => {
+  it("carrousel : « Refaire tout le carrousel » est un bouton visible de la barre, coût écrit dans son menu (passe du 12/11 ; libellé du 20/11 : ne plus le confondre avec « Refaire cette slide »)", () => {
     const onRegenerate = vi.fn();
     renderResult("carousel", { slides: [{ title: "a" }] }, { onRegenerate });
     const trigger = within(screen.getByTestId("result-actions")).getByTestId("redo-version");
-    expect(trigger).toHaveAccessibleName("Refaire une version");
+    expect(trigger).toHaveAccessibleName("Refaire tout le carrousel");
     // Sur téléphone, un mot à côté de l'icône (« Refaire ») : l'icône seule passait inaperçue.
-    expect(trigger.querySelector("span.lg\\:hidden")).toHaveTextContent("Refaire");
+    expect(trigger.querySelector("span.lg\\:hidden")).toHaveTextContent("Refaire tout");
     trigger.focus();
     fireEvent.keyDown(trigger, { key: "Enter" });
     expect(screen.getByText(/Chaque nouvelle version compte pour 1 carrousel du mois/)).toBeInTheDocument();

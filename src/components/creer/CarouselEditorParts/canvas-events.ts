@@ -6,10 +6,9 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from "react";
 import { isPassiveShape, syncGlass, type ElementRect } from "@/lib/carousel-editor";
 import { findClippedIds, hasClippedElement, inspectSlide, type QualityIssue } from "@/lib/carousel-quality";
-import { caretRange, trackTyping } from "@/components/creer/CarouselEditorParts/inline-typing";
+import { caretRange, swipeDelta, swipeStart, trackTyping } from "@/components/creer/CarouselEditorParts/inline-typing";
 import {
-  clamp,
-  numberOr,
+  clamp, numberOr,
   VEIL,
   isPhotoEl,
   isFullBleed,
@@ -36,7 +35,7 @@ export interface CanvasLatest {
   onHistoryKey: (event: KeyboardEvent) => void;
   group: string[];
   onSelectAdd: (id: string) => void;
-  onSelectMany?: (ids: string[], add: boolean) => void;
+  onSelectMany?: (ids: string[], add: boolean) => void; onSwipe?: (delta: number) => void;
   onMoveMany: (moves: Record<string, Record<string, string>>) => void;
   onRemoveMany: (ids: string[]) => void;
   onCopy: () => void;
@@ -499,7 +498,7 @@ export function bindCanvas(ctx: CanvasContext) {
       shift: boolean;
     } | null = null;
     // Cadre de sélection : on part du vide (ou du fond) et on glisse.
-    let lasso: { x: number; y: number; shift: boolean; under: HTMLElement | null; moved: boolean } | null = null;
+    let lasso: { x: number; y: number; shift: boolean; under: HTMLElement | null; moved: boolean; swipe?: boolean } | null = null;
     // Clic long (sans bouger) sur un élément : le cadre de sélection part de là.
     let hold: number | undefined;
     let pointer = { x: 0, y: 0 };
@@ -566,10 +565,10 @@ export function bindCanvas(ctx: CanvasContext) {
       if (cropRef.current && inner?.dataset.editorId !== cropRef.current) setCropId(null);
       // Clic dans le vide (ou sur le fond) : on désélectionne, comme dans Canva ;
       // glisser trace un cadre qui choisit tous les éléments qu'il touche.
-      if (!inner || (isPassiveShape(inner) && !isPhotoEl(inner))) {
+      if (!inner || (isPassiveShape(inner) && !isPhotoEl(inner)) || swipeStart(e, latest.current)) {
         view.focus();
         keepFocus.current = true;
-        lasso = { x: e.clientX, y: e.clientY, shift: e.shiftKey, under: inner, moved: false };
+        lasso = { x: e.clientX, y: e.clientY, shift: e.shiftKey, under: inner, moved: false, swipe: swipeStart(e, latest.current) };
         doc.documentElement.setPointerCapture?.(e.pointerId);
         e.preventDefault();
         return;
@@ -645,7 +644,7 @@ export function bindCanvas(ctx: CanvasContext) {
         const l = lasso;
         if (!l.moved && Math.abs(e.clientX - l.x) + Math.abs(e.clientY - l.y) < 5) return;
         l.moved = true;
-        setMarquee({ x: Math.min(l.x, e.clientX), y: Math.min(l.y, e.clientY), w: Math.abs(e.clientX - l.x), h: Math.abs(e.clientY - l.y) });
+        if (!l.swipe) setMarquee({ x: Math.min(l.x, e.clientX), y: Math.min(l.y, e.clientY), w: Math.abs(e.clientX - l.x), h: Math.abs(e.clientY - l.y) });
         return;
       }
       if (!drag) return;
@@ -696,6 +695,7 @@ export function bindCanvas(ctx: CanvasContext) {
           else if (id && l.under && !isPassiveShape(l.under)) latest.current.onSelectAdd(id);
           return;
         }
+        if (l.swipe) return void (swipeDelta(l, e) && latest.current.onSwipe?.(swipeDelta(l, e)));
         const ids = lassoHits(l.x, l.y, e.clientX, e.clientY);
         if (latest.current.onSelectMany) latest.current.onSelectMany(ids, l.shift);
         else if (ids.length) latest.current.onSelect(ids[0]);

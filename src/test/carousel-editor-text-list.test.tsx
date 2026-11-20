@@ -105,16 +105,16 @@ describe("« Modifier le texte » d'un carrousel", () => {
 });
 
 describe("ordre des slides en mode simple", () => {
-  it("monter, descendre et dupliquer sont sous la vignette choisie, avec l'aide écrite", () => {
+  // Éditeur facile (20/11/2026) : ces boutons sont dans la ligne du haut, à côté de « Slide 1 sur 3 ».
+  it("monter, descendre et dupliquer sont à côté du compteur de slides, avec l'aide écrite", () => {
     render(<Harness />);
-    expect(screen.getByText("Glisse une vignette pour changer l’ordre.")).toBeTruthy();
-    let tools = screen.getByTestId("slide-order-tools");
-    expect(tools.previousElementSibling?.getAttribute("data-thumb")).toBe("0");
+    expect(screen.getByText("Clique une vignette pour l’ouvrir, glisse-la pour changer l’ordre.")).toBeTruthy();
+    const tools = screen.getAllByTestId("slide-order-tools")[0];
+    expect(tools.previousElementSibling?.getAttribute("data-testid")).toBe("slide-count");
     expect((within(tools).getByLabelText("Monter la slide") as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(within(tools).getByLabelText("Descendre la slide"));
     expect(saved().r.slides.map((s: any) => s.title)).toEqual(["Suite", "Mon atelier", "Dernière"]);
-    tools = screen.getByTestId("slide-order-tools");
-    expect(tools.previousElementSibling?.getAttribute("data-thumb")).toBe("1");
+    expect(screen.getByTestId("slide-count").textContent).toBe("Slide 2 sur 3");
     fireEvent.click(within(tools).getByLabelText("Dupliquer la slide"));
     expect(saved().r.slides.map((s: any) => s.title)).toEqual(["Suite", "Mon atelier", "Mon atelier", "Dernière"]);
   });

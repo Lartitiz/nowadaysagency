@@ -40,7 +40,7 @@ export default function SlideCanvas({
   simple,
   group,
   onSelectAdd,
-  onSelectMany,
+  onSelectMany, onSwipe,
   onMoveMany,
   onRemoveMany,
   onCopy,
@@ -75,6 +75,8 @@ export default function SlideCanvas({
   onSelectAdd: (id: string) => void;
   /** Cadre de sélection glissé depuis le vide : les éléments qu'il touche. */
   onSelectMany?: (ids: string[], add: boolean) => void;
+  /** Téléphone : un doigt qui glisse sur la slide, rien de choisi (+1 suivante, −1 précédente). */
+  onSwipe?: (delta: number) => void;
   onMoveMany: (moves: Record<string, Record<string, string>>) => void;
   onRemoveMany: (ids: string[]) => void;
   onCopy: () => void;
@@ -166,8 +168,8 @@ export default function SlideCanvas({
     window.document.addEventListener("focusin", leave);
     return () => window.document.removeEventListener("focusin", leave);
   }, []);
-  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onSelectMany, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, fitId, onFitDone, locked: slide.locked });
-  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onSelectMany, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, fitId, onFitDone, locked: slide.locked };
+  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onSelectMany, onSwipe, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, fitId, onFitDone, locked: slide.locked });
+  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onSelectMany, onSwipe, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, fitId, onFitDone, locked: slide.locked };
   const [extraBoxes, setExtraBoxes] = useState<CanvasBox[]>([]);
   // Glisser d'une photo depuis l'ordinateur : cadre qui la recevra (null = toute la slide).
   const [dropping, setDropping] = useState<false | ElementRect | null>(false);

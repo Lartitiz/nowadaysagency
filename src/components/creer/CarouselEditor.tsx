@@ -67,7 +67,7 @@ import { EditorHeader } from "@/components/creer/CarouselEditorParts/EditorHeade
 import { useEditorKeys } from "@/components/creer/CarouselEditorParts/editor-keys";
 import { QualityPanel } from "@/components/creer/CarouselEditorParts/QualityPanel";
 import { useFixAll } from "@/components/creer/CarouselEditorParts/use-fix-all";
-import { SlideStrip } from "@/components/creer/CarouselEditorParts/SlideStrip";
+import { SlideStrip, SlideTools } from "@/components/creer/CarouselEditorParts/SlideStrip";
 import { TextListDialog } from "@/components/creer/CarouselEditorParts/TextListDialog";
 import { AllSlidesPanel, SavedStylesPanel } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
 import { SimplePanel } from "@/components/creer/CarouselEditorParts/SimplePanel";
@@ -398,12 +398,11 @@ export default function CarouselEditor({
   const thumbIndexAt = (x: number, y: number) => {
     const thumbs = Array.from(window.document.querySelectorAll<HTMLElement>("[data-thumb]"));
     // Position d'insertion : avant la vignette dont on passe la moitié, sinon à la fin
-    // (vignettes en colonne sur ordinateur, en rangée sur téléphone).
-    const column = thumbs.length > 1 && thumbs[1].getBoundingClientRect().top > thumbs[0].getBoundingClientRect().bottom - 1;
+    // (vignettes en rangées : on regarde d'abord la rangée, puis la moitié de la vignette).
     let index = thumbs.length;
     for (let k = 0; k < thumbs.length; k++) {
       const r = thumbs[k].getBoundingClientRect();
-      if (column ? y < r.top + r.height / 2 : x < r.left + r.width / 2) {
+      if (y < r.top || (y <= r.bottom && x < r.left + r.width / 2)) {
         index = k;
         break;
       }
@@ -723,29 +722,24 @@ export default function CarouselEditor({
     </>
   );
   if (!slide) return null;
+  const strip = { channel, simple: mode === "simple", active, add, changeSlide, commit, current, document, dragSlide, dropAt, justDragged, move, reorder, setActive, setDragSlide, setDropAt, setSelected, slide, thumbDrag, thumbIndexAt };
   return (
     <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-3" onKeyDown={(event) => onEditorKey(event.nativeEvent, event.target as HTMLElement)}>
-      <EditorHeader showInstagramPreview={channel !== "linkedin"} active={active} count={document.slides.length} goTo={goToSlide} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
-        redo={slideRedo && slide && <SlideRedo api={slideRedo} raw={raw} slide={slide} getDocument={() => current.current} onKeep={(next) => commit(replaceSlide(current.current, next))} />} />
+      <EditorHeader showInstagramPreview={channel !== "linkedin"} active={active} count={document.slides.length} slideTools={mode === "simple" && <SlideTools {...strip} className="max-md:hidden" />} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
+        redo={slideRedo && slide && <SlideRedo inline={mode === "simple"} api={slideRedo} raw={raw} slide={slide} getDocument={() => current.current} onKeep={(next) => commit(replaceSlide(current.current, next))} />} />
       {toolsPortal && createPortal(
         <QualityPanel cloudTools={cloudTools} commit={commit} current={current} document={document} fixAll={fixAll} quality={quality} setActive={setActive} setSelected={setSelected} />,
         toolsPortal,
       )}
       <div ref={grid} className={EDITOR_GRID} style={roomStyle(fit)}>
-      {/* Téléphone : la rangée des vignettes sous la slide laisse sa place aux réglages dès qu'un élément est choisi. */}
-      <div className={`order-2 min-w-0 md:sticky md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none ${mode === "simple" && element && element.role !== "background" ? "hidden md:block" : ""}`}>
-      <SlideStrip channel={channel} simple={mode === "simple"} active={active} add={add} changeSlide={changeSlide} commit={commit} current={current} document={document}
-        dragSlide={dragSlide} dropAt={dropAt} justDragged={justDragged} move={move} reorder={reorder} setActive={setActive} setDragSlide={setDragSlide}
-        setDropAt={setDropAt} setSelected={setSelected} slide={slide} thumbDrag={thumbDrag} thumbIndexAt={thumbIndexAt} />
       <TextListDialog document={document} commit={commit} getDocument={() => current.current} />
-      </div>
         {/* Téléphone : l'aperçu reste collé sous l'en-tête pendant qu'on fait défiler les réglages. Sa taille suit la
             place réelle au-dessus de la barre « Publier » (EditorLayout.tsx). */}
         <div
           className={
             fullscreen
               ? "fixed inset-0 z-50 flex flex-col items-center justify-center gap-2 overflow-auto bg-background p-4"
-              : "sticky top-[calc(var(--app-header-h,49px)+2.5rem)] z-20 order-1 min-w-0 w-full bg-background pb-1 md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:bg-transparent md:pb-0"
+              : `sticky top-[calc(var(--app-header-h,49px)+2.5rem)] z-20 order-1 min-w-0 w-full bg-background pb-1 md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:bg-transparent md:pb-0 ${mode === "simple" ? "max-md:static" : ""}`
           }
           data-canvas-sticky
           onKeyDown={(e) => {
@@ -756,7 +750,7 @@ export default function CarouselEditor({
               <Minimize2 size={14} /> Quitter le plein écran
             </Button>}
           <div {...(fullscreen ? { className: "relative w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]" } : slideBoxProps(fit))}>
-          {!selected && <SlideEdgeArrows active={active} count={document.slides.length} goTo={goToSlide} />}
+          <SlideEdgeArrows active={active} count={document.slides.length} goTo={goToSlide} hideOnPhone={!!selected} />
           <SlideCanvas
             onHistoryKey={onHistoryKey}
             slide={slide}
@@ -764,7 +758,7 @@ export default function CarouselEditor({
             onSelect={selectOne}
             group={group}
             onSelectAdd={selectAdd}
-            onSelectMany={selectMany}
+            onSelectMany={selectMany} onSwipe={(delta) => goToSlide(active + delta)}
             onMoveMany={moveMany}
             onRemoveMany={removeMany}
             onCopy={copySelection}
@@ -806,9 +800,11 @@ export default function CarouselEditor({
             simple={mode === "simple"}
           />
           </div>
+          {/* Sous la slide, collées avec elle : toutes les vignettes en rangée (ordinateur), des points et « Toutes » (téléphone). */}
+          {!fullscreen && <SlideStrip {...strip} />}
         </div>
         {/* Panneau sous la slide sur téléphone ; à côté (avec son propre défilement, à la hauteur de la slide) sur ordinateur. */}
-        <div className="order-3 min-w-0 space-y-4 md:sticky md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:max-h-[var(--editor-room,calc(100vh-15rem))] md:overflow-y-auto md:rounded-xl md:border md:bg-card md:p-4">
+        <div className={`order-3 min-w-0 space-y-4 md:sticky md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:max-h-[var(--editor-room,calc(100vh-15rem))] md:overflow-y-auto ${mode === "simple" ? "" : "md:rounded-xl md:border md:bg-card md:p-4"}`}>
           {mode === "simple" ? (
             <SimplePanel applyCarouselTheme={applyCarouselTheme} canvasApi={canvasApi} changeLayout={changeLayout} changeSlide={changeSlide} commit={commit} css={css} document={document} documentFonts={documentFonts} element={element} elements={elements} fill={fill} fillAlpha={fillAlpha} fillHex={fillHex} filterValue={filterValue} fontQuery={fontQuery} layoutPreviews={layoutPreviews} onAddPhoto={onAddPhoto} onMore={() => setMode("complet")} palette={palette} pickFont={pickFont} selectOne={selectOne} setFilter={setFilter} setFitId={setFitId} setFontQuery={setFontQuery} setPhotoOpen={setPhotoOpen} slide={slide} style={style} themes={themes} />
           ) : (<>

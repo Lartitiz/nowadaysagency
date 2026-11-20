@@ -11,10 +11,15 @@ export { SlideEdgeArrows } from "./SlideEdgeArrows";
 
 export type SlideFit = { width: number; room: number };
 
-// Téléphone : sous la slide, la rangée des vignettes ou les 4 gros boutons
-// « Texte · Photo · Couleur · Police » doivent rester visibles à l'arrivée.
+// Éditeur facile (20/11/2026) : sous la slide, les points et le début de « Textes de
+// cette slide » (téléphone) ou la rangée de toutes les vignettes (ordinateur) restent
+// visibles à l'arrivée ; de chaque côté de la slide, la place d'une grosse flèche.
 const PHONE_RESERVE = 84;
 const DESKTOP_GAP = 12;
+const STRIP_RESERVE = 96;
+// Petit portable (moins de 800 px de haut) : l'aide sous les vignettes est cachée (SlideStrip.tsx), la slide reprend sa place.
+const STRIP_RESERVE_SHORT = 78;
+const ARROWS_RESERVE = 136;
 const MAX_WIDTH = 540;
 const MIN_WIDTH = 200;
 
@@ -28,7 +33,10 @@ export function measureSlideFit(grid: HTMLElement): SlideFit {
   if (bar) bottom -= (parseFloat(getComputedStyle(bar).bottom) || 0) + bar.getBoundingClientRect().height;
   const room = Math.max(0, Math.round(bottom - top - (phone ? PHONE_RESERVE : DESKTOP_GAP)));
   const column = grid.querySelector<HTMLElement>("[data-canvas-sticky]")?.clientWidth || grid.clientWidth || MAX_WIDTH;
-  const width = Math.floor(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, column, room * 0.8)));
+  // Mode « Plus d'outils » : les boutons de la slide sont sous les vignettes, la slide leur laisse leur hauteur.
+  const tools = grid.querySelector<HTMLElement>('[data-canvas-sticky] [data-testid="slide-order-tools"]')?.offsetHeight ?? 0;
+  const under = phone ? 0 : (window.innerHeight < 800 ? STRIP_RESERVE_SHORT : STRIP_RESERVE) + (tools ? tools + 4 : 0);
+  const width = Math.floor(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, column - (phone ? 0 : ARROWS_RESERVE), (room - under) * 0.8)));
   return { width, room };
 }
 
@@ -71,9 +79,9 @@ export const slideBoxProps = (fit: SlideFit | null) =>
     ? { className: "relative mx-auto w-full", style: { maxWidth: fit.width } }
     : { className: "relative mx-auto w-full max-w-[min(540px,30vh)] md:max-w-[min(540px,max(240px,calc((100vh-456px)*0.8)))]", style: undefined };
 
-/** Grille de l'éditeur : vignettes en colonne à gauche, slide, panneau (ordinateur) ; slide, puis vignettes ou réglages (téléphone). */
+/** Grille de l'éditeur : la slide et ses vignettes dessous, le panneau à droite (ordinateur) ; slide, points, puis panneau (téléphone). */
 export const EDITOR_GRID =
-  "flex flex-col gap-3 md:grid md:items-start md:grid-cols-[88px_minmax(0,1fr)_280px] md:gap-5 lg:grid-cols-[96px_minmax(0,1fr)_320px]";
+  "flex flex-col gap-3 md:grid md:items-start md:grid-cols-[minmax(0,1fr)_300px] md:gap-5 lg:grid-cols-[minmax(0,1fr)_384px]";
 
 /** Place libre au-dessus et au-dessous de la slide, entre le menu de l'app et la barre « Publier » (barre de l'élément hors de la slide). */
 export function outsideRoom(slide: Element | null | undefined): { above: number; below: number } {
