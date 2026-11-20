@@ -63,6 +63,15 @@ describe("mises en page : la charte de la slide est gardée", () => {
     const again = composeLayout(textSlide.data, "photo-arche", slidePhotoSource(textSlide.html), extractStyleTokens(textSlide.html));
     expect(visiblePhotoSource(again.html)).toBe(PHOTO);
   });
+  it("une slide sans titre prend son premier texte comme titre, jamais « Ton titre »", () => {
+    const s = composeLayout({ photo_index: 1 }, "photo-haut", "https://example.com/p.jpg", undefined, ["87 %", "Étape 2 · Le répéter", "Une mention"]);
+    const d = dom(s.html);
+    expect(d.querySelector('[data-slide-text="title"]')!.textContent).toBe("Étape 2 · Le répéter");
+    expect(d.body.textContent).not.toContain("Ton titre");
+    expect(d.body.textContent!.match(/Étape 2/g)).toHaveLength(1);
+    expect(d.body.textContent).toContain("87 %");
+    expect(composeLayout({}, "texte").data.title).toBe("Ton titre");
+  });
   it("une ancienne slide « photo à gauche » reste recomposable", () => {
     expect(composeLayout(DATA, "photo-gauche", "https://example.com/p.jpg").data.layout_variant).toBe("photo-haut");
     expect(composeLayout(DATA, "photo-arche", "").data.layout_variant).toBe("texte");

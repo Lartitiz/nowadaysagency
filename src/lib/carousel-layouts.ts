@@ -178,9 +178,13 @@ export function composeLayout(
 ): EditorSlide {
   const known = LAYOUTS.find((l) => l.variant === requested);
   const variant: LayoutVariant = !photo && known?.photo !== false ? "texte" : known ? requested : "photo-haut";
-  const title = String(data.title || data.overlay_text || "Ton titre"),
-    body = String(data.title || data.overlay_text ? data.body || "" : "");
   const more = extras.map((t) => t.trim()).filter(Boolean);
+  // Slide sans titre (photo légendée, étape…) : son premier texte sert de titre,
+  // jamais le texte d'exemple « Ton titre » (vu en ligne le 20/11/2026).
+  const named = String(data.title || data.overlay_text || "");
+  const lead = named ? -1 : more.findIndex((t) => !isStat(t));
+  const title = named || (lead >= 0 ? more.splice(lead, 1)[0] : String(data.body || "Ton titre")),
+    body = String(named ? data.body || "" : "");
   const titleFont = css(tokens.titleFont), bodyFont = css(tokens.bodyFont);
   const paper = rgbOf(tokens.background) ? tokens.background : DEFAULT_TOKENS.background;
   const darkPaper = luminance(paper) < 0.3;
