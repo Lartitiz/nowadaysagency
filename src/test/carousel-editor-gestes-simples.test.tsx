@@ -36,7 +36,7 @@ describe("gestes de base en mode simple (chantier AB)", () => {
     render(<Harness />);
     const before = saved().v[0].html, other = saved().v[1].html;
     fireEvent.click(within(panel()).getByRole("button", { name: /^Mise en page/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Mise en page Titre centré" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mise en page Grand titre" }));
     const after = saved();
     expect(after.v[0].html).not.toBe(before);
     expect(after.v[0].html).toContain("Mon atelier");

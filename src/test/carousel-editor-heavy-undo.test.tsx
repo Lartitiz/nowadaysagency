@@ -93,7 +93,7 @@ describe("annuler / rétablir après une opération lourde", () => {
     const before = state();
     fireEvent.click(screen.getByLabelText("Mise en page Citation"));
     const middle = state();
-    fireEvent.click(screen.getByLabelText("Mise en page Titre centré"));
+    fireEvent.click(screen.getByLabelText("Mise en page Grand titre"));
     undo();
     expect(state()).toBe(middle);
     undo();
