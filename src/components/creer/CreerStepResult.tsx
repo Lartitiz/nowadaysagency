@@ -616,9 +616,11 @@ export default function CreerStepResult({
     <div className="space-y-4 animate-fade-in">
       {showCelebration && <Confetti />}
 
-      {/* Moment de victoire : matérialise le résultat après l'attente */}
+      {/* Moment de victoire : matérialise le résultat après l'attente. Il flotte sous le menu (20/11/2026) :
+          posé dans la page, il poussait l'éditeur de 72 px pendant 4,5 s, puis la slide du carrousel
+          changeait de taille quand il partait. */}
       {showCelebration && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-pale border border-primary/20 animate-fade-in">
+        <div role="status" data-testid="result-celebration" className="pointer-events-none fixed inset-x-0 top-[calc(var(--app-header-h,57px)+0.5rem)] z-40 mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-2 px-4 py-3 rounded-xl bg-rose-pale border border-primary/20 shadow-lg animate-fade-in">
           <Sparkles className="h-4 w-4 text-primary shrink-0" />
           <p className="text-sm font-semibold text-foreground">
             {(FORMAT_DONE_LABELS[format] || "Ton contenu est prêt")} ✨

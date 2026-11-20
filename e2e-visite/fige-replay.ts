@@ -240,6 +240,10 @@ export async function waitZoneImages(locator: Locator, timeoutMs = 20_000): Prom
 }
 
 export async function expectZoneMatches(page: Page, locator: Locator, name: string, message: string) {
+  // Bandeau de fête « Ton brouillon de carrousel est généré » (4,5 s à l'apparition du résultat) : il flotte
+  // sous le menu depuis le 20/11/2026 (avant, il poussait l'éditeur et la slide changeait de taille). On
+  // attend quand même qu'il soit parti, pour qu'il ne passe pas devant une zone photographiée.
+  await page.getByTestId("result-celebration").waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
   await locator.scrollIntoViewIfNeeded();
   const missingImages = await waitZoneImages(locator);
   if (missingImages.length) console.log(`⚠️ ${name} : image(s) pas chargée(s) avant la photo : ${missingImages.join(" ; ")}`);
