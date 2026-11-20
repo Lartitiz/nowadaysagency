@@ -55,6 +55,8 @@ const on = (bg: string, color: string, min = 4.5) => (contrast(color, bg) >= min
 /* ─── Charte d'origine de la slide ─────────────────────────────────────── */
 
 const CHARTE = "data-layout-charte";
+/** Photo de la slide, gardée de côté quand la mise en page choisie n'en montre pas. */
+export const KEPT_PHOTO = "data-layout-photo";
 const CHARTE_KEYS = ["titleColor", "bodyColor", "background", "accent"] as const;
 const text = (el: Element | null) => (el?.textContent || "").replace(/\s+/g, " ").trim();
 const same = (a: string, b: string) => {
@@ -139,7 +141,8 @@ export function fitText(o: { title: string; body: string; extras: string[]; widt
   const longest = Math.max(1, ...o.title.split(/\s+/).map((w) => w.length));
   let title = Math.max(titleMin, Math.min(o.titleMax, Math.floor(o.width / (longest * charWidth(o.titleFont)))));
   let body = o.bodyMax ?? 44;
-  const extra = () => Math.max(32, Math.round(body * 0.85));
+  // Jamais sous 38 px : en dessous, le contrôle qualité de l'éditeur le signale.
+  const extra = () => Math.max(BODY_FLOOR, Math.round(body * 0.9));
   const stat = () => Math.round(body * 2.2);
   const height = () =>
     countLines(o.title, per(title, o.titleFont)) * title * TITLE_LH +
@@ -289,7 +292,9 @@ export function composeLayout(
   }
   // Charte d'origine, relue au prochain changement de mise en page (cf. withCharte).
   const charte = esc(JSON.stringify({ titleColor: tokens.titleColor, bodyColor: tokens.bodyColor, background: paper, accent: tokens.accent || "", outBackground: bg, outTitle: heading }));
-  const html = `${tokens.fontImports}<div ${CHARTE}="${charte}" style="width:${W}px;height:${H}px;position:relative;overflow:hidden;background:${bg};color:${ink};font-family:${bodyFont};text-align:${align}">${inner}</div>`;
-  const slideType = !photo || !LAYOUTS.find((l) => l.variant === variant)?.photo ? "text_only" : variant === "photo-plein" ? "photo_full" : "photo_integrated";
+  const usesPhoto = !!LAYOUTS.find((l) => l.variant === variant)?.photo;
+  const kept = photo && !usesPhoto && photo.length <= 4000 ? ` ${KEPT_PHOTO}="${esc(photo)}"` : "";
+  const html = `${tokens.fontImports}<div ${CHARTE}="${charte}"${kept} style="width:${W}px;height:${H}px;position:relative;overflow:hidden;background:${bg};color:${ink};font-family:${bodyFont};text-align:${align}">${inner}</div>`;
+  const slideType = !photo || !usesPhoto ? "text_only" : variant === "photo-plein" ? "photo_full" : "photo_integrated";
   return { id: crypto.randomUUID(), data: { ...data, title, body, slide_type: slideType, layout_variant: variant }, html: prepareSlideHtml(html) };
 }

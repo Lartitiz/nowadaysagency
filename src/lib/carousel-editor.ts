@@ -1,5 +1,5 @@
 import { photoEditorialMarkup } from "../../supabase/functions/_shared/photo-editorial";
-import { rememberDocumentAccents, withCharte } from "./carousel-layouts";
+import { KEPT_PHOTO, rememberDocumentAccents, withCharte } from "./carousel-layouts";
 /** The saved HTML is the editable design and the source of every visual export.
  * Structured fields are kept in sync for captions, regeneration and calendar views.
  * All manual operations are local, immutable, and independent from AI services. */
@@ -1568,14 +1568,13 @@ export function addPreset(slide: EditorSlide, kind: PresetKind, color = "#91014b
 /* ─── Galerie de mises en page, thèmes, polices Google ────────────────── */
 
 export { composeLayout, LAYOUTS, type LayoutVariant } from "./carousel-layouts";
-/** Photo actuelle d'une slide (pour la garder en changeant de mise en page). */
-export function slidePhotoSource(html: string): string {
-  const doc = parse(html);
-  const photo = mainPhoto(doc);
-  if (!photo) return "";
-  if (photo.tagName === "IMG") return photo.getAttribute("src") || "";
-  return (photo.style.backgroundImage.match(/url\(\s*(['"]?)(.*?)\1\s*\)/) || [])[2] || "";
+/** Photo affichée sur la slide. */
+export function visiblePhotoSource(html: string): string {
+  const photo = mainPhoto(parse(html));
+  return !photo ? "" : photo.tagName === "IMG" ? photo.getAttribute("src") || "" : (photo.style.backgroundImage.match(/url\(\s*(['"]?)(.*?)\1\s*\)/) || [])[2] || "";
 }
+/** Photo pour changer de mise en page : celle affichée, sinon celle gardée de côté. */
+export const slidePhotoSource = (html: string): string => visiblePhotoSource(html) || parse(html).body.firstElementChild?.getAttribute(KEPT_PHOTO) || "";
 
 export interface CarouselTheme {
   id: string;

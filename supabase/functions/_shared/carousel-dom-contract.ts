@@ -76,6 +76,7 @@ export const FRONT_ONLY_ATTRIBUTES = {
   "data-editor-photo-empty": { role: "Cadre photo vide." },
   "data-editor-free": { role: "Copie libre (Dupliquer) : ne réécrit pas le texte source." },
   "data-layout-charte": { role: "Charte d'origine de la slide (couleurs), relue quand on change de mise en page." },
+  "data-layout-photo": { role: "Photo de la slide gardée de côté quand la mise en page choisie n'en montre pas." },
   "data-editor-hidden": { role: "Calque masqué." },
   "data-editor-new": { role: "Élément ajouté par l'éditeur (Ajouter)." },
   "data-editor-copy": { role: "Élément collé." },
