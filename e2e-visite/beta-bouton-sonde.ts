@@ -39,7 +39,11 @@ async function mesureIci(page: Page): Promise<{ texte: string; ko: boolean }> {
       const fab = document.querySelector('[data-testid="beta-feedback-fab"]') as HTMLElement | null;
       if (!fab) return { absent: true as const };
       const b = fab.getBoundingClientRect();
-      if (getComputedStyle(fab).opacity === "0" || b.width === 0) return { masque: true as const };
+      // Masqué = opacité 0, ou en train de disparaître (20/11/2026) : dès qu'il se cache, le bouton ne
+      // reçoit plus les clics (pointer-events: none) mais son fondu dure 0,3 s ; mesuré pendant ce
+      // fondu, il passait pour « recouvre » une fois sur trois.
+      const style = getComputedStyle(fab);
+      if (style.opacity === "0" || style.pointerEvents === "none" || b.width === 0) return { masque: true as const };
       const contenu = document.querySelectorAll(
         'button, a[href], input, select, textarea, iframe, img, video, h1, h2, h3, h4, p, label, [role="button"]',
       );
