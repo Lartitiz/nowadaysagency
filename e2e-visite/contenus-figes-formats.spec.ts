@@ -191,10 +191,10 @@ test("contenus figés — carrousel mixte", async ({ page }) => {
   await page.getByText(/^Carrousel$/, { exact: true }).first().click();
   await page.getByText(/Photos \+ slides design/i).first().click();
   await page.getByText(/J'ai déjà mes photos/i).first().click();
-  await page.getByPlaceholder(/photos prises ce matin/i).first().fill(
-    "Photo 1 : moi, portrait de face — c'est mon visage qui incarne la routine. " +
-      "Photo 2 : la slide de couverture déjà maquettée avec le titre du carrousel (5 rituels slow pour ta com').",
-  );
+  // Depuis les trois gros boutons (#1995, 14/11/2026), le champ « décris tes photos »
+  // n'existe plus sur cet écran : on importe directement. Le rejeu sert la réponse
+  // enregistrée quelle que soit la demande, la description n'y change rien.
+  await expect(page.getByTestId("photo-zone-import")).toBeVisible({ timeout: 10000 });
   await page.locator('input[type="file"]').first().setInputFiles(PHOTOS);
   await expect(page.locator('img[src^="blob:"], img[src^="data:"]').nth(1)).toBeVisible({ timeout: 20000 });
   await toStep3(page);
