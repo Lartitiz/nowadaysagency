@@ -20,7 +20,7 @@ import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { exportAndCheckPptx } from "./pptx-export-check";
 import { tapCarouselSse, watchWaitingScreen } from "./carousel-wait-probe";
-import { skipPhotoContextStep } from "./photo-context-step";
+import { fillPhotoContextStep } from "./photo-context-step";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/carousel-mix");
@@ -38,6 +38,16 @@ const FIXTURES = [
 // carousel-ai (portrait beauté générique jugé sans rapport, 17/08) : un sujet
 // qui REPREND le titre visible sur une des photos ne peut pas la « contredire
 // frontalement », seuil que la garde exige pour refuser.
+// Une ligne par photo, dans l'ordre de FIXTURES, saisie dans la fenêtre « Que
+// montre chaque photo ? ». Sans elles, la garde photo_mismatch de carousel-ai
+// refuse ces fixtures en invoquant l'univers de marque (« savonnerie ») et le
+// doute sur l'identité du portrait (refus observés 3× le 17/08, avec deux sujets
+// différents). Elles lèvent l'ambiguïté comme le ferait une vraie utilisatrice.
+const PHOTO_LINES = [
+  "Moi, portrait de face : c'est mon visage qui incarne la routine",
+  "La slide de couverture déjà maquettée, avec le titre : 5 rituels slow pour ta com'",
+];
+
 const SUJET = "5 rituels slow pour ta com' : ma routine douce pour communiquer sans m'épuiser";
 
 test("carrousel mixte réel : upload → génération → export PPTX composé validé", async ({ page, viewport }) => {
@@ -78,20 +88,10 @@ test("carrousel mixte réel : upload → génération → export PPTX composé v
   await expect(forkPhotos).toBeVisible({ timeout: 10000 });
   await forkPhotos.click();
 
-  // Décrire les photos AVANT l'upload : dès qu'une photo est posée, la zone
-  // passe en `compact` et le champ description DISPARAÎT (CreerStepFormat
-  // `compact={uploadedPhotos.length > 0}`). Et sans description, la garde
-  // photo_mismatch de carousel-ai refuse ces fixtures en invoquant l'univers de
-  // marque (« savonnerie ») et le doute sur l'identité du portrait — deux motifs
-  // que son propre prompt lui interdit (refus observés 3× le 17/08, avec deux
-  // sujets différents). La description lève l'ambiguïté comme le ferait une
-  // vraie utilisatrice.
-  const photoDesc = page.getByPlaceholder(/photos prises ce matin/i).first();
-  await expect(photoDesc).toBeVisible({ timeout: 8000 });
-  await photoDesc.fill(
-    "Photo 1 : moi, portrait de face — c'est mon visage qui incarne la routine. " +
-      "Photo 2 : la slide de couverture déjà maquettée avec le titre du carrousel (5 rituels slow pour ta com').",
-  );
+  // Depuis les trois gros boutons (#1995, 14/11/2026), le champ « décris tes
+  // photos » n'existe plus sur cet écran : on importe directement. La description
+  // se donne plus bas, dans la fenêtre « Que montre chaque photo ? » (PHOTO_LINES).
+  await expect(page.getByTestId("photo-zone-import")).toBeVisible({ timeout: 10000 });
 
   // Upload des 2 fixtures → 2 vignettes
   await page.locator('input[type="file"]').first().setInputFiles(FIXTURES);
@@ -120,7 +120,7 @@ test("carrousel mixte réel : upload → génération → export PPTX composé v
   ]).catch(() => {});
   if (await genDir.isVisible().catch(() => false)) await genDir.click();
   else await genBtn.click();
-  await skipPhotoContextStep(page);
+  await fillPhotoContextStep(page, PHOTO_LINES);
   console.log("🚀 Générer cliqué (mixte)");
   watchWaitingScreen(page, path.join(SHOTS, "mix-attente"));
 
