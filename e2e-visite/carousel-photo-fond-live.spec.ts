@@ -19,7 +19,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { tapCarouselSse, watchWaitingScreen } from "./carousel-wait-probe";
-import { skipPhotoContextStep } from "./photo-context-step";
+import { fillPhotoContextStep } from "./photo-context-step";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/carousel-photo-fond");
@@ -68,17 +68,6 @@ test("carrousel « Tes photos en fond » : plan, brouillons sur photo, texte sur
   await expect(fond).toBeVisible({ timeout: 10000 });
   await fond.click();
 
-  // Décrire les photos AVANT l'upload (la zone passe en compact ensuite) : sans
-  // description, le choix final des photos refuse ces fixtures sans rapport
-  // visible avec la savonnerie du compte test (vu le 08/10 : 6/6 « image à choisir »).
-  const photoDesc = page.getByPlaceholder(/photos prises ce matin/i).first();
-  if (await photoDesc.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await photoDesc.fill(
-      "Photo 1 : moi, portrait de face — c'est le visage derrière la marque. " +
-        "Photo 2 : un visuel d'ambiance de ma marque.",
-    );
-  }
-
   // Upload des 2 fixtures → 2 vignettes
   await page.locator('input[type="file"]').first().setInputFiles(FIXTURES);
   await expect(page.locator('img[src^="blob:"], img[src^="data:"]').nth(1)).toBeVisible({ timeout: 20000 });
@@ -113,7 +102,14 @@ test("carrousel « Tes photos en fond » : plan, brouillons sur photo, texte sur
   ]).catch(() => {});
   if (await genDir.isVisible().catch(() => false)) await genDir.click();
   else await genBtn.click();
-  await skipPhotoContextStep(page);
+  // Décrire les photos dans la fenêtre « Que montre chaque photo ? » (le champ
+  // de l'écran d'import a disparu avec #1995) : sans description, le choix final
+  // des photos refuse ces fixtures sans rapport visible avec la savonnerie du
+  // compte test (vu le 08/10 : 6/6 « image à choisir »).
+  await fillPhotoContextStep(page, [
+    "Moi, portrait de face : c'est le visage derrière la marque",
+    "Un visuel d'ambiance de ma marque",
+  ]);
   console.log("🚀 Générer cliqué");
   watchWaitingScreen(page, path.join(SHOTS, "fond-attente"));
 
