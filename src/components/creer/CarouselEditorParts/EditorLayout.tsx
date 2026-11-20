@@ -36,7 +36,9 @@ export function measureSlideFit(grid: HTMLElement): SlideFit {
   // Mode « Plus d'outils » : les boutons de la slide sont sous les vignettes, la slide leur laisse leur hauteur.
   const tools = grid.querySelector<HTMLElement>('[data-canvas-sticky] [data-testid="slide-order-tools"]')?.offsetHeight ?? 0;
   const under = phone ? 0 : (window.innerHeight < 800 ? STRIP_RESERVE_SHORT : STRIP_RESERVE) + (tools ? tools + 4 : 0);
-  const width = Math.floor(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, column - (phone ? 0 : ARROWS_RESERVE), (room - under) * 0.8)));
+  const fitted = Math.floor(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, column - (phone ? 0 : ARROWS_RESERVE), (room - under) * 0.8)));
+  // Slide centrée au pixel près : une marge d'un demi-pixel de chaque côté rendait l'image floue d'un passage à l'autre.
+  const width = fitted - ((column - fitted) % 2 ? 1 : 0);
   return { width, room };
 }
 

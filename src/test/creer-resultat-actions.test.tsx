@@ -98,7 +98,7 @@ describe("écran du résultat : barre d'actions courte", () => {
     const trigger = within(screen.getByTestId("result-actions")).getByTestId("redo-version");
     expect(trigger).toHaveAccessibleName("Refaire tout le carrousel");
     // Sur téléphone, un mot à côté de l'icône (« Refaire ») : l'icône seule passait inaperçue.
-    expect(trigger.querySelector("span.lg\\:hidden")).toHaveTextContent("Refaire tout");
+    expect(trigger.querySelector("span.sm\\:hidden")).toHaveTextContent("Refaire");
     trigger.focus();
     fireEvent.keyDown(trigger, { key: "Enter" });
     expect(screen.getByText(/Chaque nouvelle version compte pour 1 carrousel du mois/)).toBeInTheDocument();

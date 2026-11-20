@@ -126,7 +126,7 @@ export default function ResultActions(p: ResultActionsProps) {
       data-testid="publish-or-schedule"
       onClick={p.onPublishOrSchedule}
       variant={publishPrimary ? "default" : "outline"}
-      className={`gap-2 font-semibold ${publishPrimary && oneLine ? "flex-1 min-w-0 h-10 px-3" : publishPrimary ? "w-full h-11" : "flex-1 min-w-0 h-10 px-2 sm:px-4"}`}
+      className={`gap-2 font-semibold ${publishPrimary && oneLine ? "flex-1 min-w-0 h-10 px-1.5 max-sm:gap-1 sm:px-3" : publishPrimary ? "w-full h-11" : "flex-1 min-w-0 h-10 px-2 sm:px-4"}`}
     >
       <Send className="h-4 w-4 shrink-0" />
       {publishPrimary && oneLine ? (
@@ -139,12 +139,12 @@ export default function ResultActions(p: ResultActionsProps) {
   );
 
   // Une ligne : « Télécharger » garde sa largeur (le bouton principal prend le reste).
-  const getClass = `gap-2 ${getPrimary && oneLine ? "flex-[1.6] min-w-0 h-10 font-semibold" : getPrimary ? "w-full h-11 font-semibold" : oneLine ? "shrink-0 h-10 px-3 sm:px-4" : "flex-1 min-w-0 h-10 px-2 sm:px-4"}`;
+  const getClass = `gap-2 ${getPrimary && oneLine ? "flex-[1.6] min-w-0 h-10 font-semibold" : getPrimary ? "w-full h-11 font-semibold" : oneLine ? "shrink-0 h-10 px-2 max-sm:gap-1.5 sm:px-4" : "flex-1 min-w-0 h-10 px-2 sm:px-4"}`;
   const getButton = download ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button data-testid="download-visuals" variant={getPrimary ? "default" : "outline"} className={getClass}>
-          <Download className="h-4 w-4 shrink-0" /> <span className="truncate">Télécharger<span className="hidden sm:inline"> mes visuels</span></span> <ChevronDown className="h-3 w-3 shrink-0" />
+          <Download className="h-4 w-4 shrink-0" /> <span className="truncate">Télécharger<span className="hidden sm:inline"> mes visuels</span></span> <ChevronDown className={`h-3 w-3 shrink-0 ${oneLine ? "max-sm:hidden" : ""}`} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="center" className="w-64">
@@ -256,8 +256,9 @@ export default function ResultActions(p: ResultActionsProps) {
   const redoButton = redoVisible && (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" data-testid="redo-version" aria-label="Refaire tout le carrousel" title="Refaire tout le carrousel (1 carrousel) : pour une seule slide, « Demander un changement à l'IA »" className="h-10 shrink-0 gap-1.5 px-2.5 lg:px-3">
-          <RefreshCw className="h-4 w-4 shrink-0" /> <span className="lg:hidden">Refaire tout</span><span className="hidden lg:inline">Refaire tout le carrousel</span> <ChevronDown className="hidden h-3 w-3 shrink-0 lg:inline" />
+        <Button variant="outline" data-testid="redo-version" aria-label="Refaire tout le carrousel" title="Refaire tout le carrousel (1 carrousel) : pour une seule slide, « Demander un changement à l'IA »" className="h-10 shrink-0 gap-1.5 px-2 sm:px-2.5 lg:px-3">
+          {/* Téléphone : « Refaire » court, pour que « Publier » garde son mot (20/11/2026). */}
+          <RefreshCw className="h-4 w-4 shrink-0" /> <span className="sm:hidden">Refaire</span><span className="max-sm:hidden lg:hidden">Refaire tout</span><span className="hidden lg:inline">Refaire tout le carrousel</span> <ChevronDown className="hidden h-3 w-3 shrink-0 lg:inline" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72 max-h-96 overflow-y-auto">
