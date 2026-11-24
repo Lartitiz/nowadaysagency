@@ -19,7 +19,7 @@ const ERROR_PATTERNS: { test: RegExp; message: string }[] = [
   { test: /timeout|timed out|504|524/i, message: "La requête a pris trop de temps. Réessaie dans quelques secondes." },
   { test: /429|rate.?limit|too many/i, message: "Trop de requêtes en même temps. Attends quelques secondes et réessaie." },
   { test: /quota|crédit|limit.*atteint|limit_reached/i, message: "Tu as atteint une de tes limites du mois. Le détail est dans « Mon abonnement » ; tout revient le 1er du mois." },
-  { test: /401|non.?authentifi|not.?authenticated/i, message: "Ta session a expiré. Reconnecte-toi pour continuer." },
+  { test: /401|non.?authentifi|not.?authenticated|\bjwt\b/i, message: "Ta session a expiré. Reconnecte-toi pour continuer." },
   { test: /403|interdit|forbidden/i, message: "Tu n'as pas accès à cette fonctionnalité avec ton plan actuel." },
   { test: /500|internal.?server|erreur.?serveur/i, message: "Oups, un problème côté serveur. Réessaie dans un instant." },
   { test: /supabase|postgrest|PGRST/i, message: "Problème de sauvegarde des données. Réessaie ou contacte le support si ça persiste." },
@@ -48,7 +48,7 @@ export function friendlyError(error: unknown): string {
 // Message technique (anglais, code, statut HTTP, nom d'erreur JS) : à traduire.
 // Un message déjà écrit en français pour l'utilisatrice (serveur du Studio,
 // invokeWithTimeout…) passe tel quel.
-const TECHNICAL = /[A-Za-z]*Error\b|\bat \S+ \(|\b(undefined|null|NaN|fetch|network|timeout|timed out|status|edge function|non-2xx|JSON|unexpected|cannot|failed|invalid|internal|server|request|response|token|abort|denied|not found)\b|\b[a-z]+_[a-z_]+\b|\b[45]\d\d\b/i;
+const TECHNICAL = /[A-Za-z]*Error\b|\bat \S+ \(|\b(undefined|null|NaN|fetch|network|timeout|timed out|status|edge function|non-2xx|JSON|unexpected|cannot|failed|invalid|internal|server|request|response|token|jwt|expired|abort|denied|not found)\b|\b[a-z]+_[a-z_]+\b|\b[45]\d\d\b/i;
 
 /**
  * Texte d'erreur à montrer : garde un message déjà clair en français,
