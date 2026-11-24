@@ -84,7 +84,13 @@ test("écran Format : « Suivant » visible sans défiler", async ({ page }, inf
       await verifier(page, `${canal} : carrousel ${nom}`, cas);
       if (canal === "instagram" && id === "photo") {
         const bouton = page.getByTestId("photo-zone-library-main");
-        mesPhotos = (await bouton.isVisible().catch(() => false)) ? Number((await bouton.textContent())?.match(/\((\d+)\)/)?.[1] ?? 0) : 0;
+        mesPhotos = (await bouton.isVisible().catch(() => false)) ? Number((await bouton.textContent())?.match(/\((\d+)\)|(\d+) photo/)?.slice(1).find(Boolean) ?? 0) : 0;
+      }
+      // L'alerte « il faut au moins une photo » ne concerne plus « Tes photos en
+      // fond » (photos facultatives depuis #1995, 14/11/2026) : on la lit sur
+      // « Photos + slides design », qui exige toujours une photo.
+      if (canal === "instagram" && id === "mix") {
+        await page.getByRole("button", { name: /J'ai déjà mes photos/ }).click();
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.getByTestId("creer-format-next").click();
         await page.waitForTimeout(1200);

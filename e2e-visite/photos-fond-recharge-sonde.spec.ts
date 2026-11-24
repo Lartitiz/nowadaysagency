@@ -12,6 +12,7 @@
  * Les lignes créées chez Camille (fiche de Mes idées, brief) sont effacées à la fin.
  */
 import { test, expect, type Page } from "@playwright/test";
+import { skipPhotoContextStep } from "./photo-context-step";
 import { installFigeReplay } from "./fige-replay";
 import { traceurDeCreations, supprimeLignesCreees } from "./nettoyage-camille";
 
@@ -68,6 +69,7 @@ test("🔁 carrousel « Tes photos en fond » rechargé : l'éditeur revient", a
     const generer = page.getByTestId("creer-questions-next").or(page.getByRole("button", { name: /^(générer|créer)\b/i })).first();
     await expect(direct.or(generer).first()).toBeVisible({ timeout: 120_000 });
     if (await direct.isVisible().catch(() => false)) await direct.click(); else await generer.click();
+    await skipPhotoContextStep(page);
     await expect(page.getByText(/Personnaliser mon carrousel/i).first()).toBeVisible({ timeout: 180_000 });
     await expect.poll(() => vignettes(page).count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
     const nonEnregistrees = fige.stats().missing.filter((fn) => !["social-status", "check-subscription"].includes(fn));

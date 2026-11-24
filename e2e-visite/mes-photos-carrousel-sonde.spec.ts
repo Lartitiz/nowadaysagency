@@ -48,6 +48,10 @@ const PARCOURS = [
     await choisirDeux(page);
   }],
   ["lien de l'alerte", async (page: Page) => {
+    // « Tes photos en fond » n'exige plus de photo (#1995) : l'alerte se lit sur
+    // « Photos + slides design ».
+    await page.getByTestId("carousel-mode-mix").click();
+    await page.getByRole("button", { name: /J'ai déjà mes photos/ }).click();
     await page.getByTestId("creer-format-next").click();
     const alerte = page.getByTestId("carousel-photo-warning");
     await expect(alerte, "pas d'alerte sans photo").toBeVisible({ timeout: 8_000 });
