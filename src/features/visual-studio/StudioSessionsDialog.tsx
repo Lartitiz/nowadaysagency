@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { listStudioSessions } from "@/features/visual-studio/api";
+import { readableError } from "@/lib/error-messages";
 
 export function StudioSessionsDialog({
   open,
@@ -50,7 +51,7 @@ export function StudioSessionsDialog({
           : sessions.error
           ? (
             <div role="alert">
-              {sessions.error.message}
+              {readableError(sessions.error, "Tes sessions ne se chargent pas. Réessaie dans un instant.")}
               <Button variant="ghost" onClick={() => void sessions.refetch()}>
                 Réessayer
               </Button>

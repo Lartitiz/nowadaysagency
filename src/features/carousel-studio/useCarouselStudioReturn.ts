@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import { studioRequest, type StudioState } from "@/features/visual-studio/api";
+import { readableError } from "@/lib/error-messages";
 import { persistStudioPhoto, readTicket } from "./bridge";
 import { carouselStudioStore } from "./store";
 
@@ -45,7 +46,7 @@ export function useCarouselStudioReturn(id: string | null, userId: string, works
       navigate(`/creer?${new URLSearchParams({ idea_id: valid.ideaId, canal: idea.canal || "instagram" })}`, {
         state: { ideaId: valid.ideaId, sujet: idea.titre, carouselStudioResume: true, resumeIdea: { raw, format: "carousel" } },
       });
-    } catch (e) { if (isCurrent()) setError(e instanceof Error ? e.message : "Le retour a échoué. Ton image reste dans le Studio."); }
+    } catch (e) { if (isCurrent()) setError(readableError(e, "Le retour a échoué. Ton image reste dans le Studio.")); }
     finally { lock.current = false; if (isCurrent()) setBusy(false); }
   }
   return { ticket: valid, busy, error, returnToCarousel };
