@@ -31,9 +31,27 @@ describe("ouverture d'un carrousel : texte étiqueté sur le mauvais champ", () 
     expect(getEditorElements(slide.html).find((e) => e.field === "title")?.text).toBe("Nouveau titre");
   });
 
-  it("titre vidé exprès dans un ancien enregistrement (le texte affiché n'est pas celui du corps) : l'aperçu suit", () => {
+  it("slide sans titre, étiquette « titre » sur un texte qui n'est pas celui du corps : le corps s'affiche, la slide n'est pas vidée", () => {
     const slide = open({ title: "", body: "Un autre texte" }, "title", "Ancien titre");
-    expect(getEditorElements(slide.html).find((e) => e.field === "title")?.text || "").toBe("");
+    expect(getEditorElements(slide.html).filter((e) => e.kind === "text").map((t) => [t.field, t.text])).toEqual([["body", "Un autre texte"]]);
+    expect(slide.data.body).toBe("Un autre texte");
+  });
+
+  // Cas réel du re-test en ligne (24/11) : slide « citation », seule la
+  // citation (un morceau du corps) étiquetée « titre », la source en dessous.
+  it("morceau du corps étiqueté « titre » (citation + source) : le corps entier s'affiche, rien n'est vidé", () => {
+    const corps = "Buffer le résume comme ça : « Publier 10 fois avec du contenu médiocre aura moins d'impact que 3 posts excellents. »";
+    const citation = `<div style="width:1080px;height:1350px"><p data-slide-text="title" data-pptx-editable="title" style="font-size:50px">« Publier 10 fois avec du contenu médiocre aura moins d'impact que 3 posts excellents. »</p><p style="font-size:32px">— Buffer</p></div>`;
+    const slide = readCarouselDocument({ slides: [{ slide_number: 1, title: "", body: corps }], caption: {} }, [{ slide_number: 1, html: citation }]).slides[0];
+    expect(slide.data.body).toBe(corps);
+    expect(getEditorElements(slide.html).find((e) => e.field === "body" && e.text === corps)).toBeTruthy();
+    expect(slide.html).not.toContain('data-slide-text="title"');
+  });
+
+  it("corps déjà affiché en entier ailleurs sur la slide : pas de doublon, l'étiquette reste", () => {
+    const html2 = `<div style="width:1080px;height:1350px"><h1 data-slide-text="title">Surtitre inventé</h1><p>Un autre texte</p></div>`;
+    const slide = readCarouselDocument({ slides: [{ slide_number: 1, title: "", body: "Un autre texte" }], caption: {} }, [{ slide_number: 1, html: html2 }]).slides[0];
+    expect(slide.html).toContain('data-slide-text="title"');
     expect(slide.data.body).toBe("Un autre texte");
   });
 });

@@ -727,8 +727,23 @@ Deno.test("ancre sur le mauvais champ : slide sans titre dont le texte est étiq
   assertEquals(a, html("body", PHRASE), "sans titre : l'étiquette passe sur body, le texte reste");
   assertEquals(b, html("title", "Ces lettres gravées"), "titre seul étiqueté body : même protection dans l'autre sens");
   assertEquals(c, html("title", "Un vrai titre"), "étiquette juste : rien ne bouge");
-  assertEquals(d, html("title", "Un texte inventé par le dessin"), "texte qui n'est pas celui du corps : on ne devine pas");
+  assertEquals(d, html("body", PHRASE), "texte qui n'est pas celui du corps : l'étiquette passe sur body, le texte source est réinjecté");
   assertEquals(e, html("body", PHRASE), "casse perdue : étiquette remise, puis texte source réinjecté");
+  // Cas réel du re-test en ligne (24/11) : slide « citation » sans titre, seule
+  // la citation (un morceau du corps) étiquetée « title », la source en dessous.
+  // L'éditeur vidait l'ancre : il ne restait que « — Buffer ».
+  const CORPS = "Buffer, l'outil de planification, le résume comme ça : « Publier 10 fois par semaine avec du contenu médiocre aura moins d'impact que 3 posts excellents. »";
+  const quote = (field: string, text: string) => `<div><p data-slide-text="${field}" data-pptx-editable="${field}" style="font-size:50px">${text}</p><p style="font-size:32px">— Buffer</p></div>`;
+  const cite: any = { slides_html: [
+    { slide_number: 1, html: quote("title", "« Publier 10 fois par semaine avec du contenu médiocre aura moins d'impact que 3 posts excellents. »") },
+    { slide_number: 2, html: `<div><h1 data-slide-text="title">Un surtitre inventé</h1><p>${CORPS}</p></div>` },
+    { slide_number: 3, html: `<div><p data-slide-text="title"></p></div>` },
+  ] };
+  const sans = (n: number) => ({ slide_number: n, slide_type: "text_only", title: "", body: CORPS });
+  enforceVerbatimAnchorsGuard(cite, { slides: [sans(1), sans(2), sans(3)] });
+  assertEquals(cite.slides_html[0].html, quote("body", CORPS.replace(/"/g, "&quot;")), "morceau du corps étiqueté title : étiquette remise, corps entier réinjecté");
+  assertEquals(cite.slides_html[1].html, `<div><h1 data-slide-text="title">Un surtitre inventé</h1><p>${CORPS}</p></div>`, "corps déjà affiché en entier ailleurs : pas de doublon");
+  assertEquals(cite.slides_html[2].html, `<div><p data-slide-text="title"></p></div>`, "ancre vide : rien à remettre");
   // Slides photo avec titre et texte : même remise en place.
   const photo: any = { slides_html: [{ slide_number: 1, html: html("title", PHRASE) }, { slide_number: 2, html: html("title", PHRASE) }] };
   enforcePhotoSlideAnchorsGuard(photo, { slides: [

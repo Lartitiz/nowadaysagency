@@ -202,8 +202,8 @@ export function ensurePptxEditable(html: string, field: string): string {
  * data-slide-text="title" → l'éditeur, qui remet chaque champ source dans son
  * ancre, vidait la slide à l'ouverture). Conditions, toutes requises :
  * le champ source de l'ancre est VIDE, l'autre champ ne l'est pas, l'autre
- * champ n'a pas déjà son ancre, et le texte affiché est celui de l'autre champ
- * (à la casse près : la garde verbatim réinjecte ensuite la casse source).
+ * champ n'a pas déjà son ancre, l'ancre affiche du texte, et l'autre champ
+ * n'est pas déjà affiché en entier ailleurs sur la slide.
  * Vaut dans les deux sens (title ↔ body). Sinon : HTML inchangé.
  */
 export function relabelMisplacedAnchors(
@@ -218,7 +218,13 @@ export function relabelMisplacedAnchors(
     if (flat(src[field]) || !flat(src[other])) continue;
     const loc = findAnchoredElement(out, field);
     if (!loc || findAnchoredElement(out, other)) continue;
-    if (flat(stripTags(out.slice(loc.contentStart, loc.contentEnd))) !== flat(src[other])) continue;
+    // Le texte affiché peut n'être qu'un MORCEAU de l'autre champ (slide
+    // « citation » du 24/11 : la citation étiquetée « title », la source en
+    // dessous) : on remet l'étiquette quand même, la garde verbatim réinjecte
+    // ensuite le texte entier. Deux cas où l'on ne touche à rien : ancre vide,
+    // ou autre champ déjà affiché en entier ailleurs sur la slide (doublon).
+    if (!flat(stripTags(out.slice(loc.contentStart, loc.contentEnd)))) continue;
+    if (flat(stripTags((out.slice(0, loc.openStart) + " " + out.slice(loc.end)).replace(/<style[\s\S]*?<\/style>/gi, " "))).includes(flat(src[other]))) continue;
     const openTag = out.slice(loc.openStart, loc.contentStart)
       .replace(new RegExp(`(\\bdata-(?:slide-text|pptx-editable)\\s*=\\s*["'])${field}(["'])`, "g"), `$1${other}$2`);
     out = out.slice(0, loc.openStart) + openTag + out.slice(loc.contentStart);
