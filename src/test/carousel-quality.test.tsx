@@ -156,12 +156,15 @@ describe("carousel quality checks", () => {
     expect(inspectSlide(document, 0)).toEqual([]);
   });
   it("ignores decorative page numbers and hidden text", () => {
+    // Ce test juge la taille du texte ; la slide réduite à ce seul élément est
+    // « vide » par ailleurs (carousel-quality-slide-vide.test.tsx).
+    const sized = () => inspectSlide(document, 0).filter((i) => i.kind !== "empty");
     const el = fixture("font-size:14px");
     el.dataset.pptxEditable = "page_number";
-    expect(inspectSlide(document, 0)).toEqual([]);
+    expect(sized()).toEqual([]);
     el.dataset.pptxEditable = "body";
     el.style.display = "none";
-    expect(inspectSlide(document, 0)).toEqual([]);
+    expect(sized()).toEqual([]);
   });
   it("does not judge an SVG pictogram wrapper as tiny text (bug 28/09)", () => {
     const el = fixture("font-size:16px");

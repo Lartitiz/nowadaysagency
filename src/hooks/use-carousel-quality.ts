@@ -72,6 +72,7 @@ export function useCarouselQuality(
                 // Le contraste n'est qu'un conseil (severity "warning") : il ne
                 // bloque jamais la publication ni la programmation.
                 reason(["image"], "images manquantes"),
+                reason(["empty"], "slide vide"),
               ]
                 .filter(Boolean)
                 .join(", ") || "problèmes de lisibilité détectés"

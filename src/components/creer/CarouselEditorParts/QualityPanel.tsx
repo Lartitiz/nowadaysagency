@@ -63,8 +63,7 @@ export function QualityPanel({ cloudTools, commit, current, document, fixAll, qu
                     className="rounded border p-2"
                   >
                     <p>
-                      Slide {issue.slide + 1} —{" "}
-                      {issue.severity === "error" ? "À corriger : " : ""}
+                      {issue.kind === "empty" ? `Slide ${issue.slide + 1} : ` : <>Slide {issue.slide + 1} —{" "}{issue.severity === "error" ? "À corriger : " : ""}</>}
                       {issue.message}
                     </p>
                     <Button
@@ -72,10 +71,10 @@ export function QualityPanel({ cloudTools, commit, current, document, fixAll, qu
                       variant="ghost"
                       onClick={() => {
                         setActive(issue.slide);
-                        setSelected(issue.elementId);
+                        setSelected(issue.elementId || null);
                       }}
                     >
-                      Voir cet élément
+                      {issue.kind === "empty" ? "Voir cette slide" : "Voir cet élément"}
                     </Button>
                     {issue.fix && (
                       <Button
@@ -108,8 +107,8 @@ export function QualityPanel({ cloudTools, commit, current, document, fixAll, qu
             </details>
           )}
           <p className="text-xs text-muted-foreground">
-            Bloquent la publication : textes coupés, textes trop petits pour le
-            mobile et images manquantes. Le reste, ce sont des conseils : un
+            Bloquent la publication : slides vides, textes coupés, textes trop
+            petits pour le mobile et images manquantes. Le reste, ce sont des conseils : un
             texte qui ressort peu sur son fond ou posé sur une photo, regarde-le
             sur ton téléphone.
           </p>

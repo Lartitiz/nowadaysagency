@@ -21,7 +21,7 @@ import { enforceSafeZones, injectFallbackScrim, enforceHeroHook } from "../_shar
 import { assignPhotoStyles, composePhotoSlide } from "../_shared/photo-overlay-templates.ts";
 import { applyMixFormatting, composeMixCarousel, mixSlideText } from "../_shared/mix-slide-layouts.ts";
 import { layoutMixSlides, type MixLayoutPlan, mixFormattingMemo, mixLayoutMemos, mixLayoutTelemetry, reuseMixFormatting } from "../_shared/mix-layout-formatting.ts";
-import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
+import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, relabelMisplacedAnchors, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
@@ -1662,8 +1662,9 @@ export function enforceVerbatimAnchorsGuard(result: any, params: { slides: any[]
     const src = srcText.get(slide.slide_number) as any;
     // Slides texte uniquement — l'overlay photo a sa propre passe de lisibilité.
     if (!src || (src.slide_type && src.slide_type !== "text_only")) return slide;
-    let slideHtml: string = slide?.html || "";
-    let changed = false;
+    // Ancre posée sur le mauvais champ (24/11) : remise en place avant tout le reste.
+    let slideHtml: string = relabelMisplacedAnchors(slide?.html || "", src);
+    let changed = slideHtml !== (slide?.html || "");
     // Ancre title MANQUANTE (audit 10/07 : slides à visual_schema, ~3 runs
     // sur 4) : on la pose sur l'élément au texte identique AVANT la passe
     // verbatim, sinon l'édition live retombe sur le repli par correspondance
@@ -1678,9 +1679,8 @@ export function enforceVerbatimAnchorsGuard(result: any, params: { slides: any[]
         anchorsUnmatched++;
       }
     }
-    const anchors: VerbatimAnchor[] = [];
-    if (typeof src.title === "string" && src.title.trim()) anchors.push({ field: "title", text: src.title });
-    if (typeof src.body === "string" && src.body.trim()) anchors.push({ field: "body", text: src.body });
+    const anchors: VerbatimAnchor[] = (["title", "body"] as const)
+      .filter((f) => typeof src[f] === "string" && src[f].trim()).map((f) => ({ field: f, text: src[f] }));
     if (anchors.length > 0) {
       const { html, fixes } = enforceAnchoredText(slideHtml, anchors);
       if (fixes.length > 0) {
@@ -1730,8 +1730,8 @@ export function enforcePhotoSlideAnchorsGuard(result: any, params: { slides: any
     const src = srcByNum.get(slide?.slide_number) as any;
     const fields = src?.slide_type ? photoFields(src.slide_type) : [];
     if (fields.length === 0) return slide;
-    let html: string = slide?.html || "";
-    let changed = false;
+    let html: string = src.slide_type === "photo_integrated" ? relabelMisplacedAnchors(slide?.html || "", src) : slide?.html || "";
+    let changed = html !== (slide?.html || "");
     for (const { field, key } of fields) {
       const text = typeof src[key] === "string" ? src[key].trim() : "";
       if (!text) continue;
