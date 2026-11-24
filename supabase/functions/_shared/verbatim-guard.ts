@@ -195,3 +195,34 @@ export function ensurePptxEditable(html: string, field: string): string {
   const patched = openTag.replace(/>$/, ` data-pptx-editable="${field}">`);
   return html.slice(0, loc.openStart) + patched + html.slice(loc.contentStart);
 }
+
+/**
+ * Remet l'ancre sur le BON champ quand le dessin s'est trompé d'étiquette
+ * (vu en ligne le 24/11/2026 : slide sans titre dont le texte portait
+ * data-slide-text="title" → l'éditeur, qui remet chaque champ source dans son
+ * ancre, vidait la slide à l'ouverture). Conditions, toutes requises :
+ * le champ source de l'ancre est VIDE, l'autre champ ne l'est pas, l'autre
+ * champ n'a pas déjà son ancre, et le texte affiché est celui de l'autre champ
+ * (à la casse près : la garde verbatim réinjecte ensuite la casse source).
+ * Vaut dans les deux sens (title ↔ body). Sinon : HTML inchangé.
+ */
+export function relabelMisplacedAnchors(
+  html: string,
+  src: { title?: unknown; body?: unknown } | null | undefined,
+): string {
+  let out = html || "";
+  if (!src || !out.includes("data-slide-text")) return out;
+  const flat = (v: unknown) => (typeof v === "string" ? normalizeForCompare(v).toLowerCase() : "");
+  for (const field of ["title", "body"] as const) {
+    const other = field === "title" ? "body" : "title";
+    if (flat(src[field]) || !flat(src[other])) continue;
+    const loc = findAnchoredElement(out, field);
+    if (!loc || findAnchoredElement(out, other)) continue;
+    if (flat(stripTags(out.slice(loc.contentStart, loc.contentEnd))) !== flat(src[other])) continue;
+    const openTag = out.slice(loc.openStart, loc.contentStart)
+      .replace(new RegExp(`(\\bdata-(?:slide-text|pptx-editable)\\s*=\\s*["'])${field}(["'])`, "g"), `$1${other}$2`);
+    out = out.slice(0, loc.openStart) + openTag + out.slice(loc.contentStart);
+    console.warn(`carousel-visual: ancre data-slide-text="${field}" posée sur le texte du champ « ${other} » → remise sur « ${other} » (garde déterministe)`);
+  }
+  return out;
+}

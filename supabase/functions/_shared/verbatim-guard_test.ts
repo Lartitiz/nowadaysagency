@@ -210,3 +210,17 @@ Deno.test("ensurePptxEditable : pas d'ancre → HTML inchangé", () => {
   const html = `<p>Texte non ancré</p>`;
   assertEquals(ensurePptxEditable(html, "overlay"), html);
 });
+
+Deno.test("relabelMisplacedAnchors : l'autre champ a déjà son ancre → inchangé", async () => {
+  const { relabelMisplacedAnchors } = await import("./verbatim-guard.ts");
+  const html = `<div><h1 data-slide-text="title">Le texte</h1><p data-slide-text="body">Le texte</p></div>`;
+  assertEquals(relabelMisplacedAnchors(html, { title: "", body: "Le texte" }), html);
+  assertEquals(relabelMisplacedAnchors(html, null), html);
+  assertEquals(relabelMisplacedAnchors("", { title: "", body: "x" }), "");
+});
+
+Deno.test("relabelMisplacedAnchors : guillemets simples, spans internes, sans data-pptx-editable", async () => {
+  const { relabelMisplacedAnchors } = await import("./verbatim-guard.ts");
+  const out = relabelMisplacedAnchors(`<p class="a" data-slide-text='title'>Le <span>texte</span> entier</p>`, { body: "Le texte entier" });
+  assertEquals(out, `<p class="a" data-slide-text='body'>Le <span>texte</span> entier</p>`);
+});

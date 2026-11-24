@@ -2,7 +2,7 @@ import { ownText } from "@/lib/carousel-editor";
 export interface QualityIssue {
   slide: number;
   elementId: string;
-  kind: "overflow" | "size" | "margin" | "contrast" | "manual" | "image";
+  kind: "overflow" | "size" | "margin" | "contrast" | "manual" | "image" | "empty";
   severity: "error" | "warning";
   message: string;
   fix?: Record<string, string>;
@@ -195,8 +195,42 @@ export function readableFloorPx(el: HTMLElement): number {
   return secondary ? SECONDARY_FLOOR_PX : ESSENTIAL_FLOOR_PX;
 }
 
+/**
+ * Slide livrée vide (vu en ligne le 24/11/2026 : « 0 point bloquant » sur une
+ * slide blanche) : ni photo, ni texte de contenu. Ne comptent pas comme
+ * contenu : la pagination, les décors, les mentions secondaires (signature,
+ * @compte) et ce qui est masqué. Sans mesure de géométrie : le verdict ne
+ * dépend ni des polices ni de la taille du cadre.
+ */
+export function isEmptySlide(doc: Document): boolean {
+  const view = doc.defaultView!;
+  const hidden = (el: HTMLElement) => {
+    const s = view.getComputedStyle(el);
+    return s.display === "none" || s.visibility === "hidden";
+  };
+  const within = (el: HTMLElement, test: (p: HTMLElement) => boolean) => {
+    for (let p: HTMLElement | null = el; p && p !== doc.body; p = p.parentElement) if (test(p)) return true;
+    return false;
+  };
+  // Photo posée en image de fond d'un bloc ordinaire, ou image dans un dessin.
+  for (const photo of doc.body.querySelectorAll<HTMLElement>(`${PHOTO_SELECTOR},[style],image`))
+    if ((photo.matches(`${PHOTO_SELECTOR},image`) || /url\(/.test(photo.getAttribute("style") || "")) &&
+      !photo.hasAttribute("data-editor-photo-empty") && !within(photo, hidden)) return false;
+  const walker = doc.createTreeWalker(doc.body, 4);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const parent = node.parentElement;
+    if (!node.textContent?.trim() || !parent || parent.closest("style,script,template,title,desc")) continue;
+    if (within(parent, (p) => isDecorative(p) || SECONDARY_ROLE.test(roleOf(p)) || hidden(p))) continue;
+    return false;
+  }
+  return true;
+}
+export const EMPTY_SLIDE_MESSAGE = "cette slide est vide. Écris son texte, ajoute une photo ou supprime-la.";
+
 export function inspectSlide(doc: Document, slide: number): QualityIssue[] {
   const issues: QualityIssue[] = [];
+  if (isEmptySlide(doc))
+    issues.push({ slide, elementId: doc.body.querySelector<HTMLElement>("[data-slide-text],[data-pptx-editable]")?.dataset.editorId || "", kind: "empty", severity: "error", message: EMPTY_SLIDE_MESSAGE });
   const view = doc.defaultView!;
   const photos = [...doc.querySelectorAll<HTMLElement>(PHOTO_SELECTOR)];
   const clipped = new Set(findClippedIds(doc));

@@ -700,3 +700,41 @@ Deno.test("couverture photo et mixte : le mot clé du récit continu arrive en i
   // Accroche modifiée après coup (couverture réécrite, édition) : le mot clé absent est ignoré.
   assert(!composePhotoSlide({ ...cover, overlay_text: "Deux bols, deux histoires" }, ch as any, { isFirst: true, isLast: false }).html.includes("font-style:italic"));
 });
+
+// ═══ Ancre posée sur le mauvais champ (slide livrée vide, 24/11/2026) ═══
+// Slide 7 du premier carrousel d'un compte neuf : pas de titre, et le dessin
+// avait étiqueté « title » le texte du corps. L'éditeur, qui remet chaque champ
+// source dans son ancre, vidait alors la slide à l'ouverture.
+Deno.test("ancre sur le mauvais champ : slide sans titre dont le texte est étiqueté « title » → remise sur « body »", () => {
+  const PHRASE = "Un objet ancien mérite mieux que de dormir dans un tiroir, et sa seconde vie a plus de sens quand il garde son histoire.";
+  const html = (field: string, text: string) => `<div style="width:1080px;height:1350px"><p data-slide-text="${field}" data-pptx-editable="${field}" style="font-size:88px">${text}</p></div>`;
+  const result: any = { slides_html: [
+    { slide_number: 1, html: html("title", PHRASE) },
+    { slide_number: 2, html: html("body", "Ces lettres gravées") },
+    { slide_number: 3, html: html("title", "Un vrai titre") },
+    { slide_number: 4, html: html("title", "Un texte inventé par le dessin") },
+    { slide_number: 5, html: html("title", PHRASE.toLowerCase()) },
+  ] };
+  const slides = [
+    { slide_number: 1, slide_type: "text_only", title: "", body: PHRASE },
+    { slide_number: 2, slide_type: "text_only", title: "Ces lettres gravées", body: "" },
+    { slide_number: 3, slide_type: "text_only", title: "Un vrai titre", body: "Un corps sans ancre" },
+    { slide_number: 4, slide_type: "text_only", title: "", body: PHRASE },
+    { slide_number: 5, title: "", body: PHRASE },
+  ];
+  enforceVerbatimAnchorsGuard(result, { slides });
+  const [a, b, c, d, e] = result.slides_html.map((s: any) => s.html);
+  assertEquals(a, html("body", PHRASE), "sans titre : l'étiquette passe sur body, le texte reste");
+  assertEquals(b, html("title", "Ces lettres gravées"), "titre seul étiqueté body : même protection dans l'autre sens");
+  assertEquals(c, html("title", "Un vrai titre"), "étiquette juste : rien ne bouge");
+  assertEquals(d, html("title", "Un texte inventé par le dessin"), "texte qui n'est pas celui du corps : on ne devine pas");
+  assertEquals(e, html("body", PHRASE), "casse perdue : étiquette remise, puis texte source réinjecté");
+  // Slides photo avec titre et texte : même remise en place.
+  const photo: any = { slides_html: [{ slide_number: 1, html: html("title", PHRASE) }, { slide_number: 2, html: html("title", PHRASE) }] };
+  enforcePhotoSlideAnchorsGuard(photo, { slides: [
+    { slide_number: 1, slide_type: "photo_integrated", title: "", body: PHRASE },
+    { slide_number: 2, slide_type: "photo_full", overlay_text: "Autre", title: "", body: PHRASE },
+  ] });
+  assertEquals(photo.slides_html[0].html, html("body", PHRASE));
+  assertEquals(photo.slides_html[1].html, html("title", PHRASE), "photo plein cadre : pas concernée");
+});

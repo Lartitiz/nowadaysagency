@@ -152,7 +152,9 @@ export function describeRemaining(result: Pick<FixAllResult, "remaining" | "lock
             ? "Texte qui ressort peu sur son fond : change sa couleur"
             : issue.kind === "image"
               ? "Image impossible à charger : remplace-la"
-              : null;
+              : issue.kind === "empty"
+                ? "Slide vide : écris son texte, ajoute une photo ou supprime-la"
+                : null;
     if (!text) continue;
     groups.set(text, [...(groups.get(text) || []), issue.slide]);
   }
