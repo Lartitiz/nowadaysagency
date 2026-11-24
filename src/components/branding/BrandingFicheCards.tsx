@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Plus, Pencil, Loader2, Wand2 } from "lucide-react";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeAndRefreshCredits } from "@/lib/invoke-and-refresh-credits";
 import { Button } from "@/components/ui/button";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { toast } from "sonner";
@@ -320,7 +320,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
         .map(f => `- "${f.key}": ${fieldLabels[f.key] || f.label}`)
         .join("\n");
 
-      const { data: fillData } = await invokeWithTimeout("branding-coaching", {
+      const { data: fillData } = await invokeAndRefreshCredits("branding-coaching", {
         body: {
           section: "content_strategy_fill",
           messages: [
@@ -558,7 +558,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
             .map(f => `- "${f.key}": ${fieldLabels[f.key] || f.label}`)
             .join("\n");
 
-          const { data: fillData } = await invokeWithTimeout("branding-coaching", {
+          const { data: fillData } = await invokeAndRefreshCredits("branding-coaching", {
             body: {
               section: "persona_fill",
               messages: [
@@ -640,7 +640,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
       const { data: brandData } = await (supabase.from("brand_profile") as any)
         .select("mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause")
         .eq(column, workspaceValue).maybeSingle();
-      const { data: pitchData } = await invokeWithTimeout("persona-ai", {
+      const { data: pitchData } = await invokeAndRefreshCredits("persona-ai", {
         body: { type: "pitch", persona: freshPersona || data, profile: brandData || {} },
       }, 60000);
       if (pitchData?.content) {

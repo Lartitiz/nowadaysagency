@@ -8,7 +8,7 @@ import { useState } from "react";
 import { ArrowLeft, CheckCircle2, ChevronDown, Sparkles } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeAndRefreshCredits } from "@/lib/invoke-and-refresh-credits";
 import { readableError } from "@/lib/error-messages";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { QUICK_REFINE_QUESTIONS, refineContext, storyEditableText } from "./quick-refine";
@@ -46,7 +46,7 @@ export function ReviewQuickRefine({ sectionKey, analysis, saving, onSave, onCanc
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fnError } = await invokeWithTimeout("branding-quick-refine", {
+      const { data, error: fnError } = await invokeAndRefreshCredits("branding-quick-refine", {
         body: {
           section: sectionKey,
           current: analysis[sectionKey] || null,

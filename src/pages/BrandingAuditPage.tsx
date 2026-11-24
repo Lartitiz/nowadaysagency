@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeAndRefreshCredits } from "@/lib/invoke-and-refresh-credits";
 import { applyPositioningToProposition } from "@/lib/positioning-write";
 import { toast } from "sonner";
 import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
@@ -239,7 +239,7 @@ export default function BrandingAuditPage() {
 
       // 190s : l'abort IA côté edge est à 180s — le client doit couper APRÈS l'edge,
       // sinon double timeout et l'audit part à la poubelle sans même être sauvegardé.
-      const { data, error } = await invokeWithTimeout("audit-branding", { body: { ...payload, workspace_id: workspaceId } }, 190000);
+      const { data, error } = await invokeAndRefreshCredits("audit-branding", { body: { ...payload, workspace_id: workspaceId } }, 190000);
 
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);

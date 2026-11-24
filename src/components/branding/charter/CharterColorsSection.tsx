@@ -7,7 +7,7 @@ import { X, Plus, Sparkles, ChevronDown, ChevronUp, Loader2, HelpCircle } from "
 import { type Emotion, type Universe, type StyleAxis, type GeneratedPalette } from "@/lib/charter-palette-generator";
 import { SECTOR_PALETTES, DEFAULT_SECTOR } from "@/lib/charter-palettes";
 import { toast } from "sonner";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeAndRefreshCredits } from "@/lib/invoke-and-refresh-credits";
 import { friendlyError } from "@/lib/error-messages";
 
 const NEUTRAL_FALLBACKS: Record<string, string> = {
@@ -123,7 +123,7 @@ export default function CharterColorsSection({
     setIsGenerating(true);
     toast.info("Appel à l'IA en cours…");
     try {
-      const { data: result, error } = await invokeWithTimeout("palette-ai", {
+      const { data: result, error } = await invokeAndRefreshCredits("palette-ai", {
         body: { emotions: selectedEmotions, universe: selectedUniverse, styleAxes, userSector }
       }, 90000);
       if (error) {

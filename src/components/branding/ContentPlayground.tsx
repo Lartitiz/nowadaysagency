@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeAndRefreshCredits } from "@/lib/invoke-and-refresh-credits";
 import { useProfileFilter, useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Copy, RefreshCw, Loader2, Check, CalendarPlus } from "lucide-react";
@@ -76,7 +76,7 @@ export default function ContentPlayground({ section }: Props) {
         .maybeSingle();
       if (profileError) throw profileError;
 
-      const res = await invokeWithTimeout("generate-content", {
+      const res = await invokeAndRefreshCredits("generate-content", {
         body: {
           type: "playground",
           playground_prompt: actions[idx].prompt,
