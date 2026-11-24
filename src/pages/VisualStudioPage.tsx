@@ -568,7 +568,7 @@ function Studio({
               role="alert"
               className="mx-4 my-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
             >
-              {error || state.error?.message}
+              {error || readableError(state.error, "Le Studio ne se charge pas. Réessaie dans un instant.")}
               {(sessionId || photoId || draft.trim()) && (
                 <Button
                   variant="ghost"

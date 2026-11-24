@@ -68,7 +68,7 @@ test.describe("sonde de réaction (< 2 s)", () => {
   // Couvre la classe « je clique, une vue doit s'ouvrir ». Lecture seule, aucun
   // crédit : on ouvre le détail d'une photo puis la fenêtre « Changer le décor »
   // (sans lancer de génération), et on referme. Deux réactions mesurées.
-  test("photos : clic → détail, puis « Changer le décor » ouvre sa fenêtre", async ({ page }) => {
+  test("photos : clic → détail, puis « Modifier la photo » ouvre le Studio", async ({ page }) => {
     await page.goto("/photos", { waitUntil: "networkidle" });
     await expect(page.getByRole("heading", { name: /ma bibliothèque|mes photos/i }).first()).toBeVisible({ timeout: 15_000 });
 
@@ -84,24 +84,19 @@ test.describe("sonde de réaction (< 2 s)", () => {
       .filter({ has: page.locator("img") })
       .first()
       .click();
-    const retoucherBtn = page.getByRole("button", { name: /^Préparer \/ modifier$/ });
+    const retoucherBtn = page.getByRole("button", { name: /^Modifier la photo$/ });
     await expect(
       retoucherBtn,
       "Cliquer une photo doit ouvrir son détail sous 2 s",
     ).toBeVisible({ timeout: ACK_MS });
 
-    // Réaction B : « Retoucher » → « Changer le décor » ouvre sa fenêtre sous
-    // 2 s (aucune génération lancée : on se contente d'ouvrir puis fermer).
+    // Réaction B : « Modifier la photo » mène au Studio sous 2 s (une seule porte
+    // depuis #1957, 13/11/2026). La fonction du Studio est coupée : aucune
+    // session n'est créée, aucune génération lancée.
+    await page.route("**/functions/v1/visual-studio", (route) => route.abort());
     await retoucherBtn.click();
-    await page.getByRole("button", { name: /Changer le décor/i }).click();
-    await expect(
-      page.getByRole("heading", { name: /Changer le décor/i }),
-      "« Changer le décor » doit ouvrir sa fenêtre sous 2 s",
-    ).toBeVisible({ timeout: ACK_MS });
+    await expect(page, "« Modifier la photo » doit ouvrir le Studio sous 2 s").toHaveURL(/\/photos\/studio/, { timeout: ACK_MS });
     await page.screenshot({ path: path.join(SHOTS, "reaction-photo-dialog.png") });
-
-    await page.keyboard.press("Escape"); // referme la fenêtre de retouche
-    await page.keyboard.press("Escape"); // referme le détail
-    console.log("Réaction photos OK (détail + fenêtre retouche < 2 s)");
+    console.log("Réaction photos OK (détail + ouverture du Studio < 2 s)");
   });
 });
