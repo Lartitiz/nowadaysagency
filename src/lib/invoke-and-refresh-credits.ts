@@ -1,6 +1,8 @@
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invalidateUserPlanCache } from "@/hooks/use-user-plan";
 
+export type { InvokeError } from "@/lib/invoke-with-timeout";
+
 /** Remet à jour le compteur de crédits affiché (en-tête, menu), sans hook :
  *  utilisable hors WorkspaceProvider. Ne doit jamais faire échouer l'action
  *  qui vient de réussir. */
