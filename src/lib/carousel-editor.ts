@@ -1,4 +1,5 @@
 import { photoEditorialMarkup } from "../../supabase/functions/_shared/photo-editorial";
+import { fixMisplacedAnchors } from "./carousel-anchor-fix";
 import { KEPT_PHOTO, rememberDocumentAccents, withCharte } from "./carousel-layouts";
 /** The saved HTML is the editable design and the source of every visual export.
  * Structured fields are kept in sync for captions, regeneration and calendar views.
@@ -767,7 +768,7 @@ export function readCarouselDocument(
   // Older saved output may combine edited source text with an outdated preview.
   // Repair anchored text on import; editor-authored HTML already is authoritative.
   if (!data.carousel_editor_version)
-    document.slides = document.slides.map((slide) => {
+    document.slides = fixMisplacedAnchors(document.slides).map((slide) => {
       let next = slide;
       getEditorElements(slide.html).forEach((el) => {
         const field = el.field === "overlay" ? "overlay_text" : el.field;
