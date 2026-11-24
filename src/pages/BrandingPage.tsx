@@ -14,7 +14,7 @@ import { calculateBrandingCompletion, type BrandingCompletion } from "@/lib/bran
 import { withoutOnboardingDefaults } from "@/lib/onboarding-strategy-defaults";
 import { resolveFirstContentDestination } from "@/lib/first-content-destination";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeAndRefreshCredits } from "@/lib/invoke-and-refresh-credits";
 import { loadIdentityOverview, type IdentityOverview } from "@/lib/identity-overview";
 import { cleanInstagramLink, loadImportLinks } from "@/lib/branding-import-links";
 import { useQueryClient } from "@tanstack/react-query";
@@ -323,7 +323,7 @@ function ScopedBrandingPage() {
       if (!mounted.current) return;
       setImportPhaseNew("analyzing");
 
-      const { data: result, error } = await invokeWithTimeout("analyze-brand", {
+      const { data: result, error } = await invokeAndRefreshCredits("analyze-brand", {
         body: {
           userId: user?.id,
           websiteUrl: normalizedWebsite,

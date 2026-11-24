@@ -8,6 +8,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: invoke }));
+// Le compteur de crédits de l'en-tête : rechargé après une carte réécrite.
+const refreshCounter = vi.hoisted(() => vi.fn());
+vi.mock("@/hooks/use-user-plan", () => ({ invalidateUserPlanCache: refreshCounter }));
 const m = vi.hoisted(() => {
   const writes: { table: string; op: string }[] = [];
   const toast = { success: vi.fn(), error: vi.fn(), warning: vi.fn() };
@@ -80,6 +83,9 @@ describe("BrandingReview — « On affine ensemble » en une passe (onboarding)"
     fireEvent.click(reecrire);
     await screen.findByText("Tout a commencé avec un savon.");
     expect(invoke).toHaveBeenCalledTimes(1);
+    // 1 crédit dépensé : l'en-tête doit suivre tout de suite (24/11/2026).
+    expect(refreshCounter).toHaveBeenCalledTimes(1);
+    expect(refreshCounter).toHaveBeenCalledWith(true);
     const [fn, opts] = invoke.mock.calls[0];
     expect(fn).toBe("branding-quick-refine");
     expect(opts.body.section).toBe("story");
@@ -123,6 +129,7 @@ describe("BrandingReview — « On affine ensemble » en une passe (onboarding)"
     fireEvent.change(screen.getByLabelText("Un moment difficile ou un déclic dont tu te souviens ?"), { target: { value: "Un marché raté." } });
     fireEvent.click(screen.getByText("Réécrire ma carte"));
     await screen.findByRole("alert");
+    expect(refreshCounter).not.toHaveBeenCalled();
     expect((screen.getByLabelText("Un moment difficile ou un déclic dont tu te souviens ?") as HTMLTextAreaElement).value).toBe("Un marché raté.");
     expect(m.writes).toHaveLength(0);
   });

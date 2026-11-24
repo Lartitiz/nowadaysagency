@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeAndRefreshCredits } from "@/lib/invoke-and-refresh-credits";
 import { toast } from "sonner";
 import { tryParseAiJson } from "@/lib/parse-ai-json";
 
@@ -24,7 +24,7 @@ export async function generateAndSaveFullStory(
 ): Promise<void> {
   try {
     const aiCtx = await fetchContext();
-    const { data: storyGenData } = await invokeWithTimeout("branding-coaching", {
+    const { data: storyGenData } = await invokeAndRefreshCredits("branding-coaching", {
       body: {
         user_id: ctx.profileUserId,
         workspace_id: ctx.workspaceId,
@@ -130,7 +130,7 @@ async function fillMissingPersonaFields(
   const aiCtx = await fetchContext();
   const simpleMsgs = updatedMessages.map(m => ({ role: m.role, content: m.content }));
 
-  const { data: fillData } = await invokeWithTimeout("branding-coaching", {
+  const { data: fillData } = await invokeAndRefreshCredits("branding-coaching", {
     body: {
       user_id: ctx.profileUserId,
       workspace_id: ctx.workspaceId,
@@ -198,7 +198,7 @@ async function generatePersonaPitches(currentPersona: Record<string, any>, ctx: 
       .eq(ctx.column, ctx.value)
       .maybeSingle();
 
-    const { data: pitchData } = await invokeWithTimeout("persona-ai", {
+    const { data: pitchData } = await invokeAndRefreshCredits("persona-ai", {
       body: {
         type: "pitch",
         workspace_id: ctx.workspaceId !== ctx.profileUserId ? ctx.workspaceId : undefined,

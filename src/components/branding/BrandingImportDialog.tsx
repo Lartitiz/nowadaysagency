@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { readImportRows, importTarget, saveImportRow } from "@/lib/branding-import-persistence";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeAndRefreshCredits } from "@/lib/invoke-and-refresh-credits";
 import { extractTextFromFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { toast } from "sonner";
@@ -87,7 +87,7 @@ export default function BrandingImportDialog({
     setStep("loading");
 
     try {
-      const { data, error } = await invokeWithTimeout("import-branding-data", {
+      const { data, error } = await invokeAndRefreshCredits("import-branding-data", {
         body: {
           section: sectionTable,
           text: text.trim(),

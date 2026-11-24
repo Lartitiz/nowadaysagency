@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeAndRefreshCredits } from "@/lib/invoke-and-refresh-credits";
 import { useWorkspaceFilter, useProfileOwner, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { calculateBrandingCompletion, fetchBrandingDataWithStatus } from "@/lib/branding-completion";
@@ -107,7 +107,7 @@ export function useSynthesisFetch() {
     const request = ++summarySequence.current;
     setSummariesLoading(true);
     try {
-      const { data, error } = await invokeWithTimeout("generate-branding-summary", {
+      const { data, error } = await invokeAndRefreshCredits("generate-branding-summary", {
         body: { force: false, workspace_id: column === "workspace_id" ? value : undefined },
       }, 90000);
       if (!error && data && summarySequence.current === request) {
@@ -124,7 +124,7 @@ export function useSynthesisFetch() {
     const request = ++summarySequence.current;
     setSummariesLoading(true);
     try {
-      const { data, error } = await invokeWithTimeout("generate-branding-summary", {
+      const { data, error } = await invokeAndRefreshCredits("generate-branding-summary", {
         body: { force: true, workspace_id: column === "workspace_id" ? value : undefined },
       }, 90000);
       if (!error && data && summarySequence.current === request) {

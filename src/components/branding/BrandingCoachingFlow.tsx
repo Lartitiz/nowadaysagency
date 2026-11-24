@@ -2,7 +2,7 @@ import CoachingTarget from "@/components/branding/CoachingTarget";
 import { saveOfferInsights } from "@/lib/offer-coaching-persistence";
 import { loadCoachingSession, persistCoachingSession, archiveCoachingSession } from "@/lib/branding-coaching-session";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { invokeWithTimeout, type InvokeError } from "@/lib/invoke-with-timeout";
+import { invokeAndRefreshCredits, type InvokeError } from "@/lib/invoke-and-refresh-credits";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -355,7 +355,7 @@ function BrandingCoachingSession({ section, personaId, offerId, focus, onComplet
         const lastUserMsg = [...msgs].reverse().find(m => m.role === "user");
         const answer = lastUserMsg?.content || "Commence la session.";
 
-        const { data, error: fnError } = await invokeWithTimeout("charter-coaching", {
+        const { data, error: fnError } = await invokeAndRefreshCredits("charter-coaching", {
           body: {
             step: stepNum,
             answer,
@@ -386,7 +386,7 @@ function BrandingCoachingSession({ section, personaId, offerId, focus, onComplet
       // Send ALL messages — no pruning — the prompt's checklist prevents loops
       const simpleMsgs = msgs.map(m => ({ role: m.role, content: m.content }));
 
-      const { data, error: fnError } = await invokeWithTimeout("branding-coaching", {
+      const { data, error: fnError } = await invokeAndRefreshCredits("branding-coaching", {
         body: {
           user_id: profileUserId,
           workspace_id: workspaceId,

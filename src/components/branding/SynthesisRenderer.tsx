@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeAndRefreshCredits } from "@/lib/invoke-and-refresh-credits";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
@@ -871,7 +871,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
       if (section === "story") {
         const story = localData.step_7_polished || localData.imported_text || localData.step_6_full_story || "";
         const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
-        const { data: fnData, error } = await invokeWithTimeout("storytelling-ai", {
+        const { data: fnData, error } = await invokeAndRefreshCredits("storytelling-ai", {
           body: { type: "generate-recap", storytelling: story, profile },
         });
         if (error) throw new Error(error.message);
@@ -884,7 +884,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         setLocalData({ ...localData, recap_summary: parsed });
       } else if (section === "persona") {
         const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
-        const { data: fnData, error } = await invokeWithTimeout("persona-ai", {
+        const { data: fnData, error } = await invokeAndRefreshCredits("persona-ai", {
           body: { type: "portrait", profile, persona: localData },
         });
         if (error) throw new Error(error.message);
@@ -899,7 +899,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         const { data: personaData } = await (supabase.from("persona") as any).select("step_1_frustrations, step_2_transformation").eq(column, value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle();
         const { data: propositionData } = await (supabase.from("brand_proposition") as any).select("version_final, version_bio").eq(column, value).maybeSingle();
         const { data: editorialData } = await (supabase.from("instagram_editorial_line") as any).select("*").eq(column, value).maybeSingle();
-        const { data: fnData, error } = await invokeWithTimeout("strategy-ai", {
+        const { data: fnData, error } = await invokeAndRefreshCredits("strategy-ai", {
           body: { type: "generate-recap", strategy_data: localData, profile, persona: personaData, proposition: propositionData, tone: brandProfileData, editorial_line: editorialData },
         }, 120000);
         if (error) throw new Error(error.message);
@@ -914,7 +914,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
           .select("creative_concept")
           .eq(column, value)
           .maybeSingle();
-        const { data: fnData, error } = await invokeWithTimeout("niche-ai", {
+        const { data: fnData, error } = await invokeAndRefreshCredits("niche-ai", {
           body: {
             type: "generate-tone-recap",
             tone_data: {
