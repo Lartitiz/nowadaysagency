@@ -96,5 +96,13 @@ test.describe("erreurs et crédits compréhensibles", () => {
     await page.waitForTimeout(4_000);
     await expect(page.getByText(TECHNIQUE)).toHaveCount(0);
     await page.screenshot({ path: "e2e-visite/results/chantier-e-studio.png" });
+    // Même contrôle dans la fenêtre « Mes sessions », quand le bouton est là.
+    const sessions = page.getByRole("button", { name: "Mes sessions" }).first();
+    if (await sessions.count()) {
+      await sessions.click();
+      await expect(page.getByRole("dialog", { name: "Mes sessions Studio" })).toBeVisible();
+      await page.waitForTimeout(2_000);
+      await expect(page.getByText(TECHNIQUE)).toHaveCount(0);
+    }
   });
 });
