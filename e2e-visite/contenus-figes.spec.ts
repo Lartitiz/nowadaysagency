@@ -15,6 +15,10 @@
  * Ré-enregistrer (coût réel ≈ 0,6 $, seulement quand la réponse de l'IA doit
  * changer, ex. nouveau format de réponse) :
  *   FIGE_RECORD=1 npx playwright test -c playwright.visite.config.ts e2e-visite/contenus-figes.spec.ts --project=desktop --update-snapshots
+ * ⚠️ Après un ré-enregistrement, reposer le piège de la sonde 🏷️ : dans la réponse
+ * `carousel-visual` de figes/carrousel-texte.json, sur une slide SANS titre, passer
+ * `data-slide-text` et `data-pptx-editable` de "body" à "title", et remettre la clé
+ * "piege" en tête du fichier (sinon la ligne 🏷️ le signale).
  * Accepter un changement de design VOULU (sans régénérer) :
  *   npx playwright test -c playwright.visite.config.ts e2e-visite/contenus-figes.spec.ts --project=desktop --update-snapshots
  */
@@ -92,21 +96,46 @@ test("contenus figés — carrousel texte : texte, design et export identiques �
   // La grande slide de l'éditeur (les vignettes et mises en page sont aussi des iframes).
   const preview = page.locator('iframe[title^="Éditeur de la slide"]');
   const texts: string[] = [];
+  const vides: number[] = [];
   for (let i = 0; i < n; i++) {
     await vignettes.nth(i).click();
     await expect(preview).toHaveAttribute("title", `Éditeur de la slide ${i + 1}`, { timeout: 15000 });
+    // Une slide restée sans texte ne bloque pas la boucle : elle est comptée plus bas
+    // (ligne 🏷️), puis la comparaison aux textes de référence met le test au rouge.
     await page.waitForFunction(() => {
       const f = document.querySelector('iframe[title^="Éditeur de la slide"]') as HTMLIFrameElement | null;
       return (f?.contentDocument?.body?.innerText || "").trim().length > 0;
-    }, null, { timeout: 30000 });
+    }, null, { timeout: 30000 }).catch(() => {});
     await page.waitForTimeout(800); // fondu de la slide
     const text = await preview.evaluate((f: HTMLIFrameElement) =>
       (f.contentDocument?.body?.innerText || "").replace(/\s+/g, " ").trim());
     texts.push(text);
+    // 🏷️ Un titre ou un corps resté VIDE dans le dessin = texte effacé. On lit les
+    // éléments étiquetés, pas tout le texte : sur l'ancien défaut, la slide 4 gardait
+    // sa source « — Buffer » et ne paraissait donc pas vide (essai du 24/11).
+    // La ligne 🟠 sort ici, avant la comparaison d'image qui arrête le test.
+    const vide = await preview.evaluate((f: HTMLIFrameElement) => {
+      const champs = Array.from(f.contentDocument?.querySelectorAll('[data-slide-text="title"],[data-slide-text="body"],[data-slide-text="overlay"]') || []);
+      return !champs.length || champs.some((el) => !(el.textContent || "").trim());
+    });
+    if (vide) {
+      vides.push(i + 1);
+      console.log(`🏷️ Slides sans texte : slide ${i + 1} a perdu son texte 🟠 (effacé à l'ouverture du carrousel ?)`);
+    }
     await preview.scrollIntoViewIfNeeded();
     await expectZoneMatches(page, preview, `carrousel-texte-slide-${String(i + 1).padStart(2, "0")}.png`,
       `slide ${i + 1} : aspect différent de la référence`);
   }
+
+  // 🏷️ Slides sans texte (24/11/2026). Dans l'enregistrement, le texte de la slide 4
+  // (sans titre) porte exprès l'étiquette « title » au lieu de « body » : c'est
+  // l'erreur du dessin qui a livré une slide VIDE à une nouvelle inscrite (l'éditeur
+  // y remettait le titre, vide). Le texte doit rester ; lecture attendue : 0.
+  // Le piège vit dans l'enregistrement (clé « piege ») : un ré-enregistrement l'efface.
+  const piege = !fige.recording && !!JSON.parse(fs.readFileSync(path.join(FIGES_DIR, "carrousel-texte.json"), "utf8")).piege;
+  if (!vides.length) console.log(piege
+    ? "🏷️ Slides sans texte : 0 ✅ (étiquette mal posée en slide 4 : texte gardé)"
+    : "🏷️ Slides sans texte : 0, mais l'étiquette piège n'est plus dans l'enregistrement 🟠 (à reposer en slide 4)");
 
   // Références à (re)poser : à l'enregistrement, ou quand on accepte un changement
   // voulu avec --update-snapshots (le texte de référence suit alors les images).
