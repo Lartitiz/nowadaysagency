@@ -238,7 +238,7 @@ export function CalendarPostPreview({
   const Toolbar = () => {
     const hasVisuals = (visualUrls && visualUrls.length > 0) || (visualHtml && visualHtml.length > 0);
     return (
-      <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5">
           {syncStatus && (
             <span className={`inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full ${syncStatus === "synced" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
@@ -247,7 +247,8 @@ export function CalendarPostPreview({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1">
+        {/* La colonne d'aperçu est étroite (≈ 340 px) : les boutons passent à la ligne au lieu d'être coupés. */}
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
           {caption && !isStorySerie && (
             <Button variant="ghost" size="icon" onClick={handleCopyCaption} className="h-7 w-7" title="Copier la légende" aria-label="Copier la légende">
               <Copy className="h-3.5 w-3.5" />

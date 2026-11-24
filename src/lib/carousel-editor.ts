@@ -748,6 +748,30 @@ export function renumberDocument(document: CarouselDocument): CarouselDocument {
     }),
   };
 }
+/**
+ * Le dessin (IA) étiquette parfois « titre » le texte d'une slide qui n'a pas
+ * de titre (ou « texte » celui d'une slide qui n'a qu'un titre). Le champ
+ * source étant vide, la remise en accord ci-dessous EFFAÇAIT ce texte, sur la
+ * slide et dans les données (vu en ligne le 24/11 : slide livrée vide).
+ * Quand le texte affiché est exactement celui de l'autre champ, c'est
+ * l'étiquette qui est fausse : on la remet sur le bon champ, sans rien effacer.
+ */
+function fixMisplacedAnchors(slide: EditorSlide): EditorSlide {
+  const doc = parse(slide.html);
+  const flat = (value: unknown) => (typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "");
+  let changed = false;
+  for (const field of ["title", "body"] as const) {
+    const other = field === "title" ? "body" : "title";
+    const el = doc.body.querySelector<HTMLElement>(`[data-slide-text="${field}"]`);
+    if (!el || flat(slide.data[field]) || !flat(el.textContent)) continue;
+    if (flat(el.textContent) !== flat(slide.data[other])) continue;
+    if (doc.body.querySelector(`[data-slide-text="${other}"]`)) continue;
+    el.setAttribute("data-slide-text", other);
+    if (el.hasAttribute("data-pptx-editable")) el.setAttribute("data-pptx-editable", other);
+    changed = true;
+  }
+  return changed ? { ...slide, html: serialize(doc) } : slide;
+}
 export function readCarouselDocument(
   raw: any,
   visuals: { slide_number: number; html: string }[],
@@ -767,7 +791,8 @@ export function readCarouselDocument(
   // Older saved output may combine edited source text with an outdated preview.
   // Repair anchored text on import; editor-authored HTML already is authoritative.
   if (!data.carousel_editor_version)
-    document.slides = document.slides.map((slide) => {
+    document.slides = document.slides.map((source) => {
+      const slide = fixMisplacedAnchors(source);
       let next = slide;
       getEditorElements(slide.html).forEach((el) => {
         const field = el.field === "overlay" ? "overlay_text" : el.field;
