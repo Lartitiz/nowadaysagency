@@ -20,6 +20,7 @@ import { ONBOARDING_BLOCKER_TO_INSIGHT, ONBOARDING_GOAL_TO_PILLAR } from "@/lib/
 import type { CharterReferenceLink } from "@/components/branding/charter/CharterReferenceLinks";
 import { isOnboardingDraftExpired, purgeExpiredOnboardingDraft, purgeStaleOnboardingDraft } from "@/features/onboarding/draft-storage";
 import { emptyBrandingAnswers, emptyOnboardingAnswers } from "@/features/onboarding/empty-answers";
+import { effectiveActivityDetail } from "@/features/onboarding/activity-detail";
 import { captureExtension, pickOnboardingCaptures, removeOrphanCapture } from "@/features/onboarding/capture-upload";
 import { createBrandingSaveErrorReporter } from "@/features/onboarding/branding-save-error";
 
@@ -112,7 +113,6 @@ async function createOnboardingPreviewUrl(path: string): Promise<string | undefi
     return undefined;
   }
 }
-
 
 export function useOnboarding() {
   const { user } = useAuth();
@@ -551,7 +551,7 @@ export function useOnboarding() {
         activite: answers.activite,
         type_activite: answers.activity_type,
         product_or_service: answers.product_or_service,
-        activity_detail: answers.activity_detail || null,
+        activity_detail: effectiveActivityDetail(answers) || null,
         canaux,
         main_blocker: answers.blocage,
         main_goal: answers.objectif,
@@ -856,7 +856,7 @@ export function useOnboarding() {
   };
 
   const getPlaceholder = (field: string) => {
-    const examples = getActivityExamples(answers.activity_detail || answers.activite || answers.activity_type);
+    const examples = getActivityExamples(effectiveActivityDetail(answers) || answers.activity_type);
     const map: Record<string, string> = {
       positioning: examples.post_examples?.[0] || "Ex: Je capture la confiance. Photographe portrait pour les femmes entrepreneures.",
       mission: "Ex: Rendre visible les femmes qui créent. Par l'image, par le regard, par la confiance.",
