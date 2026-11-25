@@ -117,6 +117,30 @@ function readable(preferred: string, bg: string) {
   if (contrast(preferred, bg) >= 4.5) return preferred;
   return contrast("#1A1A1A", bg) >= contrast("#FFFFFF", bg) ? "#1A1A1A" : "#FFFFFF";
 }
+/** « Temps fort » (piste A validée par Laetitia le 25/11/2026 : couverture et
+ * ruptures en fond plein) : la couleur principale de la charte, si elle porte
+ * un texte blanc (4,5:1) et se détache du fond habituel (3:1). Sinon null : la
+ * couverture reste sur le fond de charte, la rupture sur la couleur secondaire. */
+export function strongBackground(ch: Charter): string | null {
+  const c = color(ch.color_primary, "");
+  return c && contrast("#FFFFFF", c) >= 4.5 && contrast(c, color(ch.color_background, "#FFFFFF")) >= 3 ? c : null;
+}
+/** Couleur des titres : la couleur voulue si elle se lit sur le fond ; sinon
+ * la couleur principale si ELLE se lit (charte du 25/11/2026 : secondaire
+ * gris-bleu à 4,4:1 sur blanc, les titres sortaient en noir au lieu du bleu
+ * nuit de la marque) ; sinon noir ou blanc. Sans couleur voulue : l'encre. */
+function headingInk(wanted: unknown, ch: Charter, bg: string, ink: string) {
+  const w = color(wanted, "");
+  if (!w) return readable(ink, bg);
+  if (contrast(w, bg) >= 4.5) return w;
+  const p = color(ch.color_primary, "");
+  return p && contrast(p, bg) >= 4.5 ? p : readable(w, bg);
+}
+/** Mélange de deux couleurs (part de `a` entre 0 et 1). */
+function mix(a: string, b: string, part: number) {
+  const ch = (c: string, i: number) => parseInt(c.slice(i, i + 2), 16);
+  return "#" + [1, 3, 5].map(i => Math.round(ch(a, i) * part + ch(b, i) * (1 - part)).toString(16).padStart(2, "0")).join("").toUpperCase();
+}
 function font(value: unknown, fallback: string) {
   return String(value || fallback).replace(/[^\p{L}\p{N} ._-]/gu, "").trim() || fallback;
 }
@@ -140,7 +164,18 @@ function lines(text: string, width: number, size: number) {
  * 60px), sinon la couleur du titre (l'italique seul porte alors l'accent). */
 function accentInk(ch: Charter, bg: string, fallback: string) {
   const c = color(ch.color_primary, "");
-  return c && contrast(c, bg) >= 3 ? c : fallback;
+  if (c && contrast(c, bg) >= 3) return c;
+  // Sur le fond plein de la couleur principale, elle ne peut pas servir
+  // d'accent : la secondaire puis l'accent de charte prennent le relais.
+  if (c && c.toUpperCase() === bg.toUpperCase()) {
+    for (const k of [ch.color_secondary, ch.color_accent]) {
+      const o = color(k, "");
+      if (!o || contrast(o, bg) < 3) continue;
+      // Éclaircie de moitié si elle reste terne sur le fond plein (moins de 4,5:1).
+      return contrast(o, bg) >= 4.5 ? o : mix(o, "#FFFFFF", .5);
+    }
+  }
+  return fallback;
 }
 /** Texte échappé avec, au plus, un extrait enveloppé dans un <span> stylé. Le
  * texte rendu reste identique au texte source (garde verbatim, édition live). */
@@ -176,9 +211,9 @@ export function composeCoverSlide(slide: Slide, ch: Charter, slideNumber: number
   const body = String(slide.title || slide.overlay_text ? slide.body || slide.detail || "" : slide.body || "").trim();
   const hook = title || body, sub = title ? body : "";
   if (!hook) return null;
-  const bg = color(bgOverride || ch.color_background, "#FFFFFF");
+  const bg = color(bgOverride || strongBackground(ch) || ch.color_background, "#FFFFFF");
   const ink = readable(color(ch.color_text, "#1A1A1A"), bg);
-  const heading = readable(color(ch.color_secondary, ink), bg);
+  const heading = headingInk(ch.color_secondary, ch, bg, ink);
   const titleFont = font(ch.font_title, "Libre Baskerville");
   const bodyFont = font(ch.font_body, "IBM Plex Sans");
   const n = wordsOf(hook);
@@ -217,9 +252,9 @@ export function composeEditorialSlide(slide: Slide, beat: DesignBeat, ch: Charte
   const title = String(slide.title || "");
   const body = String(slide.body || "");
   if (!title && !body) return null;
-  const bg = color(beat.inverted ? ch.color_secondary : ch.color_background, beat.inverted ? "#243746" : "#FFFFFF");
+  const bg = color(beat.inverted ? strongBackground(ch) || ch.color_secondary : ch.color_background, beat.inverted ? "#243746" : "#FFFFFF");
   const ink = readable(color(ch.color_text, "#1A1A1A"), bg);
-  const heading = readable(color(beat.inverted ? ch.color_accent : ch.color_secondary, ink), bg);
+  const heading = headingInk(beat.inverted ? ch.color_accent : ch.color_secondary, ch, bg, ink);
   const titleFont = font(ch.font_title, "Libre Baskerville");
   const bodyFont = font(ch.font_body, "IBM Plex Sans");
   const type = beat.layout;
@@ -301,7 +336,11 @@ export function composeEditorialSlide(slide: Slide, beat: DesignBeat, ch: Charte
   // extraits exacts revalidés ici : un groupe du titre en italique couleur
   // d'accent, un seul mot ou groupe du texte surligné.
   const titleAccent = validExtract(title, beat.accent, 5);
-  const hl = color(ch.color_accent, "");
+  // Surligneur : l'accent de charte s'il laisse lire le texte ; sinon une
+  // teinte pâle de la couleur principale (accent trop sombre, 25/11/2026).
+  const hlAccent = color(ch.color_accent, ""), hlPrimary = color(ch.color_primary, "");
+  const hlPale = hlPrimary ? mix(hlPrimary, bg, .14) : "";
+  const hl = hlAccent && contrast(ink, hlAccent) >= 4.5 ? hlAccent : hlPale && contrast(ink, hlPale) >= 4.5 ? hlPale : hlAccent;
   const bodyHighlight = !beat.inverted && hl && contrast(ink, hl) >= 4.5 ? validExtract(body, beat.highlight, 6) : undefined;
   const titleInner = emphasize(title, titleAccent, `font-style:italic;color:${accentInk(ch, bg, heading)}`);
   const bodyInner = lone ? emphasize(body, validExtract(body, beat.accent, 5), `font-style:italic;color:${accentInk(ch, bg, heading)}`)

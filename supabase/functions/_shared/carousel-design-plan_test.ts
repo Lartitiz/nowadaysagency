@@ -178,3 +178,31 @@ Deno.test("design au service du sens : une forme qui ne tient pas cède, jamais 
   const out = composeEditorialSlide(slides[1], sensed.sequence[1], REF_CH);
   assert(out && plain(out.html).includes(long), "slide toujours composée avec tout son texte");
 });
+
+// ── Piste A (25/11/2026) : couverture et ruptures en fond plein de la couleur principale ──
+Deno.test("piste A : charte à couleur principale sombre → couverture et rupture en fond plein, titres dans la couleur de marque", async () => {
+  const { composeCoverSlide, composeEditorialSlide, strongBackground } = await import("./carousel-design-plan.ts");
+  const ch = { color_primary: "#131953", color_secondary: "#717594", color_accent: "#454C79", color_background: "#FFFFFF", color_text: "#101750", font_title: "Space Grotesk", font_body: "Inter" };
+  if (strongBackground(ch) !== "#131953") throw new Error("fond fort attendu");
+  const cover = composeCoverSlide({ title: "Sept mois de portage que je n'avais pas chiffrés", body: "3 erreurs qui plombent la marge" }, ch, 1, null, "que je n'avais pas chiffrés")!.html;
+  if (!cover.includes("background:#131953")) throw new Error("couverture : fond plein attendu");
+  if (!cover.includes("color:#FFFFFF")) throw new Error("couverture : titre blanc attendu");
+  if (!cover.includes("font-style:italic;color:#B8BACA")) throw new Error("couverture : accent en secondaire éclaircie attendu : " + (cover.match(/font-style:italic;color:#[0-9A-F]{6}/i) || [""])[0]);
+  const beat = { slide_number: 2, layout: "essay" as const, alignment: "left" as const, density: "low" as const, inverted: false, highlight: "grignote la marge" };
+  const slide = { title: "Erreur n°1 : sous-estimer la durée du portage", body: "Chaque mois supplémentaire grignote la marge." };
+  const plain = composeEditorialSlide(slide, beat, ch)!.html;
+  if (!plain.includes("background:#FFFFFF") || !plain.includes("color:#131953")) throw new Error("slide courante : fond blanc et titre bleu nuit attendus");
+  if (!/linear-gradient\(transparent 58%, #DE[0-9A-F]{4} 58%\)/.test(plain)) throw new Error("surligneur pâle attendu : " + (plain.match(/linear-gradient[^;]+/) || [""])[0]);
+  const rupture = composeEditorialSlide({ body: "Cet oubli est invisible au moment de l'achat." }, { ...beat, layout: "statement", alignment: "center", inverted: true, highlight: undefined }, ch)!.html;
+  if (!rupture.includes("background:#131953")) throw new Error("rupture : fond plein attendu");
+});
+
+Deno.test("piste A : couleur principale claire ou fond imposé → rien ne change", async () => {
+  const { composeCoverSlide, strongBackground } = await import("./carousel-design-plan.ts");
+  const rose = { color_primary: "#FB3D80", color_secondary: "#91014B", color_background: "#FFF4F8", color_text: "#1A1A1A" };
+  if (strongBackground(rose) !== null) throw new Error("rose clair : pas de fond fort");
+  if (!composeCoverSlide({ title: "Ta com' est jolie" }, rose, 1)!.html.includes("background:#FFF4F8")) throw new Error("couverture : fond de charte attendu");
+  const sombre = { color_primary: "#131953", color_background: "#FFFFFF" };
+  if (!composeCoverSlide({ title: "Titre" }, sombre, 1, "#F6F4F0")!.html.includes("background:#F6F4F0")) throw new Error("fond imposé respecté");
+  if (strongBackground({ color_primary: "#131953", color_background: "#1C1C20" }) !== null) throw new Error("fond déjà sombre : pas de fond fort");
+});
