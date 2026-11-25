@@ -22,7 +22,7 @@ export default function OnboardingPhase1Profile({ prenom, activite, onPrenomChan
           Dis-moi qui tu es
         </h1>
         <p className="text-sm text-muted-foreground italic">
-          en deux mots, comme tu le dirais à quelqu'un dans un café
+          comme tu le dirais à quelqu'un dans un café
         </p>
       </div>
 
@@ -44,15 +44,20 @@ export default function OnboardingPhase1Profile({ prenom, activite, onPrenomChan
       </div>
 
       <div>
-        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Tu fais quoi, en deux mots ?</label>
+        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Tu fais quoi ?</label>
         <VoiceInput
           value={activite}
           onChange={onActiviteChange}
-          placeholder="Photographe portrait pour entrepreneures"
+          placeholder="Céramiste, je vends mes pièces en ligne"
           onEnter={prenomOk && activiteOk ? onNext : undefined}
           autoFocus={prenomOk}
           showVoiceTip
         />
+        {/* Seule question sur l'activité depuis le 25/11/2026 (l'écran 2 ne la
+            repose plus) : c'est ici qu'on invite à faire une phrase. */}
+        <p className="text-2xs text-muted-foreground mt-1.5 italic">
+          (une phrase suffit : c'est ce qui rend tes contenus justes)
+        </p>
       </div>
 
       <div className="text-center">

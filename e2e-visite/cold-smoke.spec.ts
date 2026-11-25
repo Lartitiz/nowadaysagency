@@ -216,7 +216,7 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   // Suivant → écran « Tu proposes plutôt quoi ? ». On capture ce qui s'affiche
   // pour le regard du cron ; l'assertion dure est déjà passée à l'étape 1 (pas
   // d'écran blanc). Dérouler tout le diagnostic reste au harnais qa-neuf.
-  // 🔑 15/10 — prénom et « tu fais quoi, en deux mots ? » sont désormais sur
+  // 🔑 15/10 — prénom et « tu fais quoi ? » sont désormais sur
   // le MÊME écran (chantier A, démarrage raccourci) : le pas suivant est donc
   // l'écran produits/services.
   const suivant = page.locator("button:visible", { hasText: /suivant/i }).first();
