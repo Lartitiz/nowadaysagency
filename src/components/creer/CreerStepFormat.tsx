@@ -329,7 +329,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
   }, [forcedChannel]);
 
   // Page « quel format ? » : cartes compactes et format conseillé (chantier B, 15/10/2026).
-  const recommendation = selectedChannel ? recommendContentFormat(selectedChannel, initialPhotos?.length || 0, idea, libraryPhotoCount) : null;
+  const recommendation = selectedChannel ? recommendContentFormat(selectedChannel, initialPhotos?.length || 0, idea, libraryPhotoCount, !!directStart) : null;
   const pageOneChoices: FormatChoice[] =
     selectedChannel === "instagram"
       ? typeEntries

@@ -11,8 +11,22 @@ export function ideaAsksForStory(idea: string): boolean {
   return /(^|[^\p{L}])stor(?:y|ys|ies)(?![\p{L}])/iu.test(idea);
 }
 
-export function recommendContentFormat(channel: string, photoCount: number, idea: string, libraryPhotoCount = 0) {
+/**
+ * `firstContent` : c'est le tout premier contenu d'une nouvelle inscrite (parcours
+ * lancé par buildFirstContentUrl, `auto=1`). Règle du 14/08, confirmée le 25/11/2026 :
+ * le conseil reste Carrousel sur Instagram et LinkedIn, même après « Changer de
+ * canal » ou « Changer de format » (avant, l'écran repassait à « Post — Conseillé »
+ * et contredisait le carrousel déjà réglé à l'arrivée). Les canaux sans carrousel
+ * (newsletter, Pinterest) gardent leur propre conseil.
+ */
+export function recommendContentFormat(channel: string, photoCount: number, idea: string, libraryPhotoCount = 0, firstContent = false) {
   if (channel === "newsletter") return { format: "newsletter", label: "Newsletter", reason: "Pour développer ton sujet dans un email." };
+  if (firstContent && (channel === "instagram" || channel === "linkedin")) {
+    const avecPhotos = photoCount > 1 || (photoCount === 0 && libraryPhotoCount >= LIBRARY_PHOTOS_FOR_PHOTO_CAROUSEL);
+    return avecPhotos
+      ? { format: "carousel", mode: "photo" as const, label: "Carrousel avec tes photos", reason: "Le carrousel montre ton travail d'un coup : une photo et un texte court par slide. Idéal pour un premier contenu." }
+      : { format: "carousel", mode: "text" as const, label: "Carrousel texte", reason: "Le carrousel montre ton travail d'un coup : une idée par slide. Idéal pour un premier contenu." };
+  }
   // Elle a écrit « reel » : on suit sa demande, même avec plusieurs photos (vu le 12/11/2026 : seul le carrousel était proposé).
   if (channel === "instagram" && ideaAsksForReel(idea)) return { format: "reel", label: "Reel", reason: photoCount > 0 ? "Tu as demandé un Reel : on écrit le script et le plan de tournage à partir de ton idée et de tes photos." : "Tu as demandé un Reel : on écrit le script et le plan de tournage à partir de ton idée." };
   // Elle a écrit « story » : même logique (QA du 12/11/2026 : avec des photos, la Story était masquée).
