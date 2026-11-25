@@ -221,7 +221,7 @@ function Studio({
       .filter((v) => v.status === "ready")
       .find((v) => v.id !== version?.id)?.url ??
       undefined);
-  const { identitySheet, productName, readyFollowUp } = readyFollowUpFor(version, references);
+  const { identitySheet, productName, readyFollowUp } = readyFollowUpFor(version, references, current?.session.messages);
   const label = version
     ? `Version ${
       current!.versions.filter((v) => v.status === "ready").findIndex((v) =>
