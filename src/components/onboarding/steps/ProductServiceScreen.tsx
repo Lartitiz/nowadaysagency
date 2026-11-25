@@ -1,13 +1,13 @@
-import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { PRODUCT_OPTIONS } from "@/lib/onboarding-constants";
+import { needsActivityDetailQuestion } from "@/features/onboarding/activity-detail";
 
 interface Props {
   value: string;
   onChange: (v: string) => void;
   detailValue: string;
   onDetailChange: (v: string) => void;
-  /** Activité saisie à l'étape précédente : sert de pré-remplissage. */
+  /** Activité saisie à l'étape précédente : si elle est remplie, on ne la redemande pas ici. */
   activite?: string;
   onNext?: () => void;
 }
@@ -15,15 +15,10 @@ interface Props {
 export default function ProductServiceScreen({
   value, onChange, detailValue, onDetailChange, activite, onNext,
 }: Props) {
-  // Pré-remplissage unique depuis l'étape 1 (« ton activité »), éditable ensuite.
-  const prefilled = useRef(false);
-  useEffect(() => {
-    if (prefilled.current) return;
-    if (!detailValue && activite && activite.trim().length >= 2) {
-      prefilled.current = true;
-      onDetailChange(activite.trim());
-    }
-  }, [activite, detailValue, onDetailChange]);
+  // Une seule question sur l'activité : si l'écran précédent est rempli, sa
+  // réponse sert aussi de détail (effectiveActivityDetail) et on ne repose pas
+  // la question. Elle ne reste que pour un écran 1 vide (brouillon repris ici).
+  const askDetail = needsActivityDetailQuestion(activite);
 
   // Le bouton Suivant est TOUJOURS visible (règle unifiée de l'onboarding :
   // choix simple = auto-avance, écran à plusieurs saisies = bouton permanent).
@@ -61,22 +56,24 @@ export default function ProductServiceScreen({
         ))}
       </div>
 
-      <div>
-        <label htmlFor="activity-detail" className="block text-sm font-semibold text-foreground mb-2">
-          Et concrètement, tu fais quoi&nbsp;?
-        </label>
-        <input
-          id="activity-detail"
-          type="text"
-          value={detailValue}
-          onChange={e => onDetailChange(e.target.value)}
-          placeholder="céramiste, je vends mes pièces en ligne"
-          className="w-full text-base p-3 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50"
-        />
-        <p className="text-2xs text-muted-foreground mt-1.5 italic">
-          (une phrase suffit — c'est ce qui rend tes contenus justes)
-        </p>
-      </div>
+      {askDetail && (
+        <div>
+          <label htmlFor="activity-detail" className="block text-sm font-semibold text-foreground mb-2">
+            Et concrètement, tu fais quoi&nbsp;?
+          </label>
+          <input
+            id="activity-detail"
+            type="text"
+            value={detailValue}
+            onChange={e => onDetailChange(e.target.value)}
+            placeholder="céramiste, je vends mes pièces en ligne"
+            className="w-full text-base p-3 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50"
+          />
+          <p className="text-2xs text-muted-foreground mt-1.5 italic">
+            (une phrase suffit — c'est ce qui rend tes contenus justes)
+          </p>
+        </div>
+      )}
 
       {onNext && (
         <div className="flex justify-center">

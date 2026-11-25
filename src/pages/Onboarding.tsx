@@ -10,6 +10,7 @@ import { useOnboarding } from "@/hooks/use-onboarding";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Answers, BrandingAnswers } from "@/hooks/use-onboarding";
 import { toast } from "sonner";
+import { effectiveActivityDetail } from "@/features/onboarding/activity-detail";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -32,9 +33,10 @@ const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answ
     message: "Ton prénom et ton activité doivent faire au moins 2 caractères",
   },
   2: {
-    schema: z.object({ product_or_service: z.string().min(1), activity_detail: z.string().trim().min(5) }),
-    getData: (a) => ({ product_or_service: a.product_or_service, activity_detail: a.activity_detail || "" }),
-    message: "Choisis produits/services et décris ton activité en quelques mots",
+    schema: z.object({ product_or_service: z.string().min(1), activity_detail: z.string().trim().min(2) }),
+    // Le détail vient de l'écran 1 quand il est rempli (question non reposée).
+    getData: (a) => ({ product_or_service: a.product_or_service, activity_detail: effectiveActivityDetail(a) }),
+    message: "Choisis ce que tu proposes (et décris ton activité si la question est affichée)",
   },
   4: {
     schema: z.object({ canaux: z.array(z.string()).min(1) }),

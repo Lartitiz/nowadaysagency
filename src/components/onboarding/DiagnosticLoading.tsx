@@ -8,6 +8,7 @@ import { onboardingLabel, ACTIVITY_OPTIONS, BLOCKERS, OBJECTIVES, TIME_OPTIONS, 
 import { ACTIVITY_SECTIONS_REAL_ESTATE, BLOCKERS_REAL_ESTATE, OBJECTIVES_REAL_ESTATE } from "@/lib/onboarding-variants";
 import { Progress } from "@/components/ui/progress";
 import { elapsedLabel } from "@/components/creer/GenerationTimeHint";
+import { effectiveActivityDetail } from "@/features/onboarding/activity-detail";
 
 interface Props {
   // Le pseudo Instagram peut être lu publiquement par l'Edge Function ; les
@@ -283,7 +284,7 @@ export default function DiagnosticLoading({
             target_description: brandingAnswers.target_description || "",
             change_priority: answers.change_priority || "",
             product_or_service: onboardingLabel(answers.product_or_service, PRODUCT_OPTIONS),
-            activity_detail: answers.activity_detail || "",
+            activity_detail: effectiveActivityDetail(answers),
             desired_channels: (answers.desired_channels || []).map(c => onboardingLabel(c, DESIRED_CHANNELS, CHANNELS)),
             uniqueness: answers.uniqueness || "",
             linkedin_summary: (answers as any).linkedin_summary || "",
