@@ -161,7 +161,7 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label htmlFor={`${formId}-activite`} className="sr-only">Activité</label>
-          <Input id={`${formId}-activite`} {...register("activite")} placeholder="Ex : photographe, coach, artisane..." className="rounded-xl h-12 bg-card border-border" />
+          <Input id={`${formId}-activite`} {...register("activite")} placeholder="Ex : céramiste, je vends mes pièces en ligne" className="rounded-xl h-12 bg-card border-border" />
         </div>
         <div>
           <label htmlFor={`${formId}-password`} className="sr-only">Mot de passe</label>
