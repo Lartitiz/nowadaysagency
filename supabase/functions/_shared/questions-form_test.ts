@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { couperListeOptions, couperListesDesQuestions, questionFermee, questionTropLongue, questionsTropLongues } from "./questions-form.ts";
+import { aUnInterrogatif, couperListeOptions, couperListesDesQuestions, deuxQuestionsEnUne, garderQuestionsSaines, questionFermee, questionTropLongue, questionsTropLongues } from "./questions-form.ts";
 import { relancerQuestionsSiBesoin } from "../carousel-ai/questions-address.ts";
 
 // Vraie question du 12/11/2026, jugée illisible par Laetitia.
@@ -75,4 +75,41 @@ Deno.test("questions-form : questions fermées repérées, invitations et questi
   const out = await relancerQuestionsSiBesoin(fermee, async (consigne) => { appels++; assert(consigne.includes("oui ou non")); return ouverte; });
   assertEquals(appels, 1);
   assertEquals(out, ouverte);
+});
+
+// Répétition du rendez-vous du 27/11 (25/11/2026, compte du parcours immobilier).
+Deno.test("questions-form : la liste coupée ne laisse jamais une phrase qui n'interroge plus", () => {
+  // Avant : « Pense à ta toute première opération de marchand de biens ? ».
+  const q = "Pense à ta toute première opération de marchand de biens : qu'est-ce qui t'a le plus surprise, le prix, le délai ou le notaire ?";
+  assertEquals(couperListeOptions(q), q);
+  assert(aUnInterrogatif("Sur tes marchés, qu'est-ce qui fait revenir une cliente"));
+  assert(aUnInterrogatif("Quand un client hésite, que fais-tu"));
+  assert(!aUnInterrogatif("Pense à ta toute première opération de marchand de biens"));
+});
+
+Deno.test("questions-form : deux questions en une, même sous un seul « ? », déclenchent la relance", () => {
+  assert(deuxQuestionsEnUne("Comment tu remplaces le parfum de synthèse ? Et qu'est-ce que ça change à l'odeur ?"));
+  assert(deuxQuestionsEnUne("Quelle étape de ta méthode surprend le plus tes acheteurs, et veux-tu la montrer avec un chiffre ?"));
+  assert(questionTropLongue("Quelle étape de ta méthode surprend le plus tes acheteurs, et veux-tu la montrer avec un chiffre ?"));
+  assert(!deuxQuestionsEnUne("Quelle étape de ta méthode surprend le plus tes acheteurs et tes notaires ?"));
+  assert(!deuxQuestionsEnUne("Pense à ta dernière opération bloquée par un lot : qu'est-ce qui a fini par débloquer la revente ?"));
+  assert(!deuxQuestionsEnUne("Raconte ta dernière visite et dis-moi comment tu as chiffré les travaux."));
+});
+
+Deno.test("filet : une question qui dit « votre » et « veux-tu » ne sort jamais", async () => {
+  const melange = { question: "Dans votre méthode, quelle étape veux-tu montrer en premier ?", placeholder: "Ex. : le chiffrage des travaux" };
+  const saine = { question: "Quel chiffre de ta dernière opération surprend le plus tes acheteurs ?", placeholder: "Ex. : 4 mois de portage" };
+  const corrigee = { question: "Dans ta méthode, quelle étape veux-tu montrer en premier ?", placeholder: "Ex. : le chiffrage des travaux" };
+  const doc = (...questions: unknown[]) => JSON.stringify({ questions });
+  // La relance échoue : la question fautive est retirée, la saine reste.
+  assertEquals(JSON.parse(await relancerQuestionsSiBesoin(doc(melange, saine), async () => { throw new Error("réseau"); })).questions, [saine]);
+  // La relance corrige cette question mais en allonge une autre : on prend la correction, question par question.
+  const longue = { question: saine.question.replace(" ?", " (hors frais) ?"), placeholder: saine.placeholder };
+  assertEquals(JSON.parse(await relancerQuestionsSiBesoin(doc(melange, longue), async () => doc(corrigee, longue))).questions, [corrigee, longue]);
+  // Toutes fautives et relance en échec : on garde tout plutôt qu'un écran vide.
+  assertEquals(garderQuestionsSaines(doc(melange)), doc(melange));
+  // Suivi de creative-flow : même filet sur follow_up_questions.
+  assertEquals(JSON.parse(garderQuestionsSaines(JSON.stringify({ follow_up_questions: [melange, saine] }))).follow_up_questions, [saine]);
+  // Rien de fautif : texte rendu tel quel.
+  assertEquals(garderQuestionsSaines(doc(saine)), doc(saine));
 });

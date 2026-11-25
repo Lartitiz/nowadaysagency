@@ -117,6 +117,12 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
   une fiche à part « (ma version retouchée) » ; après un nouveau design, « Revenir
   à ma version précédente » pendant 30 s (`use-regeneration-backup.ts`, qui suit
   aussi `visualSlides`).
+  Depuis le 25/11/2026, le texte dépend de vraies retouches :
+  `src/lib/carousel-retouched.ts` (`raw.carousel_retouched`, écrit par
+  `CarouselEditor.tsx` : faux à l'arrivée de nouveaux visuels, vrai au premier
+  geste ; absent = carrousel d'avant, traité comme retouché). Sans retouche : « Le
+  design actuel sera remplacé par un nouveau », pas de bouton de copie. Test :
+  `src/test/carousel-retouched.test.tsx`.
 - **Copie locale trop lourde** (carrousel « Tes photos en fond », ~11 Mo de photos
   dans le HTML pour ~5 Mo de place dans l'onglet) : `saveFlowState` garde une copie
   sans visuels (`src/features/creer/flow-state-slim.ts`, `visualsInCloud`) ; au

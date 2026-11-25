@@ -11,6 +11,7 @@ import { compressImageFile } from "@/lib/image-compress";
 import CarouselInstagramPreview from "@/components/creer/CarouselInstagramPreview";
 import type { CarouselStylesApi, SavedCarouselStyle } from "@/hooks/use-carousel-styles";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
+import { retouchedOnImport, withRetouched } from "@/lib/carousel-retouched";
 import {
   slideExtraTexts,
   applyTheme,
@@ -189,8 +190,8 @@ export default function CarouselEditor({
   const echo = useRef<any[]>([]);
   const callbacks = useRef({ onChange, raw });
   callbacks.current = { onChange, raw };
-  const emit = (next: CarouselDocument) => {
-    const output = documentOutput(next, callbacks.current.raw);
+  const emit = (next: CarouselDocument, retouched?: boolean) => {
+    const output = withRetouched(documentOutput(next, callbacks.current.raw), retouched);
     echo.current = inputKey(output.raw, output.visualSlides);
     current.current = next;
     setDocument(next);
@@ -199,10 +200,10 @@ export default function CarouselEditor({
   const incoming = useMemo(() => inputKey(raw, visualSlides), [raw, visualSlides]);
   useEffect(() => {
     if (incoming.every((value, index) => value === echo.current[index])) return;
-    echo.current = incoming;
+    const retouched = retouchedOnImport(raw, visualSlides, !echo.current.length); echo.current = incoming;
     history.current = { past: [], future: [], key: "", time: 0 };
     const next = readCarouselDocument(raw, visualSlides);
-    emit(next);
+    emit(next, retouched);
     setActive(0);
     setSelected(null);
   }, [incoming, raw, visualSlides]);
@@ -211,14 +212,13 @@ export default function CarouselEditor({
     onStaleChange?.(false);
   }, [onStaleChange]);
   const commit = (next: CarouselDocument, key = "") => {
-    const h = history.current,
-      now = Date.now();
+    const h = history.current, now = Date.now();
     if (!key || h.key !== key || now - h.time > 800)
       h.past = [...h.past.slice(-29), current.current];
     h.future = [];
     h.key = key;
     h.time = now;
-    emit(next);
+    emit(next, true);
   };
   const fixAll = useFixAll(current, commit, () => undo());
   const undo = (redo = false) => {

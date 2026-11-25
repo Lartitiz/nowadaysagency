@@ -72,16 +72,20 @@ const slideNumber = (id: unknown): number | null => {
 const slidesLabel = (nums: number[]): string =>
   nums.length > 1 ? `Slides ${nums.slice(0, -1).join(", ")} et ${nums.at(-1)}` : `Slide ${nums[0]}`;
 
+// Au-delà, la liste ne désigne plus rien (répétition du 25/11/2026 : « Slides 1, 2,
+// 3, … et 14 : une tournure ne sonne pas tout à fait comme toi »).
+const MAX_SLIDES_CITED = 3;
+
 const quote = (excerpt: unknown): string => {
   const text = typeof excerpt === "string" ? excerpt.replace(/\s+/g, " ").trim() : "";
   if (!text) return "";
   return ` (« ${text.length > 60 ? `${text.slice(0, 57).trimEnd()}…` : text} »)`;
 };
 
-/** Constats du juge (reçu à jour seulement) → libellés courts, dédoublonnés. */
-function judgeSuggestions(receipt: any): string[] {
+/** Constats du juge (reçu à jour seulement) → libellés courts, dédoublonnés. `null` : pas de rapport lisible. */
+function judgeSuggestions(receipt: any): string[] | null {
   const report = receipt?.report;
-  if (receipt?.execution_status !== "completed" || !report) return [];
+  if (receipt?.execution_status !== "completed" || !report) return null;
   const out: string[] = [];
   if (report.trajectory?.kind === "descriptive_catalogue") {
     out.push("Le carrousel décrit plusieurs choses sans dérouler une idée : tu peux relier les slides par un fil.");
@@ -94,6 +98,12 @@ function judgeSuggestions(receipt: any): string[] {
     const nums = (Array.isArray(d?.slide_ids) ? d.slide_ids : []).map(slideNumber).filter((n: number | null): n is number => n != null);
     const label = defectLabel(d);
     if (d?.type === "rupture") nums.forEach((n: number) => ruptureSlides.add(n));
+    // Constat sur (presque) tout le carrousel : la phrase citée dit où regarder ;
+    // sans phrase citée, la ligne ne désigne rien, on la tait.
+    if (nums.length > MAX_SLIDES_CITED) {
+      if (quote(d?.excerpt)) out.push(`Sur plusieurs slides : à relire, ${label}${quote(d?.excerpt)}.`);
+      continue;
+    }
     out.push(nums.length ? `${slidesLabel(nums)} : à relire, ${label}${quote(d?.excerpt)}.` : `À relire : ${label}.`);
   }
   for (const b of Array.isArray(report.boundaries) ? report.boundaries : []) {
@@ -133,7 +143,11 @@ export function splitCarouselWarnings(doc: any, mode?: string | null): { blockin
   // (Photos brutes) ou périmé ne doit pas les faire réapparaître.
   if (judgeShown && !photoMode) {
     const derived = judgeSuggestions(receipt);
-    suggestions.unshift(...(derived.length ? derived : ["Quelques passages méritent une relecture avant de publier."]));
+    // Repli général seulement sans rapport lisible, ou si le rapport ne donne
+    // aucun constat ; pas quand on vient de taire une ligne qui ne désignait rien.
+    const report = receipt?.report;
+    const silenced = !!derived && !derived.length && Array.isArray(report?.defects) && report.defects.length > 0;
+    if (!silenced) suggestions.unshift(...(derived?.length ? derived : ["Quelques passages méritent une relecture avant de publier."]));
   }
   return { blocking: [...new Set(blocking)], suggestions: [...new Set(suggestions)] };
 }
