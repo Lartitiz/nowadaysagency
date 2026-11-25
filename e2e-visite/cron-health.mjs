@@ -231,6 +231,12 @@ try {
     if (!sb) console.log("🖼️ Studio : non mesuré (edge cron-health pas redéployée)");
     else if (sb.erreur) console.log(`🖼️ Studio : ⚠️ non lu (${sb.erreur.slice(0, 90)})`);
     else console.log(`🖼️ Studio : ${sb.count} image(s) bloquée(s) en cours depuis > 1 h${sb.count ? "  ⚠️ rattrapage auto (cron studio-reconcile-images) en échec ?" : " ✅"}`);
+    // Stats LinkedIn (25/11/2026) : un relevé pris depuis 48 h contient un chiffre
+    // négatif (vécu : « -1 Reposts » à l'écran le 24/11). Seuil > 0 = 🟠.
+    const sn = d.stats_linkedin_negatives;
+    if (!sn) console.log("📉 Stats négatives : non mesuré (edge cron-health pas redéployée)");
+    else if (sn.erreur) console.log(`📉 Stats négatives : ⚠️ non lu (${sn.erreur.slice(0, 90)})`);
+    else console.log(`📉 Stats négatives : ${sn.count} chiffre(s) négatif(s) dans les relevés LinkedIn des 48 h${sn.count ? `  🟠 ${sn.items.map((x) => `${x.champ} = ${x.valeur}`).join(", ")} → LinkedIn renvoie un total négatif, vérifier que l'écran affiche 0` : " ✅"}`);
     // Sonde 🧪 (audit de coût du 20/10/2026) : générations RÉELLES du compte de
     // recette sur 24 h (visite du matin + tests des sessions), comptées hors crédit.
     // Seuils : mardi à dimanche, attendu 0 (specs payantes le lundi seulement) ;
