@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
 import CarouselEditorConnected from "@/components/creer/CarouselEditorConnected";
+import NewContentButton from "@/components/creer/NewContentButton";
 import CarouselPhotoResult, { type CarouselColors } from "@/components/creer/formatRenderers/CarouselPhotoResult";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
@@ -614,6 +615,7 @@ export default function CreerStepResult({
 
   return (
     <div className="relative space-y-4 animate-fade-in">
+      <NewContentButton onClick={onReset} disabled={savingContent} />
       {/* Badge : confirme que la photo a bien été utilisée par l'IA */}
       {usedPhotoCount && usedPhotoCount > 0 && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs text-foreground animate-fade-in">

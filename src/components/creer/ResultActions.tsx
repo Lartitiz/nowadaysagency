@@ -20,8 +20,8 @@ import { EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES
  * Maintenant : une barre collée en bas de l'écran avec 3 actions au plus
  * (publier ou mettre au calendrier, récupérer le contenu, le garder dans mes
  * idées) + un menu court « Plus d'options » où le coût est écrit en clair.
- * Rien n'est supprimé : tout est rangé. « Créer un autre contenu » est un seul
- * lien, sous la barre.
+ * Rien n'est supprimé : tout est rangé. « Créer un autre contenu » est un lien
+ * sous la barre, et aussi un bouton en haut de la page (NewContentButton.tsx, 25/11/2026).
  */
 
 // Cibles possibles pour « Même idée, autre format » — format IDs internes (cf. CreerUnifie paramFormat).
