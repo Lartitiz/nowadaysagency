@@ -17,6 +17,8 @@
  * Ligne ❓ (15/11/2026, #1980/#1985/#1990) : qualité des questions du carrousel ET
  * d'un post (creative-flow step « questions », gratuit). 🟠 si une question
  * dépasse 32 mots ou se répond par oui/non (« Tu as… ? », « Y a-t-il… ? »).
+ * 25/11/2026 : 🟠 aussi si une phrase finie par « ? » n'interroge pas, ou si une
+ * question vouvoie (lectures de questions-qualite.ts).
  * Jamais rouge : c'est une lecture, pas une panne.
  */
 import { test, expect } from "@playwright/test";
@@ -104,9 +106,12 @@ test("tier Haiku : questions d'approfondissement répondent (sans crédit)", asy
   console.log(
     `${orange ? "🟠" : "✅"} ❓ qualité des questions : carrousel ${qc.n} (max ${qc.maxMots} mots, ${qc.fermees.length} oui/non)` +
     ` · post ${post.status === 200 ? `${qp.n} (max ${qp.maxMots} mots, ${qp.fermees.length} oui/non)` : `HTTP ${post.status}`}` +
-    ` — seuils : > 32 mots ou ≥ 1 oui/non`,
+    ` · ${qc.sansQuestion.length + qp.sansQuestion.length} qui n'interroge pas, ${qc.vouvoient.length + qp.vouvoient.length} qui vouvoie` +
+    ` — seuils : > 32 mots, ≥ 1 oui/non, ≥ 1 « ? » sans question ou ≥ 1 « vous »`,
   );
   for (const f of [...qc.fermees, ...qp.fermees]) console.log(`   oui/non : « ${f} »`);
+  for (const f of [...qc.sansQuestion, ...qp.sansQuestion]) console.log(`   n'interroge pas : « ${f} »`);
+  for (const f of [...qc.vouvoient, ...qp.vouvoient]) console.log(`   vouvoie : « ${f} »`);
   for (const q of [qc, qp]) if (q.maxMots > 32) console.log(`   trop longue (${q.maxMots} mots) : « ${q.plusLongue} »`);
 
   expect(r.status, `réponse du tier Haiku : ${r.text.slice(0, 300)}`).toBe(200);
