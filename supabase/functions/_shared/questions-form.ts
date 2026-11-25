@@ -54,7 +54,19 @@ const DEBUT_FERME = /^(tu (as|connais|fais|utilises|te souviens|aurais)|as-tu|au
 export function questionFermee(q: string): boolean {
   const avant = String(q || "").split("?")[0] ?? "";
   const morceaux = avant.split(/[,:;.]/);
-  return DEBUT_FERME.test((morceaux[morceaux.length - 1] ?? "").trim());
+  return DEBUT_FERME.test((morceaux[morceaux.length - 1] ?? "").trim()) || inversionSansMotInterrogatif(avant);
+}
+
+// 25/11/2026 (rejeu à l'écran) : « Cette visite pièce par pièce met-elle en avant une rénovation
+// que tu as menée toi-même… ? ». Verbe-sujet inversés sans mot interrogatif avant = oui/non.
+// « Peux-tu raconter… » reste une invitation.
+const INVERSION = /(\p{L}+)-(tu|t-il|t-elle|t-on|il|elle|on|ils|elles)(?![\p{L}])/iu;
+const MOT_INTERROGATIF = /(^|[^\p{L}])(qu['’]|que|quel(le)?s?|lequel|laquelle|lesquel(le)?s|comment|pourquoi|combien|quand|où|quoi|qui)(?![\p{L}])/iu;
+const INVITATION = /^(peux|pourrais|saurais)$/i;
+function inversionSansMotInterrogatif(avant: string): boolean {
+  const m = avant.match(INVERSION);
+  if (!m || INVITATION.test(m[1])) return false;
+  return !MOT_INTERROGATIF.test(avant.slice(0, m.index));
 }
 
 /** Vrai si au moins une question de la réponse JSON se répond par oui ou non. */
@@ -107,7 +119,7 @@ export function aUnInterrogatif(text: string): boolean {
 }
 
 // Deux questions sous un seul « ? » (répétition du 25/11/2026) : « …, et veux-tu… ? ».
-const SECONDE_QUESTION = /[,;]?\s+(et|puis|mais)\s+(qu['’]est-ce|qu['’]as-tu|quel(le)?s?|comment|pourquoi|combien|à quoi|\p{L}+-tu)(?![\p{L}])/iu;
+const SECONDE_QUESTION = /[,;]?\s+(et|puis|mais)\s+(qu['’]est-ce|qu['’]as-tu|ce qu['’e]|ce qui|quel(le)?s?|comment|pourquoi|combien|à quoi|\p{L}+-tu)(?![\p{L}])/iu;
 /** Vrai si la question en pose deux : deux « ? », ou une seconde question accrochée par « et ». */
 export function deuxQuestionsEnUne(q: string): boolean {
   const text = String(q || "");
@@ -116,30 +128,54 @@ export function deuxQuestionsEnUne(q: string): boolean {
   return !!m && aUnInterrogatif(text.slice(0, m.index));
 }
 
+/**
+ * Coupe la seconde question accrochée à la première (25/11/2026, rejeu à l'écran : la relance
+ * ne les séparait pas) : « …quelle vérification as-tu faite en premier, et qu'est-ce qui t'a
+ * fait poursuivre ou stopper ? » → « …quelle vérification as-tu faite en premier ? ». Sans IA.
+ * Ne touche qu'une question à un seul « ? » dont la première partie interroge déjà.
+ */
+export function couperSecondeQuestion(q: string): string {
+  const text = String(q || "");
+  if ((text.match(/\?/g) || []).length !== 1 || !/\?\s*$/.test(text)) return q;
+  const m = text.match(SECONDE_QUESTION);
+  if (!m) return q;
+  const avant = text.slice(0, m.index);
+  if (!aUnInterrogatif(avant) || avant.trim().split(/\s+/).length < 6) return q;
+  return `${avant.replace(/[\s,;]+$/, "")} ?`;
+}
+
 /** Défaut qu'on ne montre jamais : la question vouvoie (donc mélange « tu » et « vous ») ou porte deux « ? ». */
 function questionFautive(q: any): boolean {
   return hasVouvoiement(`${q?.question || ""}\n${q?.placeholder || ""}`) || (String(q?.question || "").match(/\?/g) || []).length > 1;
 }
 
 /**
- * Dernier filet, sans IA (25/11/2026) : après la relance, chaque question fautive prend la
- * version relancée de même rang si elle est saine, sinon elle est retirée. Une question en
- * moins vaut mieux qu'une question qui dit « votre » et « veux-tu ». Si toutes sont fautives,
+ * Dernier filet, sans IA (25/11/2026) : quand la relance ne règle pas tout, chaque question prend
+ * la version relancée de même rang si elle a moins de défauts (vouvoiement, deux « ? », trop
+ * longue, oui/non) ; une question qui vouvoie encore ou porte deux « ? » est retirée. Une question
+ * en moins vaut mieux qu'une question qui dit « votre » et « veux-tu ». Si toutes sont fautives,
  * on les garde (l'écran ne reste pas vide).
  */
+/** Nombre de défauts d'une question ; le vouvoiement et les deux « ? » pèsent plus que tout le reste. */
+function defauts(q: any): number {
+  const texte = String(q?.question || "");
+  return (questionFautive(q) ? 10 : 0) + (questionTropLongue(texte) ? 1 : 0) + (questionFermee(texte) ? 1 : 0);
+}
+
 export function garderQuestionsSaines(content: string, relance = ""): string {
   let parsed: any;
   try { parsed = JSON.parse(content); } catch { return content; }
   const cle = Array.isArray(parsed?.questions) ? "questions" : Array.isArray(parsed?.follow_up_questions) ? "follow_up_questions" : null;
-  if (!cle || !parsed[cle].some(questionFautive)) return content;
+  if (!cle) return content;
   const autres = questionsDe(relance);
   const memeForme = autres.length === parsed[cle].length;
-  const saines = parsed[cle]
-    .map((q: any, i: number) => (questionFautive(q) && memeForme && autres[i]?.question && !questionFautive(autres[i]) ? autres[i] : q))
-    .filter((q: any) => !questionFautive(q));
-  if (!saines.length) return content;
-  console.log(JSON.stringify({ event: "questions_filet", avant: parsed[cle].length, apres: saines.length }));
-  return JSON.stringify({ ...parsed, [cle]: saines });
+  // Question par question : la version relancée de même rang si elle a moins de défauts.
+  const choisies = parsed[cle].map((q: any, i: number) => (memeForme && autres[i]?.question && defauts(autres[i]) < defauts(q) ? autres[i] : q));
+  const saines = choisies.filter((q: any) => !questionFautive(q));
+  const gardees = saines.length ? saines : choisies;
+  if (gardees.length === parsed[cle].length && gardees.every((q: any, i: number) => q === parsed[cle][i])) return content;
+  console.log(JSON.stringify({ event: "questions_filet", avant: parsed[cle].length, apres: gardees.length }));
+  return JSON.stringify({ ...parsed, [cle]: gardees });
 }
 
 /**
@@ -170,7 +206,7 @@ export function couperListesDesQuestions(content: string): string {
   let change = false;
   parsed[cle] = parsed[cle].map((q: any) => {
     if (!q || typeof q.question !== "string") return q;
-    const coupee = couperListeOptions(q.question);
+    const coupee = couperSecondeQuestion(couperListeOptions(q.question));
     if (coupee === q.question) return q;
     change = true;
     return { ...q, question: coupee };

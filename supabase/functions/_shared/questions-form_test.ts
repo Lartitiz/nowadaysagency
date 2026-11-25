@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { aUnInterrogatif, couperListeOptions, couperListesDesQuestions, deuxQuestionsEnUne, garderQuestionsSaines, questionFermee, questionTropLongue, questionsTropLongues } from "./questions-form.ts";
+import { aUnInterrogatif, couperSecondeQuestion, couperListeOptions, couperListesDesQuestions, deuxQuestionsEnUne, garderQuestionsSaines, questionFermee, questionTropLongue, questionsTropLongues } from "./questions-form.ts";
 import { relancerQuestionsSiBesoin } from "../carousel-ai/questions-address.ts";
 
 // Vraie question du 12/11/2026, jugée illisible par Laetitia.
@@ -112,4 +112,53 @@ Deno.test("filet : une question qui dit « votre » et « veux-tu » ne sort jam
   assertEquals(JSON.parse(garderQuestionsSaines(JSON.stringify({ follow_up_questions: [melange, saine] }))).follow_up_questions, [saine]);
   // Rien de fautif : texte rendu tel quel.
   assertEquals(garderQuestionsSaines(doc(saine)), doc(saine));
+});
+
+// Rejeu à l'écran du 25/11/2026 (compte du parcours immobilier) : les trois questions du carrousel
+// texte en enchaînaient encore deux, la relance ne les séparait pas.
+Deno.test("questions-form : la seconde question accrochée est coupée sans IA", () => {
+  assertEquals(
+    couperSecondeQuestion("Sur ta dernière découpe d'immeuble, quelle vérification as-tu faite en premier avant la signature, et qu'est-ce qui t'a fait poursuivre ou stopper ?"),
+    "Sur ta dernière découpe d'immeuble, quelle vérification as-tu faite en premier avant la signature ?",
+  );
+  assertEquals(
+    couperSecondeQuestion("Quel point de la copropriété regardes-tu systématiquement avant de t'engager sur un immeuble à découper, règlement ou répartition des millièmes, et pourquoi celui-là ?"),
+    "Quel point de la copropriété regardes-tu systématiquement avant de t'engager sur un immeuble à découper, règlement ou répartition des millièmes ?",
+  );
+  assertEquals(
+    couperSecondeQuestion("Peux-tu me citer un dossier où une vérification fiscale ou juridique a fait échouer un projet de découpe, et ce que tu en as retiré pour le suivant ?"),
+    "Peux-tu me citer un dossier où une vérification fiscale ou juridique a fait échouer un projet de découpe ?",
+  );
+  // Une seule question : rien ne bouge.
+  for (const q of [
+    "Quelle étape de ta méthode surprend le plus tes acheteurs et tes notaires ?",
+    "Pense à ta dernière opération bloquée par un lot : qu'est-ce qui a fini par débloquer la revente ?",
+    "Raconte ta dernière visite et dis-moi comment tu as chiffré les travaux.",
+    "Et comment tu fais ?",
+  ]) assertEquals(couperSecondeQuestion(q), q);
+  // Dans la réponse JSON, avant toute relance : plus rien à relancer pour ces trois-là.
+  const brut = JSON.stringify({ questions: [{ question: "Sur ta dernière découpe d'immeuble, quelle vérification as-tu faite en premier avant la signature, et qu'est-ce qui t'a fait poursuivre ou stopper ?", placeholder: "x" }] });
+  const coupe = couperListesDesQuestions(brut);
+  assert(!questionsTropLongues(coupe));
+  assert(!deuxQuestionsEnUne(JSON.parse(coupe).questions[0].question));
+});
+
+Deno.test("questions-form : verbe et sujet inversés sans mot interrogatif = question oui/non", () => {
+  assert(questionFermee("Cette visite pièce par pièce met-elle en avant une rénovation que tu as menée toi-même, avec les étapes de travaux et de montage qui ont été nécessaires ?"));
+  assert(questionFermee("Ton dernier chantier a-t-il dépassé le budget prévu ?"));
+  assert(!questionFermee("Sur ta dernière découpe d'immeuble, quelle vérification as-tu faite en premier avant la signature ?"));
+  assert(!questionFermee("Quel point de la copropriété regardes-tu systématiquement avant de t'engager ?"));
+  assert(!questionFermee("Dans ta méthode, que fais-tu en premier ?"));
+  assert(!questionFermee("Peux-tu me citer un dossier où une vérification fiscale a fait échouer un projet de découpe ?"));
+  assert(!questionFermee("Pense à ta dernière opération bloquée par un lot : qu'est-ce qui a fini par débloquer la revente ?"));
+});
+
+Deno.test("filet : la relance règle une question sur deux, on garde le meilleur de chaque rang", async () => {
+  const fermee = { question: "Cette visite met-elle en avant une rénovation que tu as menée toi-même ?", placeholder: "x" };
+  const ouverte = { question: "Dans cette visite, quelle étape de la rénovation as-tu menée toi-même ?", placeholder: "x" };
+  const bonne = { question: "Quel chiffre de ta dernière opération surprend le plus tes acheteurs ?", placeholder: "x" };
+  const abimee = { question: "Y a-t-il un chiffre qui surprend tes acheteurs ?", placeholder: "x" };
+  const doc = (...questions: unknown[]) => JSON.stringify({ questions });
+  // La relance ouvre la première mais ferme la seconde : avant, tout était rejeté.
+  assertEquals(JSON.parse(await relancerQuestionsSiBesoin(doc(fermee, bonne), async () => doc(ouverte, abimee))).questions, [ouverte, bonne]);
 });
