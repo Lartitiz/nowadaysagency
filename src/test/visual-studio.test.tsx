@@ -282,6 +282,14 @@ it("opens deterministic preparation from the chat and returns the saved copy", a
     expect(fetchMock).toHaveBeenCalledWith("/studio-image.jpg");
   } finally { fetchMock.mockRestore(); }
 });
+it("n'annonce pas « Voilà la nouvelle version » sous un renvoi vers l'outil Préparation", async () => {
+  mock.request.mockResolvedValue({ ...original(), session: {
+    ...original().session, messages: [{role:"assistant",text:"L’outil Préparation est le plus adapté.",operation:"existing_tool",existing_tool:"preparation",preparation:{exposure:0.2,format:"post"},viewed_version_id:"v1"}],
+  }, versions: [{id:"v1",status:"ready",proposal,url:"/studio-image.jpg",library_photo_id:null,error_message:null,created_at:""}] });
+  mount();
+  await screen.findByRole("button", {name:"Préparer cette photo sans la redessiner"});
+  expect(screen.queryByText(/Voilà la nouvelle version/)).not.toBeInTheDocument();
+});
 it("revient de Photo via Vidéo au passage d'origine du Reel", async () => {
   mock.request.mockResolvedValue({ ...original(), versions: [{
     id: "version-ready", status: "ready", proposal, url: "/version.png",
