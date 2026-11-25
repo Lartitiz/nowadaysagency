@@ -32,7 +32,9 @@ export default function PhotoContextStepDialog({ open, previews, rows, onRowsCha
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-[20px]" data-testid="photo-context-step">
+      {/* 25/11/2026 : avec 5 photos, « Créer mon carrousel » passait sous le pli. Seule la
+          liste défile ; le titre et les boutons restent à l'écran. */}
+      <DialogContent className="flex max-h-[90vh] max-w-lg flex-col overflow-hidden rounded-[20px]" data-testid="photo-context-step">
         <DialogHeader>
           <DialogTitle className="font-display font-normal">Que montre chaque photo ?</DialogTitle>
           <DialogDescription>
@@ -40,6 +42,7 @@ export default function PhotoContextStepDialog({ open, previews, rows, onRowsCha
           </DialogDescription>
         </DialogHeader>
 
+        <div className="-mx-2 min-h-0 flex-1 space-y-4 overflow-y-auto px-2 py-1" data-testid="photo-context-list">
         {canPair && (
           <p className="rounded-2xl bg-[#FFF4F8] px-4 py-3 text-sm text-foreground">
             Des photos vont par deux, un avant et un après ? Marque chaque avant et chaque après : je mets chaque paire sur deux slides qui se suivent. S'il y en a plusieurs, le 1er avant va avec le 1er après, et ainsi de suite.
@@ -95,8 +98,9 @@ export default function PhotoContextStepDialog({ open, previews, rows, onRowsCha
         {halfPair && (
           <p className="text-xs text-muted-foreground">Il faut autant d'avants que d'après : marque l'autre photo de chaque paire, sinon je ne les relie pas.</p>
         )}
+        </div>
 
-        <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <DialogFooter className="shrink-0 flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
           <button type="button" onClick={onSkip} className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
             Passer
           </button>

@@ -138,7 +138,7 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
                   data-testid="creer-idea-input"
                   value={idea}
                   onChange={(e) => setIdea(e.target.value)}
-                  placeholder="Une nouveauté, les coulisses, une question de tes clientes…"
+                  placeholder="Une nouveauté, les coulisses, une question qu’on te pose souvent…"
                   rows={ideaPicks && isMobile ? 3 : 5}
                   className={`resize-y border-0 px-1 text-base shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 max-h-[40vh] overflow-y-auto ${ideaPicks && isMobile ? "min-h-24" : "min-h-32"}`}
                 />

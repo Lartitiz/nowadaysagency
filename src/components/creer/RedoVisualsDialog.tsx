@@ -14,13 +14,17 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { cleanCarouselSnapshot } from "@/lib/carousel-autosave";
 import { externalizeCarouselMedia } from "@/lib/carousel-media";
+import { hasRetouches } from "@/lib/carousel-retouched";
 
 /** « Refaire les visuels » sur un carrousel retouché (chantier U, choix C4 de
     Laetitia du 18/10/2026) : fenêtre de l'app à la place de celle du
-    navigateur, copie possible dans Mes idées, et rien ne bouge sur « Annuler ». */
-export default function RedoVisualsDialog({ open, canCopy, onCancel, onConfirm }: {
+    navigateur, copie possible dans Mes idées, et rien ne bouge sur « Annuler ».
+    25/11/2026 : sans retouche (`retouched` faux), la fenêtre ne parle plus de
+    retouches ni de copie : elle dit seulement que le design change. */
+export default function RedoVisualsDialog({ open, canCopy, retouched = true, onCancel, onConfirm }: {
   open: boolean;
   canCopy: boolean;
+  retouched?: boolean;
   onCancel: () => void;
   onConfirm: (keepCopy: boolean) => void;
 }) {
@@ -30,18 +34,18 @@ export default function RedoVisualsDialog({ open, canCopy, onCancel, onConfirm }
         <AlertDialogHeader>
           <AlertDialogTitle>Refaire les visuels ?</AlertDialogTitle>
           <AlertDialogDescription>
-            Tes retouches seront remplacées par un nouveau design. Le texte reste.
-            Cela compte 1 crédit. Tu pourras revenir à ta version pendant 30 secondes.
+            {retouched ? "Tes retouches seront remplacées par un nouveau design." : "Le design actuel sera remplacé par un nouveau."} Le texte reste.
+            Cela compte 1 crédit. Tu pourras revenir à {retouched ? "ta version" : "celui-ci"} pendant 30 secondes.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2 sm:flex-col-reverse sm:space-x-0">
           <AlertDialogCancel className="mt-0" onClick={onCancel}>Annuler</AlertDialogCancel>
-          {canCopy && (
+          {canCopy && retouched && (
             <Button variant="outline" onClick={() => onConfirm(true)}>
               Garder une copie dans Mes idées
             </Button>
           )}
-          <AlertDialogAction onClick={() => onConfirm(false)}>Refaire quand même</AlertDialogAction>
+          <AlertDialogAction onClick={() => onConfirm(false)}>{retouched ? "Refaire quand même" : "Refaire les visuels"}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -118,6 +122,6 @@ export function useRedoVisualsConfirm({ beginBackup, copySource }: {
 
   return {
     ask,
-    dialog: { open: !!run, canCopy: copySource().enabled, onCancel: () => { if (!copying) setRun(null); }, onConfirm: (keepCopy: boolean) => void confirm(keepCopy) },
+    dialog: { open: !!run, canCopy: copySource().enabled, retouched: hasRetouches(copySource().raw), onCancel: () => { if (!copying) setRun(null); }, onConfirm: (keepCopy: boolean) => void confirm(keepCopy) },
   };
 }

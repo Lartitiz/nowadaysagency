@@ -100,6 +100,25 @@ describe("Avertissements carrousel : manques vs pistes de relecture", () => {
     ]);
   });
 
+  // Répétition du 25/11/2026 : « Slides 1, 2, 3, … et 14 : une tournure ne sonne pas tout à fait comme toi ».
+  it("constat qui cite plus de 3 slides : pas de liste de numéros ; sans phrase citée, pas de ligne", () => {
+    const all = Array.from({ length: 14 }, (_, i) => `slides.${i}`);
+    const doc = (defects: any[]) => ({ structure_warnings: ["i1"], progression_review: { execution_status: "completed", issues: ["i1"],
+      report: { verdict: "acceptable", trajectory: { kind: "developed_idea" }, boundaries: [], defects } } });
+    // Rien à montrer du doigt : ni la liste, ni la phrase générale.
+    expect(splitCarouselWarnings(doc([{ slide_ids: all, type: "voice" }]), "text").suggestions).toEqual([]);
+    // Une phrase citée : on la montre, sans les 14 numéros.
+    expect(splitCarouselWarnings(doc([{ slide_ids: all, type: "voice", excerpt: "Il convient de noter" }]), "text").suggestions)
+      .toEqual(["Sur plusieurs slides : à relire, une tournure ne sonne pas tout à fait comme toi (« Il convient de noter »)."]);
+    // Les autres constats restent ; jusqu'à 3 slides, les numéros restent.
+    const out = splitCarouselWarnings(doc([
+      { slide_ids: all, type: "voice" },
+      { slide_ids: ["slides.1", "slides.2", "slides.3"], type: "repetition" },
+    ]), "text");
+    expect(out.suggestions).toEqual(["Slides 2, 3 et 4 : à relire, redit ce qui a déjà été dit."]);
+    expect(out.suggestions.join(" ")).not.toMatch(/14/);
+  });
+
   it("reçu sans rapport : repli générique, jamais la note brute", () => {
     const out = splitCarouselWarnings({ structure_warnings: [RAW], progression_review: { execution_status: "completed", issues: [RAW] } });
     expect(out.suggestions).toEqual(["Quelques passages méritent une relecture avant de publier."]);

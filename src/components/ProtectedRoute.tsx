@@ -3,6 +3,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { Navigate, useLocation } from "react-router-dom";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { resolveOnboardingStatus } from "@/lib/onboarding-status";
+import { useAppTabTitle } from "@/hooks/use-app-tab-title";
 
 import AppHeader from "@/components/AppHeader";
 import { isRouteVisible } from "@/config/feature-flags";
@@ -14,6 +15,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, session, loading, isAdmin, adminLoading } = useAuth();
   const { isDemoMode } = useDemoContext();
   const location = useLocation();
+  useAppTabTitle(!!user);
   // Billing must remain reachable after Stripe even before onboarding is done.
   // Authentication and feature checks below still apply.
   const isBillingRoute = location.pathname === "/abonnement";
