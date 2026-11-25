@@ -199,7 +199,8 @@ export function readableFloorPx(el: HTMLElement): number {
  * Slide livrée vide (vu en ligne le 24/11/2026 : « 0 point bloquant » sur une
  * slide blanche) : ni photo, ni texte de contenu. Ne comptent pas comme
  * contenu : la pagination, les décors, les mentions secondaires (signature,
- * @compte) et ce qui est masqué. Sans mesure de géométrie : le verdict ne
+ * @compte), ce qui est masqué, et une mention restée seule après que le texte
+ * principal a été vidé. Sans mesure de géométrie : le verdict ne
  * dépend ni des polices ni de la taille du cadre.
  */
 export function isEmptySlide(doc: Document): boolean {
@@ -216,15 +217,27 @@ export function isEmptySlide(doc: Document): boolean {
   for (const photo of doc.body.querySelectorAll<HTMLElement>(`${PHOTO_SELECTOR},[style],image`))
     if ((photo.matches(`${PHOTO_SELECTOR},image`) || /url\(/.test(photo.getAttribute("style") || "")) &&
       !photo.hasAttribute("data-editor-photo-empty") && !within(photo, hidden)) return false;
+  // Le texte principal a été vidé (étiquette titre / texte / overlay présente
+  // mais sans texte) : une simple mention restée seule (« — Buffer », @compte,
+  // « Source : … », une adresse) ne fait pas un contenu. Vu au re-test du
+  // 24/11 : la citation vidée, il ne restait que sa source.
+  const main = [...doc.body.querySelectorAll<HTMLElement>("[data-slide-text]")].filter((el) => MAIN_ANCHOR.test(el.dataset.slideText || ""));
+  const emptied = main.length > 0 && main.every((el) => !el.textContent?.trim());
+  const blocks = new Map<Element, string>();
   const walker = doc.createTreeWalker(doc.body, 4);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const parent = node.parentElement;
     if (!node.textContent?.trim() || !parent || parent.closest("style,script,template,title,desc")) continue;
     if (within(parent, (p) => isDecorative(p) || SECONDARY_ROLE.test(roleOf(p)) || hidden(p))) continue;
-    return false;
+    if (!emptied) return false;
+    const block = parent.closest("[data-editor-id],[data-pptx-editable],p,h1,h2,h3,h4,li,blockquote") || parent;
+    blocks.set(block, (blocks.get(block) || "") + node.textContent);
   }
-  return true;
+  return [...blocks.values()].every((text) => MENTION.test(text.replace(/\s+/g, " ").trim()));
 }
+const MAIN_ANCHOR = /^(title|body|overlay)$/i;
+/** Mention courte : attribution (« — Nom »), @compte, « Source : … », adresse web. */
+const MENTION = /^(?=.{1,60}$)(?:[—–]\s*\S|@\w|(?:sources?|crédits?|via)\b|(?:https?:\/\/|www\.)\S+$|\S+\.(?:fr|com|org|net|io)\/?$)/i;
 export const EMPTY_SLIDE_MESSAGE = "cette slide est vide. Écris son texte, ajoute une photo ou supprime-la.";
 
 export function inspectSlide(doc: Document, slide: number): QualityIssue[] {
