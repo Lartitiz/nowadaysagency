@@ -5,6 +5,7 @@
 import { feedbackNewItems, type FeedbackNewRow } from "./feedback-new.ts";
 import { lireCronsPg } from "./crons-pg.ts";
 import { studioImagesBloquees } from "./studio-bloquees.ts";
+import { statsLinkedInNegatives } from "./stats-negatives.ts";
 import { santeQuotidienne } from "./sante-emails.ts"; // erreurs JS clientes à part + e-mails
 import { isInternalEmail as isExcludedEmail } from "../_shared/internal-accounts.ts";
 import { DAY, fetchAllRows, HOUR } from "./lecture.ts";
@@ -19,7 +20,7 @@ export async function bilanQuotidien({ supabase, now, isClient, emailOf }: {
   isClient: (userId: string) => boolean;
   emailOf: Map<string, string>;
 }) {
-    const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, sante, higgsfield, cronsPg, studioBloquees, horsCredit] = await Promise.all([
+    const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, sante, higgsfield, cronsPg, studioBloquees, horsCredit, statsNegatives] = await Promise.all([
       fetchAllRows(
         supabase,
         "calendar_posts",
@@ -44,6 +45,7 @@ export async function bilanQuotidien({ supabase, now, isClient, emailOf }: {
       lireCronsPg(supabase, now), // automates pg_cron
       studioImagesBloquees(supabase, now), // images Studio « en cours » > 1 h
       lireHorsCredit(supabase, now - DAY), // générations du compte de recette (visite du matin)
+      statsLinkedInNegatives(supabase, now), // relevés LinkedIn avec un chiffre négatif (48 h)
     ]);
     const posts = postsRows.filter((p: any) => isClient(p.user_id));
     const conns = connRows.filter((c: any) => isClient(c.user_id));
@@ -136,6 +138,7 @@ export async function bilanQuotidien({ supabase, now, isClient, emailOf }: {
       feedback_24h: { count: feedback24h.length, items: feedback24h.slice(0, 15) },
       feedback_new_total: feedbackNewTotal,
       crons_pg: cronsPg, studio_images_bloquees: studioBloquees,
+      stats_linkedin_negatives: statsNegatives,
       feedback_new_items: feedbackNewItems(fbNewRows.filter((f: FeedbackNewRow) => isClient(f.user_id))),
       photoroom_credits: photoroom,
       higgsfield,

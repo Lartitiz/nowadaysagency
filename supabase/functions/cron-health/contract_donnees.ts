@@ -157,6 +157,15 @@ const VERSIONS_STUDIO = [
   { id: "v3", status: "done", created_at: ilYa(5 * H) },
 ];
 
+// Relevés de stats du mois (sonde « 📉 Stats négatives ») : un relevé LinkedIn
+// frais avec un repost à -1 (signalé), un relevé sain, un vieux relevé à -1 (ignoré).
+const RELEVE_LI = (reshares: number, fetchedAt: string) => ({ li_stats: { followers: 3618, followersGained30d: 21, fetchedAt, postAnalytics30d: { impressions: 169, reactions: 1, reshares } } });
+const RELEVES_STATS = [
+  { month_date: "2026-10-01", updated_at: ilYa(10 * H), custom_data: RELEVE_LI(-1, ilYa(10 * H)) },
+  { month_date: "2026-10-01", updated_at: ilYa(3 * H), custom_data: RELEVE_LI(0, ilYa(3 * H)) },
+  { month_date: "2026-09-01", updated_at: ilYa(5 * H), custom_data: RELEVE_LI(-1, ilYa(20 * 24 * H)) },
+];
+
 // ── Scope weekly ───────────────────────────────────────────────────────────
 const IA = [
   // Semaine en cours, clientes.
@@ -270,6 +279,7 @@ export function mondeComplet(): FauxMonde {
       higgsfield_image_spend: DEPENSES_HIGGSFIELD,
       studio_image_requests: REQUETES_STUDIO,
       visual_studio_versions: VERSIONS_STUDIO,
+      monthly_stats: RELEVES_STATS,
       ai_usage: IA,
       workspace_members: MEMBRES_ESPACES,
       generated_carousels: CARROUSELS,

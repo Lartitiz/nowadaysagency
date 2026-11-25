@@ -282,6 +282,16 @@ snapshot[`daily : JSON complet sur la base de référence 1`] = `
   },
   published_24h: 1,
   scope: "daily",
+  stats_linkedin_negatives: {
+    count: 1,
+    items: [
+      {
+        champ: "reshares",
+        mois: "2026-10-01",
+        valeur: -1,
+      },
+    ],
+  },
   stuck_publishing: 1,
   studio_images_bloquees: {
     count: 1,
@@ -300,6 +310,7 @@ snapshot[`daily : liste des requêtes (tables, colonnes, filtres) 1`] = `
   "GET email_sends user_id,to_email,template_id,status,error,sent_at sent_at=gte.2026-10-08T08:00:00.000Z [0+1000]",
   "GET email_templates id,name [0+1000]",
   "GET higgsfield_image_spend source,estimated_usd,status,created_at created_at=gte.2026-10-01T00:00:00.000Z [0+1000]",
+  "GET monthly_stats month_date,custom_data,updated_at updated_at=gte.2026-10-07T08:00:00.000Z [0+1000]",
   "GET profiles user_id,email,created_at [0+1000]",
   "GET social_connections user_id,platform,platform_account_name,token_expires_at,updated_at [0+1000]",
   "GET studio_image_requests estimated_usd,status,created_at created_at=gte.2026-10-01T00:00:00.000Z [0+1000]",
@@ -550,6 +561,16 @@ snapshot[`daily dégradé : sans clés Photoroom/Stripe, RPC des crons en erreur
   },
   published_24h: 1,
   scope: "daily",
+  stats_linkedin_negatives: {
+    count: 1,
+    items: [
+      {
+        champ: "reshares",
+        mois: "2026-10-01",
+        valeur: -1,
+      },
+    ],
+  },
   stuck_publishing: 1,
   studio_images_bloquees: {
     count: 1,
