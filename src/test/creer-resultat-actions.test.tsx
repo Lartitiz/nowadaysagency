@@ -64,9 +64,18 @@ describe("écran du résultat : barre d'actions courte", () => {
     expect(screen.getByTestId("more-actions")).toHaveTextContent("Plus d'options");
   });
 
-  it("un seul « Créer un autre contenu », sous la barre, et plus de doublon dans le menu", () => {
-    renderResult("post", { content: "x" });
-    expect(screen.getAllByRole("button", { name: /Créer un autre contenu/ })).toHaveLength(1);
+  // 25/11/2026 (piste A choisie par Laetitia) : le même bouton aussi en haut de la
+  // page, visible sans défiler ; celui du bas reste. Toujours rien dans le menu.
+  it("« Créer un autre contenu » en haut de la page et sous la barre, pas de doublon dans le menu", () => {
+    const onReset = vi.fn();
+    renderResult("post", { content: "x" }, { onReset });
+    const boutons = screen.getAllByRole("button", { name: /Créer un autre contenu/ });
+    expect(boutons).toHaveLength(2);
+    expect(boutons[0]).toBe(screen.getByTestId("new-content-top"));
+    // Le bouton du haut vient avant le contenu, et fait la même chose que celui du bas.
+    expect(boutons[0].compareDocumentPosition(screen.getByTestId("result-content")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(boutons[0]);
+    expect(onReset).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/^Nouveau contenu$/)).toBeNull();
     openMore();
     expect(screen.queryByRole("menuitem", { name: /Nouveau contenu|autre contenu/ })).toBeNull();
