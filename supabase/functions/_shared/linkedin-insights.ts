@@ -103,13 +103,16 @@ async function fetchAggregatedPostMetric(
   const url = `${REST}/memberCreatorPostAnalytics?q=me&queryType=${queryType}&aggregation=TOTAL&dateRange=${dateRange}`;
   const json = await getJson(url, token, ctx);
   const count = json?.elements?.[0]?.count;
-  return typeof count === "number" ? count : undefined;
+  // Un total sur 30 jours peut revenir NÉGATIF : un repost (ou une réaction, un
+  // commentaire) retiré pendant la période est compté en moins. Vu le 24/11/2026 :
+  // « -1 Reposts » à l'écran. Un compteur ne descend jamais sous 0.
+  return typeof count === "number" ? Math.max(0, count) : undefined;
 }
 
 async function fetchFollowersCount(token: string, ctx: LiFetchContext): Promise<number | undefined> {
   const json = await getJson(`${REST}/memberFollowersCount?q=me`, token, ctx);
   const count = json?.elements?.[0]?.memberFollowersCount;
-  return typeof count === "number" ? count : undefined;
+  return typeof count === "number" ? Math.max(0, count) : undefined;
 }
 
 // Somme des nouveaux abonnés/jour sur la fenêtre — miroir du follower_count IG

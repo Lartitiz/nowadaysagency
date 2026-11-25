@@ -30,6 +30,7 @@ import { instagramMonthPatch, instagramSaveReport } from "@/features/stats/merge
 import StatsForm from "@/components/stats/StatsForm";
 import { signalerEchecEnregistrementStats, tracerEchecEnregistrementStats } from "@/features/stats/stats-save-error";
 import { statsLinkedInManquantes } from "@/features/stats/linkedin-stats-manquantes";
+import { cartesStatsLinkedIn } from "@/features/stats/linkedin-stats-cartes";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 import { monthKey, monthLabel, monthLabelShort, fmt } from "@/lib/stats-helpers";
@@ -1068,18 +1069,9 @@ function InstagramStatsScope() {
                   <span className="font-normal text-muted-foreground text-xs"> : 30 derniers jours, au {liStats.fetchedAt ? new Date(liStats.fetchedAt).toLocaleDateString("fr-FR") : "—"}</span>
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { label: "Abonnés", value: liStats.followers },
-                    { label: "Abonnés gagnés", value: liStats.followersGained30d },
-                    { label: "Impressions", value: liStats.postAnalytics30d?.impressions },
-                    { label: "Membres touchés", value: liStats.postAnalytics30d?.membersReached },
-                    { label: "Réactions", value: liStats.postAnalytics30d?.reactions },
-                    { label: "Commentaires", value: liStats.postAnalytics30d?.comments },
-                    { label: "Reposts", value: liStats.postAnalytics30d?.reshares },
-                    { label: "Clics sur lien", value: liStats.postAnalytics30d?.linkClicks },
-                  ].filter(k => typeof k.value === "number").map((k) => (
+                  {cartesStatsLinkedIn(liStats).map((k) => (
                     <div key={k.label} className="rounded-lg bg-muted/40 px-3 py-2">
-                      <p className="text-lg font-bold text-foreground">{fmt(k.value as number)}</p>
+                      <p className="text-lg font-bold text-foreground">{fmt(k.value)}</p>
                       <p className="text-xs text-muted-foreground">{k.label}</p>
                     </div>
                   ))}
