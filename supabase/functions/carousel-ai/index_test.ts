@@ -16,6 +16,7 @@ import {
 import { AnthropicError, HAIKU_MODEL } from "../_shared/anthropic.ts";
 import { progressionReceipt, progressionJudgeCallMs, PROGRESSION_FORMAT_RETRY_MS } from "../_shared/carousel-progression.ts";
 import { handleRequest, _deps, normalizeSlideType, writerTimeoutMs } from "./index.ts";
+import { normalizeOverlayPosition } from "./shared.ts";
 import { QUESTIONS_ADDRESS_OVERRIDE } from "./questions-address.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
 
@@ -1153,15 +1154,20 @@ for (const subject of ["", "Carrousel basé sur les photos uploadées"]) Deno.te
   assertEquals(JSON.parse((await res.json()).content).questions, []);
 });
 
+Deno.test("position du texte : valeur abîmée du modèle de structure ramenée à une position connue (vu en live le 25/11/2026)", async () => {
+  const seen = ['bottom_right".replace("bottom_right', "bottom_right", "Top-Right", "top left", "bottom_centre", "CENTER", "milieu", "", null, 3];
+  assertEquals(seen.map(normalizeOverlayPosition), ["bottom_center", "bottom_center", "top_center", "top_left", "bottom_center", "center", undefined, undefined, undefined, undefined]);
+});
+
 for (const kind of ["photo", "mix"]) Deno.test(`plan ${kind} : positions IA hors enum puis reprise du plan`, async () => {
   resetDeps();
-  const positions = ["bottom_right", "top_right", "top_left", "top_center", "bottom_left", "bottom_center", "center"];
+  const positions = ['bottom_right".replace("bottom_right', "bottom_right", "top_right", "top_left", "top_center", "bottom_left", "bottom_center", "center"];
   const plan = positions.map((overlay_position, i) => ({ slide_number: i + 1, role: i ? "body" : "hook", title_suggestion: `Titre ${i}`, strategic_note: `Note ${i}`, photo_index: i + 1, slide_type: "photo_full", story_beat: `Lien ${i}`, overlay_position }));
   _deps.callAnthropic = (async () => JSON.stringify({ slides: plan, total_slides: plan.length })) as any;
   const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: kind, photos: plan.map(() => ({ base64: "aGVsbG8=" })) }));
   assertEquals(res.status, 200);
   const { result } = await res.json();
-  const expected = plan.map((s, i) => ({ ...s, overlay_position: ["bottom_center", "top_center", ...positions.slice(2)][i] }));
+  const expected = plan.map((s, i) => ({ ...s, overlay_position: ["bottom_center", "bottom_center", "top_center", ...positions.slice(3)][i] }));
   assertEquals(result.slides, expected);
   // Le même plan déjà conservé dans le navigateur doit pouvoir être repris.
   let writes = 0;
@@ -1182,8 +1188,9 @@ for (const kind of ["photo", "mix"]) Deno.test(`plan ${kind} : positions IA hors
     }
     assertEquals(writes, 2);
   } finally { globalThis.fetch = oldFetch; }
-  const invalid = await handleRequest(makeHooksRequest({ type: "express_full", confirmed_structure: [{ ...plan[0], overlay_position: "unknown" }] }));
-  assertEquals(invalid.status, 400); await invalid.text();
+  // Position illisible : le champ facultatif est retiré, le plan n'est plus rejeté (25/11/2026).
+  const illisible = await handleRequest(makeHooksRequest({ type: "express_full", confirmed_structure: [{ ...plan[0], overlay_position: "unknown" }] }));
+  assertEquals(illisible.status, 200); await illisible.text();
 });
 
 Deno.test("plan IA : champs optionnels null au retour et à la reprise, sans perdre texte ni photos valides", async () => {

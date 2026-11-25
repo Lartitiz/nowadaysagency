@@ -268,8 +268,23 @@ export function normalizeGeneratedPlanFields(slide: any): void {
     const t = normalizeSlideType(slide.slide_type);
     if (t) slide.slide_type = t; else delete slide.slide_type;
   }
-  if (slide.overlay_position === "top_right") slide.overlay_position = "top_center";
-  if (slide.overlay_position === "bottom_right") slide.overlay_position = "bottom_center";
+  if ("overlay_position" in slide) {
+    const p = normalizeOverlayPosition(slide.overlay_position);
+    if (p) slide.overlay_position = p; else delete slide.overlay_position;
+  }
+}
+
+/** Position du texte écrite par le modèle de structure : hors liste malgré
+ * l'enum de l'outil (« bottom_right », et le 25/11/2026 une valeur abîmée,
+ * « bottom_right".replace("bottom_right », qui bloquait le carrousel photo sur
+ * « Données invalides », Réessayer compris puisque le plan est renvoyé tel
+ * quel). On garde la première position lisible dans la valeur, la droite
+ * devient le centre ; rien de lisible → undefined (champ facultatif). */
+export function normalizeOverlayPosition(v: unknown): "top_left" | "top_center" | "bottom_left" | "bottom_center" | "center" | undefined {
+  const m = String(v ?? "").toLowerCase().match(/(top|bottom)[\s_-]*(left|center|centre|right)|cent(?:er|re)/);
+  if (!m) return undefined;
+  if (!m[1]) return "center";
+  return `${m[1]}_${m[2] === "left" ? "left" : "center"}` as any;
 }
 
 // ── Handlers par type de requête ──
