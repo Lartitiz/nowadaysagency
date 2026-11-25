@@ -39,4 +39,21 @@ describe("contrôle des slides : slide livrée vide", () => {
     expect(isEmptySlide(slide(`<svg><text>3 étapes</text></svg>`))).toBe(false);
     expect(inspectSlide(slide(`<p data-slide-text="body">Un texte</p>`), 0).some((i) => i.kind === "empty")).toBe(false);
   });
+  // Re-test en ligne du 24/11 : citation vidée, il ne restait que « — Buffer ».
+  it("texte principal vidé et seule une mention reste (source, @compte, adresse) : slide vide", () => {
+    const reste = (mention: string) => slide(`${EMPTY_P}<p style="font-size:32px" data-editor-id="m" data-pptx-editable="body">${mention}</p>`);
+    for (const mention of ["— Buffer", "– <span>Buffer</span>, 2024", "@atelier.camille", "Source : Metricool", "www.atelier-camille.fr", "atelier-camille.fr"])
+      expect(isEmptySlide(reste(mention)), mention).toBe(true);
+    expect(inspectSlide(reste("— Buffer"), 3)).toContainEqual(expect.objectContaining({ slide: 3, kind: "empty", severity: "error" }));
+  });
+
+  it("pas de faux blocage : un vrai texte à côté, un texte libre, ou une mention sur une slide jamais vidée", () => {
+    const reste = (inner: string) => slide(`${EMPTY_P}${inner}`);
+    expect(isEmptySlide(reste(`<p data-editor-id="m">Merci d'avoir lu !</p>`))).toBe(false);
+    expect(isEmptySlide(reste(`<p data-editor-id="m">— Buffer</p><p data-editor-id="n">Publier moins, publier mieux.</p>`))).toBe(false);
+    expect(isEmptySlide(reste(`<p data-editor-id="m">— une phrase d'incise bien trop longue pour être une simple attribution de citation</p>`))).toBe(false);
+    // Slide dessinée sans étiquette de texte principal : rien n'a été vidé.
+    expect(isEmptySlide(slide(`<p data-editor-id="m">— Buffer</p>`))).toBe(false);
+    expect(isEmptySlide(slide(`<p data-slide-text="body">Un texte</p><p>— Buffer</p>`))).toBe(false);
+  });
 });
