@@ -171,7 +171,7 @@ export function EditorPanel(p: Props) {
   );
 
   return (
-    <div className={`${p.className} md:grid md:grid-cols-[4.5rem_minmax(0,1fr)] md:overflow-hidden md:rounded-xl md:border md:bg-card`} data-testid="editor-panel" data-tab={tab}>
+    <div className={`${p.className} md:grid md:grid-cols-[4.5rem_minmax(0,1fr)] md:overflow-hidden md:rounded-xl md:border md:bg-card`} data-testid="editor-panel">
       <div role="tablist" aria-label="Réglages de la slide" className="flex gap-1 overflow-x-auto rounded-xl bg-muted/60 p-1 md:flex-col md:overflow-visible md:rounded-none md:border-r md:p-1.5">
         {TABS.map(([id, label, Icon]) => tabButton(id, label, Icon))}
         {tabButton("ia", "Demander à l’IA", Sparkles, "text-primary md:hidden")}
