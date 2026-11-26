@@ -53,9 +53,17 @@ export default function DraftConflictDialog({ open, draft, newSubject, resuming 
   const workspaceId = useWorkspaceId();
   const [saveFirst, setSaveFirst] = useState(true);
   const [busy, setBusy] = useState(false);
+  // L'échec s'écrit aussi dans la fenêtre : au rejeu du 26/11, le message flottant n'a pas été vu.
+  const [saveError, setSaveError] = useState<string | null>(null);
   const active = useRef(false);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const unsavedPhotoDraft = !draft.result && !draft.editContent && ((draft.photoCount ?? 0) > 0 || !!draft.photoSubject || !!draft.photoDescription);
+  // Rejeu à l'écran du 26/11/2026 : sur un brouillon parti de photos, la case était
+  // cochée d'office alors que l'enregistrement est impossible (les photos de départ ne
+  // sont pas archivées dans Mes idées), et « Démarrer le nouveau contenu » ne faisait
+  // rien de visible. On ne propose plus la case : la fenêtre dit que ce brouillon sera
+  // abandonné, et le bouton démarre.
+  const willSave = saveFirst && !unsavedPhotoDraft;
 
   const draftTitle = draft.ideaText?.trim() || "Contenu sans titre";
   const stepLabel = STEP_LABELS[draft.step] || draft.step;
@@ -112,15 +120,17 @@ export default function DraftConflictDialog({ open, draft, newSubject, resuming 
 
   const handleStartNew = async () => {
     setBusy(true);
+    setSaveError(null);
     try {
-      if (saveFirst) {
+      if (willSave) {
         await saveDraftToIdeas();
         if (!active.current) return;
         toast.success("Brouillon enregistré dans ta boîte à idées");
       }
     } catch (e) {
       console.error("Save draft to ideas failed:", e);
-      if (active.current) toast.error(unsavedPhotoDraft ? (e as Error).message : "Impossible d’enregistrer le contenu. Il est conservé ici : réessaie ou reprends-le.");
+      const message = "Impossible d’enregistrer le contenu. Il est conservé ici : réessaie ou reprends-le.";
+      if (active.current) { toast.error(message); setSaveError(message); }
       return;
     } finally {
       if (active.current) setBusy(false);
@@ -155,17 +165,23 @@ export default function DraftConflictDialog({ open, draft, newSubject, resuming 
             </div>
           )}
 
-          <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer">
-            <Checkbox
-              checked={saveFirst}
-              onCheckedChange={(v) => setSaveFirst(v === true)}
-              className="mt-0.5"
-            />
-            <span>Enregistrer le contenu en cours dans mes idées avant de le quitter</span>
-          </label>
+          {unsavedPhotoDraft ? (
+            <p className="text-sm text-foreground" data-testid="draft-photo-notice">
+              Ce brouillon part de photos : il ne peut pas être gardé dans tes idées tant qu’il n’est pas créé. Reprends-le pour le terminer, sinon il sera abandonné.
+            </p>
+          ) : (
+            <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer">
+              <Checkbox
+                checked={saveFirst}
+                onCheckedChange={(v) => setSaveFirst(v === true)}
+                className="mt-0.5"
+              />
+              <span>Enregistrer le contenu en cours dans mes idées avant de le quitter</span>
+            </label>
+          )}
         </div>
 
-        {unsavedPhotoDraft && saveFirst && <p className="text-sm text-muted-foreground">Pour conserver ce départ photo, reprends ce brouillon et termine sa préparation avant de l’enregistrer.</p>}
+        {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
         <div className="flex flex-col gap-2 pt-2">
           <Button className="rounded-full" onClick={handleStartNew} disabled={busy}>
             {busy && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
