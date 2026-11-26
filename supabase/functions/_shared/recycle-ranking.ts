@@ -10,6 +10,7 @@
 // le PERMALINK (publication directe, markPostPublished #158) → on matche les deux.
 
 import type { IgPostMetrics } from "./instagram-insights.ts";
+import { likesMedian, timesMedian } from "./post-median.ts";
 
 export interface AppPublishedPost {
   id: string;
@@ -37,6 +38,8 @@ export interface RecycleCandidate {
   permalink?: string;
   metrics?: {
     engagementRate?: number;
+    /** Likes ÷ médiane des likes du compte : 2 = deux fois le post habituel. */
+    xMedian?: number;
     reach?: number;
     views?: number;
     likes?: number;
@@ -49,6 +52,8 @@ export interface RecycleCandidate {
 /** Un post trop frais ne se recycle pas : on laisse vivre au moins 3 semaines. */
 export const MIN_AGE_DAYS = 21;
 export const MAX_CANDIDATES = 6;
+/** Le recyclage tolère une médiane sur peu de posts (les petits comptes en ont peu). */
+export const RECYCLE_MEDIAN_MIN_POSTS = 3;
 
 function ageInDays(iso: string | null | undefined, now: Date): number | null {
   if (!iso) return null;
@@ -67,9 +72,10 @@ function matchesPublishedId(publishedPostId: string, ig: IgPostMetrics): boolean
   return false;
 }
 
-function pickMetrics(ig: IgPostMetrics): RecycleCandidate["metrics"] {
+function pickMetrics(ig: IgPostMetrics, xMedian?: number): RecycleCandidate["metrics"] {
   return {
     engagementRate: ig.engagementRate,
+    xMedian,
     reach: ig.reach,
     views: ig.views,
     likes: ig.likes,
@@ -86,7 +92,9 @@ function excerptOf(text: string, max = 160): string {
 
 /**
  * Croise posts app publiés et métriques IG réelles, puis classe :
- * 1. `top_engagement` (ER décroissant) — posts mesurés au-dessus de la moyenne ;
+ * 1. `top_engagement` — posts mesurés, classés par « × médiane » (likes du post ÷
+ *    médiane des likes du compte), le taux d'engagement départageant les égalités ;
+ *    un post Instagram hors app n'est proposé que s'il atteint la médiane ;
  * 2. `revive` (plus ancien d'abord) — posts app sans mesure, assez vieux pour revivre.
  * Tout candidat doit avoir ≥ MIN_AGE_DAYS. Cap à MAX_CANDIDATES.
  */
@@ -99,10 +107,9 @@ export function rankRecycleCandidates(
   const revive: RecycleCandidate[] = [];
   const matchedIgIds = new Set<string>();
 
-  const measured = igPosts.filter((p) => typeof p.engagementRate === "number");
-  const avgEr = measured.length
-    ? measured.reduce((s, p) => s + (p.engagementRate || 0), 0) / measured.length
-    : 0;
+  // La médiane, pas la moyenne : un seul post viral tirait la moyenne vers le haut
+  // et écartait tous les autres bons posts.
+  const med = likesMedian(igPosts, now, RECYCLE_MEDIAN_MIN_POSTS);
 
   for (const post of appPosts) {
     const text = (post.content_draft || "").trim();
@@ -129,7 +136,7 @@ export function rankRecycleCandidates(
     };
 
     if (ig && typeof ig.engagementRate === "number") {
-      top.push({ ...base, reason: "top_engagement", metrics: pickMetrics(ig) });
+      top.push({ ...base, reason: "top_engagement", metrics: pickMetrics(ig, timesMedian(ig, med)) });
     } else {
       revive.push({ ...base, reason: "revive" });
     }
@@ -140,7 +147,8 @@ export function rankRecycleCandidates(
   for (const ig of igPosts) {
     if (matchedIgIds.has(ig.id)) continue;
     if (typeof ig.engagementRate !== "number") continue;
-    if (ig.engagementRate < avgEr) continue; // seulement au-dessus de la moyenne
+    const x = timesMedian(ig, med);
+    if (x === undefined || x < 1) continue; // seulement à la médiane du compte ou au-dessus
     const age = ageInDays(ig.timestamp, now);
     if (age === null || age < MIN_AGE_DAYS) continue;
     if (!ig.subject || ig.subject.length < 15) continue; // rien à ré-angler sans sujet
@@ -155,11 +163,14 @@ export function rankRecycleCandidates(
       format: ig.format?.toLowerCase() || null,
       publishedAt: ig.timestamp,
       permalink: ig.permalink,
-      metrics: pickMetrics(ig),
+      metrics: pickMetrics(ig, x),
     });
   }
 
-  top.sort((a, b) => (b.metrics?.engagementRate || 0) - (a.metrics?.engagementRate || 0));
+  top.sort((a, b) =>
+    (b.metrics?.xMedian ?? -1) - (a.metrics?.xMedian ?? -1) ||
+    (b.metrics?.engagementRate || 0) - (a.metrics?.engagementRate || 0)
+  );
   // À faire revivre : les plus anciens d'abord (ce sont eux qu'on a oubliés).
   revive.sort((a, b) => {
     const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;

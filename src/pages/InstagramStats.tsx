@@ -28,6 +28,8 @@ import { saveStatsPatch } from "@/lib/stats-persistence";
 import { statsPatch, GA4_FIELDS } from "@/lib/ga4-stats";
 import { instagramMonthPatch, instagramSaveReport } from "@/features/stats/merge-fetched-stats";
 import StatsForm from "@/components/stats/StatsForm";
+import RecentPostsCard from "@/components/stats/RecentPostsCard";
+import { livePostsOf, type LivePosts } from "@/features/stats/recent-posts";
 import { signalerEchecEnregistrementStats, tracerEchecEnregistrementStats } from "@/features/stats/stats-save-error";
 import { statsLinkedInManquantes } from "@/features/stats/linkedin-stats-manquantes";
 import { cartesStatsLinkedIn } from "@/features/stats/linkedin-stats-cartes";
@@ -116,7 +118,7 @@ function InstagramStatsScope() {
     followers?: number; followersGained30d?: number;
     postAnalytics30d?: Record<string, number>; fetchedAt?: string;
   } | null>(null);
-  const [livePosts, setLivePosts] = useState<{ top: any[]; flop: any[] } | null>(null);
+  const [livePosts, setLivePosts] = useState<LivePosts | null>(null);
   const [contentInsights, setContentInsights] = useState<any | null>(null);
   const [analyzingContent, setAnalyzingContent] = useState(false);
   const [analysisMonthPosts, setAnalysisMonthPosts] = useState<any[] | null>(null);
@@ -244,8 +246,8 @@ function InstagramStatsScope() {
     if (!livePosts) {
       const withPosts = allStats.find(s => (s.custom_data as any)?.ig_top_posts);
       const tp = withPosts ? (withPosts.custom_data as any).ig_top_posts : null;
-      if (tp && (tp.top?.length || tp.flop?.length)) {
-        setLivePosts({ top: tp.top || [], flop: tp.flop || [] });
+      if (tp && (tp.top?.length || tp.flop?.length || tp.recent?.length)) {
+        setLivePosts({ ...tp, top: tp.top || [], flop: tp.flop || [] });
       }
     }
     if (!liStats) {
@@ -420,11 +422,8 @@ function InstagramStatsScope() {
       }
       const m = (data as any).metrics;
       setAudience(m.audience || null);
-      setLivePosts(
-        (m.topPosts?.length || m.flopPosts?.length)
-          ? { top: m.topPosts || [], flop: m.flopPosts || [] }
-          : null,
-      );
+      const lp = livePostsOf(m);
+      setLivePosts(lp);
       const target = currentMonthDate;
       // La saisie à la main prime : la base (save_monthly_stats, source « instagram »)
       // ne remplit que les compteurs encore vides, même saisis dans un autre onglet.
@@ -436,13 +435,7 @@ function InstagramStatsScope() {
       if (aud && (aud.age?.length || aud.gender?.length || aud.cities?.length || aud.countries?.length)) {
         customData.ig_audience = { ...aud, fetchedAt: m.fetchedAt || new Date().toISOString() };
       }
-      if (m.topPosts?.length || m.flopPosts?.length) {
-        customData.ig_top_posts = {
-          top: m.topPosts || [],
-          flop: m.flopPosts || [],
-          fetchedAt: m.fetchedAt || new Date().toISOString(),
-        };
-      }
+      if (lp) customData.ig_top_posts = { ...lp, fetchedAt: m.fetchedAt || new Date().toISOString() };
       if (!Object.keys(patch).length) {
         toast("Aucune métrique exploitable", { description: "L'API n'a renvoyé aucun chiffre fiable cette fois. Réessaie un peu plus tard." });
         return;
@@ -1098,7 +1091,8 @@ function InstagramStatsScope() {
               </div>
             ) : null}
 
-            {livePosts && (livePosts.top.length || livePosts.flop.length) ? (
+            {livePosts?.recent?.length ? <RecentPostsCard posts={livePosts} onRecycle={recycleTopPost} />
+            : livePosts && (livePosts.top.length || livePosts.flop.length) ? (
               <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
                 <h3 className="font-body text-sm font-bold text-foreground">
                   <Trophy className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Tes posts récents <span className="font-normal text-muted-foreground text-xs"> : par taux d'engagement, 30 derniers jours</span>
