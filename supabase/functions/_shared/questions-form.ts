@@ -121,7 +121,7 @@ export function aUnInterrogatif(text: string): boolean {
 }
 
 // Deux questions sous un seul « ? » (répétition du 25/11/2026) : « …, et veux-tu… ? ».
-const SECONDE_QUESTION = /[,;]?\s+(et|puis|mais)\s+(qu['’]est-ce|qu['’]as-tu|ce qu['’e]|ce qui|((pour|à|de|dans|avec|sur|par|en)\s+)?(quel(le)?s?|quoi|qui)|comment|pourquoi|combien|\p{L}+-tu)(?![\p{L}])/iu;
+const SECONDE_QUESTION = /[,;]?\s+(et|puis|mais)\s+(qu['’]est-ce|qu['’]as-tu|qu['’]\p{L}+-\p{L}+|que\s+(doit|dois|doivent|faut|peut|peux|veux|veut|fait|fais|retiens|retient|\p{L}+-\p{L}+)|ce qu['’e]|ce qui|((pour|à|de|dans|avec|sur|par|en)\s+)?(quel(le)?s?|quoi|qui)|comment|pourquoi|combien|\p{L}+-tu)(?![\p{L}])/iu;
 /** Vrai si la question en pose deux : deux « ? », ou une seconde question accrochée par « et ». */
 export function deuxQuestionsEnUne(q: string): boolean {
   const text = String(q || "");

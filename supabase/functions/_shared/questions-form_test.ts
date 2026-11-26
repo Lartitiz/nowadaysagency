@@ -201,3 +201,18 @@ Deno.test("questions-form : la phrase ajoutée après le « ? » est coupée, pu
   const deux = "Comment tu remplaces le parfum de synthèse ? Et qu'est-ce que ça change à l'odeur ?";
   assertEquals(couperApresQuestion(deux), deux);
 });
+
+// Vue à l'écran le 26/11/2026 (essai des légendes, carrousel photos) : « …, et que doit comprendre… ».
+Deno.test("questions-form : « et que doit… » est une seconde question, « et que tu… » non", () => {
+  assertEquals(
+    couperSecondeQuestion("Quel fil veux-tu donner à ce test, et que doit comprendre le lecteur à la fin de la visite ?"),
+    "Quel fil veux-tu donner à ce test ?",
+  );
+  assertEquals(
+    couperSecondeQuestion("Quelle pièce montres-tu en premier dans cette visite, et qu'attends-tu du lecteur ensuite ?"),
+    "Quelle pièce montres-tu en premier dans cette visite ?",
+  );
+  // « et que » qui relie deux propositions d'une même question : rien ne bouge.
+  const une = "Quelle étape as-tu menée toi-même et que tu referais sur ta prochaine opération ?";
+  assertEquals(couperSecondeQuestion(une), une);
+});
