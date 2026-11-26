@@ -9,12 +9,12 @@
 //   dessous les réglages de celui qu'on choisit (comme l'ancien « Plus d'outils »). Le panneau
 //   n'en sort pas tout seul, et l'éditeur s'en souvient d'une fois sur l'autre.
 // - Les réglages pointus de l'ancien « Plus d'outils » sont sous la partie simple de
-//   l'onglet de l'élément choisi, dans leurs sections repliables d'origine.
+//   l'onglet de l'élément choisi, derrière une ligne « Réglages avancés » à déplier.
 // - « Demander un changement à l'IA » reste collé en bas sur ordinateur (SlideRedoDialog.tsx
 //   s'y affiche) ; sur téléphone, c'est un onglet de plus.
 import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { ImageIcon, Layers, LayoutTemplate, LockKeyhole, Palette, PlusCircle, Sparkles, Type } from "lucide-react";
+import { ImageIcon, Layers, LayoutTemplate, LockKeyhole, Palette, PlusCircle, SlidersHorizontal, Sparkles, Type } from "lucide-react";
 import { editorialVeilAlpha, listLayers, setEditorialVeilAlpha, setVeilAlpha, veilAlpha, type EditorElement } from "@/lib/carousel-editor";
 import type { CarouselStylesApi } from "@/hooks/use-carousel-styles";
 import { LayersPanel, MultiSelectPanel } from "@/components/creer/CarouselEditorParts/LayersPanel";
@@ -26,6 +26,7 @@ import { AllSlidesPanel, SavedStylesPanel } from "@/components/creer/CarouselEdi
 import { SimpleParts } from "@/components/creer/CarouselEditorParts/SimplePanel";
 import { IconPicker } from "@/components/creer/CarouselEditorParts/IconPicker";
 import { addIcon, brandInk } from "@/components/creer/CarouselEditorParts/editor-icons";
+import { PanelSection } from "@/components/creer/CarouselEditorParts/PanelBits";
 import { OPEN_FONT_EVENT } from "@/components/creer/CarouselEditorParts/editor-mode";
 import { SLIDE_ASK_SLOT } from "@/components/creer/CarouselEditorParts/SlideRedoDialog";
 
@@ -123,9 +124,8 @@ export function EditorPanel(p: Props) {
   );
 
   // Réglages pointus de l'élément choisi (l'ancien onglet « Élément » de « Plus d'outils »), dans leurs sections d'origine.
-  const advanced: ReactNode = element && (follows === shown || (shown === "calques" && follows)) && !slide.locked && (
+  const advancedBody: ReactNode = element && (follows === shown || (shown === "calques" && follows)) && !slide.locked && (
     <fieldset disabled={elementLocked} className="min-w-0 space-y-3 disabled:opacity-50" data-testid="panel-advanced">
-      <p className="border-t pt-3 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Réglages avancés</p>
       {element.kind === "text" && (
         <TextSettings advanced changeSlide={p.changeSlide} css={css} documentFonts={p.documentFonts} element={element} fontQuery={p.fontQuery} pickFont={p.pickFont} setFitId={p.setFitId} setFontQuery={p.setFontQuery} slide={slide} style={p.style} textShadowOn={p.textShadowOn} />
       )}
@@ -149,6 +149,17 @@ export function EditorPanel(p: Props) {
         <SavedStylesPanel applySaved={p.applySaved} element={element} saveStyle={p.saveStyle} savedStyles={p.savedStyles} setStyleName={p.setStyleName} styleKind={p.styleKind} styleName={p.styleName} />
       )}
     </fieldset>
+  );
+
+  // « Calques » les montre d'office (retouche détaillée) ; ailleurs, une seule ligne à déplier : l'onglet reste
+  // court (la sonde 📏 de la visite du matin compte les commandes visibles ; 92 sans ce repli, le 26/11/2026).
+  const advanced: ReactNode = !advancedBody ? null : shown === "calques" ? (
+    <>
+      <p className="border-t pt-3 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Réglages avancés</p>
+      {advancedBody}
+    </>
+  ) : (
+    <PanelSection title="Réglages avancés" icon={<SlidersHorizontal size={14} aria-hidden="true" />}>{advancedBody}</PanelSection>
   );
 
   const tabButton = (id: PanelTab, label: string, Icon: typeof Type, extra = "") => (
