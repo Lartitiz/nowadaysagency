@@ -46,7 +46,7 @@ type StripProps = {
 };
 
 /** Boutons de la slide ouverte : ajouter, dupliquer, supprimer, déplacer (ligne du haut sur ordinateur, sous les vignettes sur téléphone). */
-export function SlideTools({ simple = false, active, add, changeSlide, commit, current, document, move, setActive, setSelected, slide, className = "" }: StripProps & { className?: string }) {
+export function SlideTools({ simple = false, compact = false, active, add, changeSlide, commit, current, document, move, setActive, setSelected, slide, className = "" }: StripProps & { className?: string; /** Icônes seules (ligne du haut en mode « Plus d'outils », 26/11/2026) : le nom reste au survol et pour les lecteurs d'écran. */ compact?: boolean }) {
   const last = document.slides.length - 1;
   const full = document.slides.length >= CAROUSEL_MAX_SLIDES;
   const remove = () => {
@@ -70,16 +70,17 @@ export function SlideTools({ simple = false, active, add, changeSlide, commit, c
     });
   };
   const tool = "h-8 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground";
+  const name = compact ? "sr-only" : "max-lg:sr-only";
   return (
     <div className={`flex shrink-0 items-center gap-0.5 ${className}`} role="group" aria-label="Slide ouverte" data-testid="slide-order-tools">
-      <Button size="sm" variant="ghost" className={tool} disabled={full} onClick={() => add()} aria-label="Ajouter une slide">
-        <Plus size={14} className="shrink-0" /> <span className="max-lg:sr-only">Ajouter</span>
+      <Button size="sm" variant="ghost" className={tool} disabled={full} onClick={() => add()} aria-label="Ajouter une slide" title="Ajouter une slide">
+        <Plus size={14} className="shrink-0" /> <span className={name}>Ajouter</span>
       </Button>
-      <Button size="sm" variant="ghost" className={tool} disabled={full} onClick={() => add(true)} aria-label="Dupliquer la slide">
-        <Copy size={14} className="shrink-0" /> <span className="max-lg:sr-only">Dupliquer</span>
+      <Button size="sm" variant="ghost" className={tool} disabled={full} onClick={() => add(true)} aria-label="Dupliquer la slide" title="Dupliquer la slide">
+        <Copy size={14} className="shrink-0" /> <span className={name}>Dupliquer</span>
       </Button>
-      <Button size="sm" variant="ghost" className={tool} disabled={document.slides.length <= 2 || slide.locked} onClick={remove} aria-label="Supprimer la slide">
-        <Trash2 size={14} className="shrink-0" /> <span className="max-lg:sr-only">Supprimer</span>
+      <Button size="sm" variant="ghost" className={tool} disabled={document.slides.length <= 2 || slide.locked} onClick={remove} aria-label="Supprimer la slide" title="Supprimer la slide">
+        <Trash2 size={14} className="shrink-0" /> <span className={name}>Supprimer</span>
       </Button>
       <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" aria-label="Monter la slide" title="Déplacer la slide avant" disabled={active === 0} onClick={() => move(-1)}>
         <ArrowLeft size={14} />
@@ -88,9 +89,9 @@ export function SlideTools({ simple = false, active, add, changeSlide, commit, c
         <ArrowRight size={14} />
       </Button>
       {!simple && (
-        <Button size="sm" variant="ghost" className={tool} onClick={() => changeSlide({ ...slide, locked: !slide.locked })}>
+        <Button size="sm" variant="ghost" className={tool} title={slide.locked ? "Déverrouiller la slide" : "Verrouiller la slide"} onClick={() => changeSlide({ ...slide, locked: !slide.locked })}>
           {slide.locked ? <Unlock size={14} className="shrink-0" /> : <LockKeyhole size={14} className="shrink-0" />}
-          <span className="max-lg:sr-only">{slide.locked ? "Déverrouiller" : "Verrouiller"}</span>
+          <span className={name}>{slide.locked ? "Déverrouiller" : "Verrouiller"}</span>
         </Button>
       )}
     </div>
@@ -187,9 +188,9 @@ export function SlideStrip(props: StripProps) {
           <Plus size={16} />
         </button>
       </div>
-      {/* Les boutons de la slide : avec les vignettes ouvertes sur téléphone ; sous les vignettes en mode
-          « Plus d'outils » (la ligne du haut y est pleine) ; dans la ligne du haut en mode simple. */}
-      {(all || !props.simple) && <SlideTools {...props} className={`flex-wrap justify-center ${props.simple ? "md:hidden" : all ? "" : "max-md:hidden"}`} />}
+      {/* Les boutons de la slide : avec les vignettes ouvertes sur téléphone. Sur tablette et ordinateur, ils sont
+          dans la ligne du haut dans les deux modes (26/11/2026 : la slide reprend la hauteur de leur rangée). */}
+      {all && <SlideTools {...props} className="flex-wrap justify-center md:hidden" />}
       {/* Une seule ligne sous les vignettes : elle doit tenir au-dessus de la barre « Publier » (EditorLayout.tsx). */}
       <div className="flex flex-wrap items-center justify-center gap-x-3 text-center text-2xs leading-tight text-muted-foreground">
         {document.slides.length > 1 && (

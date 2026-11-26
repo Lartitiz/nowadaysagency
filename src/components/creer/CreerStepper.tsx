@@ -1,6 +1,8 @@
+import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCarouselEditorShown } from "@/lib/carousel-editor-shown";
+import { useAppHeaderSlot } from "@/lib/app-header-slot";
 
 export type StepperKey = "idea" | "format" | "brief" | "result";
 
@@ -44,13 +46,17 @@ export default function CreerStepper({ current, contentAvailable = false, onStep
   // (-mt-4 annule l'espace laissé au-dessus des étapes par la page.)
   const editorShown = useCarouselEditorShown();
   const folded = compact && editorShown;
+  // Slide en grand (26/11/2026) : sur ordinateur, les étapes repliées montent dans la barre
+  // fine du menu de l'app (plus de ligne à elles au-dessus de la slide).
+  const slot = useAppHeaderSlot("steps");
+  const inHeader = folded && !!slot;
   // Étape « Idée » épurée (14/11/2026) : étapes fines, sans la ligne « Étape 1 sur 4 :
   // Dis-moi ton idée » (gardée pour les lecteurs d'écran), le regard va au champ.
   const slim = current === "idea";
 
-  return (
-    <nav aria-label="Étapes de création" data-testid="creer-stepper" data-current-step={current} data-folded={folded || undefined} className={folded ? "-mt-4 mb-1.5 flex items-center justify-between gap-x-4" : compact ? "mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1" : slim ? "mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1" : "mb-8 space-y-3"}>
-      <div className={cn("flex items-start gap-1 sm:gap-3", compact || slim ? "flex-1 sm:max-w-md" : "sm:max-w-xl")}>
+  const nav = (
+    <nav aria-label="Étapes de création" data-testid="creer-stepper" data-current-step={current} data-folded={folded || undefined} data-in-header={inHeader || undefined} className={inHeader ? "flex items-center gap-x-4" : folded ? "-mt-4 mb-1.5 flex items-center justify-between gap-x-4" : compact ? "mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1" : slim ? "mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1" : "mb-8 space-y-3"}>
+      <div className={cn("flex items-start gap-1 sm:gap-3", inHeader ? "w-64 xl:w-80" : compact || slim ? "flex-1 sm:max-w-md" : "sm:max-w-xl")}>
         {STEPS.map((s, i) => {
           const isPast = i < currentIndex;
           const isCurrent = i === currentIndex;
@@ -77,7 +83,7 @@ export default function CreerStepper({ current, contentAvailable = false, onStep
                 <span className={cn("flex items-center justify-center rounded-full border", folded ? "h-4 w-4 text-[9px]" : compact || slim ? "h-5 w-5 text-[10px]" : "h-7 w-7 text-xs", isCurrent ? "bg-primary border-primary text-primary-foreground" : "border-border")}>
                   {isPast ? <Check className="h-3 w-3" /> : i + 1}
                 </span>
-                <span className={compact && !isCurrent ? "hidden sm:inline" : undefined}>{s.label}</span>
+                <span className={inHeader && !isCurrent ? "hidden xl:inline" : compact && !isCurrent ? "hidden sm:inline" : undefined}>{s.label}</span>
               </button>
               {i < STEPS.length - 1 && (
                 <div
@@ -102,4 +108,6 @@ export default function CreerStepper({ current, contentAvailable = false, onStep
       </div>
     </nav>
   );
+  // Dans le menu : la page ne garde pas la place des étapes (-mt-6 reprend l'espace laissé au-dessus du contenu).
+  return inHeader ? <>{createPortal(nav, slot!)}<div aria-hidden="true" className="-mt-6" /></> : nav;
 }

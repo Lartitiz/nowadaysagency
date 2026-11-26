@@ -10,10 +10,14 @@
 // supprimer) ; les flèches ‹ › sont à côté de la slide. Zoom, « En grand » et le
 // bouton « Refaire cette slide » ne restent que dans « Plus d'outils » (en mode
 // simple, la demande à l'IA est dans le panneau).
+// Slide en grand (26/11/2026, maquette validée par Laetitia) : en mode « Plus d'outils »,
+// le zoom, « En grand » et les raccourcis clavier tiennent dans un seul bouton « ⋯ »
+// (cinq boutons de moins sur la ligne), et les boutons de la slide ouverte sont dans
+// cette ligne comme en mode simple (plus de rangée à eux sous les vignettes).
 import { Fragment, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Keyboard, Maximize2, Redo2, SlidersHorizontal, Smartphone, Undo2, ZoomIn, ZoomOut } from "lucide-react";
+import { Maximize2, MoreHorizontal, Redo2, SlidersHorizontal, Smartphone, Undo2, ZoomIn, ZoomOut } from "lucide-react";
 import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import type { CarouselDocument } from "@/lib/carousel-editor";
 import type { EditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
@@ -113,36 +117,41 @@ export function EditorHeader({ showInstagramPreview = true, active, count, slide
               <Smartphone size={15} /> <span className="hidden lg:inline">Aperçu Instagram</span>
             </Button>
           )}
-          {mode === "complet" && (<>
-          <Button size="sm" variant="ghost" className="hidden h-8 px-1.5 md:inline-flex" aria-label="Dézoomer l’aperçu" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
-            <ZoomOut size={14} />
-          </Button>
-          <span className="hidden w-9 text-center text-2xs tabular-nums text-muted-foreground md:inline">{Math.round(zoom * 100)} %</span>
-          <Button size="sm" variant="ghost" className="hidden h-8 px-1.5 md:inline-flex" aria-label="Zoomer l’aperçu" disabled={zoom >= 3} onClick={() => setZoom((z) => Math.min(3, z + 0.5))}>
-            <ZoomIn size={14} />
-          </Button>
-          <Button size="sm" variant="outline" className={tool} aria-label="Ouvrir l’aperçu en grand" onClick={() => setFullscreen(true)}>
-            <Maximize2 size={14} /> <span className="hidden lg:inline">En grand</span>
-          </Button>
-          </>)}
           {mode === "complet" && (
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="hidden h-8 gap-1.5 px-2 md:inline-flex" aria-label="Voir les raccourcis clavier">
-                <Keyboard size={15} /> <span className="hidden xl:inline">Raccourcis</span>
+              <Button variant="outline" size="sm" className="h-8 w-8 px-0" aria-label="Affichage : zoom, plein écran, raccourcis clavier" title="Zoom, plein écran, raccourcis clavier" data-testid="editor-view-menu">
+                <MoreHorizontal size={16} />
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 text-xs">
-              <p className="mb-2 font-semibold">Raccourcis clavier</p>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                {SHORTCUTS.map(([keys, label]) => (
-                  <Fragment key={keys}>
-                    <dt className="whitespace-nowrap font-mono text-2xs">{shortcutLabel(keys)}</dt>
-                    <dd>{label}</dd>
-                  </Fragment>
-                ))}
-              </dl>
-              <p className="mt-2 text-muted-foreground">Ils marchent partout dans l’éditeur, même après un clic à côté de la slide.</p>
+            <PopoverContent align="end" collisionPadding={8} className="max-h-[var(--radix-popover-content-available-height)] w-80 space-y-3 overflow-y-auto text-xs">
+              <div className="hidden items-center justify-between gap-2 md:flex">
+                <p className="font-semibold">Zoom de la slide</p>
+                <div className="flex items-center gap-1">
+                  <Button size="sm" variant="outline" className="h-8 px-2" aria-label="Dézoomer l’aperçu" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
+                    <ZoomOut size={14} />
+                  </Button>
+                  <span className="w-10 text-center text-2xs tabular-nums text-muted-foreground">{Math.round(zoom * 100)} %</span>
+                  <Button size="sm" variant="outline" className="h-8 px-2" aria-label="Zoomer l’aperçu" disabled={zoom >= 3} onClick={() => setZoom((z) => Math.min(3, z + 0.5))}>
+                    <ZoomIn size={14} />
+                  </Button>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="h-8 w-full gap-1.5" aria-label="Ouvrir l’aperçu en grand" onClick={() => setFullscreen(true)}>
+                <Maximize2 size={14} /> Voir la slide en plein écran
+              </Button>
+              <div className="hidden md:block">
+                <p className="mb-2 font-semibold">Raccourcis clavier</p>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                  {SHORTCUTS.map(([keys, label]) => (
+                    <Fragment key={keys}>
+                      <dt className="whitespace-nowrap font-mono text-2xs">{shortcutLabel(keys)}</dt>
+                      <dd>{label}</dd>
+                    </Fragment>
+                  ))}
+                </dl>
+                <p className="mt-2 text-muted-foreground">Ils marchent partout dans l’éditeur, même après un clic à côté de la slide.</p>
+              </div>
             </PopoverContent>
           </Popover>
           )}

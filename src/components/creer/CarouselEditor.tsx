@@ -725,7 +725,7 @@ export default function CarouselEditor({
   const strip = { channel, simple: mode === "simple", active, add, changeSlide, commit, current, document, dragSlide, dropAt, justDragged, move, reorder, setActive, setDragSlide, setDropAt, setSelected, slide, thumbDrag, thumbIndexAt };
   return (
     <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-3" onKeyDown={(event) => onEditorKey(event.nativeEvent, event.target as HTMLElement)}>
-      <EditorHeader showInstagramPreview={channel !== "linkedin"} active={active} count={document.slides.length} slideTools={mode === "simple" && <SlideTools {...strip} className="max-md:hidden" />} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
+      <EditorHeader showInstagramPreview={channel !== "linkedin"} active={active} count={document.slides.length} slideTools={<SlideTools {...strip} compact={mode !== "simple"} className="max-md:hidden" />} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
         redo={slideRedo && slide && <SlideRedo inline={mode === "simple"} api={slideRedo} raw={raw} slide={slide} getDocument={() => current.current} onKeep={(next) => commit(replaceSlide(current.current, next))} />} />
       {toolsPortal && createPortal(
         <QualityPanel cloudTools={cloudTools} commit={commit} current={current} document={document} fixAll={fixAll} quality={quality} setActive={setActive} setSelected={setSelected} />,
