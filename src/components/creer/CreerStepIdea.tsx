@@ -231,6 +231,7 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
             initialPhotos={localPhotos}
             initialDescription={localDescription}
             hideDescription
+            pairMarks
             stockSearchSeed={localPhotoSubject}
           />
 

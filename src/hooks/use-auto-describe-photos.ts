@@ -8,7 +8,7 @@
 // très rapide) ou en échec : la fenêtre s'ouvre comme avant, rien n'est perdu.
 import { useEffect, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { describeImportedPhoto } from "@/features/creer/describe-imported-photo";
+import { describeImportedPhotoOnce } from "@/features/creer/describe-imported-photo";
 import { splitPairMark, suggestPhotoContext } from "@/features/creer/photo-context-step";
 
 type AutoPhoto = {
@@ -44,7 +44,7 @@ export function useAutoDescribePhotos<T extends AutoPhoto>({
     for (const photo of photos) {
       if (!needsAutoDescription(photo) || requested.current.has(photo.id!)) continue;
       requested.current.add(photo.id!);
-      void describeImportedPhoto(photo, workspaceId).then((text) => {
+      void describeImportedPhotoOnce(photo, workspaceId).then((text) => {
         if (!text) return;
         setPhotos((prev) => {
           let changed = false;

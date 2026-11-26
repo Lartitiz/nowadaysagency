@@ -780,7 +780,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
             }}
             onDescriptionChange={setPhotoDescription}
             title={uploadedPhotos.length > 0 ? `Tes photos (${uploadedPhotos.length})` : carouselSubMode === "photo" ? "Tes photos (facultatif)" : undefined}
-            layout="tiles" pickFromLibrary={pickFromLibrary} hideDescription={uploadedPhotos.length === 0}
+            layout="tiles" pickFromLibrary={pickFromLibrary} pairMarks={carouselSubMode !== "pure_photo"} hideDescription={uploadedPhotos.length === 0}
             compact={uploadedPhotos.length > 0}
             stockSearchSeed={idea}
             openStockSignal={stockSignal}

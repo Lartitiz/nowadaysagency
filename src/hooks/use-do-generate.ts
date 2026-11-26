@@ -1,6 +1,7 @@
-import { useRef } from "react";
-import { describeImportedPhoto } from "@/features/creer/describe-imported-photo";
+import { useRef, type Dispatch, type SetStateAction } from "react";
+import { describeImportedPhotoOnce } from "@/features/creer/describe-imported-photo";
 import { usePhotoContextStep } from "@/hooks/use-photo-context-step";
+import { useAutoDescribePhotos } from "@/hooks/use-auto-describe-photos";
 import { readableError } from "@/lib/error-messages";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -39,7 +40,7 @@ interface PhotoContext {
   photoDumpEnabled: boolean;
   photoDumpDoneRef: React.MutableRefObject<boolean>;
   libraryPhotosForCasting: UserPhotoRow[] | undefined;
-  setUploadedPhotos: (photos: any[]) => void;
+  setUploadedPhotos: Dispatch<SetStateAction<any[]>>;
   setGeneratedWithPhotos: (photos: any[]) => void;
   setPhotoDumpResolving: (value: boolean) => void;
   setPhotoDumpProgress: (progress: any) => void;
@@ -227,6 +228,8 @@ export function useDoGenerate({
   // « Que montre chaque photo ? » (QA du 12/11/2026) : relancée avec le
   // doGenerate du rendu suivant, une fois les photos mises à jour.
   const latestDoGenerate = useRef<(a: Record<string, string>, h?: ReelHook | null) => Promise<void>>();
+  // Photos importées décrites dès leur ajout : « Que montre chaque photo ? » ne s'ouvre plus pour rien (26/11/2026).
+  useAutoDescribePhotos({ photos: selectedPhotos, setPhotos: setUploadedPhotos, workspaceId: workspaceId !== session?.user?.id ? workspaceId : undefined, enabled: !!session?.user?.id });
   const photoContextStep = usePhotoContextStep({
     applyPhotos: (next) => { setUploadedPhotos(next); setGeneratedWithPhotos(next); savePhotos(next); },
     // Rejeu du 25/11/2026 : la page est déjà passée à l'écran de résultat quand la
@@ -236,7 +239,7 @@ export function useDoGenerate({
     // Un contenu déjà affiché (« Régénérer ») ne bouge pas.
     onCancel: () => { if (!hasResult) setStep(questions.length > 0 ? "questions" : "format"); },
     // Photos importées depuis l'ordinateur : une légende proposée toute seule (26/11/2026).
-    describe: (photo) => describeImportedPhoto(photo, workspaceId !== session?.user?.id ? workspaceId : undefined),
+    describe: (photo) => describeImportedPhotoOnce(photo, workspaceId !== session?.user?.id ? workspaceId : undefined),
   });
   const doGenerate = async (ansInput: Record<string, string>, reelHookOverride?: ReelHook | null) => {
     if (!selectedFormat) return;

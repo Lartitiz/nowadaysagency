@@ -112,3 +112,34 @@ describe("fenêtre sautée quand tout est déjà décrit (26/11/2026)", () => {
     expect(allRowsFilled([])).toBe(false);
   });
 });
+
+describe("pastille avant / après de la galerie (26/11/2026)", () => {
+  it("une touche : avant ; une autre : après ; une troisième : rien, sans perdre le texte", async () => {
+    const { cyclePairRole } = await import("@/features/creer/photo-context-step");
+    let photos = [{ id: "a", context: "la cuisine" }, { id: "b" }];
+    photos = cyclePairRole(photos, 0);
+    expect(photos[0].context).toBe("AVANT — la cuisine");
+    photos = cyclePairRole(photos, 0);
+    expect(photos[0].context).toBe("APRÈS — la cuisine");
+    photos = cyclePairRole(photos, 0);
+    expect(photos[0].context).toBe("la cuisine");
+    expect(cyclePairRole(photos, 1)[1].context).toBe("AVANT");
+  });
+  it("les paires se numérotent dans l'ordre ; une paire incomplète se voit", async () => {
+    const { pairChips, pairChipsUnbalanced } = await import("@/features/creer/photo-context-step");
+    const photos = [{ context: "AVANT" }, { context: "APRÈS — salon" }, {}, { context: "AVANT — cuisine" }];
+    expect(pairChips(photos).map((c) => c.label)).toEqual(["Avant · 1", "Après · 1", "Avant / après ?", "Avant · 2"]);
+    expect(pairChipsUnbalanced(photos)).toBe(true);
+    expect(pairChipsUnbalanced(photos.slice(0, 3))).toBe(false);
+  });
+  it("pastille posée sans texte + description toute prête : la ligne est remplie, le rôle gardé, la fenêtre sautée", async () => {
+    const { allRowsFilled, applyContextRows, initialRows } = await import("@/features/creer/photo-context-step");
+    const photos = [
+      { id: "a", context: "AVANT", libraryContext: "Description : pièce vide" },
+      { id: "b", context: "APRÈS", autoContext: "Salon meublé" },
+    ];
+    const rows = initialRows(photos);
+    expect(allRowsFilled(rows)).toBe(true);
+    expect(applyContextRows(photos, rows).map((p) => p.context)).toEqual(["AVANT — Pièce vide", "APRÈS — Salon meublé"]);
+  });
+});

@@ -33,3 +33,22 @@ export async function describeImportedPhoto(
     return "";
   }
 }
+
+// Une seule demande par photo : la légende lancée à l'import (use-auto-describe-photos)
+// est reprise telle quelle par la fenêtre si la personne clique avant son retour.
+const inFlight = new Map<string, Promise<string>>();
+
+export function describeImportedPhotoOnce(
+  photo: { id?: string; base64?: string; mimeType?: string },
+  workspaceId?: string,
+): Promise<string> {
+  if (!photo?.id) return describeImportedPhoto(photo, workspaceId);
+  const known = inFlight.get(photo.id);
+  if (known) return known;
+  const run = describeImportedPhoto(photo, workspaceId).then((text) => {
+    if (!text) inFlight.delete(photo.id!); // échec : un nouvel essai reste possible
+    return text;
+  });
+  inFlight.set(photo.id, run);
+  return run;
+}

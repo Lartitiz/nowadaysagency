@@ -80,7 +80,6 @@ const HookSelectionStep = lazy(() => import("@/components/creer/HookSelectionSte
 import type { ReelHook } from "@/components/creer/HookSelectionStep";
 import CarouselStructureLoader from "@/components/creer/CarouselStructureLoader";
 import CarouselAdvancedOptions from "@/components/creer/CarouselAdvancedOptions";
-import { useAutoDescribePhotos } from "@/hooks/use-auto-describe-photos";
 
 import PhotoDumpProgress from "@/components/creer/PhotoDumpProgress";
 import { runPhotoDump, PremiumRequiredError, type DumpProgressItem } from "@/lib/photo-dump";
@@ -306,8 +305,6 @@ function CreerWorkspace() {
   // hybride). Les photos sont rehydratées en asynchrone par l'effet plus bas
   // (IndexedDB pour les dépôts, refetch serveur pour la photothèque).
   const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
-  // Photos importées décrites dès leur ajout : « Que montre chaque photo ? » ne s'ouvre plus pour rien (26/11/2026).
-  useAutoDescribePhotos({ photos: uploadedPhotos, setPhotos: setUploadedPhotos, workspaceId: workspaceId !== session?.user?.id ? workspaceId : undefined, enabled: !!session?.user?.id });
   const [photosRestored, setPhotosRestored] = useState(false);
   const [isLoadingLibraryPhotos, setIsLoadingLibraryPhotos] = useState(false);
   // Snapshot des photos au moment de la génération du carrousel.

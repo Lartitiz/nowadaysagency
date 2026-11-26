@@ -52,8 +52,15 @@ vi.mock("@/features/creer/pinterest-generation", () => ({
   generatePinterestVisual: mocks.generatePinterestVisual,
   generatePinterestPhotoBrief: mocks.generatePinterestPhotoBrief,
 }));
+// Même partage que le vrai module : une demande par photo, vidé à chaque test.
+const describeShared = new Map<string, Promise<string>>();
 vi.mock("@/features/creer/describe-imported-photo", () => ({
   describeImportedPhoto: (...a: unknown[]) => mocks.describeImported(...a),
+  describeImportedPhotoOnce: (photo: { id?: string }, ws?: string) => {
+    const id = photo?.id || "";
+    if (!describeShared.has(id)) describeShared.set(id, Promise.resolve(mocks.describeImported(photo, ws)).then((t: string) => { if (!t) describeShared.delete(id); return t; }));
+    return describeShared.get(id)!;
+  },
 }));
 vi.mock("@/features/creer/post-generation-reset", () => ({
   resetPostGenerationState: mocks.resetPostGenerationState,
@@ -632,7 +639,7 @@ describe("saved photo recovery before paid generation", () => {
 // gratuitement (nom du fichier, photothèque), et la paire avant / après écrite
 // dans le contexte (« AVANT — … » / « APRÈS — … ») qui va jusqu'au prompt.
 describe("étape « Que montre chaque photo ? »", () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.describeImported.mockResolvedValue(""); });
+  beforeEach(() => { vi.clearAllMocks(); describeShared.clear(); mocks.describeImported.mockResolvedValue(""); });
   const start = [
     { id: "a", base64: "p1", name: "cuisine-avant.jpg", preview: "blob:a", mimeType: "image/jpeg" },
     { id: "b", base64: "p2", name: "IMG_2041.jpg", preview: "blob:b", mimeType: "image/jpeg" },
@@ -745,13 +752,17 @@ describe("étape « Que montre chaque photo ? »", () => {
     await act(async () => { rendre("La façade côté rue"); });
     expect((screen.getAllByRole("textbox")[1] as HTMLInputElement).value).toBe("Mon texte");
     cleanup();
+    describeShared.clear();
     // « Passer » avant l'arrivée de la légende : la création part sans elle.
     box = mount();
     await act(async () => { await box.gen!({}); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Passer" })); });
+    // (la légende qui revient fait un nouveau rendu du banc d'essai : on garde la doublure d'avant)
+    const lancee = box.p.generate;
     await act(async () => { rendre("La façade côté rue"); });
-    expect(box.p.generate.mock.calls[0][0].photos.map((p: any) => p.context)).toEqual([undefined, undefined, undefined]);
+    expect(lancee.mock.calls[0][0].photos.map((p: any) => p.context)).toEqual([undefined, undefined, undefined]);
     cleanup();
+    describeShared.clear(); // nouvelles photos dans la vraie vie : nouvel identifiant
     // Échec : la ligne reste vide, l'exemple revient, rien ne bloque.
     mocks.describeImported.mockRejectedValue(new Error("réseau"));
     box = mount();
