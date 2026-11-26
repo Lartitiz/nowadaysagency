@@ -19,7 +19,7 @@ import { newsWriting } from "./variant-writing.ts";
 
 /** Consigne du récit continu : un texte qui se dit d'une traite. */
 export const RECIT_FIL_A_VOIX_HAUTE = `LU À VOIX HAUTE, ÇA S'ENCHAÎNE
-Relis le texte comme si la personne le disait d'une traite à quelqu'un en face d'elle, de la couverture à la dernière slide. Chaque paragraphe, sauf le premier, s'accroche au précédent : il commence par un petit mot de liaison de l'oral (« Et », « Mais », « Alors », « Parce que », « Du coup », « Et pourtant ») ou reprend ce que la slide d'avant vient de poser (« Cette phrase… », « Et c'est là que… »). Jamais le même mot de liaison sur deux paragraphes qui se suivent, ni la même amorce d'opinion (« Pour moi », « Je pense que ») sur deux paragraphes. Un paragraphe qu'on pourrait déplacer ailleurs sans rien casser est mal relié : réécris-le. La couverture peut commencer une phrase que le premier paragraphe continue.
+Relis le texte comme si la personne le disait d'une traite à quelqu'un en face d'elle, de la couverture à la dernière slide. Chaque paragraphe, sauf le premier, s'accroche au précédent : le plus souvent il reprend ce que la slide d'avant vient de poser (un mot, un fait, « Cette phrase… », « Ce savon… »), parfois il commence par un petit mot de liaison de l'oral (« Et », « Mais », « Alors », « Parce que », « Du coup », « Et pourtant »). Au plus un paragraphe sur deux commence par un mot de liaison : à chaque slide, ça devient un tic. Jamais le même mot de liaison sur deux paragraphes qui se suivent, ni la même amorce d'opinion (« Pour moi », « Je pense que ») sur deux paragraphes. Un paragraphe qu'on pourrait déplacer ailleurs sans rien casser est mal relié : réécris-le. La couverture peut commencer une phrase que le premier paragraphe continue.
 PART DE LA PERSONNE : quand les sources donnent sa réaction, sa position ou ce qu'elle dit à ses client·es, le texte part de là, avec sa voix, avant d'expliquer ; il ne s'ouvre ni sur une description de la vie du lecteur, ni sur une revue de presse.
 CONCRET AVANT ABSTRAIT : une idée abstraite (la confiance, l'authenticité, la qualité) se montre d'abord par une chose concrète tirée des sources (une phrase type, un geste, un objet, une situation), puis s'explique. Nomme avec un mot simple l'émotion qui est en jeu dans le sujet (agacement, fatigue, gêne, soulagement) ; n'en prête aucune à la personne qu'elle n'a pas donnée.
 COUVERTURE COMPRISE SEULE : lue hors du carrousel, l'accroche dit de quoi on parle et se dit comme une phrase à l'oral (une réaction, une position, une question qu'on poserait à quelqu'un) ; jamais une formule abstraite qu'on ne comprend qu'après avoir lu la suite.`;
@@ -51,7 +51,7 @@ PAS DE SLOGAN EN CONTRASTE : ni « X, pas Y », ni « ce n'est pas X, c'est Y »
 L'EXEMPLE DE LA DEMANDE RESTE : quand la demande donne un exemple concret (une scène, une phrase type, une comparaison, un exercice), il apparaît sur les slides avec ses mots ; c'est lui qui montre l'idée.
 UNE SLIDE À GARDER : un paragraphe donne ce qu'on fait autrement, concrètement (une question à se poser, un geste, une phrase réécrite), dit pour qu'on l'enregistre et s'en resserve seul.
 AUCUNE ÉMOTION PRÊTÉE : ce que le sujet fait à la personne (agacement, sourire, soulagement) ne s'écrit que si les sources le donnent ; sinon le texte part du fait ou de sa position.
-DERNIÈRE SLIDE : elle rassemble, puis ouvre sur un regard plus large de la personne qui parle (au « je » quand la marque parle au « je »), sans morale qui ferme et sans question ; la question pour les commentaires va dans caption.cta. closing_aside : une petite ligne d'humour de 12 mots au plus, posée en petit sous la dernière slide, qui se comprend seule et renvoie au sujet ou à la couverture ; laisse-la vide sur un sujet grave (violences, deuil, mineur·es) ou si rien de juste ne vient.`;
+DERNIÈRE SLIDE : elle rassemble, puis ouvre sur un regard plus large de la personne qui parle (au « je » quand la marque parle au « je »), sans morale qui ferme et sans question ; la question pour les commentaires va dans caption.cta. closing_aside : une petite ligne d'humour de 12 mots au plus, posée en petit sous la dernière slide, qui se comprend seule et renvoie au sujet ou à la couverture, une remarque et jamais un souvenir (aucun « j'ai… », « j'avais… », « on a… » : elle ne raconte rien que les sources ne donnent pas) ; laisse-la vide sur un sujet grave (violences, deuil, mineur·es) ou si rien de juste ne vient.`;
 
 /** Mêmes règles pour le carrousel TEXTE (16/11/2026) : une slide au lieu d'un
  * paragraphe, et pas de petite ligne d'humour (le gabarit texte n'a pas de
@@ -63,8 +63,10 @@ export const RELECTURE_CARROUSEL_TEXTE = RECIT_RELECTURE_CARROUSEL
 /** Petite ligne d'humour de la dernière slide : gardée seulement courte. */
 export function closingAside(v: unknown): string {
   const t = typeof v === "string" ? v.trim() : "";
-  return t && t.split(/\s+/).length <= 14 && !t.includes("?") ? t : "";
+  return t && t.split(/\s+/).length <= 14 && !t.includes("?") && !ASIDE_VECU.test(t) ? t : "";
 }
+/** Vécu au passé dans la petite ligne (essai du 26/11/2026 : « J'ai retourné pas mal de savons avant d'en fabriquer. », absent des sources) : la ligne est retirée, le texte reste. */
+const ASIDE_VECU = /(?:^|[^\p{L}])(?:j[’']ai|j[’']avais|j[’']étais|nous avons|nous avions|on a|on avait)(?![\p{L}])/iu;
 
 const OPINION_OPENERS = ["pour moi", "je pense que", "selon moi", "à mon avis", "personnellement"];
 const LIAISONS = ["et", "mais", "alors", "parce", "du", "donc", "pourtant", "sauf"];
@@ -89,7 +91,25 @@ export interface ThreadDefects {
   pressSources: number[];
   /** L'angle choisi cite des exemples entre « » et aucun n'est sur les slides. */
   missingExample: string[];
+  /** Plus d'un paragraphe sur deux commence par un mot de liaison (essai du 26/11/2026). */
+  liaisonTic?: boolean;
+  /** Aucun paragraphe d'une seule phrase courte : toutes les slides ont le même poids. */
+  flatRhythm?: boolean;
+  /** Le premier paragraphe (slide 2) dépasse SLIDE2_LONG_WORDS mots. */
+  heavySecond?: boolean;
 }
+
+/** Slide 2 : qui parle et la thèse, la raison vient après. */
+export const SLIDE2_WORDS = 30;
+export const SLIDE2_LONG_WORDS = SLIDE2_WORDS + 10;
+/** Une « slide courte » : une seule phrase de SHORT_SLIDE_WORDS mots au plus. */
+export const SHORT_SLIDE_WORDS = 14;
+const wordsOf = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
+const isShortSlide = (p: unknown) => typeof p === "string" && wordsOf(p) > 0 && wordsOf(p) <= SHORT_SLIDE_WORDS && (p.trim().match(/[.!?…]+(?=\s|$)/g) || []).length <= 1;
+
+/** Rythme et slide 2 du récit continu, mêmes mots dans la consigne et dans la réécriture. */
+export const RECIT_RYTHME = `RYTHME (sauf liste, tutoriel, comparaison ou série de photos demandés) : les paragraphes n'ont pas tous le même poids. Au moins un paragraphe du milieu, deux quand le texte en compte six ou plus, tient en UNE seule phrase de ${SHORT_SLIDE_WORDS} mots au plus : la phrase qu'on retiendrait (« Alors mon visage, c'est ma façon de signer. »). Ce qui l'entourait passe dans le paragraphe voisin ou dans caption.body.
+SLIDE 2 LÉGÈRE : le premier paragraphe tient en ${SLIDE2_WORDS} mots au plus. Il dit qui parle et pose la thèse ou le paradoxe ; la raison vient au paragraphe suivant.`;
 
 /**
  * Exemples concrets de l'angle choisi : les passages entre « » de 2 à 14 mots
@@ -130,7 +150,7 @@ const TRIPLET = new RegExp(`\\b${ART}\\s[^,.;:!?]{2,40},\\s*${ART}\\s[^,.;:!?]{2
 const PRESS = /\b(?:relayée?s? par|publiée? par|d après (?:une|un|le|la|les) (?:étude|analyse|rapport|article|enquête)|selon (?:une|un|le|la|les|l) ?(?:étude|analyse|rapport|article|enquête|média|agence|cabinet))/;
 
 /** Mesure déterministe du fil (aucun appel IA). */
-export function narrativeThreadDefects(paragraphs: unknown[], examples: string[] = []): ThreadDefects {
+export function narrativeThreadDefects(paragraphs: unknown[], examples: string[] = [], opts: { rhythm?: boolean } = {}): ThreadDefects {
   const texts = paragraphs.map((p) => (typeof p === "string" ? norm(p) : ""));
   const repeatedOpeners = OPINION_OPENERS.flatMap((opener) => {
     const hits = texts.flatMap((t, i) => (t.startsWith(opener) ? [i + 1] : []));
@@ -150,13 +170,17 @@ export function narrativeThreadDefects(paragraphs: unknown[], examples: string[]
     questionEnding: /\?\s*$/.test(last),
     slogans, triplets: where(TRIPLET), pressSources: where(PRESS),
     missingExample: examples.length && !examples.some((e) => exampleKept(e, texts.join(" "))) ? examples : [],
+    liaisonTic: texts.length >= 4 && texts.slice(1).filter((t) => LIAISONS.includes(firstWord(t))).length > Math.ceil((texts.length - 1) / 2),
+    // Rythme : mesuré seulement quand l'appelant le demande (pas les listes, tutos, comparaisons, séries photo).
+    flatRhythm: !!opts.rhythm && paragraphs.length >= 4 && !paragraphs.slice(0, -1).some(isShortSlide),
+    heavySecond: !!opts.rhythm && typeof paragraphs[0] === "string" && wordsOf(paragraphs[0] as string) > SLIDE2_LONG_WORDS,
   };
 }
 
 export const threadDefectCount = (d: ThreadDefects) =>
   d.repeatedOpeners.reduce((n, r) => n + r.paragraphs.length - 1, 0) + d.sameLiaison.length +
   (d.questionEnding || d.yesNoEnding ? 1 : 0) + d.slogans.length + d.triplets.length + d.pressSources.length +
-  (d.missingExample.length ? 1 : 0);
+  (d.missingExample.length ? 1 : 0) + (d.liaisonTic ? 1 : 0) + (d.flatRhythm ? 1 : 0) + (d.heavySecond ? 1 : 0);
 
 /** Consigne de réécriture ; chaîne vide quand le fil n'a pas de défaut mesuré. */
 export function narrativeThreadFix(d: ThreadDefects): string {
@@ -168,6 +192,9 @@ export function narrativeThreadFix(d: ThreadDefects): string {
     d.slogans.length ? `Slogan en contraste (« X, pas Y », « ce n'est pas X, c'est Y », « Pas X. Juste Y. ») dans les paragraphes ${d.slogans.join(", ")} : dis directement ce qui est.` : "",
     d.triplets.length ? `Trois éléments empilés dans une phrase (paragraphes ${d.triplets.join(", ")}) : garde le plus parlant.` : "",
     d.missingExample.length ? `L'exemple concret de l'angle choisi manque sur les slides : reprends-le avec ses mots, c'est lui qui montre l'idée (${d.missingExample.slice(0, 4).map((e) => `« ${e} »`).join(", ")}).` : "",
+    d.liaisonTic ? "Trop de paragraphes commencent par un mot de liaison (« Et », « Mais », « Alors », « Du coup »…) : gardes-en un sur deux au plus, et fais partir les autres d'un mot ou d'un fait que le paragraphe d'avant vient de poser." : "",
+    d.flatRhythm ? `Tous les paragraphes ont le même poids : fais tenir un paragraphe du milieu (deux si le texte en compte six ou plus) en UNE seule phrase de ${SHORT_SLIDE_WORDS} mots au plus, la phrase qu'on retiendrait ; ce qui l'entourait passe dans le paragraphe voisin ou dans caption.body, sans perdre d'idée.` : "",
+    d.heavySecond ? `Le premier paragraphe (slide 2) est trop chargé : ${SLIDE2_WORDS} mots au plus, il dit qui parle et pose la thèse ; la raison passe au paragraphe suivant.` : "",
     d.pressSources.length ? `Source citée en revue de presse sur une slide (paragraphes ${d.pressSources.join(", ")}) : dis le fait simplement et mets la source dans caption.body.` : "",
   ].filter(Boolean);
   return asks.length ? `Fil à voix haute : ${asks.join(" ")}` : "";

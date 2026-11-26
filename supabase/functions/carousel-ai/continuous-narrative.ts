@@ -15,7 +15,7 @@ import { isInstagramMix, MIX_RECIT_LENGTH, isLinkedInMix, LINKEDIN_MIX_RECIT_LEN
 import { isPhotoOverlay, PHOTO_OVERLAY_RECIT_LENGTH, PHOTO_OVERLAY_SLIDE_WORDS, photoNarratorCheck, photoNarratorFix, photoNarratorRule, photoOverlayLongPassages } from "./photo-narrative.ts";
 import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
 import { livedMaterialOf, livedMaterialPrompt } from "../_shared/lived-material.ts";
-import { narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount, closingAside, RECIT_RELECTURE_CARROUSEL, briefExamples, briefExamplesPrompt, narrativeCaptionDefects, narrativeCaptionFix, captionDefectCount, type ThreadRewriteReceipt } from "./narrative-thread.ts";
+import { narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_FIL_A_VOIX_HAUTE, RECIT_RYTHME, threadDefectCount, closingAside, RECIT_RELECTURE_CARROUSEL, briefExamples, briefExamplesPrompt, narrativeCaptionDefects, narrativeCaptionFix, captionDefectCount, type ThreadRewriteReceipt } from "./narrative-thread.ts";
 import { findRecentEchoes, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { angleFamily, type AngleFamily } from "../_shared/angle-families.ts";
 import { narrativeCoverAccent, narrativeMixLayout, narrativePhotoLayout } from "./layout.ts";
@@ -335,6 +335,8 @@ export async function createContinuousNarrative(options: {
   // couverture et mot clé, longueur sans contradiction, adaptation à l'angle.
   const addressRule = audienceAddressRule(options.audienceAddress);
   const hasNews = options.newsContext.trim().length > 0;
+  // Pas de rythme imposé aux listes, tutos, comparatifs, FAQ ni séries de photos (familles E, F, I, J).
+  const wantsRhythm = !(["E", "F", "I", "J"] as (AngleFamily | null)[]).includes(narrativeAngleFamily(body));
   const system = [
     `${addressRule ? `${addressRule}\n\n` : ""}${COMMON}\nTu écris le texte d'un carrousel comme un court essai, une réflexion ou un récit, dans la voix de la marque. Tu ne composes pas ses slides.
 Choisis UNE proposition précise qui mérite d'être développée avec les faits disponibles. Commence par ce qui intéresse le lecteur, puis fais évoluer sa compréhension. La suite doit avoir une nécessité : une conséquence, une objection, une nuance ou un exemple qui modifie la lecture du point précédent. Ne récite pas la fiche de marque. Tu peux laisser de côté la technique, les inspirations ou les offres si elles n'aident pas cette pensée.
@@ -352,6 +354,8 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     // Règles du fil du carrousel texte (étude Instagram du 26/11/2026), mêmes phrases :
     // test d'envoi, slide qui finit ouverte, enjeu d'abord, passages d'une phrase, durée d'exemple annoncée.
     RECIT_CONTINU_FIL,
+    // Rythme et slide 2 (relecture du 26/11/2026) : seulement quand le texte raconte ou défend une idée.
+    wantsRhythm ? RECIT_RYTHME : "",
     hasNews ? narrativeNewsWriting(body) : "",
     RECIT_CONTINU_COUVERTURE,
     RECIT_CONTINU_SOLUTION_FIN,
@@ -465,7 +469,7 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
   const photoDefects = (n: Narrative) => ({
     long: photoOverlayLongPassages(n.paragraphs, body),
     voice: photoNarratorCheck([n.hook, ...n.paragraphs], body, options.brandVoiceText),
-    thread: narrativeThreadDefects(n.paragraphs, briefExamples(body)),
+    thread: narrativeThreadDefects(n.paragraphs, briefExamples(body), { rhythm: wantsRhythm }),
     // Légende recopiée, durée d'exemple non annoncée, question fermée (26/11/2026).
     caption: narrativeCaptionDefects(n, options.allowedNumbers),
   });
