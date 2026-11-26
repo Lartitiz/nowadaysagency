@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { aUnInterrogatif, couperSecondeQuestion, couperListeOptions, couperListesDesQuestions, deuxQuestionsEnUne, garderQuestionsSaines, questionFermee, questionTropLongue, questionsTropLongues } from "./questions-form.ts";
+import { aUnInterrogatif, couperApresQuestion, couperSecondeQuestion, couperListeOptions, couperListesDesQuestions, deuxQuestionsEnUne, garderQuestionsSaines, questionFermee, questionTropLongue, questionsTropLongues } from "./questions-form.ts";
 import { relancerQuestionsSiBesoin } from "../carousel-ai/questions-address.ts";
 
 // Vraie question du 12/11/2026, jugée illisible par Laetitia.
@@ -182,4 +182,22 @@ Deno.test("questions-form : seconde question après une préposition, et questio
   assert(!questionFermee("Quel est le critère qui fait basculer ta décision sur une opération au prix pourtant bon ?"));
   assert(!questionFermee("Comment expliques-tu à un partenaire ou un investisseur qu'un bon prix ne suffit pas ?"));
   assert(!questionFermee("Peux-tu me raconter une opération que tu as refusée malgré un bon prix ?"));
+});
+
+// Troisième rejeu à l'écran (26/11/2026, carrousel photos) : question de choix suivie d'une
+// seconde phrase qui demande autre chose.
+Deno.test("questions-form : la phrase ajoutée après le « ? » est coupée, puis la liste de choix", () => {
+  const vue = "Quel objectif veux-tu donner à ce post : montrer ta méthode de rénovation, ou présenter le résultat à des partenaires et investisseurs ? Décris-moi le cas précis que tu as en tête.";
+  assertEquals(couperApresQuestion(vue), "Quel objectif veux-tu donner à ce post : montrer ta méthode de rénovation, ou présenter le résultat à des partenaires et investisseurs ?");
+  const out = JSON.parse(couperListesDesQuestions(JSON.stringify({ questions: [{ question: vue, placeholder: "x" }] })));
+  assertEquals(out.questions[0].question, "Quel objectif veux-tu donner à ce post ?");
+  assert(!questionsTropLongues(JSON.stringify(out)));
+  // La phrase de contexte AVANT la question reste ; une question seule ne bouge pas.
+  const contexte = "Tu parles d'une cuisine refaite. Quels travaux ont été réalisés entre l'avant et l'après ?";
+  assertEquals(couperApresQuestion(contexte), contexte);
+  const seule = "Sur cette cuisine de la rue Garibaldi, quels travaux ont été réalisés entre l'avant et l'après ?";
+  assertEquals(couperApresQuestion(seule), seule);
+  // Deux « ? » : ce n'est pas ce cas (relance, puis filet).
+  const deux = "Comment tu remplaces le parfum de synthèse ? Et qu'est-ce que ça change à l'odeur ?";
+  assertEquals(couperApresQuestion(deux), deux);
 });
