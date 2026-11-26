@@ -16,8 +16,11 @@ import { recapReelBlock } from "../multi-subject.ts";
 // ═══ Étude Instagram du 26/11/2026, § 10 « reels en voix off » (veille du 21/11) ═══
 // Trois consignes, toutes conditionnées à la matière fournie : rien ne s'invente.
 
-/** Première phrase du reel : un paradoxe ou un aveu, jamais une présentation. Lue aussi par l'étape « hooks ». */
-export const REEL_PREMIERE_PHRASE = `PREMIÈRE PHRASE : UN PARADOXE OU UN AVEU, JAMAIS UNE PRÉSENTATION. Le reel n'ouvre ni par un bonjour, ni par son nom, son métier ou l'annonce du sujet (« Bonjour, je m'appelle… », « Moi c'est…, je suis… », « Bienvenue sur mon compte », « Aujourd'hui je vais te parler de… »). Deux ouvertures tiennent le mieux : le PARADOXE (deux faits vrais de sa matière ou de son métier qui ont l'air de se contredire) et l'AVEU (une erreur, un doute, un raté qu'ELLE a donné dans son brief ou ses réponses, dit en « je »). L'aveu ne s'invente jamais : sans erreur ni raté dans sa matière, ouvre par le paradoxe.`;
+/** Première phrase du reel : une phrase qu'on dit (paradoxe, aveu ou scène), jamais un titre ni une présentation. Lue aussi par l'étape « hooks ». */
+export const REEL_PREMIERE_PHRASE = `PREMIÈRE PHRASE : UNE PHRASE QU'ON DIT, JAMAIS UN TITRE NI UNE PRÉSENTATION. C'est une vraie phrase, avec quelqu'un qui fait, voit ou pense quelque chose (un sujet et un verbe conjugué), comme si elle le racontait à une amie : en voix off comme face caméra, c'est sa voix qu'on entend. Jamais des bouts de phrases posés à la suite (« Rien sur les plans. Une cheminée condamnée derrière la cloison. Deux semaines de chantier décalées. ») : on dit « Quand on a ouvert le mur, on est tombés sur une cheminée qui n'était sur aucun plan. » Elle ouvre une question et garde la réponse ou la conséquence pour la suite du script. Le reel n'ouvre ni par un bonjour, ni par son nom, son métier ou l'annonce du sujet (« Bonjour, je m'appelle… », « Moi c'est…, je suis… », « Bienvenue sur mon compte », « Aujourd'hui je vais te parler de… »). Trois ouvertures tiennent le mieux : le PARADOXE (deux faits vrais de sa matière ou de son métier qui ont l'air de se contredire), l'AVEU (une erreur, un doute, un raté qu'ELLE a donné dans son brief ou ses réponses, dit en « je ») et la SCÈNE qu'elle a racontée, prise au moment où ça bascule (« En pleine rénovation, j'ai découvert une pièce cachée au milieu de la maison. »). L'aveu et la scène ne s'inventent jamais : sans vécu dans sa matière, ouvre par le paradoxe.`;
+
+/** Le script se raconte comme on parle (Loom du 26/11/2026 : « c'est pas des phrases, c'est haché »). */
+export const REEL_RECIT_PARLE = `LE SCRIPT SE RACONTE, IL NE SE LIT PAS. Chaque passage est fait de phrases entières qu'elle pourrait dire d'une traite, dans l'ordre où les choses se sont passées, reliées par les liaisons de l'oral (« et là », « du coup », « sauf que », « quand », « alors », ou celles de ses textes). Pas de deux-points suivis d'une liste, ni de liste « nom + participe » (« tout était calé : diagnostic fait, devis signé, planning envoyé ») : dis-le comme on le dit (« tout était calé, on avait fait le diagnostic, le devis était signé »). Une phrase très courte reste possible quand celle d'avant l'amène (« Sauf que pendant trois mois, rien. »), jamais deux de suite.`;
 
 /** Le creux : le récit passe par l'obstacle, seulement quand elle l'a raconté. */
 export const REEL_CREUX = `══ LE CREUX (seulement si SA matière le contient) ══
@@ -128,11 +131,12 @@ vu ça comme ça".
 ══ PROFONDEUR ORALE ══
 Explique le mécanisme, développe ce qui change le regard et ajoute les nuances utiles. Les transitions viennent des idées et de la façon de parler de la personne. Aucun nombre de marqueurs oraux imposé : on doit suivre le raisonnement sans entendre une collection de formules.
 ${VOIX_ORALE}
+${REEL_RECIT_PARLE}
 
 ══ ORALITÉ : MONOLOGUE, PAS SCRIPT TÉLÉ ══
 
-L'utilisatrice va lire ce script FACE CAM, en une prise, comme si elle parlait
-à une amie en visio. Le découpage par sections est TECHNIQUE (pour le tournage),
+L'utilisatrice va dire ce script (face caméra ou en voix off), en une prise, comme
+si elle parlait à une amie en visio. Le découpage par sections est TECHNIQUE (pour le tournage),
 mais le texte parlé doit s'enchaîner comme UN SEUL monologue continu.
 
 CONTINUITÉ ENTRE SECTIONS, règle stricte :
@@ -189,7 +193,7 @@ ${REEL_TRAMES}
 ══ RÈGLES DE SCRIPT ══
 
 STRUCTURE :
-- Hook (0-3s) : texte à l'écran + ce que tu dis. 1 phrase max. TENSION.
+- Hook (0-3s) : texte à l'écran + ce que tu dis. 1 phrase entière, avec un verbe. TENSION.
   PRÉFÉRENCE FORTE : commencer par "Je" ou "Ma/Mon" (vécu personnel).
   ❌ "Une com' complète en une minute" → ✅ "J'ai créé une com' complète en une minute"
 - Corps (3-45s) : développe avec une SCÈNE CONCRÈTE + le MÉCANISME.
@@ -209,7 +213,7 @@ concrète, situation reconnaissable, ou affirmation contre-intuitive), recopié
 tel quel.
 
 ❌ MAUVAIS : "Positionnement" / "Stratégie Instagram" / "Mes conseils" (des mots qu'elle ne dit pas)
-✅ BON (si elle le dit) : "Plein d'abonnés. Zéro client." / "Pourquoi j'ai supprimé tous mes posts."
+✅ BON (si elle le dit) : "plein d'abonnés et zéro client" / "Pourquoi j'ai supprimé tous mes posts."
 
 ══ DENSITÉ DE TEXTE PARLÉ (règle d'or : 1 seconde ≈ 2,5 mots) ══
 

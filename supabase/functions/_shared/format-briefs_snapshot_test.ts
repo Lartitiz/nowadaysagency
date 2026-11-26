@@ -54,6 +54,7 @@ Deno.test("format-briefs : la liste des exports est exactement celle attendue", 
   assertEquals(Object.keys(briefs).sort(), [
     "REEL_CREUX",
     "REEL_PREMIERE_PHRASE",
+    "REEL_RECIT_PARLE",
     "REEL_TRAMES",
     "captionBrief",
     "carouselBrief",

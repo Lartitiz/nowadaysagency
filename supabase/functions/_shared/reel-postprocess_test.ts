@@ -469,3 +469,47 @@ Deno.test("reelHookIsPresentation : un paradoxe, un aveu ou une scène ne sont p
   ]) assert(!reelHookIsPresentation(t), t);
   assert(!reelHookIsPresentation(null));
 });
+
+// ═══ Voix parlée, pas hachée (Loom de Laetitia du 26/11/2026) ═══
+import { findWrittenParticipleLists, reelChoppyPassages, reelHookIsChoppy } from "./reel-postprocess.ts";
+
+Deno.test("reelHookIsChoppy : l'accroche du Loom et les rafales de bouts de phrases", () => {
+  for (const t of [
+    "Rien sur les plans. Une cheminée condamnée derrière la cloison. Deux semaines de chantier décalées.",
+    "Trois semaines de retard. Tout ça pour une cuillère de miel.",
+    "40 savons à la poubelle. Et c'est ma faute.",
+  ]) assert(reelHookIsChoppy(t), t);
+});
+
+Deno.test("reelHookIsChoppy : une phrase qu'on dit n'est pas hachée (reels relevés le 26/11)", () => {
+  for (const t of [
+    "En pleine rénovation, j'ai découvert une pièce cachée au milieu de la maison.",
+    "Pourquoi quelqu'un prendrait le risque de cacher une porte derrière un mur ?",
+    "J'ai perdu 7 000 euros parce que je disais oui à tout.",
+    "Ma cliente avait 10K abonnés et zéro client.",
+    "'C'est trop cher.' En vrai, c'est pas le prix le problème.",
+    "Arrête de poster tous les jours.",
+    "Quand tu réalises une visite d'un bien et que ça tourne mal.",
+    "",
+  ]) assert(!reelHookIsChoppy(t), t);
+  assert(!reelHookIsChoppy(null));
+});
+
+Deno.test("findWrittenParticipleLists : « diagnostic fait, devis signé » est de l'écrit", () => {
+  assertEquals(findWrittenParticipleLists("Sur le papier, tout était calé : diagnostic fait, devis signé, planning envoyé aux artisans."), ["diagnostic fait, devis signé, planning envoyé aux artisans"]);
+  assertEquals(findWrittenParticipleLists("Tout était prêt, la recette testée, les étiquettes imprimées."), ["la recette testée, les étiquettes imprimées"]);
+  for (const t of ["On avait fait le diagnostic, le devis était signé.", "J'ai lavé, rincé, séché.", "Le prix est fixé, le délai respecté.", ""]) {
+    assertEquals(findWrittenParticipleLists(t), [], t);
+  }
+});
+
+Deno.test("reelChoppyPassages : numéros de section et extraits, accroche comprise", () => {
+  const parsed = { script: [
+    { section: "hook", texte_parle: "Rien sur les plans. Une cheminée condamnée derrière la cloison. Deux semaines de chantier décalées." },
+    { section: "body", texte_parle: "Sur le papier, tout était calé : diagnostic fait, devis signé, planning envoyé aux artisans." },
+    { section: "body", texte_parle: "Et là, quand on a ouvert le mur, on est tombés sur un vieux conduit que personne n'avait vu." },
+  ] };
+  const out = reelChoppyPassages(parsed);
+  assertEquals(out.map((p) => p.section), [1, 2]);
+  assertEquals(out[1].extraits, ["diagnostic fait, devis signé, planning envoyé aux artisans"]);
+});
