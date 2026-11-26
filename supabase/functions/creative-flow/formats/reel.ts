@@ -165,7 +165,7 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
     // n'est jamais touché (son choix prime).
     const hache = reelChoppyPassages(parsed).filter((p) => !(p.section === 1 && hookVerrouille));
     if (hache.length) {
-      extras.push(`PASSAGES HACHÉS À REMETTRE EN PHRASES PARLÉES (ce n'est pas comme ça qu'on parle) :\n${hache.map((p) => `- [SECTION ${p.section} - PARLE] : ${p.extraits.map((e) => `« ${e} »`).join(" ; ")}`).join("\n")}\nRéécris chacun en phrases entières, avec un sujet et un verbe conjugué, reliées comme à l'oral (« et là », « du coup », « sauf que », « quand ») : « diagnostic fait, devis signé » devient « on avait fait le diagnostic, le devis était signé ». Garde les mêmes faits et à peu près le même nombre de mots ; n'ajoute rien.`);
+      extras.push(`PASSAGES HACHÉS À REMETTRE EN PHRASES PARLÉES (ce n'est pas comme ça qu'on parle) :\n${hache.map((p) => `- [SECTION ${p.section} - PARLE] : ${p.extraits.map((e) => `« ${e} »`).join(" ; ")}`).join("\n")}\nRéécris chacun en phrases entières, avec un sujet et un verbe conjugué, reliées comme à l'oral (« et là », « du coup », « sauf que », « quand ») : « diagnostic fait, devis signé » devient « on avait fait le diagnostic, le devis était signé ». Garde les mêmes faits, ses mots et à peu près le même nombre de mots ; n'ajoute rien. Vaut aussi quand le passage recopie ses réponses : ce sont des notes écrites, le script les dit à l'oral (ça prime sur la conservation des formulations fournies, pour ces passages seulement).`);
     }
     if (body.face_cam === "non") {
       extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
