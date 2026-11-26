@@ -19,7 +19,7 @@ import { useIsDemoMode } from "@/contexts/DemoContext";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
-import { ChevronDown, AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, ImagePlus, Loader2, Palette, RotateCcw, Trash2, Plus, Search, Type, Sparkles, Newspaper } from "lucide-react";
+import { ChevronDown, AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, Palette, RotateCcw, Trash2, Plus, Search, Type, Sparkles, Newspaper } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import NewsPhotoPickerDialog from "@/components/creer/NewsPhotoPickerDialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
@@ -29,9 +29,8 @@ import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
-import { stockPhotoToPhotoItem } from "@/lib/stock-photos";
-import { isPexelsPhoto, toStockPhoto } from "@/lib/carousel-photo-proposals";
 import { overlayPositionLabel, usefulDirective } from "@/features/creer/carousel-photo/labels";
+import { AnotherProposalButton, CastingNotice, useAnotherProposal } from "@/features/creer/carousel-photo/proposals-ui";
 import { photoResultSignature, needsPhotoResultResync } from "@/features/creer/carousel-photo/resync";
 import { type SlideGenEntry, type SlideGenState, swapGenEntries, withoutGenEntry, removeGenEntryAt, patchGenEntry } from "@/features/creer/carousel-photo/gen-state";
 import {
@@ -297,36 +296,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
     notify(next, caption);
   };
 
-  // « Une autre » : la photo libre de droit proposée laisse sa place à la suivante
-  // déjà vérifiée par le serveur (stock_alternates), sans nouvel appel IA.
-  const [alternateLoadingIdx, setAlternateLoadingIdx] = useState<number | null>(null);
-  const slidesRef = useRef(slides);
-  slidesRef.current = slides;
-  const showAnotherProposal = async (slideIdx: number) => {
-    const target = slides[slideIdx];
-    const [nextPhoto, ...rest] = (Array.isArray(target?.stock_alternates) ? target.stock_alternates : []).filter(isPexelsPhoto);
-    if (!nextPhoto || alternateLoadingIdx !== null) return;
-    setAlternateLoadingIdx(slideIdx);
-    try {
-      const item = { ...(await stockPhotoToPhotoItem(toStockPhoto(nextPhoto))), stockAmbient: true };
-      const newIndex = onAddPhoto?.(item);
-      if (!newIndex) return;
-      // Les slides ont pu bouger pendant le téléchargement : on repart de l'état du moment.
-      const current = slidesRef.current;
-      const at = current.includes(target) ? current.indexOf(target) : slideIdx;
-      if (current[at]?.cast_source !== "stock_ambient") return;
-      const next = current.map((s: any, i: number) => i === at ? {
-        ...s, photo_index: newIndex, cast_source: "stock_ambient", stock_alternates: rest.length ? rest : undefined,
-        stock_credit: { source: "pexels", photographer: nextPhoto.photographer || "", source_url: nextPhoto.source_url || "" },
-      } : s);
-      setSlides(next);
-      notify(next, caption);
-    } catch (e) {
-      toast.error("Cette photo n'a pas pu être chargée", { description: readableError(e, "Réessaie dans un instant.") });
-    } finally {
-      setAlternateLoadingIdx(null);
-    }
-  };
+  const anotherProposal = useAnotherProposal({ slides, setSlides, onAddPhoto, onChange: (next) => notify(next, caption) });
 
   // Casting bibliothèque (régime texte d'abord) : la photo choisie dans la
   // photothèque est convertie en PhotoItem (URL signée → base64) puis posée
@@ -832,30 +802,9 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                 // ═══ Slide à caster (régime texte d'abord) : directive sans photo posée ═══
                 const isCasting = !!slide.photo_directive && !Number.isInteger(slide.photo_index);
                 if (isCasting) {
-                  // L'app cherche encore une image pour cette slide (pas pour une photo d'actu, choisie à la main).
-                  const searchingHere = photoProposalsSearching && !slide.news_entity;
-                  const directive = usefulDirective(slide.photo_directive);
                   return (
                     <div className="rounded-lg border border-dashed border-warning/50 bg-warning-bg/40 p-3 space-y-2.5">
-                      <div className="flex items-start gap-2.5">
-                        <div className="h-16 w-12 shrink-0 rounded-md border border-dashed border-border bg-background/60 flex items-center justify-center text-muted-foreground">
-                          {searchingHere ? <Loader2 size={18} className="animate-spin" /> : <ImagePlus size={18} />}
-                        </div>
-                        <div className="min-w-0 flex-1" role={searchingHere ? "status" : undefined}>
-                          <p className="text-2xs font-semibold uppercase tracking-wide text-warning">
-                            {searchingHere ? "On te cherche une image…" : "Image à choisir"}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {searchingHere ? (
-                              "D'abord dans ta bibliothèque, sinon parmi des photos libres de droit. Tu peux aussi en choisir une tout de suite."
-                            ) : directive ? (
-                              <><span className="font-medium text-foreground">L'image idéale ici :</span>{" "}{directive}</>
-                            ) : (
-                              "Choisis l'image qui va avec le texte de cette slide."
-                            )}
-                          </p>
-                        </div>
-                      </div>
+                      <CastingNotice searching={photoProposalsSearching && !slide.news_entity} directive={usefulDirective(slide.photo_directive)} />
                       <div className="flex flex-wrap gap-1.5">
                         <Button
                           type="button"
@@ -981,19 +930,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                             {photo?.preview ? "Changer la photo" : "Ajouter une photo"}
                           </Button>
                         )}
-                        {onAddPhoto && slide.cast_source === "stock_ambient" && Array.isArray(slide.stock_alternates) && slide.stock_alternates.length > 0 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs"
-                            disabled={alternateLoadingIdx !== null}
-                            onClick={() => showAnotherProposal(idx)}
-                          >
-                            {alternateLoadingIdx === idx ? <Loader2 size={13} className="mr-1 animate-spin" /> : <RefreshCw size={13} className="mr-1" />}
-                            Une autre
-                          </Button>
-                        )}
+                        {onAddPhoto && <AnotherProposalButton slide={slide} idx={idx} state={anotherProposal} />}
                         {slide.photo_directive && (
                           <div className="flex flex-wrap gap-1">
                             <Button

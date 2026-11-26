@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { loadPhotos, loadPhotosLocal } from "@/hooks/use-flow-persistence";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
+import { usePhotoProposals } from "@/hooks/use-photo-proposals";
 import { carouselLibraryContext } from "@/lib/carousel-photo-context";
 import { SUJET_PREMIER_CONTENU_GENERIQUE } from "@/lib/first-content-url";
 import { rebindReceiptsAfterPhotoCast } from "../../supabase/functions/_shared/carousel-editorial-snapshot";
@@ -406,4 +407,22 @@ export function useLibraryAutoCast({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
+}
+
+type AutoCastArgs = Parameters<typeof useLibraryAutoCast>[0];
+
+/**
+ * Pose automatique des photos d'un carrousel, pour la page /creer : le casting
+ * bibliothèque du régime texte d'abord (use-creer-photos.ts), puis les images
+ * proposées d'office sur les slides restées à choisir.
+ */
+export function useAutoPhotoCast(
+  cast: AutoCastArgs,
+  proposals: Pick<Parameters<typeof usePhotoProposals>[0], "enabled" | "subject" | "libraryRows" | "workspaceId">,
+): { searching: boolean } {
+  useLibraryAutoCast(cast);
+  return usePhotoProposals({
+    ...proposals, result: cast.result, uploadedPhotosLiveRef: cast.uploadedPhotosLiveRef,
+    setUploadedPhotos: cast.setUploadedPhotos, savePhotos: cast.savePhotos, setResult: cast.setResult,
+  });
 }
