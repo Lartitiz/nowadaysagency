@@ -10,7 +10,9 @@ import { PanelSection } from "@/components/creer/CarouselEditorParts/PanelBits";
 import { range, toHex } from "@/components/creer/CarouselEditorParts/panel-controls";
 
 /** Texte choisi : contenu, taille, police, couleur, alignement, typographie avancée, phrase mise en valeur. */
-export function TextSettings({ changeSlide, css, documentFonts, element, fontQuery, pickFont, setFitId, setFontQuery, slide, style, textShadowOn }: {
+export function TextSettings({ advanced = false, changeSlide, css, documentFonts, element, fontQuery, pickFont, setFitId, setFontQuery, slide, style, textShadowOn }: {
+  /** Onglet « Texte » (26/11/2026) : le texte, la taille, la police, la couleur et l'alignement sont déjà au-dessus. */
+  advanced?: boolean;
   changeSlide: (next: EditorSlide, key?: string) => void;
   css: Record<string, string>;
   documentFonts: ReturnType<typeof listDocumentFonts>;
@@ -25,6 +27,7 @@ export function TextSettings({ changeSlide, css, documentFonts, element, fontQue
 }) {
   return (
     <>
+                {!advanced && (
                 <PanelSection title="Texte" defaultOpen>
                 <Textarea
                   aria-label="Texte sélectionné"
@@ -80,6 +83,7 @@ export function TextSettings({ changeSlide, css, documentFonts, element, fontQue
                   </div>
                 </div>
                 </PanelSection>
+                )}
                 <PanelSection title="Typographie avancée">
                 {range(
                   "Interligne",

@@ -1,159 +1,104 @@
-// Lot E3-4 (14/10/2026) : onglets « Slide » et « Carrousel » du panneau de
-// réglages, déplacés à l'identique depuis CarouselEditor.tsx (les valeurs de
-// l'éditeur arrivent en props, sous leur nom d'origine).
-import type { MutableRefObject } from "react";
+// Lot E3-4 (14/10/2026) : réglages de la slide (ajouter, mise en page, thèmes).
+// Panneau à onglets (26/11/2026, maquette validée par Laetitia) : « Ajouter » et
+// « Mise en page » sont deux onglets, en tuiles et en images (avant : des listes
+// de boutons et deux listes déroulantes dans l'onglet « Slide » de « Plus d'outils »).
+import type { MutableRefObject, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { ImagePlus, Info } from "lucide-react";
-import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
-import { addPhotoFrame, addShapeElement, addTextElement, carouselThemes, positionPhotoText, PRESETS, restyleSlide, type ClipboardElement, type EditorSlide, type LayoutVariant, type PresetKind } from "@/lib/carousel-editor";
-import { PanelSection, SlideThumb } from "@/components/creer/CarouselEditorParts/PanelBits";
-import { toHex } from "@/components/creer/CarouselEditorParts/panel-controls";
+import { ImagePlus, Info, Shapes, Type } from "lucide-react";
+import { addPhotoFrame, addShapeElement, addTextElement, carouselThemes, positionPhotoText, PRESETS, type ClipboardElement, type EditorSlide, type LayoutVariant, type PresetKind } from "@/lib/carousel-editor";
+import { SlideThumb } from "@/components/creer/CarouselEditorParts/PanelBits";
 
-/** Onglet « Slide » : ajouter un élément, mise en page, texte sur la photo, fond. */
-export function SlideTabSettings({ addReady, changeLayout, changeSlide, clipboard, hasClip, layoutPreviews, onAddPhoto, onOpenStudio, paste, selectOne, setPhotoOpen, setSelected, slide }: {
+/** Tuile de l'onglet « Ajouter » (aussi pour « Ajouter une icône »). */
+export const ADD_TILE = "flex h-16 flex-col items-center justify-center gap-1 rounded-xl border bg-background text-xs font-medium hover:border-primary disabled:opacity-50";
+
+/** Onglet « Ajouter » (26/11/2026, maquette validée par Laetitia) : chaque ajout en tuile, les éléments tout faits visibles d'un coup d'œil. */
+export function AddSettings({ addReady, changeSlide, clipboard, hasClip, iconPicker, onOpenStudio, paste, selectOne, setSelected, slide }: {
   addReady: (kind: PresetKind) => void;
-  changeLayout: (variant: LayoutVariant) => void;
   changeSlide: (next: EditorSlide, key?: string) => void;
   clipboard: MutableRefObject<{ from: string; items: ClipboardElement[] }>;
   hasClip: boolean;
-  layoutPreviews: { variant: LayoutVariant; label: string; preview: { html: string } }[];
-  onAddPhoto?: (photo: PhotoItem) => number;
+  iconPicker: ReactNode;
   onOpenStudio?: (slideId: string) => void;
   paste: () => void;
   selectOne: (id: string | null) => void;
-  setPhotoOpen: (open: boolean) => void;
   setSelected: (id: string | null) => void;
   slide: EditorSlide;
 }) {
+  const tile = ADD_TILE;
   return (
-    <>
-            <PanelSection title="Ajouter" defaultOpen>
-            <div className="grid grid-cols-2 gap-2">
-              {hasClip && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="col-span-2"
-                  onClick={paste}
-                  title="⌘/Ctrl + V"
-                >
-                  Coller {clipboard.current.items.length > 1 ? `les ${clipboard.current.items.length} éléments copiés` : "l’élément copié"}
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => changeSlide(addTextElement(slide))}
-              >
-                Ajouter un texte
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const out = addShapeElement(slide);
-                  if (!out.id) return;
-                  changeSlide(out.slide);
-                  setSelected(out.id);
-                }}
-              >
-                Ajouter une forme
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="col-span-2"
-                onClick={() => {
-                  const out = addPhotoFrame(slide);
-                  if (!out.id) return;
-                  changeSlide(out.slide);
-                  selectOne(out.id);
-                }}
-              >
-                <ImagePlus size={14} className="mr-1" />
-                Ajouter un cadre photo
-              </Button>
-            </div>
-            <label className="block text-xs">
-              Ajouter un élément tout fait
-              <select
-                aria-label="Ajouter un élément tout fait"
-                className="mt-1 w-full rounded border bg-background p-2"
-                value=""
-                onChange={(e) => e.target.value && addReady(e.target.value as PresetKind)}
-              >
-                <option value="">Flèche, numéro, pastille, ligne…</option>
-                {PRESETS.map((p) => (
-                  <option key={p.kind} value={p.kind}>{p.label}</option>
-                ))}
-              </select>
-            </label>
-            {onOpenStudio && <Button variant="outline" size="sm" className="w-full" disabled={slide.locked} onClick={() => onOpenStudio(slide.id)}>Créer / remplacer avec le Studio</Button>}
-            {onAddPhoto && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => setPhotoOpen(true)}
-              >
-                <ImagePlus size={14} className="mr-1" />
-                Ajouter / changer la photo
-              </Button>
-            )}
-            </PanelSection>
-            <PanelSection title="Mise en page de la slide" defaultOpen>
-            <LayoutGallery changeLayout={changeLayout} layoutPreviews={layoutPreviews} slide={slide} />
-            {slide.html.includes("data-photo-text-layout") && (
-              <label className="block text-xs">
-                Texte sur la photo
-                <select
-                  aria-label="Texte sur la photo"
-                  className="mt-1 w-full rounded border bg-background p-2"
-                  value={slide.data.overlay_position === "center" ? "center" : String(slide.data.overlay_position || "").startsWith("top") ? "top_left" : "bottom_left"}
-                  onChange={(e) => changeSlide(positionPhotoText(slide, e.target.value as "top_left" | "bottom_left" | "center"))}
-                >
-                  <option value="top_left">En haut</option>
-                  <option value="bottom_left">En bas</option>
-                  <option value="center">Au centre</option>
-                </select>
-              </label>
-            )}
-            <label className="flex items-center justify-between text-xs">
-              Fond de la slide
-              <input
-                aria-label="Fond de la slide"
-                type="color"
-                value={toHex(
-                  (
-                    new DOMParser().parseFromString(slide.html, "text/html")
-                      .body.firstElementChild as HTMLElement
-                  )?.style.backgroundColor,
-                  "#faf7f2",
-                )}
-                onChange={(e) =>
-                  changeSlide(
-                    restyleSlide(slide, { "background-color": e.target.value }),
-                    `background-${slide.id}`,
-                  )
-                }
-              />
-            </label>
-            </PanelSection>
-    </>
+    <div className="space-y-3" data-testid="panel-add">
+      <div>
+        <h3 className="text-sm font-semibold">Ajouter sur la slide</h3>
+        <p className="text-2xs text-muted-foreground">L'élément se pose sur la slide : glisse-le ensuite où tu veux.</p>
+      </div>
+      {hasClip && (
+        <Button variant="outline" size="sm" className="w-full" onClick={paste} title="⌘/Ctrl + V">
+          Coller {clipboard.current.items.length > 1 ? `les ${clipboard.current.items.length} éléments copiés` : "l’élément copié"}
+        </Button>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" className={tile} onClick={() => changeSlide(addTextElement(slide))}>
+          <Type size={18} aria-hidden="true" /> Ajouter un texte
+        </button>
+        <button type="button" className={tile} onClick={() => {
+          const out = addPhotoFrame(slide);
+          if (!out.id) return;
+          changeSlide(out.slide);
+          selectOne(out.id);
+        }}>
+          <ImagePlus size={18} aria-hidden="true" /> Ajouter un cadre photo
+        </button>
+        <button type="button" className={tile} onClick={() => {
+          const out = addShapeElement(slide);
+          if (!out.id) return;
+          changeSlide(out.slide);
+          setSelected(out.id);
+        }}>
+          <Shapes size={18} aria-hidden="true" /> Ajouter une forme
+        </button>
+        {iconPicker}
+      </div>
+      <div>
+        <p className="mb-1.5 text-xs font-semibold">Éléments tout faits</p>
+        <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Ajouter un élément tout fait">
+          {PRESETS.map((p) => (
+            <button key={p.kind} type="button" aria-label={`Ajouter : ${p.label}`} title={p.label} onClick={() => addReady(p.kind)}
+              className="flex h-12 flex-col items-center justify-center rounded-lg border bg-background px-0.5 text-center text-[10px] leading-tight text-muted-foreground hover:border-primary hover:text-foreground">
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {onOpenStudio && <Button variant="outline" size="sm" className="w-full" disabled={slide.locked} onClick={() => onOpenStudio(slide.id)}>Créer / remplacer avec le Studio</Button>}
+    </div>
   );
 }
 
-/** Onglet « Carrousel » : thèmes appliqués à toutes les slides. */
-export function CarouselThemeSettings({ applyCarouselTheme, themes }: {
-  applyCarouselTheme: (themeId: string) => void;
-  themes: ReturnType<typeof carouselThemes>;
+/** Onglet « Mise en page » : les mises en page en images, et la place du texte sur une photo. */
+export function LayoutSettings({ changeLayout, changeSlide, layoutPreviews, slide }: {
+  changeLayout: (variant: LayoutVariant) => void;
+  changeSlide: (next: EditorSlide, key?: string) => void;
+  layoutPreviews: { variant: LayoutVariant; label: string; preview: { html: string } }[];
+  slide: EditorSlide;
 }) {
+  const position = slide.data.overlay_position === "center" ? "center" : String(slide.data.overlay_position || "").startsWith("top") ? "top_left" : "bottom_left";
   return (
-    <>
-            <PanelSection title="Thème du carrousel" defaultOpen>
-              <ThemeGallery applyCarouselTheme={applyCarouselTheme} themes={themes} />
-            </PanelSection>
-    </>
+    <div className="space-y-3" data-testid="panel-layout">
+      <h3 className="text-sm font-semibold">Mise en page de la slide</h3>
+      <LayoutGallery changeLayout={changeLayout} layoutPreviews={layoutPreviews} slide={slide} />
+      {slide.html.includes("data-photo-text-layout") && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold">Texte sur la photo</p>
+          <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Texte sur la photo">
+            {([["top_left", "En haut"], ["bottom_left", "En bas"], ["center", "Au centre"]] as const).map(([value, label]) => (
+              <Button key={value} size="sm" variant="outline" className="h-8 px-1 text-xs aria-pressed:border-primary aria-pressed:bg-primary/10" aria-pressed={position === value} onClick={() => changeSlide(positionPhotoText(slide, value))}>
+                {label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

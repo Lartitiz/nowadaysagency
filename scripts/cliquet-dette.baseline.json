@@ -18,7 +18,7 @@
       "any": 19
     },
     "src/components/creer/CarouselEditor.tsx": {
-      "lignes": 1056,
+      "lignes": 860,
       "any": 4
     },
     "src/components/creer/CreerStepFormat.tsx": {
@@ -30,7 +30,7 @@
       "any": 3
     },
     "src/components/creer/formatRenderers/CarouselPhotoResult.tsx": {
-      "lignes": 1236,
+      "lignes": 1230,
       "any": 20
     },
     "src/components/creer/formatRenderers/StoryResult.tsx": {
@@ -82,7 +82,7 @@
       "any": 15
     },
     "src/pages/InstagramStats.tsx": {
-      "lignes": 1378,
+      "lignes": 1370,
       "any": 82
     },
     "src/pages/OfferWorkshopPage.tsx": {

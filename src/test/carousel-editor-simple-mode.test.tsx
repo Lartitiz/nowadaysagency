@@ -32,19 +32,17 @@ function Harness() {
     <CarouselEditor result={r} visualSlides={v} onChange={(a, b) => { setR(a); setV(b); }} /></>);
 }
 const saved = () => JSON.parse(screen.getByTestId("saved").textContent!);
-const panel = () => screen.getByLabelText("Réglages simples");
+const panel = () => screen.getByTestId("editor-panel");
 
 describe("mode simple de l'éditeur", () => {
-  it("s'ouvre par défaut avec texte, photo, couleur et police, sans onglets ni calques", () => {
+  // Panneau à onglets (26/11/2026, maquette validée par Laetitia) : un seul panneau, ouvert sur « Texte ».
+  it("s'ouvre sur l'onglet « Texte », sans liste de calques, avec peu de commandes", () => {
     render(<Harness />);
-    expect(screen.queryByRole("tab", { name: "Slide" })).toBeNull();
-    expect(screen.queryByText(/Calques/)).toBeNull();
-    // Éditeur facile (20/11/2026) : trois blocs, dans l'ordre où on en a besoin.
+    expect(screen.getByRole("tab", { name: "Texte" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.queryByLabelText("Calques de la slide")).toBeNull();
     expect(within(panel()).getByRole("region", { name: "Textes de cette slide" })).toBeTruthy();
-    expect(within(panel()).getByRole("region", { name: "Style de la slide" })).toBeTruthy();
-    for (const part of ["Photo", "Couleur", "Police", "Mise en page"]) expect(within(panel()).getAllByText(part).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Touche un texte ou une photo sur la slide/)).toBeTruthy();
-    const controls = panel().querySelectorAll("button, input, select, textarea");
+    for (const name of ["Photo", "Mise en page", "Couleurs", "Ajouter", "Calques"]) expect(screen.getByRole("tab", { name })).toBeTruthy();
+    const controls = screen.getByRole("tabpanel").querySelectorAll("button, input, select, textarea");
     expect(controls.length).toBeLessThanOrEqual(MAX_SIMPLE_PANEL_CONTROLS);
   });
 
@@ -67,25 +65,13 @@ describe("mode simple de l'éditeur", () => {
 
   it("sans élément choisi, une pastille change le fond de la slide", () => {
     render(<Harness />);
+    fireEvent.click(screen.getByRole("tab", { name: "Couleurs" }));
     const swatch = within(panel()).getAllByRole("button", { name: /^Fond de la slide #/ })[0];
     fireEvent.click(swatch);
     const hex = swatch.getAttribute("aria-label")!.split(" ").pop()!;
     expect(readCarouselDocument(saved().r, saved().v).slides[0].html.toLowerCase()).toContain("background-color");
     expect(swatch.getAttribute("aria-pressed")).toBe("true");
     expect(hex).toMatch(/^#[0-9a-f]{6}$/i);
-  });
-
-  it("« Plus d'outils » ouvre le panneau complet, s'en souvient, et « Mode simple » revient", () => {
-    render(<Harness />);
-    fireEvent.click(screen.getByRole("button", { name: /Plus d’outils/ }));
-    expect(screen.getByRole("tab", { name: "Slide" })).toBeTruthy();
-    expect(window.localStorage.getItem("carousel-editor:mode")).toBe("complet");
-    cleanup();
-    render(<Harness />);
-    expect(screen.getByRole("tab", { name: "Slide" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Mode simple/ }));
-    expect(screen.queryByRole("tab", { name: "Slide" })).toBeNull();
-    expect(screen.getByLabelText("Réglages simples")).toBeTruthy();
   });
 
   it("les aides s'ouvrent au toucher (pas seulement au survol)", () => {

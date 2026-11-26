@@ -24,7 +24,7 @@ export function LayersPanel({ changeSlide, group, layers, lockElement, remove, r
 }) {
   return (
     <>
-          <PanelSection title={`Calques (${layers.length})`} storageKey="Calques" icon={<Layers size={14} aria-hidden="true" />}>
+          <PanelSection alwaysOpen title={`Calques (${layers.length})`} storageKey="Calques" icon={<Layers size={14} aria-hidden="true" />}>
           <div className="space-y-1">
             <p className="text-2xs text-muted-foreground">Le plus haut en premier.</p>
             <ul

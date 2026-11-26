@@ -62,9 +62,11 @@ export async function sondeIconeExport(page: Page) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.getByRole("button", { name: "Sélectionner la slide 1", exact: true }).click();
     await page.waitForTimeout(800);
-    const panneau = page.getByLabel("Réglages simples");
+    // Panneau à onglets (26/11/2026) : « Ajouter une icône » est dans l'onglet « Ajouter ».
+    const panneau = page.getByTestId("editor-panel");
+    await panneau.getByRole("tab", { name: "Ajouter", exact: true }).click();
     const bouton = panneau.getByRole("button", { name: /Ajouter une icône/ });
-    if (!(await bouton.isVisible().catch(() => false))) throw new Error("« Ajouter une icône » absent du mode simple");
+    if (!(await bouton.isVisible().catch(() => false))) throw new Error("« Ajouter une icône » absent de l'onglet « Ajouter »");
     await bouton.click();
     await page.getByLabel("Chercher une icône").fill("idée");
     await page.getByRole("button", { name: "Icône Idée" }).click();

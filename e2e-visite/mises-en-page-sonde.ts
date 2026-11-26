@@ -11,7 +11,7 @@
  * contenus figés photographient les slides générées, jamais une slide recomposée, et les
  * tests CI tournent dans jsdom, qui ne rend ni les polices ni les débordements.
  *
- * Parcours : slide 2, bouton « Mise en page », chaque mise en page proposée est appliquée
+ * Parcours : slide 2, onglet « Mise en page », chaque mise en page proposée est appliquée
  * puis retirée par « Annuler ». Pour chacune : la police du titre est celle de la slide
  * d'origine, et aucun texte ne sort de la slide (marge de 20 px sur 1080). Seuils : au
  * moins 4 mises en page proposées sur une slide sans photo, zéro police perdue, zéro
@@ -51,7 +51,8 @@ export async function sondeMisesEnPage(page: Page) {
     const origine = await mesure(page);
     if (!origine.police) throw new Error("titre de la slide 2 introuvable");
 
-    const ouvrir = page.getByRole("button", { name: /^Mise en page$/ }).first();
+    // Panneau à onglets (26/11/2026) : la galerie est dans l'onglet « Mise en page » (avant : une bulle).
+    const ouvrir = page.getByRole("tab", { name: "Mise en page", exact: true }).first();
     const galerie = page.getByRole("group", { name: "Mises en page" }).first();
     const montrer = async () => {
       if (await galerie.isVisible().catch(() => false)) return;

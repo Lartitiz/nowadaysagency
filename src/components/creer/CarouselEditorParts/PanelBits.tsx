@@ -8,7 +8,7 @@ import { PHOTO_SHAPES } from "@/lib/carousel-editor";
  * Section repliable du panneau de réglages. Fermée, elle reste dans la page
  * (masquée) ; son état ouvert / fermé est mémorisé par titre.
  */
-export function PanelSection({ title, defaultOpen = false, storageKey, icon, children }: { title: string; defaultOpen?: boolean; storageKey?: string; icon?: ReactNode; children: ReactNode }) {
+export function PanelSection({ title, defaultOpen = false, storageKey, icon, alwaysOpen = false, children }: { title: string; defaultOpen?: boolean; storageKey?: string; icon?: ReactNode; /** Dans un onglet à elle seule (« Calques ») : un titre, pas de repli. */ alwaysOpen?: boolean; children: ReactNode }) {
   const key = `carousel-panel:${storageKey || title}`;
   const [open, setOpen] = useState(() => {
     try {
@@ -18,6 +18,13 @@ export function PanelSection({ title, defaultOpen = false, storageKey, icon, chi
       return defaultOpen;
     }
   });
+  if (alwaysOpen)
+    return (
+      <div className="space-y-3">
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold">{icon}{title}</h3>
+        {children}
+      </div>
+    );
   return (
     <div className="rounded-lg border">
       <button

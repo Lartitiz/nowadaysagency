@@ -14,13 +14,15 @@
 // le zoom, « En grand » et les raccourcis clavier tiennent dans un seul bouton « ⋯ »
 // (cinq boutons de moins sur la ligne), et les boutons de la slide ouverte sont dans
 // cette ligne comme en mode simple (plus de rangée à eux sous les vignettes).
+// Panneau à onglets (26/11/2026) : il n'y a plus qu'un seul panneau, donc plus de bouton
+// « Plus d'outils » / « Mode simple » ; le bouton « ⋯ » est toujours là, et la demande à
+// l'IA (« Refaire cette slide ») est dans le panneau (collée en bas).
 import { Fragment, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Maximize2, MoreHorizontal, Redo2, SlidersHorizontal, Smartphone, Undo2, ZoomIn, ZoomOut } from "lucide-react";
+import { Maximize2, MoreHorizontal, Redo2, Smartphone, Undo2, ZoomIn, ZoomOut } from "lucide-react";
 import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import type { CarouselDocument } from "@/lib/carousel-editor";
-import type { EditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
 import { useHideAppBreadcrumb } from "@/lib/app-breadcrumb";
 import { useMarkCarouselEditorShown } from "@/lib/carousel-editor-shown";
 import { useAppHeaderHeightVar } from "@/lib/app-header-height";
@@ -50,8 +52,8 @@ const SHORTCUTS: [string, string][] = [
   ["⌘ + glisser", "Placer librement, sans repères"],
 ];
 
-/** Ligne d'outils du haut de l'éditeur (une ligne), avec le passage au mode complet. */
-export function EditorHeader({ showInstagramPreview = true, active, count, slideTools, history, mode, redo, setFullscreen, setInstaOpen, setMode, setZoom, undo, zoom }: {
+/** Ligne d'outils du haut de l'éditeur (une ligne). */
+export function EditorHeader({ showInstagramPreview = true, active, count, slideTools, history, redo, setFullscreen, setInstaOpen, setZoom, undo, zoom }: {
   showInstagramPreview?: boolean;
   active: number;
   count: number;
@@ -61,11 +63,9 @@ export function EditorHeader({ showInstagramPreview = true, active, count, slide
   setZoom: Dispatch<SetStateAction<number>>;
   zoom: number;
   history: MutableRefObject<{ past: CarouselDocument[]; future: CarouselDocument[]; key: string; time: number }>;
-  mode: EditorMode;
   setInstaOpen: (open: boolean) => void;
-  setMode: (mode: EditorMode) => void;
   undo: (redo?: boolean) => unknown;
-  /** « Refaire cette slide » (chantier AA) : bouton en mode complet, bloc du panneau en mode simple. */
+  /** « Demander un changement à l'IA » (chantier AA) : s'affiche dans le panneau (portail). */
   redo?: ReactNode;
 }) {
   // La place du fil d'Ariane et du sous-titre va à la slide (17/10/2026) ; « Tes retouches
@@ -117,7 +117,6 @@ export function EditorHeader({ showInstagramPreview = true, active, count, slide
               <Smartphone size={15} /> <span className="hidden lg:inline">Aperçu Instagram</span>
             </Button>
           )}
-          {mode === "complet" && (
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="h-8 w-8 px-0" aria-label="Affichage : zoom, plein écran, raccourcis clavier" title="Zoom, plein écran, raccourcis clavier" data-testid="editor-view-menu">
@@ -154,17 +153,6 @@ export function EditorHeader({ showInstagramPreview = true, active, count, slide
               </div>
             </PopoverContent>
           </Popover>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            aria-pressed={mode === "complet"}
-            aria-label={mode === "simple" ? "Plus d’outils" : "Mode simple"}
-            onClick={() => setMode(mode === "simple" ? "complet" : "simple")}
-            className="h-8 gap-1.5 border-primary/40 px-2 text-primary lg:px-3"
-          >
-            <SlidersHorizontal size={15} /> <span className="sm:hidden">{mode === "simple" ? "Outils" : "Simple"}</span><span className="hidden sm:inline">{mode === "simple" ? "Plus d’outils" : "Mode simple"}</span>
-          </Button>
         </div>
       </div>
   );

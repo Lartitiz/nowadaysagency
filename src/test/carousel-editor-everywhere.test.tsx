@@ -51,9 +51,9 @@ function Harness() {
 const saved = () => JSON.parse(screen.getByTestId("saved").textContent!);
 const slides = () => readCarouselDocument(saved().r, saved().v).slides;
 const texts = (i: number) => [...new DOMParser().parseFromString(slides()[i].html, "text/html").querySelectorAll<HTMLElement>("[data-slide-text]")];
-const panel = () => screen.getByLabelText("Réglages simples");
-// Le bouton « Police » (téléphone) choisit le premier texte de la slide.
-const chooseFirstText = () => fireEvent.click(within(panel()).getByRole("button", { name: "Police" }));
+const panel = () => screen.getByTestId("editor-panel");
+// Onglet « Texte » (panneau à onglets, 26/11/2026) : la case du premier texte le choisit, sa police est juste dessous.
+const chooseFirstText = () => fireEvent.focus(within(panel()).getAllByRole("textbox")[0]);
 const pickFont = (label: string) => {
   if (!screen.queryByLabelText("Polices")) fireEvent.click(screen.getByLabelText("Choisir une police"));
   fireEvent.click([...screen.getByLabelText("Polices").querySelectorAll<HTMLElement>('[role="option"]')].find((o) => o.textContent!.startsWith(label))!);
