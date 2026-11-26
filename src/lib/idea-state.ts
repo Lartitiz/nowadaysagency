@@ -127,3 +127,25 @@ export function sourceLabel(sourceModule: string | null | undefined, format?: st
       return null;
   }
 }
+
+/** Familles de format du tri de « Mes idées » (Reel / Carrousel / …). */
+export const FORMAT_FAMILIES: { id: string; label: string }[] = [
+  { id: "carousel", label: "Carrousel" },
+  { id: "reel", label: "Reel" },
+  { id: "post", label: "Post" },
+  { id: "stories", label: "Stories" },
+  { id: "newsletter", label: "Newsletter" },
+  { id: "pinterest", label: "Épingle" },
+];
+
+/** Deux vocabulaires de format cohabitent (« carousel », « post_carrousel »…) : une seule famille. */
+export function formatFamily(format: string | null | undefined): string {
+  const f = (format || "").toLowerCase();
+  if (/carous|carrous/.test(f)) return "carousel";
+  if (f === "reel") return "reel";
+  if (/^stor/.test(f)) return "stories";
+  if (/newsletter/.test(f)) return "newsletter";
+  if (/pinterest|epingle/.test(f)) return "pinterest";
+  if (/^post|linkedin/.test(f)) return "post";
+  return "other";
+}

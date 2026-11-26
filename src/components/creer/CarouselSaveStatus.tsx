@@ -41,7 +41,7 @@ export default function CarouselSaveStatus({
             chaque jour précédent (8 au plus, selon leur taille). Restaurer garde d’abord la version actuelle.
           </HelpTip>
         </p>
-        <Link className="underline max-md:hidden" to="/idees">
+        <Link className="underline max-md:hidden" to="/idees?vue=contenus">
           Retrouver dans Mes idées
         </Link>
         {["error", "offline"].includes(save.status) && (

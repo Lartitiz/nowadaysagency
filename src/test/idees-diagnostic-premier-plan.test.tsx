@@ -152,17 +152,12 @@ describe('même chemin partout', () => {
   });
 });
 
-describe('accueil : « Ta prochaine idée »', () => {
-  const create = vi.fn();
-  it('montre la prochaine idée et la crée d’un clic', () => {
-    const onCreateIdea = vi.fn();
-    render(<MemoryRouter><HomeCreatePanel onCreate={create} incompleteBrand={false} nextIdea={DIAG[0]} onCreateIdea={onCreateIdea} /></MemoryRouter>);
-    expect(screen.getByTestId('home-next-idea')).toHaveTextContent('Ta prochaine idée : Ta peau tiraille après la douche ?');
-    fireEvent.click(screen.getByRole('button', { name: /Créer ce contenu/ }));
-    expect(onCreateIdea).toHaveBeenCalledWith(DIAG[0]);
-  });
-  it('rien quand il ne reste aucune idée', () => {
-    render(<MemoryRouter><HomeCreatePanel onCreate={create} incompleteBrand={false} nextIdea={null} onCreateIdea={vi.fn()} /></MemoryRouter>);
+// Retours du 26/11/2026 : l'accueil ne montre plus « Ta prochaine idée » (un
+// texte de quatre lignes sous les canaux) ; les idées restent dans Mes idées.
+describe('accueil : plus de « prochaine idée »', () => {
+  it('le bloc Créer ne montre que les canaux', () => {
+    render(<MemoryRouter><HomeCreatePanel onCreate={vi.fn()} incompleteBrand={false} /></MemoryRouter>);
     expect(screen.queryByTestId('home-next-idea')).toBeNull();
+    expect(screen.queryByText(/Ta prochaine idée/)).toBeNull();
   });
 });

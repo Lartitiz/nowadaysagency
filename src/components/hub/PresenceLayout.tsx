@@ -43,7 +43,7 @@ export function PresenceCreate({ channel, label, description }: { channel: strin
         {label}<ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
       </Link>
     </div>
-    <PresenceLink to={`/idees?canal=${channel}`}>Mes contenus enregistrés</PresenceLink>
+    <PresenceLink to={`/idees?vue=contenus&canal=${channel}`}>Mes contenus enregistrés</PresenceLink>
   </div>;
 }
 

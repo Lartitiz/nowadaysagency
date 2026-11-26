@@ -194,7 +194,7 @@ export default function ResultActions(p: ResultActionsProps) {
   const redoBeside = !oneLine && isCarousel && !!result;
   const saveBlock = p.autoSavedToIdeas ? (
     <Link
-      to="/idees"
+      to="/idees?vue=contenus"
       data-testid="auto-saved-to-ideas"
       title="Enregistré dans Mes idées"
       className={`min-w-0 h-10 ${oneLine ? "shrink hidden sm:inline-flex" : redoBeside ? "flex-[1.2] inline-flex" : "flex-1 inline-flex"} items-center justify-center gap-1.5 rounded-md px-2 sm:px-3 text-sm text-muted-foreground hover:text-foreground`}
@@ -281,7 +281,7 @@ export default function ResultActions(p: ResultActionsProps) {
       <DropdownMenuContent align="end" className="w-72">
         {oneLine && p.autoSavedToIdeas && (
           <DropdownMenuItem asChild className="gap-2 sm:hidden">
-            <Link to="/idees"><Check className="h-4 w-4 text-primary" /> Enregistré dans Mes idées</Link>
+            <Link to="/idees?vue=contenus"><Check className="h-4 w-4 text-primary" /> Enregistré dans Mes idées</Link>
           </DropdownMenuItem>
         )}
         {oneLine && !p.autoSavedToIdeas && p.onSave && (

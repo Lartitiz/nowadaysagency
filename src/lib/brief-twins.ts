@@ -15,3 +15,17 @@ export function twinBriefIds<B extends { id: string; subject: string | null }>(b
   const t = norm(title);
   return t ? briefs.filter((b) => norm(b.subject) === t).map((b) => b.id) : [];
 }
+
+/** Le même sujet commencé plusieurs fois (« La pré-commercialisation… » ×3 sur un
+ *  compte, 26/11/2026) : on ne montre que la plus récente. */
+export function latestBySubject<B extends { subject: string | null; created_at?: string | null }>(briefs: B[]): B[] {
+  const best = new Map<string, B>();
+  const rest: B[] = [];
+  for (const b of briefs) {
+    const key = norm(b.subject);
+    if (!key) { rest.push(b); continue; }
+    const seen = best.get(key);
+    if (!seen || (b.created_at || "") > (seen.created_at || "")) best.set(key, b);
+  }
+  return [...best.values(), ...rest];
+}

@@ -33,7 +33,7 @@ test("dashboard : porte « Mes photos » présente et mène à /photos", async (
 
   // Voisinage attendu : le raccourci « Mes idées » cohabite avec la porte photos
   // (depuis #1019 c'est un lien souligné « Accéder à mes idées », plus une pill).
-  await expect(page.getByRole("button", { name: /Accéder à mes idées/i })).toBeVisible({
+  await expect(page.getByRole("button", { name: /(Accéder à mes idées|Voir toutes tes idées)/i })).toBeVisible({
     timeout: 20_000,
   });
 
