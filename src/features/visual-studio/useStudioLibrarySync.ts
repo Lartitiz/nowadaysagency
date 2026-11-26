@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { studioRequest, type StudioState, type StudioVersion } from "@/features/visual-studio/api";
+import { redescribePhoto } from "@/lib/photo-redescribe";
 
 export function useStudioLibrarySync({
   current,
@@ -40,6 +41,12 @@ export function useStudioLibrarySync({
         version_id: version.id,
       }).then((receipt) => {
         if (!receipt?.photo_id) throw new Error("L’image n’a pas pu être rangée dans Mes photos.");
+        // La fiche naît avec la réponse du Studio comme description (« Je crée une
+        // nouvelle photo d'ambiance… », studio_save_library) : on fait décrire la vraie
+        // image, en arrière-plan et sans crédit, comme pour toute photo ajoutée
+        // (rejeu du 26/11/2026 : cette réponse servait de légende dans « Que montre
+        // chaque photo ? »).
+        redescribePhoto(receipt.photo_id, workspaceId);
         return receipt.photo_id;
       });
       inflight.current.set(version.id, pending);

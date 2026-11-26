@@ -52,3 +52,7 @@ Deno.test("entrées absentes ou mal typées ne cassent rien", () => {
   assertEquals(mergePhotoTags(undefined, [42, null, "bol"] as unknown[]), ["bol"]);
   assertEquals(mergePhotoTags("pas un tableau" as unknown as string[], ["bol"]), ["bol"]);
 });
+
+Deno.test("image du Studio re-décrite : l'étiquette « studio » reste (26/11/2026)", () => {
+  assertEquals(mergePhotoTags(["studio"], ["cuisine", "plan de travail"]), ["studio", "cuisine", "plan de travail"]);
+});
