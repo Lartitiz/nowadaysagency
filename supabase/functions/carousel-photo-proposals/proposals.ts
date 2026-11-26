@@ -1,6 +1,6 @@
 import { callAnthropic, HAIKU_MODEL, SONNET_MODEL, type UsageSink } from "../_shared/anthropic.ts";
 import {
-  acceptableAlt, distributeCandidates, parseChoices, QUERY_RULES, searchPexels, VERIFY_RULES, verifyTool,
+  acceptableAlt, distributeCandidates, parseChoices, QUERY_RULES, REJECTED_WORDS, searchPexels, VERIFY_RULES, verifyTool,
   type StockAmbientPhoto,
 } from "../_shared/stock-photo-verified.ts";
 
@@ -23,7 +23,7 @@ import {
  * Le serveur ne fait que proposer : l'écran télécharge et pose les photos.
  * Tout échec laisse le carrousel tel quel.
  */
-export const PHOTO_PROPOSALS_VERSION = "photo-proposals-v4";
+export const PHOTO_PROPOSALS_VERSION = "photo-proposals-v5";
 export const MAX_TARGETS = 10;
 const PLAN_CALL_MS = 20_000;
 const VERIFY_CALL_MS = 30_000;
@@ -36,6 +36,8 @@ export interface ProposalInput {
   slides: { slide: number; text: string }[];
   targets: number[];
   library?: { index: number; description: string; kind?: string }[];
+  /** Photos libres de droit déjà montrées (« Une autre » quand la réserve est vide) : jamais reproposées. */
+  exclude?: string[];
 }
 
 export interface Proposal {
@@ -56,7 +58,11 @@ type Deps = {
   logger?: (m: string) => void;
 };
 
+/** Le modèle connaît les mots qui font écarter sa requête, au lieu de les découvrir par un essai perdu. */
+export const REFUSED_WORDS_RULE = `Une requête qui contient l'un de ces mots est REFUSÉE d'office, sans recherche : ${REJECTED_WORDS.join(", ")}. N'en emploie aucun, même pour un lieu ou un meuble vide (pas de « shelf » : écris plutôt « wooden table » ou « wooden surface »).`;
+
 const PLAN_RULES = `${QUERY_RULES}
+${REFUSED_WORDS_RULE}
 
 En plus, pour chaque slide demandée :
 - "ideal" : une phrase courte EN FRANÇAIS (15 mots au plus) qui décrit l'image idéale pour ce passage, concrète, comme on la dirait à quelqu'un qui va prendre la photo. Ne recopie pas le texte de la slide. Exemple : « Un plan d'appartement annoté posé sur une table, un mètre à côté ».
@@ -81,6 +87,7 @@ const planTool = (slides: number[], libraryIds: number[]) => ({
 });
 
 const RETRY_RULES = `${QUERY_RULES}
+${REFUSED_WORDS_RULE}
 
 Ces slides n'ont trouvé AUCUNE photo acceptable au premier essai (failed_query = la requête qui n'a rien donné, null si elle a été refusée parce qu'elle nommait un produit, un commerce ou une personne). Écris pour chacune une requête DIFFÉRENTE, plus simple et plus générale : 2 ou 3 mots, une matière, une lumière, un lieu vide ou un objet neutre du quotidien, toujours accordée au passage. Ne reprends aucun mot de la requête qui a échoué.`;
 
@@ -229,7 +236,8 @@ export async function proposePhotos(input: ProposalInput, deps: Deps): Promise<{
   const needStock = targets.filter((t) => plans.get(t)?.library == null);
   if (!needStock.length) return finish("completed", proposals);
   if (!apiKey) return finish("partial", proposals, { reason: "no-pexels-key" });
-  const taken = new Set<string>();
+  const exclude = (input.exclude || []).filter((id) => typeof id === "string" && id).slice(0, 80);
+  const taken = new Set<string>(exclude);
   const byslide = new Map(proposals.map((p) => [p.slide, p]));
   /** Un essai : recherche Pexels, vérification sur les pixels, pose sur les slides servies. */
   const round = async (queries: Map<number, string>) => {
@@ -274,7 +282,7 @@ export async function proposePhotos(input: ProposalInput, deps: Deps): Promise<{
   const trace = () => ({
     queries: Object.fromEntries(first), retry_queries: Object.fromEntries(second), third_queries: Object.fromEntries(third),
     refused_queries: Object.fromEntries(needStock.filter((t) => plans.get(t)?.refused).map((t) => [t, plans.get(t)!.refused])),
-    neutral,
+    neutral, ...(exclude.length ? { excluded: exclude.length } : {}),
   });
   try {
     await round(first);

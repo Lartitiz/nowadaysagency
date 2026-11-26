@@ -296,7 +296,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
     notify(next, caption);
   };
 
-  const anotherProposal = useAnotherProposal({ slides, setSlides, onAddPhoto, onChange: (next) => notify(next, caption) });
+  const anotherProposal = useAnotherProposal({ slides, setSlides, onAddPhoto, onChange: (next) => notify(next, caption), subject: result?.raw?.subject || result?.subject, workspaceId: castingWorkspaceId });
 
   // Casting bibliothèque (régime texte d'abord) : la photo choisie dans la
   // photothèque est convertie en PhotoItem (URL signée → base64) puis posée

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { readableError } from "@/lib/error-messages";
 import { stockPhotoToPhotoItem } from "@/lib/stock-photos";
-import { isPexelsPhoto, toStockPhoto } from "@/lib/carousel-photo-proposals";
+import { fetchPhotoProposals, isPexelsPhoto, pexelsIdFromCredit, slidePassage, toStockPhoto, type ServerStockPhoto } from "@/lib/carousel-photo-proposals";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 
 /** En-tête d'une slide sans image : recherche en cours, image idéale, ou simple invitation. */
@@ -37,23 +37,43 @@ export function CastingNotice({ searching, directive }: { searching: boolean; di
 
 /**
  * « Une autre » : la photo libre de droit proposée laisse sa place à la suivante
- * déjà vérifiée par le serveur (stock_alternates), sans nouvel appel IA.
+ * déjà vérifiée par le serveur (stock_alternates), sans nouvel appel IA. Réserve
+ * vide (26/11/2026 : le bouton disparaissait sans explication) : on redemande au
+ * serveur des photos pour cette slide, sans celles déjà montrées.
  */
-export function useAnotherProposal({ slides, setSlides, onAddPhoto, onChange }: {
+export function useAnotherProposal({ slides, setSlides, onAddPhoto, onChange, subject, workspaceId }: {
   slides: any[];
   setSlides: (slides: any[]) => void;
   onAddPhoto?: (photo: PhotoItem) => number;
   onChange: (slides: any[]) => void;
+  subject?: string;
+  workspaceId?: string | null;
 }) {
   const [loadingIdx, setLoadingIdx] = useState<number | null>(null);
   const slidesRef = useRef(slides);
   slidesRef.current = slides;
+  // Photos déjà montrées pendant cette visite, par passage : jamais redemandées.
+  const seenRef = useRef(new Map<string, Set<string>>());
   const show = async (slideIdx: number) => {
     const target = slides[slideIdx];
-    const [nextPhoto, ...rest] = (Array.isArray(target?.stock_alternates) ? target.stock_alternates : []).filter(isPexelsPhoto);
-    if (!nextPhoto || loadingIdx !== null) return;
+    if (target?.cast_source !== "stock_ambient" || loadingIdx !== null) return;
+    const passage = slidePassage(target);
+    const seen = seenRef.current.get(passage) ?? new Set<string>();
+    seenRef.current.set(passage, seen);
+    const current = pexelsIdFromCredit(target);
+    if (current) seen.add(current);
     setLoadingIdx(slideIdx);
     try {
+      let [nextPhoto, ...rest]: ServerStockPhoto[] = (Array.isArray(target?.stock_alternates) ? target.stock_alternates : []).filter(isPexelsPhoto);
+      if (!nextPhoto) {
+        const [fresh] = await fetchPhotoProposals({ raw: { slides }, targets: [slideIdx + 1], subject, libraryRows: [], workspaceId, exclude: [...seen] });
+        if (isPexelsPhoto(fresh?.stock)) [nextPhoto, ...rest] = [fresh.stock, ...(fresh.alternates || []).filter(isPexelsPhoto)];
+      }
+      if (!nextPhoto) {
+        toast("Pas d'autre photo trouvée pour ce passage", { description: "Tu peux en choisir une toi-même avec « Changer la photo »." });
+        return;
+      }
+      seen.add(nextPhoto.id);
       const item = { ...(await stockPhotoToPhotoItem(toStockPhoto(nextPhoto))), stockAmbient: true };
       const newIndex = onAddPhoto?.(item);
       if (!newIndex) return;
@@ -77,7 +97,7 @@ export function useAnotherProposal({ slides, setSlides, onAddPhoto, onChange }: 
 }
 
 export function AnotherProposalButton({ slide, idx, state }: { slide: any; idx: number; state: ReturnType<typeof useAnotherProposal> }) {
-  if (slide?.cast_source !== "stock_ambient" || !Array.isArray(slide.stock_alternates) || slide.stock_alternates.length === 0) return null;
+  if (slide?.cast_source !== "stock_ambient") return null;
   return (
     <Button type="button" variant="outline" size="sm" className="h-7 text-xs" disabled={state.loadingIdx !== null} onClick={() => state.show(idx)}>
       {state.loadingIdx === idx ? <Loader2 size={13} className="mr-1 animate-spin" /> : <RefreshCw size={13} className="mr-1" />}

@@ -64,8 +64,16 @@ export function toStockPhoto(p: ServerStockPhoto): StockPhoto {
 export const isPexelsPhoto = (p: any): p is ServerStockPhoto =>
   !!p && typeof p.id === "string" && typeof p.url === "string" && /^https:\/\/images\.pexels\.com\//.test(p.url);
 
+/** Numéro Pexels d'une photo posée, lu dans son crédit (…/photo/du-lin-froisse-12345/). */
+export function pexelsIdFromCredit(slide: any): string | null {
+  const url = slide?.stock_credit?.source === "pexels" ? String(slide.stock_credit.source_url || "") : "";
+  return /(\d+)\/?$/.exec(url)?.[1] ?? null;
+}
+
 export async function fetchPhotoProposals(input: {
   raw: any; targets: number[]; subject?: string; libraryRows: UserPhotoRow[]; workspaceId?: string | null;
+  /** Photos libres de droit déjà montrées sur la slide : le serveur ne les repropose pas. */
+  exclude?: string[];
 }): Promise<PhotoProposal[]> {
   const slides = (input.raw.slides as any[]).map((s, i) => ({ slide: i + 1, text: slidePassage(s) }));
   const library = input.libraryRows.slice(0, 40).map((p, i) => ({
@@ -77,6 +85,7 @@ export async function fetchPhotoProposals(input: {
       ...(input.workspaceId ? { workspace_id: input.workspaceId } : {}),
       slides, targets: input.targets,
       ...(library.length ? { library } : {}),
+      ...(input.exclude?.length ? { exclude: input.exclude.slice(0, 80) } : {}),
     },
   }, CALL_TIMEOUT_MS);
   if (error) throw error;
