@@ -4,6 +4,7 @@
 // texte pour qu'il ne sorte jamais de la slide.
 import { DEFAULT_TOKENS, documentColors, prepareSlideHtml, sanitizeRichText, type EditorSlide, type StyleTokens } from "./carousel-editor";
 
+const PLEIN_CONTOUR = "text-shadow:0 2px 14px rgba(0,0,0,0.45);";
 export type LayoutVariant = "texte" | "texte-centre" | "citation" | "carte" | "photo-plein" | "photo-haut" | "photo-arche" | "photo-cadre" | "photo-gauche";
 export const LAYOUTS: { variant: LayoutVariant; label: string; photo: boolean }[] = [
   { variant: "texte", label: "Éditorial", photo: false },
@@ -270,11 +271,14 @@ export function composeLayout(
       );
       break;
     case "photo-plein": {
+      // Ombre allégée (26/11/2026, « l'ombre est trop forte, on ne voit pas la photo ») : 0,82 au plus au lieu
+      // de 0,93, moins haute, et un fin contour sous le texte pour qu'il reste lisible. Elle se règle ensuite
+      // dans l'onglet Photo et sur la slide (carousel-shade.ts).
       const veil = (rgbOf(mix(accent, "#000000", 0.72)) || [20, 20, 20]).join(",");
       inner =
         img(`left:0;top:0;width:${W}px;height:${H}px;`) +
-        `<div data-injected-scrim="1" style="position:absolute;left:0;bottom:0;width:${W}px;height:${clamp(fit.height + 420, 620, H)}px;background:linear-gradient(0deg,rgba(${veil},0.93) 0%,rgba(${veil},0.72) 45%,rgba(${veil},0) 100%);"></div>` +
-        block(`${column}bottom:110px;`, h() + b());
+        `<div data-injected-scrim="1" style="position:absolute;left:0;bottom:0;width:${W}px;height:${clamp(fit.height + 380, 580, H)}px;background:linear-gradient(0deg,rgba(${veil},0.82) 0%,rgba(${veil},0.6) 45%,rgba(${veil},0) 100%);"></div>` +
+        block(`${column}bottom:110px;`, h(PLEIN_CONTOUR) + b(PLEIN_CONTOUR));
       break;
     }
     case "photo-haut": {

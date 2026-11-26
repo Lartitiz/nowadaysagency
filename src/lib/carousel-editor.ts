@@ -893,11 +893,11 @@ export function setVeilAlpha(slide: EditorSlide, id: string, alpha: number): Edi
   const style = el?.getAttribute("style") || "";
   const current = veilAlpha(style);
   if (!el || current === null) return slide;
-  const a = Math.round(Math.min(1, Math.max(0.05, alpha)) * 100) / 100;
+  const a = Math.round(Math.min(1, Math.max(0.01, alpha)) * 100) / 100; // 0,01 = « aucune ombre », encore réglable ensuite
   el.setAttribute(
     "style",
     style.replace(/(rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*)([\d.]+)(\s*\))/gi, (m, head, value, tail) =>
-      parseFloat(value) > 0 ? `${head}${Math.round((parseFloat(value) / current) * a * 100) / 100}${tail}` : m,
+      parseFloat(value) > 0 ? `${head}${Math.round((parseFloat(value) / current) * a * 1000) / 1000}${tail}` : m,
     ),
   );
   return { ...slide, html: serialize(doc) };
@@ -1181,10 +1181,10 @@ export function setEditorialVeilAlpha(slide: EditorSlide, alpha: number): Editor
   const style = doc.querySelector("style[data-photo-editorial-veil]");
   const current = veilAlpha(style?.textContent || "");
   if (!style || current === null) return slide;
-  const a = Math.min(1, Math.max(0.05, alpha));
+  const a = Math.min(1, Math.max(0.01, alpha));
   const scale = (text: string) =>
     text.replace(/(rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*)([\d.]+)(\s*\))/gi, (m, head, value, tail) =>
-      parseFloat(value) > 0 ? `${head}${Math.round((parseFloat(value) / current) * a * 100) / 100}${tail}` : m,
+      parseFloat(value) > 0 ? `${head}${Math.round((parseFloat(value) / current) * a * 1000) / 1000}${tail}` : m,
     );
   style.textContent = scale(style.textContent || "");
   doc.querySelectorAll<HTMLElement>("[data-photo-editorial-text]").forEach((el) => {

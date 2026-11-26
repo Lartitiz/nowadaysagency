@@ -24,6 +24,8 @@ import {
 import CanvasToolbar, { type SelectionBox } from "@/components/creer/CarouselEditorParts/CanvasToolbar";
 import { bindCanvas } from "@/components/creer/CarouselEditorParts/canvas-events";
 import { centerOnSlide } from "@/components/creer/CarouselEditorParts/editor-icons";
+import { photoShade } from "@/lib/carousel-shade";
+import { useHoverBox } from "@/components/creer/CarouselEditorParts/use-hover-box";
 import type { FixAll } from "@/components/creer/CarouselEditorParts/use-fix-all";
 
 export default function SlideCanvas({
@@ -49,6 +51,7 @@ export default function SlideCanvas({
   onDropPhoto,
   onReplacePhoto,
   onLock,
+  onShade,
   fixAll,
   fitId,
   onFitDone,
@@ -89,6 +92,8 @@ export default function SlideCanvas({
   /** Bouton « Remplacer » de la barre flottante d'une photo. */
   onReplacePhoto?: () => void;
   onLock?: (id: string, locked: boolean) => void;
+  /** Curseur « Ombre » de la barre d'une photo (carousel-shade.ts). */
+  onShade?: (value: number) => void;
   /** « Tout corriger » : corrige d'un coup ce que signalent les pastilles « ! ». */
   fixAll?: FixAll;
   /** Texte qui vient d'être modifié : sa taille se réduit s'il ne tient plus dans son cadre. */
@@ -185,6 +190,9 @@ export default function SlideCanvas({
   useEffect(() => setCropId(null), [slide.id]);
   // Barre d'outils : état de la saisie sur la slide et actions branchées sur l'aperçu.
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Cadre en pointillé avec son nom sous la souris, avant le clic.
+  const hover = useHoverBox(frame, width > 0, !!slide.locked || !!cropId || dropping !== false || !!editingId, selected);
+  const shadeValue = onShade && box?.kind === "photo" ? photoShade(slide.html) : null;
   const tools = useRef<{
     format: (styles: Record<string, string>) => boolean;
     startEditing: (id: string) => void;
@@ -505,6 +513,11 @@ export default function SlideCanvas({
             style={{ position: "absolute", left: b.left * scale, top: b.top * scale, width: b.width * scale, height: b.height * scale, border: "2px dashed #c02769", borderRadius: 4, pointerEvents: "none" }}
           />
         ))}
+        {hover && (
+          <div aria-hidden="true" data-testid="hover-box" style={{ position: "absolute", left: hover.left * scale, top: hover.top * scale, width: hover.width * scale, height: hover.height * scale, border: "2px dashed #c02769", borderRadius: 4, pointerEvents: "none" }}>
+            <span className="absolute left-1 rounded-full bg-primary px-2 py-0.5 text-2xs font-semibold text-primary-foreground" style={hover.top * scale > 26 ? { top: -24 } : { top: 4 }}>{hover.label}</span>
+          </div>
+        )}
         {box && (
           <div
             aria-hidden="true"
@@ -549,6 +562,7 @@ export default function SlideCanvas({
         editingId={editingId}
         simple={simple}
         outside={zoom <= 1}
+        shade={shadeValue !== null && onShade ? { value: shadeValue, set: onShade } : null}
         onCenter={() => {
           const el = frame.current?.contentDocument?.querySelector(`[data-editor-id="${selected}"]`);
           const view = frame.current?.contentWindow;

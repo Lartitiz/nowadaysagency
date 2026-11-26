@@ -11,7 +11,7 @@ import { compressImageFile } from "@/lib/image-compress";
 import CarouselInstagramPreview from "@/components/creer/CarouselInstagramPreview";
 import type { CarouselStylesApi, SavedCarouselStyle } from "@/hooks/use-carousel-styles";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
-import { retouchedOnImport, withRetouched } from "@/lib/carousel-retouched";
+import { retouchedOnImport, withRetouched } from "@/lib/carousel-retouched"; import { setPhotoShade } from "@/lib/carousel-shade";
 import {
   slideExtraTexts,
   applyTheme,
@@ -763,7 +763,7 @@ export default function CarouselEditor({
             }
             onRemove={remove}
             onEditText={(id, text, live) => editSlideText(id, patchElement(slide, id, { text }), live)}
-            onEditHtml={(id, html, live) => editSlideText(id, setElementHtml(slide, id, html), live)}
+            onEditHtml={(id, html, live) => editSlideText(id, setElementHtml(slide, id, html), live)} onShade={(n) => changeSlide(setPhotoShade(slide, n), `shade-${slide.id}`)}
             fitId={fitId}
             onFitDone={(_id, size) => {
               setFitId(null);

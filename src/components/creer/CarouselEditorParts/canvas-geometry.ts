@@ -125,3 +125,7 @@ export interface CanvasBox {
 
 /** Une photo plein écran n'a pas de cadre à mettre en forme. */
 export const isFullBleedBox = (b: { width: number; height: number }) => b.width >= 1075 && b.height >= 1345;
+
+/** Nom affiché d'un élément de la slide (barre posée sur la slide, cadre au survol). */
+export const kindLabel = (el: HTMLElement) =>
+  isPhotoEl(el) ? "Photo" : el.matches("[data-pptx-shape],[data-editor-shape]") ? "Forme" : "Texte";

@@ -56,6 +56,31 @@ exports[`instantané d'écran : proposition à confirmer 1`] = `
 }
 `;
 
+exports[`instantané d'écran : proposition à confirmer 2`] = `
+{
+  "buttons": [
+    "Bibliothèque",
+    "Photos",
+    "Clips vidéo",
+    "Mémoire de marque",
+    "Mes sessions",
+    "Plus d’outils",
+    " [Ajouter des images]",
+    " [Depuis ma bibliothèque]",
+    "Générer cette image · 1 image",
+  ],
+  "headings": [
+    "Studio visuel",
+    "Une nouvelle image",
+    "Images créées dans cette discussion",
+    "Tout commence par ton idée",
+  ],
+  "requests": [
+    "action,session_id,workspace_id · read",
+  ],
+}
+`;
+
 exports[`instantané d'écran : sans session 1`] = `
 {
   "buttons": [
