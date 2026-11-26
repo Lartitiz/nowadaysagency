@@ -21,6 +21,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
 import { logUsageHorsCredit } from "../_shared/usage-hors-credit.ts";
+import { alignedPassages, perPassageBlock } from "./per-passage.ts";
 
 const BodySchema = z.object({
   subject: z.string().min(1).max(2000),
@@ -31,6 +32,8 @@ const BodySchema = z.object({
   slides: z.array(z.string().max(600)).max(15).optional(),
   /** Nombre de thèmes/mots-clés visuels souhaités (1 par slide-photo). Défaut 5. */
   count: z.number().int().min(1).max(10).optional(),
+  /** Reel : une requête par passage (`passages`, dans l'ordre), en plus de la liste habituelle. */
+  passages: z.array(z.string().max(600)).min(1).max(10).optional(),
 });
 
 const FORMAT_HINTS: Record<string, string> = {
@@ -76,6 +79,7 @@ serve(async (req) => {
       ? `\n\nTexte des slides du carrousel :\n${body.slides.map((s, i) => `${i + 1}. ${s}`).join("\n")}`
       : "";
 
+  const passagesBlock = body.passages?.length ? perPassageBlock(body.passages) : "";
   const prompt = `Une créatrice de contenu prépare un contenu sur les réseaux et veut illustrer avec des photos de banque d'images (Pexels). Pexels marche bien mieux avec des requêtes EN ANGLAIS et CONCRÈTES (des scènes, des objets, des personnes — pas des concepts abstraits).
 
 Ton job : à partir du sujet (souvent abstrait, en français), proposer des mots-clés de recherche photo qui correspondent à des IMAGES RÉELLES et PERTINENTES pour ce contenu. Pense « plan du carrousel » : chaque requête illustre un MOMENT/une slide différente du déroulé (accroche, problème, exemple concret, coulisses, conclusion…).
@@ -89,14 +93,16 @@ Règles :
 - Varie les angles visuels (gros plan, ambiance, personne, objet, lieu) pour offrir du choix et éviter les doublons.
 - Évite le texte sur image, les logos, les captures d'écran.
 - "primary" = la requête la plus sûre pour ramener des résultats pertinents tout de suite.
-- La créatrice ne lit pas l'anglais : "primary_fr" et "keywords_fr" donnent la même scène en français simple, dans le même ordre (ex : "closed pottery kiln studio" → "four de potière dans l'atelier").
+- La créatrice ne lit pas l'anglais : "primary_fr" et "keywords_fr" donnent la même scène en français simple, dans le même ordre (ex : "closed pottery kiln studio" → "four de potière dans l'atelier").${passagesBlock}
 
 Réponds UNIQUEMENT en JSON valide (pas de markdown) :
 {
   "primary": "best single english search phrase",
   "primary_fr": "la même en français",
   "keywords": ["phrase 1", "phrase 2", "phrase 3", "phrase 4", "phrase 5"],
-  "keywords_fr": ["phrase 1 en français", "phrase 2 en français", "phrase 3 en français", "phrase 4 en français", "phrase 5 en français"]
+  "keywords_fr": ["phrase 1 en français", "phrase 2 en français", "phrase 3 en français", "phrase 4 en français", "phrase 5 en français"]${passagesBlock ? `,
+  "passages": ["one english query per passage, in order"],
+  "passages_fr": ["la même en français, même ordre"]` : ""}
 }`;
 
   let aiResponse: Response;
@@ -148,7 +154,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown) :
     source: "passerelle_lovable", action: "stock_photo_keywords", userId: r.userId,
     model: "google/gemini-2.5-flash", tokens: aiData?.usage?.total_tokens ?? null,
   });
-  const parsed = tryParseAiObject<{ primary?: unknown; primary_fr?: unknown; keywords?: unknown; keywords_fr?: unknown }>(text, "stock-photo-keywords");
+  const parsed = tryParseAiObject<{ primary?: unknown; primary_fr?: unknown; keywords?: unknown; keywords_fr?: unknown; passages?: unknown; passages_fr?: unknown }>(text, "stock-photo-keywords");
   if (!parsed) {
     console.error("[stock-photo-keywords] réponse IA non parsable", text.slice(0, 200));
     return json({ error: "Suggestion de mots-clés indisponible." }, 502);
@@ -173,5 +179,9 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown) :
   if (primary && primaryFr) labels[primary] = primaryFr;
   rawList.forEach((kw, i) => { if (kw && rawFr[i] && !labels[kw]) labels[kw] = rawFr[i]; });
 
-  return json({ primary: primary || keywords[0], keywords, labels });
+  // Reel : requêtes alignées passage par passage (absentes si le compte ne tombe pas juste).
+  const aligned = body.passages?.length ? alignedPassages(parsed.passages, parsed.passages_fr, body.passages.length) : null;
+  if (aligned) for (const [kw, fr] of Object.entries(aligned.labels)) if (!labels[kw]) labels[kw] = fr;
+
+  return json({ primary: primary || keywords[0], keywords, labels, ...(aligned ? { passages: aligned.passages } : {}) });
 });

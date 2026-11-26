@@ -65,6 +65,8 @@ export interface StockKeywordContext {
   objective?: string;
   /** Texte des slides déjà générées, si disponible. */
   slides?: string[];
+  /** Reel : texte de chaque passage, pour une requête par passage dans l'ordre. */
+  passages?: string[];
 }
 
 export interface StockKeywords {
@@ -74,6 +76,8 @@ export interface StockKeywords {
   keywords: string[];
   /** Libellé français à afficher pour chaque requête anglaise (peut manquer). */
   labels: Record<string, string>;
+  /** Reel : une requête par passage, dans l'ordre (absente si le serveur ne l'a pas donnée juste). */
+  passages?: string[];
 }
 
 /**
@@ -95,6 +99,7 @@ export async function suggestStockKeywords(
       ...(ctx.angle ? { angle: ctx.angle } : {}),
       ...(ctx.objective ? { objective: ctx.objective } : {}),
       ...(ctx.slides && ctx.slides.length ? { slides: ctx.slides.slice(0, 15) } : {}),
+      ...(ctx.passages && ctx.passages.length ? { passages: ctx.passages.slice(0, 10) } : {}),
       ...(opts.count ? { count: opts.count } : {}),
     },
   });
@@ -113,7 +118,11 @@ export async function suggestStockKeywords(
   }
   // Sans traduction, la requête anglaise reste affichée (et cherchée en anglais).
   for (const kw of keywords) if (!labels[kw]) labels[kw] = kw;
-  return { primary: (data?.primary as string) || keywords[0] || "", keywords, labels };
+  const passages = Array.isArray(data?.passages) && data.passages.length === ctx.passages?.length
+    && data.passages.every((p: unknown) => typeof p === "string" && p.trim())
+    ? (data.passages as string[]).map((p) => p.trim()) : undefined;
+  if (passages) for (const kw of passages) if (!labels[kw]) labels[kw] = kw;
+  return { primary: (data?.primary as string) || keywords[0] || "", keywords, labels, ...(passages ? { passages } : {}) };
 }
 
 /** Le libellé français d'une requête anglaise, ou la requête elle-même. */

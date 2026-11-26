@@ -569,7 +569,9 @@ function IdeasInWorkspace() {
               const creerDraft = creerDraftOf(selectedIdea.content_data);
               const hasContent = !creerDraft && (selectedIdea.content_data != null || selectedIdea.content_draft != null);
               const angle = selectedIdea.angle?.trim();
-              const showAngle = !!angle && angle !== "libre" && angle !== "brouillon" && !/^(post|reel|story|carousel|newsletter|pinterest|linkedin)/i.test(angle);
+              // Un angle utile est une phrase. Un mot seul (« coulisses », « libre ») est une clé de
+              // classement, pas un texte à lire (essai filmé du 26/11/2026, sous le titre d'un reel).
+              const showAngle = !!angle && /\s/.test(angle) && !/^(post|reel|story|carousel|newsletter|pinterest|linkedin)/i.test(angle);
               return (
                 <>
                   <DialogHeader className="px-6 pt-6 pb-3 space-y-1 pr-12">

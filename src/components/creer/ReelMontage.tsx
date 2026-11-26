@@ -116,7 +116,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
     projectCallback.current?.(project);
   }, [montageMode, voiceMode, clips, voiceClips, cutaways, associationTexts, tweaks]);
   const { phase, tick, mp4Url, archived, errorMsg, archiving, downloadFailed, downloading, archiveRetryAvailable,
-    activeRender, handleAssemble, handleArchiveRetry, handleDownload, previewPlan, hasPreview, reopenPreview, renderMp4, instantPreview } = useReelRender({
+    activeRender, handleAssemble, handleArchiveRetry, handleDownload, previewPlan, hasPreview, reopenPreview, renderMp4, instantPreview, preparingPreview, previewFocus } = useReelRender({
     initialMp4Url, renderKey, previewKey, tweaks, onPhaseChange, onMp4Ready, needsReview, montageMode, voiceMode, spoken, clips, cutaways, voiceUrls, voiceDurations, charter, workspaceId, inputsReady: !charterLoading,
   });
   const maxDurations = maxDurationsFor(clips);
@@ -209,10 +209,10 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
           {preview && (
             <ReelPreview html={preview.html} duration={preview.duration} tweaks={tweaks} setTweaks={setTweaks} passages={previewPassages}
-              workspaceId={workspaceId} busy={phase === "rendering"} tick={tick}
+              workspaceId={workspaceId} busy={phase === "rendering"} focus={previewFocus}
               onDownload={() => void renderMp4({ download: true })} onSave={() => void renderMp4()} />
           )}
-          <MontageResult previewOpen={!!preview} canReopenPreview={instantPreview && hasPreview && !preview} reopenPreview={reopenPreview} spoken={spoken} ready={ready} phase={phase} archiving={archiving} needsReview={needsReview} handleAssemble={handleAssemble} setAssociationTexts={setAssociationTexts} sectionTexts={sectionTexts} setNeedsReview={setNeedsReview} montageMode={montageMode} voiceMode={voiceMode} clips={clips} tick={tick} errorMsg={errorMsg} mp4Url={mp4Url} downloading={downloading} handleDownload={handleDownload} downloadFailed={downloadFailed} archived={archived} archiveRetryAvailable={archiveRetryAvailable} handleArchiveRetry={handleArchiveRetry} />
+          <MontageResult previewOpen={!!preview} preparingPreview={preparingPreview} canReopenPreview={instantPreview && hasPreview && !preview} reopenPreview={reopenPreview} spoken={spoken} ready={ready} phase={phase} archiving={archiving} needsReview={needsReview} handleAssemble={handleAssemble} setAssociationTexts={setAssociationTexts} sectionTexts={sectionTexts} setNeedsReview={setNeedsReview} montageMode={montageMode} voiceMode={voiceMode} clips={clips} tick={tick} errorMsg={errorMsg} mp4Url={mp4Url} downloading={downloading} handleDownload={handleDownload} downloadFailed={downloadFailed} archived={archived} archiveRetryAvailable={archiveRetryAvailable} handleArchiveRetry={handleArchiveRetry} />
         </>
       )}
       <StudioClipDialog studioTarget={studioTarget} setStudioTarget={setStudioTarget} spoken={spoken} workspaceId={workspaceId}

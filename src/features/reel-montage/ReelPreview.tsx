@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { readableError } from "@/lib/error-messages";
 import { askReelTweak } from "./reel-tweak-api";
+import { fabricationMessage, useElapsedSeconds } from "./use-elapsed";
 import { DEFAULT_TWEAKS, PLAYER_SCRIPT, biggerText, isDefaultTweaks, sanitizeTweaks, shorter, toggleCalm, toggleSounds, type ReelTweaks } from "./reel-preview";
 
 let playerScript: Promise<void> | null = null;
@@ -29,6 +30,9 @@ function HyperframesPlayer({ html }: { html: string }) {
   const host = useRef<HTMLDivElement>(null);
   const player = useRef<HTMLElement | null>(null);
   const [failed, setFailed] = useState(false);
+  // Tant que les clips chargent, le lecteur est un carré noir : on le dit
+  // (essai filmé du 26/11/2026, « ça charge… »). Repli au bout de 25 s.
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let alive = true;
     loadPlayer().then(() => {
@@ -40,6 +44,10 @@ function HyperframesPlayer({ html }: { html: string }) {
       el.style.display = "block";
       el.style.width = "100%";
       el.style.height = "100%";
+      const done = () => { if (alive) setLoaded(true); };
+      el.addEventListener("assetsready", done);
+      el.addEventListener("playbackerror", done);
+      window.setTimeout(done, 25_000);
       host.current.appendChild(el);
       player.current = el;
       el.setAttribute("srcdoc", html);
@@ -49,11 +57,26 @@ function HyperframesPlayer({ html }: { html: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
-    if (player.current && player.current.getAttribute("srcdoc") !== html) player.current.setAttribute("srcdoc", html);
+    if (player.current && player.current.getAttribute("srcdoc") !== html) {
+      setLoaded(false);
+      player.current.setAttribute("srcdoc", html);
+      const id = window.setTimeout(() => setLoaded(true), 25_000);
+      return () => window.clearTimeout(id);
+    }
   }, [html]);
   useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
   if (failed) return <p className="text-xs text-destructive p-3">L’aperçu ne s’affiche pas sur ce navigateur. Tu peux quand même télécharger ta vidéo.</p>;
-  return <div ref={host} data-testid="reel-preview-player" className="mx-auto aspect-[9/16] w-full max-w-[240px] sm:max-w-[260px] overflow-hidden rounded-lg bg-black" />;
+  return (
+    <div className="relative mx-auto aspect-[9/16] w-full max-w-[240px] sm:max-w-[260px] overflow-hidden rounded-lg bg-black">
+      <div ref={host} data-testid="reel-preview-player" className="h-full w-full" />
+      {!loaded && (
+        <div role="status" className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80 px-4 text-center text-xs text-white">
+          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+          Je charge tes clips pour l’aperçu…
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface ReelPreviewProps {
@@ -64,19 +87,21 @@ interface ReelPreviewProps {
   passages: { duration: number; text: string }[];
   workspaceId?: string;
   busy: boolean;
-  tick: number;
+  /** Augmente à chaque nouveau clic sur le bouton du bas : on ramène l'aperçu à l'écran. */
+  focus?: number;
   onDownload: () => void;
   onSave: () => void;
 }
 
-export function ReelPreview({ html, duration, tweaks, setTweaks, passages, workspaceId, busy, tick, onDownload, onSave }: ReelPreviewProps) {
+export function ReelPreview({ html, duration, tweaks, setTweaks, passages, workspaceId, busy, focus = 0, onDownload, onSave }: ReelPreviewProps) {
   const [request, setRequest] = useState("");
   const [asking, setAsking] = useState(false);
   const [answer, setAnswer] = useState("");
   // L'aperçu s'ouvre sous la barre « Assembler » : on l'amène à l'écran (essai réel du 14/11/2026,
   // il restait caché sous la barre collante et la cliente ne voyait rien se passer).
   const sectionRef = useRef<HTMLElement>(null);
-  useEffect(() => { sectionRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" }); }, []);
+  useEffect(() => { sectionRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" }); }, [focus]);
+  const elapsed = useElapsedSeconds(busy);
   const n = passages.length;
   const apply = (next: ReelTweaks, said = "") => { setTweaks(sanitizeTweaks(next, n)); setAnswer(said); };
 
@@ -139,7 +164,7 @@ export function ReelPreview({ html, duration, tweaks, setTweaks, passages, works
       </div>
       <p className="text-2xs text-muted-foreground">
         {busy
-          ? `Fabrication de ta vidéo… (≈ ${Math.max(1, tick * 6)} s, environ 2 minutes)`
+          ? fabricationMessage(elapsed)
           : "Retouche autant que tu veux : l’aperçu est immédiat. La vidéo n’est fabriquée qu’au téléchargement (environ 2 minutes)."}
       </p>
     </section>

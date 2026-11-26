@@ -468,6 +468,30 @@ describe("ReelMontage — consigne envoyée au Studio vidéo", () => {
   });
 });
 
+describe("ReelMontage — un mot-clé par passage, dans l'ordre (essai filmé du 26/11)", () => {
+  it("demande une requête par passage et cherche le passage n°2 avec SA requête, pas celle du n°1", async () => {
+    // « primary » en tête décalait tout d'un cran : la cheminée recevait le plan du plafond.
+    m.suggest.mockResolvedValue({ keywords: ["renovation site", "empty floor plans", "old chimney"], primary: "renovation site", passages: ["empty floor plans", "old chimney"], labels: {} });
+    render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent" })} />);
+    await waitFor(() => expect(m.search).toHaveBeenCalledTimes(2));
+    expect(m.suggest.mock.calls[0][0].passages).toEqual(TEXTS);
+    const searched = m.search.mock.calls.map((c) => c[0]);
+    expect(searched).toEqual(["empty floor plans", "old chimney"]);
+  });
+});
+
+describe("ReelMontage — reel rouvert", () => {
+  it("garde les clips de la banque déjà choisis (la recherche de départ ne remplit que les vignettes)", async () => {
+    m.suggest.mockResolvedValue({ keywords: ["a", "b"], primary: "a", passages: ["a", "b"], labels: {} });
+    m.search.mockResolvedValue([{ id: 9, url: "https://clips.test/autre.mp4", thumbnail: "t.jpg", duration: 8 }]);
+    const onProjectChange = vi.fn();
+    render(<ReelMontage sections={SECTIONS} onProjectChange={onProjectChange} initialProject={project({ voiceMode: "silent", clips: [stock(1), stock(2)] })} />);
+    await waitFor(() => expect(m.search).toHaveBeenCalledTimes(2));
+    await settle();
+    expect(onProjectChange).not.toHaveBeenCalled();
+  });
+});
+
 describe("ReelMontage — photo de départ du reel", () => {
   const PHOTO = "data:image/jpeg;base64,AAAA";
   const chooseHidden = () => fireEvent.click(screen.getByText("Je ne me montre pas"));
@@ -543,6 +567,27 @@ describe("ReelMontage — aperçu immédiat du reel sans voix (14/11/2026)", () 
     fireEvent.click(screen.getByRole("button", { name: "Télécharger ma vidéo" }));
     await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
     expect(m.submit.mock.calls[0][1]).toEqual({ textScale: 1.15, calm: false, sounds: false, volume: 1 });
+  });
+
+  it("essai filmé du 26/11 : un nouveau clic ne refait pas l'aperçu, une seule attente affichée pendant la fabrication", async () => {
+    m.poll.mockReturnValue(new Promise(() => {}));
+    const studio = { ...stock(1), source: "studio" as const, studioJobId: "job-1" };
+    render(<ReelMontage sections={SECTIONS} workspaceId="space" initialProject={project({ voiceMode: "silent", clips: [studio, stock(2)] })} />);
+    await settle();
+    assemble();
+    await screen.findByRole("region", { name: "Aperçu de ton reel" });
+    expect(m.readStudio).toHaveBeenCalledTimes(1);
+    // Le bouton du bas ramène à l'aperçu au lieu de tout reconstruire (lecteur et clips rechargés).
+    fireEvent.click(screen.getByRole("button", { name: "Voir l’aperçu" }));
+    await settle();
+    expect(m.readStudio).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Télécharger ma vidéo" }));
+    const msg = await screen.findByText(/Fabrication de ta vidéo/);
+    expect(msg.textContent).toMatch(/0:0\d \(compte environ 2 minutes\)/);
+    expect(msg.textContent).not.toMatch(/≈/);
+    // Une seule roue qui tourne : celle de l'aperçu, pas « Montage en cours… » en bas en même temps.
+    expect(screen.queryByText("Montage en cours…")).toBeNull();
   });
 
   it("« Plus court » raccourcit les passages envoyés au rendu", async () => {

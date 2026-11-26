@@ -4,12 +4,15 @@
 // (fiche 16 de docs/robustesse/gros-fichiers.md, lot 6) ; seul le test « rendu
 // des entrées actuelles » arrive calculé (`archiveRetryAvailable`).
 import { Button } from "@/components/ui/button";
-import { Loader2, Film, Download } from "lucide-react";
+import { Loader2, Film, Download, Eye } from "lucide-react";
+import { useElapsedSeconds, waitNote } from "./use-elapsed";
 import type { MontageMode, Phase, Section, SelectedClip } from "./types";
 
 interface MontageResultProps {
   /** Aperçu immédiat ouvert (reel sans voix) : il porte lui-même l'avancement et les boutons. */
   previewOpen?: boolean;
+  /** Aperçu en préparation après le clic : le bouton le dit tout de suite. */
+  preparingPreview?: boolean;
   canReopenPreview?: boolean;
   reopenPreview?: () => void;
   spoken: Section[];
@@ -43,7 +46,16 @@ function renderingMessage(montageMode: MontageMode, voiceMode: "recorded" | "sil
   return "Assemblage des clips, incrustation des sous-titres et de la voix…";
 }
 
-export function MontageResult({ previewOpen = false, canReopenPreview = false, reopenPreview, spoken, ready, phase, archiving, needsReview, handleAssemble, setAssociationTexts, sectionTexts, setNeedsReview, montageMode, voiceMode, clips, tick, errorMsg, mp4Url, downloading, handleDownload, downloadFailed, archived, archiveRetryAvailable, handleArchiveRetry }: MontageResultProps) {
+/** Le bouton du bas : un seul état à la fois, jamais deux roues qui tournent ensemble. */
+function assembleLabel(phase: Phase, previewOpen: boolean, preparingPreview: boolean) {
+  if (preparingPreview) return <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />Préparation de l’aperçu…</>;
+  // Aperçu ouvert : la fabrication et son attente s'affichent DANS l'aperçu.
+  if (previewOpen) return <><Eye className="h-4 w-4 mr-1.5" />Voir l’aperçu</>;
+  if (phase === "rendering") return <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />Montage en cours…</>;
+  return <><Film className="h-4 w-4 mr-1.5" />Assembler mon reel</>;
+}
+
+export function MontageResult({ previewOpen = false, preparingPreview = false, canReopenPreview = false, reopenPreview, spoken, ready, phase, archiving, needsReview, handleAssemble, setAssociationTexts, sectionTexts, setNeedsReview, montageMode, voiceMode, clips, errorMsg, mp4Url, downloading, handleDownload, downloadFailed, archived, archiveRetryAvailable, handleArchiveRetry }: MontageResultProps) {
   return (
     <>
   {/* Toujours en vue : collée en bas de l'écran, au-dessus du menu du téléphone
@@ -52,18 +64,9 @@ export function MontageResult({ previewOpen = false, canReopenPreview = false, r
     <span className="text-2xs text-muted-foreground">
       {ready} clip{ready > 1 ? "s" : ""} sur {spoken.length} prêt{ready > 1 ? "s" : ""}
     </span>
-    <Button size="sm" onClick={handleAssemble} disabled={phase === "rendering" || archiving || ready === 0 || needsReview}>
-      {phase === "rendering" ? (
-        <>
-          <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-          Montage en cours…
-        </>
-      ) : (
-        <>
-          <Film className="h-4 w-4 mr-1.5" />
-          Assembler mon reel
-        </>
-      )}
+    <Button size="sm" onClick={handleAssemble} aria-busy={preparingPreview || undefined}
+      disabled={preparingPreview || (!previewOpen && (phase === "rendering" || archiving || ready === 0 || needsReview))}>
+      {assembleLabel(phase, previewOpen, preparingPreview)}
     </Button>
   </div>
   {needsReview && <div role="alert" className="rounded-md border border-warning p-3 text-xs space-y-2">
@@ -74,12 +77,7 @@ export function MontageResult({ previewOpen = false, canReopenPreview = false, r
     Un clip du Studio est muet. Remplace-le par ta vidéo filmée face à la caméra, puis ajoute-le comme image en plus.
   </p>}
 
-  {phase === "rendering" && !previewOpen && (
-    <p className="text-2xs text-muted-foreground text-center">
-      {renderingMessage(montageMode, voiceMode)}
-      (≈ {Math.max(1, tick * 6)} s)
-    </p>
-  )}
+  {phase === "rendering" && !previewOpen && <RenderingProgress message={renderingMessage(montageMode, voiceMode)} />}
 
   {phase === "error" && <p className="text-xs text-destructive">{errorMsg}</p>}
 
@@ -118,5 +116,15 @@ export function MontageResult({ previewOpen = false, canReopenPreview = false, r
     </div>
   )}
     </>
+  );
+}
+
+/** Attente du MP4 hors aperçu : ce que fait le moteur, et le temps réel écoulé. */
+function RenderingProgress({ message }: { message: string }) {
+  const seconds = useElapsedSeconds(true);
+  return (
+    <p role="status" className="text-2xs text-muted-foreground text-center">
+      {message} {waitNote(seconds)}
+    </p>
   );
 }
