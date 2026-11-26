@@ -1,0 +1,103 @@
+/**
+ * Carrousel « Tes photos en fond » écrit SANS photo : une image est proposée
+ * d'office sur chaque slide (26/11/2026, src/lib/carousel-photo-proposals.ts).
+ *
+ * Le texte s'affiche d'abord ; l'écran demande ensuite carousel-photo-proposals
+ * (bibliothèque, sinon photo libre de droit vérifiée) et pose les images. On
+ * vérifie que la fonction répond, qu'au moins une image est posée et marquée
+ * « Proposée », et que rien ne reste affiché en anglais sous le texte.
+ *
+ * Coût réel ~1 crédit → lundi uniquement, ou VISITE_PAYANTE=1. Desktop.
+ */
+
+import { test, expect } from "@playwright/test";
+import * as path from "path";
+import * as fs from "fs";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SHOTS = path.join(__dirname, "shots/carousel-images-proposees");
+fs.mkdirSync(SHOTS, { recursive: true });
+
+const SUJET = "Pourquoi je fabrique mes savons à froid : ce que ça change pour la peau, le temps que ça demande et ce que j'ai dû apprendre";
+
+test("carrousel sans photo : des images sont proposées d'office", async ({ page, viewport }) => {
+  test.skip((viewport?.width ?? 0) < 1024, "desktop uniquement (coût réel)");
+  test.setTimeout(900_000);
+
+  let proposals: { status: number; body: any } | null = null;
+  page.on("response", async (res) => {
+    if (!res.url().includes("/functions/v1/")) return;
+    const name = res.url().split("/functions/v1/")[1].split("?")[0];
+    console.log(`⏱️ ${name} → ${res.status()}`);
+    if (name === "carousel-photo-proposals" && res.request().method() === "POST") {
+      proposals = { status: res.status(), body: await res.json().catch(() => null) };
+    }
+  });
+
+  await page.goto("/creer?new=1", { waitUntil: "networkidle" });
+  const closeBtn = page.locator('[data-testid="branding-banner-close"], button[aria-label*="ermer"]').first();
+  if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) await closeBtn.click();
+
+  const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
+  await expect(textarea).toBeVisible({ timeout: 8000 });
+  await textarea.fill(SUJET);
+  await page.getByRole("button", { name: /^(suivant|continuer)$/i }).click();
+
+  await page.getByRole("button", { name: /instagram/i }).first().click();
+  const carrouselCard = page.getByText(/^Carrousel$/, { exact: true }).first();
+  await expect(carrouselCard).toBeVisible({ timeout: 15000 });
+  await carrouselCard.click();
+  const fond = page.getByText(/Tes photos en fond/i).first();
+  await expect(fond).toBeVisible({ timeout: 10000 });
+  await fond.click();
+  await page.screenshot({ path: path.join(SHOTS, "1-format.png") });
+
+  // Aucune photo importée : on avance jusqu'à la génération.
+  for (let i = 0; i < 4; i++) {
+    const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i }).first();
+    await expect(suivant).toBeEnabled({ timeout: 8000 });
+    await suivant.click();
+    const onStep3 = await page.getByText(/Étape 3 sur 4/i).first()
+      .waitFor({ state: "visible", timeout: 5000 }).then(() => true).catch(() => false);
+    if (onStep3) break;
+  }
+  const genDir = page.getByRole("button", { name: /générer directement/i });
+  const genBtn = page.getByRole("button", { name: /^générer\b/i });
+  await Promise.race([
+    expect(genDir).toBeVisible({ timeout: 120000 }),
+    expect(genBtn).toBeVisible({ timeout: 120000 }),
+  ]).catch(() => {});
+  if (await genDir.isVisible().catch(() => false)) await genDir.click();
+  else await genBtn.click();
+  console.log("🚀 Générer cliqué");
+
+  const result = page.getByTestId("publish-or-schedule").first();
+  await expect(result, "le carrousel ne s'est pas affiché").toBeVisible({ timeout: 780_000 });
+  await page.screenshot({ path: path.join(SHOTS, "2-texte-affiche.png"), fullPage: true, timeout: 30000 });
+  const aChoisirAvant = await page.getByText(/^Image à choisir$/).count();
+  const recherche = await page.getByText(/On te cherche une image/i).count();
+  console.log(`📝 texte affiché : ${recherche} slide(s) en recherche, ${aChoisirAvant} « Image à choisir »`);
+
+  // La recherche se fait en arrière-plan : on attend la réponse puis la fin de l'attente.
+  await expect.poll(() => proposals?.status ?? 0, { timeout: 150_000, message: "carousel-photo-proposals n'a pas répondu" }).toBe(200);
+  await expect(page.getByText(/On te cherche une image/i)).toHaveCount(0, { timeout: 60_000 });
+  await page.waitForTimeout(1500);
+
+  const receipt = proposals!.body?.receipt || {};
+  console.log(`🧾 reçu : ${JSON.stringify(receipt).slice(0, 600)}`);
+  const posees = await page.locator('img[alt^="Photo "]').count();
+  const aChoisir = await page.getByText(/^Image à choisir$/).count();
+  const proposees = await page.getByText(/^Proposée/).count();
+  const autres = await page.getByRole("button", { name: /^Une autre$/ }).count();
+  // 🖼️ Images proposées : ✅ si au moins une image posée, 🟠 si toutes les slides restent à choisir.
+  console.log(`🖼️ Images proposées : ${posees > 0 ? "✅" : "🟠"} ${posees} posée(s) dont ${proposees} marquée(s) « Proposée », ${aChoisir} à choisir, ${autres} bouton(s) « Une autre »`);
+  await page.screenshot({ path: path.join(SHOTS, "3-images-proposees.png"), fullPage: true, timeout: 30000 });
+
+  expect(posees, "aucune image posée d'office").toBeGreaterThan(0);
+  expect(proposees, "les images posées ne sont pas marquées « Proposée »").toBe(posees);
+  // Plus de texte de slide recopié en « image idéale », ni de position en anglais.
+  await expect(page.getByText(/Une image qui accompagne ce passage/i)).toHaveCount(0);
+  await expect(page.getByText(/^(top|bottom|center|middle)([ _-](left|right|center))?$/i)).toHaveCount(0);
+  await page.close();
+});
