@@ -14,7 +14,7 @@ import { useAppHeaderSlot } from "@/lib/app-header-slot";
 export default function NewContentButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   const slot = useAppHeaderSlot("actions");
   const button = (
-    <Button type="button" variant={slot ? "ghost" : "outline"} size="sm" onClick={onClick} disabled={disabled} className={`gap-1.5 rounded-full ${slot ? "text-muted-foreground" : ""}`} data-testid="new-content-top">
+    <Button type="button" variant="outline" size="sm" onClick={onClick} disabled={disabled} className="gap-1.5 rounded-full" data-testid="new-content-top">
       <Plus className="h-3.5 w-3.5" /> Créer un autre contenu
     </Button>
   );

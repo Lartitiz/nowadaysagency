@@ -108,5 +108,6 @@ export default function CreerStepper({ current, contentAvailable = false, onStep
       </div>
     </nav>
   );
-  return inHeader ? createPortal(nav, slot!) : nav;
+  // Dans le menu : la page ne garde pas la place des étapes (-mt-6 reprend l'espace laissé au-dessus du contenu).
+  return inHeader ? <>{createPortal(nav, slot!)}<div aria-hidden="true" className="-mt-6" /></> : nav;
 }
