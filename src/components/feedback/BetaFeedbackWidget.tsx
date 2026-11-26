@@ -6,6 +6,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useCarouselEditorShown } from "@/lib/carousel-editor-shown";
 import { toast } from "sonner";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 
@@ -46,6 +47,7 @@ export default function BetaFeedbackWidget() {
   // Mobile : le FAB se masque au scroll vers le bas (lecture du contenu) et
   // réapparaît au scroll vers le haut — évite qu'il recouvre le contenu tappable.
   const [hiddenByScroll, setHiddenByScroll] = useState(false);
+  const editing = useCarouselEditorShown();
   useEffect(() => {
     let lastY = window.scrollY;
     let ticking = false;
@@ -249,13 +251,17 @@ export default function BetaFeedbackWidget() {
             // Masqué par opacité seule, sans déplacement : un bouton déplacé ne se
             // recouvre plus lui-même et réapparaîtrait aussitôt (clignotement).
             (hiddenByScroll || overlapsClickable) && "max-md:opacity-0 max-md:pointer-events-none",
+            // Ordinateur, pendant la retouche d'un carrousel (26/11/2026) : le rond passait sur le
+            // bas du panneau de droite (bouton « Refaire cette slide »). Même languette qu'au
+            // téléphone, dans la marge de la page.
+            editing && "md:bottom-[5.5rem] md:right-0 md:h-[4.5rem] md:w-6 md:rounded-none md:rounded-l-xl md:border-0 md:bg-primary md:shadow-md md:flex-col md:gap-1 md:hover:scale-100",
           )}
           style={liftTo !== null ? { bottom: liftTo } : undefined}
           aria-label="Donner un feedback"
           data-testid="beta-feedback-fab"
         >
-          <MessageSquarePlus className="h-6 w-6 text-primary max-md:h-3.5 max-md:w-3.5 max-md:text-primary-foreground" />
-          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground font-mono text-2xs px-1.5 py-0.5 rounded-full leading-none max-md:static max-md:p-0 max-md:rounded-none max-md:text-[0.5625rem] max-md:[writing-mode:vertical-rl] max-md:rotate-180">
+          <MessageSquarePlus className={cn("h-6 w-6 text-primary max-md:h-3.5 max-md:w-3.5 max-md:text-primary-foreground", editing && "md:h-3.5 md:w-3.5 md:text-primary-foreground")} />
+          <span className={cn("absolute -top-1 -right-1 bg-primary text-primary-foreground font-mono text-2xs px-1.5 py-0.5 rounded-full leading-none max-md:static max-md:p-0 max-md:rounded-none max-md:text-[0.5625rem] max-md:[writing-mode:vertical-rl] max-md:rotate-180", editing && "md:static md:p-0 md:rounded-none md:text-[0.5625rem] md:[writing-mode:vertical-rl] md:rotate-180")}>
             BÊTA
           </span>
         </button>

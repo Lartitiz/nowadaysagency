@@ -155,19 +155,19 @@ export function SimpleParts({ part, canvasApi, changeSlide, commit, css, documen
         </div>
         {text && (
           <div className="space-y-1.5">
-            {sectionTitle("Couleur du texte choisi", many && { testId: "color-everywhere", label: "Mettre cette couleur partout", onClick: () => everywhere({ color: css.color }, "Couleur mise sur tous les textes"), disabled: !css.color })}
+            {sectionTitle("Texte choisi", many && { testId: "color-everywhere", label: "Mettre cette couleur partout", onClick: () => everywhere({ color: css.color }, "Couleur mise sur tous les textes"), disabled: !css.color })}
             <Swatches colors={palette} current={toHex(css.color, "#222222")} label="Couleur du texte" onPick={(hex) => style({ color: hex })} />
           </div>
         )}
         {icon && (
           <div className="space-y-1.5">
-            {sectionTitle("Couleur de l’icône choisie")}
+            {sectionTitle("Icône choisie")}
             <Swatches colors={palette} current={iconColor(slide, icon.id)} label="Couleur de l’icône" onPick={(hex) => changeSlide(setIconColor(slide, icon.id, hex), `icon-${slide.id}-${icon.id}`)} />
           </div>
         )}
         {block && (
           <div className="space-y-1.5">
-            {sectionTitle("Fond du bloc choisi")}
+            {sectionTitle("Bloc choisi")}
             <Swatches colors={palette} current={fillHex} label="Fond du bloc" onPick={(hex) => fill(hex, fillAlpha || 1)} />
           </div>
         )}
