@@ -977,7 +977,7 @@ function CreerWorkspace() {
     streaming,
     photoDumpResolving,
     selectedReelHook,
-    questions,
+    questions, hasResult: !!result,
     aurianaDemoActive,
     ideaText, story: activeStory,
     isDemoMode,

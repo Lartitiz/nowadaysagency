@@ -19,9 +19,11 @@ type Resume = () => void;
 export interface PhotoContextStepOptions {
   /** Applique les photos mises à jour (état + copie de secours). */
   applyPhotos: (photos: any[]) => void;
+  /** Fenêtre fermée sans choisir (croix, Échap, clic à côté) : rien n'est lancé. */
+  onCancel?: () => void;
 }
 
-export function usePhotoContextStep({ applyPhotos }: PhotoContextStepOptions) {
+export function usePhotoContextStep({ applyPhotos, onCancel }: PhotoContextStepOptions) {
   const asked = useRef(new Set<string>());
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<ContextStepRow[]>([]);
@@ -68,6 +70,7 @@ export function usePhotoContextStep({ applyPhotos }: PhotoContextStepOptions) {
     setOpen(false);
     // Fermée sans choisir : on pourra reposer la question au prochain clic.
     if (p) asked.current.delete(contextStepSignature(p.photos));
+    if (p) onCancel?.();
   };
 
   const dialog: ReactNode = (
