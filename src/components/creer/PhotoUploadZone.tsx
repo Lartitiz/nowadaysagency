@@ -1,10 +1,9 @@
 import { lazy, Suspense, useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
 import { readableError } from "@/lib/error-messages";
 import { Upload, X, GripVertical, Wand2, Undo2, Globe, Library, Loader2, Images, Sparkles } from "lucide-react";
-import { cyclePairRole, pairChips, pairChipsUnbalanced, splitPairMark, withPairMark } from "@/features/creer/photo-context-step";
+import { PhotoContextInput, PhotoPairChip, PhotoPairHint } from "./PhotoPairChip";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { PhotoEditDialog } from "./PhotoEditDialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
@@ -47,8 +46,7 @@ export interface PhotoItem {
   stockSourceUrl?: string;
   /** Posée par l'app en ambiance sur un carrousel (src/lib/stock-ambient-photos.ts), pas choisie par l'utilisatrice. */
   stockAmbient?: boolean;
-  /** Légende proposée par l'IA dès l'import (use-auto-describe-photos.ts). */
-  autoContext?: string;
+  autoContext?: string; // légende proposée par l'IA dès l'import (use-auto-describe-photos.ts)
 }
 
 function mimeFromBase64(input: string, fallback = "image/jpeg"): string {
@@ -58,8 +56,7 @@ function mimeFromBase64(input: string, fallback = "image/jpeg"): string {
 }
 
 export interface PhotoUploadZoneProps {
-  /** Pastille « Avant / Après » sous chaque vignette dès 2 photos (carrousel photo et mixte). */
-  pairMarks?: boolean;
+  pairMarks?: boolean; // pastille « Avant / Après » sous chaque vignette dès 2 photos (PhotoPairChip.tsx)
   maxPhotos?: number;
   onPhotosChange: (photos: PhotoItem[]) => void;
   onDescriptionChange: (description: string) => void;
@@ -163,8 +160,7 @@ export function PhotoUploadZone({
   aiAutoPickCount,
   libraryCount = 0,
   layout,
-  pickFromLibrary,
-  pairMarks,
+  pickFromLibrary, pairMarks,
 }: PhotoUploadZoneProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -182,8 +178,6 @@ export function PhotoUploadZone({
   const [autoPicking, setAutoPicking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isFull = photos.length >= maxPhotos;
-  const showPairChips = !!pairMarks && photos.filter((p) => !p.stockAmbient).length >= 2;
-  const chips = pairChips(photos);
   const remainingSlots = Math.max(0, maxPhotos - photos.length);
 
   // Resync quand le parent fournit de nouvelles initialPhotos (changement de format,
@@ -662,13 +656,7 @@ export function PhotoUploadZone({
                 : "+ Ajouter un contexte par photo"}
             </button>
           </div>
-          {showPairChips && (
-            <p className="text-xs text-muted-foreground" data-testid="photo-pair-hint">
-              {pairChipsUnbalanced(photos)
-                ? "Il faut autant d'avants que d'après : marque l'autre photo de la paire, sinon je ne les relie pas."
-                : "Un avant et un après ? Touche la pastille sous chaque photo : je les mets sur deux slides qui se suivent."}
-            </p>
-          )}
+          {pairMarks && <PhotoPairHint photos={photos} />}
           <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
             {photos.map((p, idx) => (
               <div key={p.id ?? `${p.name}-${idx}`} className="flex flex-col gap-1.5">
@@ -728,30 +716,9 @@ export function PhotoUploadZone({
                     const next = [...photos]; [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]]; updatePhotos(next);
                   }}>→</button>
                 </div>}
-                {showPairChips && (
-                  <button
-                    type="button"
-                    data-testid="photo-pair-chip"
-                    aria-label={`Photo ${idx + 1} : ${chips[idx].role ? chips[idx].label : "ni avant ni après"}. Toucher pour changer.`}
-                    onClick={() => updatePhotos(cyclePairRole(photos, idx))}
-                    className={cn(
-                      "min-h-8 self-center rounded-full border px-3 text-xs transition-colors",
-                      chips[idx].role ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:border-primary/40",
-                    )}
-                  >
-                    {chips[idx].label}
-                  </button>
-                )}
+                {pairMarks && <PhotoPairChip photos={photos} index={idx} onChange={updatePhotos} />}
                 <button type="button" className="min-h-9 text-xs text-primary hover:underline" onClick={() => setPrepareIdx(idx)}>Adapter le format</button>
-                {showContexts && (
-                  <Input
-                    value={pairMarks ? splitPairMark(p.context).text : p.context ?? ""}
-                    onChange={(e) => updateContext(idx, pairMarks ? withPairMark(splitPairMark(p.context).role, e.target.value) : e.target.value)}
-                    placeholder="Ex : le moment, le lieu ou le détail à retenir"
-                    maxLength={200}
-                    className="h-8 text-xs px-2"
-                  />
-                )}
+                {showContexts && <PhotoContextInput value={p.context} pairMarks={pairMarks} onChange={(v) => updateContext(idx, v)} />}
               </div>
             ))}
           </div>
