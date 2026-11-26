@@ -99,7 +99,8 @@ export default function ResultActions(p: ResultActionsProps) {
   // une ligne (~60 px au lieu de 113) pour laisser la place à la slide. Sur téléphone,
   // « Enregistré dans Mes idées » passe dans « Plus d'options ».
   const editorShown = useCarouselEditorShown();
-  const oneLine = isCarousel && editorShown;
+  // Stories aussi depuis le 26/11/2026 : leur écran signale sa présence comme l'éditeur de carrousel.
+  const oneLine = (isCarousel || format === "story") && editorShown;
   // Volet de réglages ouvert sur téléphone : la barre se cache, « Terminé » la ramène.
   const sheet = useCarouselSheet();
 
