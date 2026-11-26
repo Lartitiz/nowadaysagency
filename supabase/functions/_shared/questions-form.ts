@@ -50,11 +50,13 @@ export const QUESTIONS_OUVERTES_RETRY = `Certaines questions se répondent par o
 
 // Question fermée (15/11/2026, vue par la sonde ❓ du matin) : la proposition qui porte le « ? »
 // commence comme un oui/non. « Peux-tu raconter… » n'en est pas une (invitation polie).
-const DEBUT_FERME = /^(tu (as|connais|fais|utilises|te souviens|aurais)|as-tu|aurais-tu|connais-tu|est-ce qu|y a-t-il|il y a|existe-t-il)(\s|\b)/i;
+const DEBUT_FERME = /^(tu (as|connais|fais|utilises|te souviens|aurais|veux|préfères|souhaites)|as-tu|aurais-tu|connais-tu|est-ce qu|y a-t-il|il y a|existe-t-il)(\s|\b)/i;
 export function questionFermee(q: string): boolean {
   const avant = String(q || "").split("?")[0] ?? "";
-  const morceaux = avant.split(/[,:;.]/);
-  return DEBUT_FERME.test((morceaux[morceaux.length - 1] ?? "").trim()) || inversionSansMotInterrogatif(avant);
+  const morceaux = avant.split(/[,:;.]/).map((m) => m.trim());
+  // « tu veux partir de A, ou de B ? » : la proposition qui porte le « ? » est celle d'avant le « ou ».
+  while (morceaux.length > 1 && /^ou\s/i.test(morceaux[morceaux.length - 1])) morceaux.pop();
+  return DEBUT_FERME.test(morceaux[morceaux.length - 1] ?? "") || inversionSansMotInterrogatif(avant);
 }
 
 // 25/11/2026 (rejeu à l'écran) : « Cette visite pièce par pièce met-elle en avant une rénovation
@@ -119,7 +121,7 @@ export function aUnInterrogatif(text: string): boolean {
 }
 
 // Deux questions sous un seul « ? » (répétition du 25/11/2026) : « …, et veux-tu… ? ».
-const SECONDE_QUESTION = /[,;]?\s+(et|puis|mais)\s+(qu['’]est-ce|qu['’]as-tu|ce qu['’e]|ce qui|quel(le)?s?|comment|pourquoi|combien|à quoi|\p{L}+-tu)(?![\p{L}])/iu;
+const SECONDE_QUESTION = /[,;]?\s+(et|puis|mais)\s+(qu['’]est-ce|qu['’]as-tu|ce qu['’e]|ce qui|((pour|à|de|dans|avec|sur|par|en)\s+)?(quel(le)?s?|quoi|qui)|comment|pourquoi|combien|\p{L}+-tu)(?![\p{L}])/iu;
 /** Vrai si la question en pose deux : deux « ? », ou une seconde question accrochée par « et ». */
 export function deuxQuestionsEnUne(q: string): boolean {
   const text = String(q || "");
