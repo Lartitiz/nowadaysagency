@@ -21,6 +21,13 @@ describe("photo context and associations", () => {
       .toBe("Nom : Détail du tissage\nDescription : Mains près d'un métier\nClassement : coulisses\nMots-clés : atelier");
     expect(carouselLibraryContext({ name: null, description: null, tags: [], kind: null })).toBe("");
   });
+  // 26/11/2026 : une image du Studio portait la réponse du Studio comme description.
+  it("ne passe pas à l'IA la réponse du Studio rangée comme description", () => {
+    expect(carouselLibraryContext({ name: "Salon — Studio", description: "Je crée une nouvelle photo d'ambiance d'un salon", tags: ["studio"], kind: "lieu" }))
+      .toBe("Nom : Salon — Studio\nClassement : lieu\nMots-clés : studio");
+    expect(carouselLibraryContext({ name: "Salon — Studio", description: "Salon clair avec canapé gris", tags: ["studio"], kind: "lieu" }))
+      .toContain("Description : Salon clair avec canapé gris");
+  });
 });
 
 it("does not replace a missing final match with a positional photo", () => {

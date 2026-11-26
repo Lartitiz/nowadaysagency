@@ -16,12 +16,14 @@ const mock = vi.hoisted(() => ({
   list: vi.fn(),
   older: vi.fn(),
   upload: vi.fn(),
+  redescribe: vi.fn(),
   space: "A",
   role: "owner",
   user: "user",
   demo: false,
 }));
 vi.mock("@/components/AppHeader", () => ({ default: () => null }));
+vi.mock("@/lib/photo-redescribe", () => ({ redescribePhoto: (...a: unknown[]) => mock.redescribe(...a) }));
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: mock.user } }),
 }));
@@ -123,6 +125,7 @@ function mount(path = "/photos/studio?session=session") {
 }
 beforeEach(() => {
   mock.request.mockReset();
+  mock.redescribe.mockReset();
   mock.list.mockReset();
   mock.older.mockReset();
   mock.upload.mockReset();
@@ -467,6 +470,9 @@ it("every ready image goes to the library on its own, once, with download and co
   const saves = () => mock.request.mock.calls.filter(([b]) => b.action === "save");
   expect(saves()).toHaveLength(1);
   expect(saves()[0][0]).toMatchObject({ version_id: "v1", session_id: "session", workspace_id: mock.space });
+  // 26/11/2026 : l'image rangée est décrite pour de bon (sa fiche naît avec la réponse du Studio).
+  expect(mock.redescribe).toHaveBeenCalledTimes(1);
+  expect(mock.redescribe).toHaveBeenCalledWith("v1", mock.space);
   expect(screen.getByRole("button", { name: /Télécharger/ })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Créer un contenu avec cette image" }));
   await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/creer"));

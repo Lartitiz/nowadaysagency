@@ -9,6 +9,8 @@
 // (plan, récit continu, photo, mixte, association finale) et suit la photo si
 // on la déplace. Le serveur reconnaît ce marqueur (carousel-ai/photo-pair.ts).
 
+import { isAssistantReply } from "@/lib/carousel-photo-context";
+
 /** Limite du contexte côté serveur (carousel-ai, Zod). */
 export const PHOTO_CONTEXT_MAX = 200;
 export type PairRole = "before" | "after";
@@ -63,6 +65,11 @@ export function readableFileName(name: string | undefined): string {
   return words.join(" ").toLowerCase();
 }
 
+// Réponse du Studio rangée comme description : jamais proposée (isAssistantReply).
+// Le nom d'une image du Studio (« … — Studio ») est celui de la séance, pas de la photo :
+// on n'en tire pas de suggestion non plus.
+const STUDIO_NAME = /\s+—\s+Studio\s*$/i;
+
 function libraryLine(libraryContext: string | undefined, key: string): string {
   const line = (libraryContext || "").split("\n").find((l) => l.startsWith(`${key} : `));
   return line ? line.slice(key.length + 3).trim() : "";
@@ -74,8 +81,10 @@ function libraryLine(libraryContext: string | undefined, key: string): string {
  * sinon : mieux vaut un champ vide qu'une supposition fausse.
  */
 export function suggestPhotoContext(photo: ContextStepPhoto): { text: string; role: PairRole | null } {
-  const description = libraryLine(photo.libraryContext, "Description");
-  const source = description || readableFileName(libraryLine(photo.libraryContext, "Nom") || photo.name);
+  const stored = libraryLine(photo.libraryContext, "Description");
+  const description = isAssistantReply(stored) ? "" : stored;
+  const name = libraryLine(photo.libraryContext, "Nom") || photo.name;
+  const source = description || (STUDIO_NAME.test(name || "") ? "" : readableFileName(name));
   if (!source) return { text: "", role: null };
   const role: PairRole | null = BEFORE_WORD.test(` ${source} `) ? "before" : AFTER_WORD.test(` ${source} `) ? "after" : null;
   // Le marqueur porte déjà l'avant / après : on le retire du texte proposé.

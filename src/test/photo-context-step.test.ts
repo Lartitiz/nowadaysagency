@@ -25,6 +25,18 @@ describe("suggestions gratuites", () => {
     const libraryContext = "Nom : photo 12\nDescription : Séjour lumineux après rénovation\nClassement : lieu";
     expect(suggestPhotoContext({ name: "x.jpg", libraryContext })).toEqual({ text: "Séjour lumineux après rénovation", role: "after" });
   });
+  // Rejeu du 26/11/2026 : la réponse du Studio servait de description.
+  it("image du Studio : ni la réponse du Studio ni le nom de la séance ne sont proposés", () => {
+    for (const reponse of ["Je crée une nouvelle photo d'ambiance d'un salon lumineux", "Je modifie le mur du fond de ta photo de salon", "J'ajoute un bouquet sur la table", "Voilà la nouvelle version"]) {
+      const libraryContext = `Nom : Cuisine plus lumineuse — Studio\nDescription : ${reponse}\nMots-clés : studio`;
+      expect(suggestPhotoContext({ name: "studio_123.jpg", libraryContext })).toEqual({ text: "", role: null });
+    }
+    // Une fois l'image décrite pour de bon, sa description est proposée comme les autres.
+    const decrite = "Nom : Cuisine plus lumineuse — Studio\nDescription : Cuisine blanche avec îlot central et plan de travail en bois\nMots-clés : studio";
+    expect(suggestPhotoContext({ libraryContext: decrite }).text).toBe("Cuisine blanche avec îlot central et plan de travail en bois");
+    // Une description ordinaire qui contient « je » ailleurs n'est pas filtrée.
+    expect(suggestPhotoContext({ libraryContext: "Nom : a\nDescription : Portrait où je souris devant la façade" }).text).toBe("Portrait où je souris devant la façade");
+  });
   it("ne propose rien plutôt qu'une supposition", () => {
     expect(suggestPhotoContext({ name: "IMG_1.jpg" })).toEqual({ text: "", role: null });
   });

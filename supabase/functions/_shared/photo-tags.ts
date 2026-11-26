@@ -23,6 +23,8 @@ export const PROVENANCE_TAGS = new Set([
   "mockup",
   "avant-après",
   "avant-apres",
+  // Image créée par le Studio (studio_save_library), re-décrite après son rangement (26/11/2026).
+  "studio",
 ]);
 
 export const MAX_PHOTO_TAGS = 6;
