@@ -5,7 +5,7 @@
 // des entrées actuelles » arrive calculé (`archiveRetryAvailable`).
 import { Button } from "@/components/ui/button";
 import { Loader2, Film, Download, Eye } from "lucide-react";
-import { useElapsedSeconds, waitNote } from "./use-elapsed";
+import { formatElapsed, useElapsedSeconds, waitNote } from "./use-elapsed";
 import type { MontageMode, Phase, Section, SelectedClip } from "./types";
 
 interface MontageResultProps {
@@ -61,9 +61,18 @@ export function MontageResult({ previewOpen = false, preparingPreview = false, c
   {/* Toujours en vue : collée en bas de l'écran, au-dessus du menu du téléphone
       et de la barre d'actions du résultat (hauteur publiée par ResultActions). */}
   <div data-testid="montage-assemble-bar" className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom)+var(--result-actions-h,0px))] md:bottom-[var(--result-actions-h,0px)] z-20 -mx-3 sm:-mx-4 flex items-center justify-between gap-2 border-t border-border bg-card/95 px-3 sm:px-4 py-3 backdrop-blur">
+    {/* Fabrication lancée depuis l'aperçu : son attente est plus bas dans le panneau, hors de
+        vue. On la répète ici, dans la barre toujours visible (essai réel du 26/11/2026). */}
+    {phase === "rendering" && previewOpen ? <BarProgress /> : phase === "done" && mp4Url && !previewOpen ? (
+      // Vidéo prête : son téléchargement est plus bas dans le panneau, on le met aussi ici.
+      <Button type="button" variant="outline" size="sm" onClick={() => void handleDownload()} disabled={downloading} data-testid="montage-bar-download">
+        <Download className="h-4 w-4 mr-1.5" />{downloading ? "Téléchargement…" : <>Télécharger<span className="hidden sm:inline">&nbsp;ma vidéo</span></>}
+      </Button>
+    ) : (
     <span className="text-2xs text-muted-foreground">
       {ready} clip{ready > 1 ? "s" : ""} sur {spoken.length} prêt{ready > 1 ? "s" : ""}
     </span>
+    )}
     <Button size="sm" onClick={handleAssemble} aria-busy={preparingPreview || undefined}
       disabled={preparingPreview || (!previewOpen && (phase === "rendering" || archiving || ready === 0 || needsReview))}>
       {assembleLabel(phase, previewOpen, preparingPreview)}
@@ -116,6 +125,16 @@ export function MontageResult({ previewOpen = false, preparingPreview = false, c
     </div>
   )}
     </>
+  );
+}
+
+/** Attente du MP4 dans la barre du bas : courte, toujours à l'écran. */
+function BarProgress() {
+  const seconds = useElapsedSeconds(true);
+  return (
+    <span role="status" className="flex items-center gap-1.5 text-2xs font-medium text-foreground">
+      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />Je fabrique ta vidéo… {formatElapsed(seconds)}
+    </span>
   );
 }
 
