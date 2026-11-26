@@ -16,6 +16,13 @@ const PEXELS_URL = "https://api.pexels.com/v1/search";
  */
 const ALT_REJECT = /\b(person|people|persons|man|men|woman|women|girl|girls|boy|boys|child|children|kid|kids|baby|toddler|face|faces|portrait|selfie|hand|hands|finger|fingers|arm|arms|leg|legs|feet|foot|body|skin|lips|eye|eyes|hair|model|couple|family|friends|lady|guy|someone|human|crowd|student|worker|bride|groom|silhouette|shadow of a|logo|text|sign|brand|bottle|bottles|package|packaging|product|products|cosmetic|cosmetics|jar|jars|label|labels|shelf|shelves|shop|store|stall|market|supplies|merchandise|goods|handmade|craft|crafts|diy|soap|soaps|candle|candles)\b/i;
 
+/**
+ * Les mêmes mots, lisibles par une consigne (26/11/2026) : une requête qui en
+ * contient un est écartée avant toute recherche, et le modèle ne le savait pas
+ * (« wooden shelf » demandé puis écarté à trois essais réels sur trois).
+ */
+export const REJECTED_WORDS: string[] = ALT_REJECT.source.replace(/^\\b\(/, "").replace(/\)\\b$/, "").split("|");
+
 export interface StockAmbientPhoto {
   id: string;
   url: string;

@@ -26,6 +26,8 @@ const BodySchema = z.object({
   library: z.array(z.object({
     index: z.number().int().min(1).max(40), description: z.string().max(400), kind: z.string().max(40).optional(),
   })).max(40).optional(),
+  // « Une autre » quand la réserve est vide : les photos déjà montrées sur la slide.
+  exclude: z.array(z.string().min(1).max(40)).max(80).optional(),
 });
 
 serve(async (req) => {

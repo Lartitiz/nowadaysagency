@@ -26,12 +26,17 @@ test("carrousel sans photo : des images sont proposées d'office", async ({ page
   test.setTimeout(900_000);
 
   let proposals: { status: number; body: any } | null = null;
+  let appels = 0;
   page.on("response", async (res) => {
     if (!res.url().includes("/functions/v1/")) return;
     const name = res.url().split("/functions/v1/")[1].split("?")[0];
     console.log(`⏱️ ${name} → ${res.status()}`);
     if (name === "carousel-photo-proposals" && res.request().method() === "POST") {
-      proposals = { status: res.status(), body: await res.json().catch(() => null) };
+      appels++;
+      const reponse = { status: res.status(), body: await res.json().catch(() => null) };
+      // La première réponse est celle du carrousel ; les suivantes viennent de « Une autre ».
+      if (!proposals) proposals = reponse;
+      else console.log(`🧾 reçu « Une autre » : ${JSON.stringify(reponse.body?.receipt || {}).slice(0, 500)}`);
     }
   });
 
@@ -104,10 +109,17 @@ test("carrousel sans photo : des images sont proposées d'office", async ({ page
   if (aChoisir === 0) expect(cibles, "la ligne 🎯 décrit l'image visée, pas la photo posée").toBe(0);
   const reponse = (proposals as any)?.status ?? "aucune réponse";
   console.log(`🖼️ Images proposées : ${posees > 0 ? "✅" : "🟠"} fonction ${reponse}, ${posees} posée(s) dont ${proposees} marquée(s) « Proposée », ${aChoisir} à choisir, ${autres} bouton(s) « Une autre »`);
+  // 🚫 Une requête écartée d'office (mot refusé) = un essai perdu, souvent une image neutre à la place.
+  const refusees = Object.keys(receipt.refused_queries || {}).length;
+  console.log(`🚫 Recherches refusées d'office : ${refusees === 0 ? "✅" : "🟠"} ${refusees} sur ${(receipt.requested || []).length} slide(s)`);
+  // 🔁 Chaque photo libre de droit posée garde son bouton « Une autre », réserve vide ou non.
+  const libres = (receipt.stock || []).length;
+  console.log(`🔁 Bouton « Une autre » : ${autres >= libres ? "✅" : "🟠"} ${autres} pour ${libres} photo(s) libre(s) de droit`);
   await page.screenshot({ path: path.join(SHOTS, "3-images-proposees.png"), fullPage: true, timeout: 30000 });
 
   expect(reponse, "carousel-photo-proposals n'a pas répondu 200").toBe(200);
   expect(posees, "aucune image posée d'office").toBeGreaterThan(0);
+  expect(autres, "une photo libre de droit proposée n'a pas son bouton « Une autre »").toBeGreaterThanOrEqual(libres);
   expect(proposees, "les images posées ne sont pas marquées « Proposée »").toBe(posees);
   // Plus de texte de slide recopié en « image idéale », ni de position en anglais.
   await expect(page.getByText(/Une image qui accompagne ce passage/i)).toHaveCount(0);
@@ -128,6 +140,15 @@ test("carrousel sans photo : des images sont proposées d'office", async ({ page
     await expect(page.getByText(/n'a pas pu être chargée/i)).toHaveCount(0);
     console.log("🔁 « Une autre » : photo changée");
     await page.screenshot({ path: path.join(SHOTS, "4-une-autre.png"), fullPage: true, timeout: 30000 });
+    // Réserve vidée (3 clics au plus) : le bouton reste, et le clic suivant redemande des photos au serveur.
+    for (let i = 0; i < 3 && appels < 2; i++) {
+      await expect(autre, "le bouton « Une autre » a disparu").toBeVisible();
+      await expect(autre).toBeEnabled({ timeout: 90_000 });
+      await autre.click();
+      await expect(autre).toBeEnabled({ timeout: 90_000 });
+    }
+    await expect(autre, "le bouton « Une autre » a disparu une fois la réserve vide").toBeVisible();
+    console.log(`🔁 « Une autre », réserve vide : ${appels >= 2 ? "✅ nouvelles photos demandées au serveur" : "🟠 aucune nouvelle demande"}, photo ${(await srcs()) !== avant ? "changée" : "inchangée"}`);
   }
   await page.close();
 });

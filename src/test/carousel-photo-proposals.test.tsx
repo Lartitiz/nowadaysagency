@@ -7,9 +7,10 @@ vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: mocks.invoke })
 vi.mock("@/lib/photo-storage", () => ({ userPhotoToBase64: mocks.toBase64 }));
 vi.mock("@/lib/stock-photos", () => ({ stockPhotoToPhotoItem: mocks.stockItem }));
 
-import { allImagesReadyMessage, applyPhotoProposals, proposalTargets, sameCarousel, slidePassage, visualsWaitForClick } from "@/lib/carousel-photo-proposals";
+import { allImagesReadyMessage, applyPhotoProposals, pexelsIdFromCredit, proposalTargets, sameCarousel, slidePassage, visualsWaitForClick } from "@/lib/carousel-photo-proposals";
 import { overlayPositionLabel, targetLine, usefulDirective, visibleNote } from "@/features/creer/carousel-photo/labels";
 import { usePhotoProposals } from "@/hooks/use-photo-proposals";
+import { AnotherProposalButton, useAnotherProposal } from "@/features/creer/carousel-photo/proposals-ui";
 
 const waiting = (text: string, extra: Record<string, unknown> = {}) => ({
   slide_type: "photo_full", overlay_text: text, photo_index: null, photo_directive: `Une image qui accompagne ce passage : ${text}`, ...extra,
@@ -197,5 +198,59 @@ describe("usePhotoProposals", () => {
     expect(mocks.invoke).toHaveBeenCalledTimes(2);
     expect(view.result.current.photos.map((p: any) => p.id)).toEqual(["stock-21"]);
     expect(view.result.current.result.raw.slides[0]).toMatchObject({ photo_index: 1, photo_directive: "Une cage d'escalier lumineuse" });
+  });
+});
+
+describe("« Une autre » sur une photo libre de droit proposée", () => {
+  const placed = (extra: Record<string, unknown> = {}) => ({
+    slide_type: "photo_full", overlay_text: "Le savon sèche six semaines", photo_index: 1, cast_source: "stock_ambient",
+    stock_credit: { source: "pexels", photographer: "Ana", source_url: "https://www.pexels.com/photo/du-lin-froisse-11/" }, ...extra,
+  });
+  const setup = (first: any) => renderHook(() => {
+    const [slides, setSlides] = useState<any[]>([first]);
+    const photos = useRef<any[]>([{ id: "stock-11" }]);
+    const state = useAnotherProposal({
+      slides, setSlides, onChange: () => {}, subject: "Savons à froid", workspaceId: null,
+      onAddPhoto: (p: any) => { photos.current.push(p); return photos.current.length; },
+    });
+    return { slides, state };
+  });
+  beforeEach(() => {
+    mocks.invoke.mockReset();
+    mocks.stockItem.mockReset();
+    mocks.stockItem.mockImplementation(async (p: any) => ({ id: `stock-${p.id}`, base64: "x", preview: "x", name: "p", mimeType: "image/jpeg", context: "" }));
+  });
+
+  it("le bouton reste là quand la réserve est vide, et jamais sur une photo de la bibliothèque", () => {
+    expect(AnotherProposalButton({ slide: placed(), idx: 0, state: { loadingIdx: null, show: async () => {} } })).not.toBeNull();
+    expect(AnotherProposalButton({ slide: placed({ cast_source: "library_auto" }), idx: 0, state: { loadingIdx: null, show: async () => {} } })).toBeNull();
+  });
+
+  it("réserve pleine : la photo suivante, sans appel au serveur", async () => {
+    const view = setup(placed({ stock_alternates: [stock("12")] }));
+    await act(async () => { await view.result.current.state.show(0); });
+    expect(mocks.invoke).not.toHaveBeenCalled();
+    expect(view.result.current.slides[0]).toMatchObject({ photo_index: 2, stock_alternates: undefined });
+  });
+
+  it("réserve vide : de nouvelles photos sont demandées pour cette slide, sans celles déjà montrées", async () => {
+    mocks.invoke.mockResolvedValueOnce({ data: { proposals: [{ slide: 1, ideal: null, library_index: null, stock: stock("13"), alternates: [stock("14")] }] }, error: null });
+    mocks.invoke.mockResolvedValueOnce({ data: { proposals: [{ slide: 1, ideal: null, library_index: null, stock: null, alternates: [] }] }, error: null });
+    const view = setup(placed({ stock_alternates: [stock("12")] }));
+    await act(async () => { await view.result.current.state.show(0); }); // 12, de la réserve
+    await act(async () => { await view.result.current.state.show(0); }); // réserve vide : serveur
+    expect(mocks.invoke).toHaveBeenCalledTimes(1);
+    const body = mocks.invoke.mock.calls[0][1].body;
+    expect(body).toMatchObject({ targets: [1], subject: "Savons à froid" });
+    expect(body.library).toBeUndefined();
+    expect([...body.exclude].sort()).toEqual(["11", "12"]);
+    expect(view.result.current.slides[0]).toMatchObject({ photo_index: 3, cast_source: "stock_ambient" });
+    expect(view.result.current.slides[0].stock_alternates).toHaveLength(1);
+    await act(async () => { await view.result.current.state.show(0); }); // 14, de la réserve
+    // Plus rien côté serveur : la photo reste, le bouton aussi, un message le dit.
+    await act(async () => { await view.result.current.state.show(0); });
+    expect([...mocks.invoke.mock.calls[1][1].body.exclude].sort()).toEqual(["11", "12", "13", "14"]);
+    expect(view.result.current.slides[0].photo_index).toBe(4);
+    expect(pexelsIdFromCredit(view.result.current.slides[0])).toBe("14");
   });
 });

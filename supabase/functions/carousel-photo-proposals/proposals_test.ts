@@ -1,6 +1,6 @@
-import { acceptableAlt } from "../_shared/stock-photo-verified.ts";
+import { acceptableAlt, REJECTED_WORDS } from "../_shared/stock-photo-verified.ts";
 import { assert, assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { cleanPhotoIds, NEUTRAL_QUERIES, neutralQueries, parsePlans, parseRetryQueries, proposePhotos } from "./proposals.ts";
+import { cleanPhotoIds, NEUTRAL_QUERIES, neutralQueries, parsePlans, parseRetryQueries, proposePhotos, REFUSED_WORDS_RULE } from "./proposals.ts";
 
 const slides = [1, 2, 3, 4].map((n) => ({ slide: n, text: `Passage ${n}` }));
 const pexelsPhoto = (id: number, alt: string) => ({
@@ -216,4 +216,28 @@ Deno.test("photo-proposals : troisième essai neutre quand deux vraies recherche
   assertEquals(receipt.neutral, [1]);
   assertEquals(receipt.retried, [1]);
   assertEquals(receipt.status, "completed");
+});
+
+Deno.test("photo-proposals : la consigne annonce les mots refusés, et « Une autre » ne repropose pas une photo déjà montrée", async () => {
+  // Tous les mots du filtre sont dans la consigne, et chacun fait bien écarter une requête.
+  assert(REJECTED_WORDS.length > 60 && REJECTED_WORDS.includes("shelf") && REJECTED_WORDS.includes("soap"));
+  for (const w of REJECTED_WORDS) {
+    assert(/^[a-z ]+$/.test(w), w);
+    assert(!acceptableAlt(`empty ${w} light`), w);
+    assert(REFUSED_WORDS_RULE.includes(w), w);
+  }
+  const prompts: any[] = [];
+  const call = (async (opts: any) => {
+    prompts.push(opts);
+    if (opts.tool.name === "plan_images") return JSON.stringify({ plans: [{ slide: 1, ideal: "Du lin froissé dans la lumière", library_photo: null, query: "soft linen light" }] });
+    const ids: string[] = opts.tool.input_schema.properties.checks.items.properties.photo.enum;
+    return JSON.stringify({ choices: [{ slide: 1, photo: ids[0], reason: "x" }], checks: ids.map(ok) });
+  }) as any;
+  const { proposals, receipt } = await proposePhotos({ subject: "Savons", brand: "Savonnerie", slides, targets: [1], exclude: ["101", "102"] }, {
+    usage: {}, call, apiKey: "k", logger: () => {},
+    fetchImpl: fakeFetch({ "soft linen light": [pexelsPhoto(101, "Linen"), pexelsPhoto(102, "Linen fold"), pexelsPhoto(103, "Linen light")] }),
+  });
+  assertEquals(proposals[0].stock!.id, "103");
+  assertEquals(receipt.excluded, 2);
+  assert(prompts[0].system.includes("REFUSÉE d'office") && prompts[0].system.includes("shelf"));
 });
