@@ -71,7 +71,7 @@ async function allerJusquAuxAngles(page: Page) {
 /** Les cartes d'angles, ou l'écran de repli quand il n'y en a aucune. */
 function angles(page: Page) {
   return {
-    cartes: page.getByRole("radio"),
+    cartes: page.getByRole("radiogroup", { name: "Angles d'attaque proposés" }).getByRole("radio"),
     titre: page.getByText(/Choisis ton angle d'attaque/i).first(),
     repli: page.getByRole("button", { name: /Continuer sans choisir/i }).first(),
     secours: page.getByRole("button", { name: /Laisser l'IA choisir/i }).first(),
