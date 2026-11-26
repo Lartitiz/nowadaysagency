@@ -53,8 +53,11 @@ describe("detectDonneesIncompletes (sonde de la visite guidée)", () => {
     expect(detectDonneesIncompletes()).toEqual([]);
   });
 
-  it("le bandeau de l'accueil garde le préfixe que la sonde cherche", () => {
-    const src = fs.readFileSync(path.resolve(__dirname, "../pages/AdaptiveHome.tsx"), "utf8");
-    expect(src).toContain("Impossible de charger certaines de tes données");
+  // Depuis le 26/11/2026 l'accueil ne lit plus ni idées, ni calendrier, ni
+  // compteur de photos : son bandeau « Impossible de charger… » n'a plus de raison
+  // d'être. Mes idées garde son bloc role="alert", que la sonde voit toujours.
+  it("Mes idées garde un bloc d'alerte que la sonde sait voir", () => {
+    const src = fs.readFileSync(path.resolve(__dirname, "../pages/IdeasPage.tsx"), "utf8");
+    expect(src).toMatch(/role="alert"[^>]*>\s*<p>Une partie de tes idées/);
   });
 });

@@ -3,7 +3,7 @@ import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { calendarSaveError } from '@/lib/calendar-persistence';
 import { savePreviewEdit } from "@/lib/content-preview-save";
 import { cleanIdeaTitle as cleanTitle, ideaCreateLink } from "@/lib/idea-create-link";
-import { briefsWithoutTwin, twinBriefIds } from "@/lib/brief-twins";
+import { briefsWithoutTwin, latestBySubject, twinBriefIds } from "@/lib/brief-twins";
 import { creerDraftOf, draftPreviewText } from "@/features/creer/creer-draft-idea";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,9 +29,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 import { friendlyError } from "@/lib/error-messages";
-import { calendarPlacementLabel, getIdeaState, ideaContentLabel, IDEA_STATE_LABELS, formatLabel, sourceLabel, type IdeaState } from "@/lib/idea-state";
+import { FORMAT_FAMILIES, formatFamily, getIdeaState, ideaContentLabel, IDEA_STATE_LABELS, formatLabel, sourceLabel } from "@/lib/idea-state";
 import { AddIdeaDialog } from "@/components/calendar/CalendarIdeasSidebar";
-import { BriefCover, IdeaCover, readCover, TextCover } from "@/components/ideas/IdeaCover";
+import { IdeaCover, readCover, TextCover } from "@/components/ideas/IdeaCover";
 import { forgetIdeaDrafts } from "@/hooks/use-flow-persistence";
 
 
@@ -73,8 +73,10 @@ const CANAL_OPTIONS: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "pinterest", label: "Pinterest", icon: Pin },
 ];
 
-type IdeaView = "active" | "calendar" | "all";
-const VIEW_TABS: { id: IdeaView; label: string }[] = [{ id: "active", label: "À reprendre" }, { id: "calendar", label: "Au calendrier" }, { id: "all", label: "Tout" }];
+// Deux onglets seulement (retours du 26/11/2026) : ce qui reste à écrire, et ce
+// qui est déjà commencé ou fini. « Au calendrier » est une étiquette de carte.
+type IdeaView = "idees" | "contenus";
+const VIEW_TABS: { id: IdeaView; label: string }[] = [{ id: "idees", label: "Idées à développer" }, { id: "contenus", label: "Mes contenus" }];
 
 /** Un brief = les réponses déjà saisies dans Créer, reprises telles quelles. */
 interface SavedBrief {
@@ -155,6 +157,22 @@ function formatDate(iso: string, pattern = "d MMM yyyy"): string {
   return isNaN(d.getTime()) ? "" : fnsFormat(d, pattern, { locale: fr });
 }
 
+/** Date d'une carte : « aujourd’hui », « hier », « 25 nov. » (avec l'année si ce n'est pas celle en cours). */
+export function activityDateLabel(iso: string | null | undefined, now = new Date()): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(now) - day(d)) / 86400000);
+  if (diff === 0) return "aujourd’hui";
+  if (diff === 1) return "hier";
+  return fnsFormat(d, d.getFullYear() === now.getFullYear() ? "d MMM" : "d MMM yyyy", { locale: fr });
+}
+
+type ContentItem =
+  | { kind: "idea"; idea: SavedIdea; date: string }
+  | { kind: "brief"; brief: SavedBrief; date: string };
+
 export default function IdeasPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
@@ -176,9 +194,14 @@ function IdeasInWorkspace() {
   // Les anciens liens gardent leur sélection, sans changer les statuts en base.
   const paramState = searchParams.get("etat");
   const viewParam = searchParams.get("vue");
-  const view: IdeaView = viewParam === "all" ? "all" : viewParam === "calendar" || paramState === "created" ? "calendar" : "active";
-  const kind = paramState === "todo" || paramState === "in_progress" ? paramState : "all";
+  const askedView: IdeaView | null =
+    viewParam === "contenus" || viewParam === "calendar" || paramState === "created" || paramState === "in_progress" ? "contenus"
+    : viewParam === "idees" || paramState === "todo" ? "idees" : null;
   const [query, setQuery] = useState("");
+  const [formatFilter, setFormatFilter] = useState("all");
+  // 24 contenus d'abord (6 rangées) : un espace de test en compte près de 1 000.
+  const PAGE = 24;
+  const [shownLimit, setShownLimit] = useState(PAGE);
   const [canalFilter, setCanalFilter] = useState(searchParams.get("canal") || "all");
   const [addOpen, setAddOpen] = useState(false);
 
@@ -226,38 +249,46 @@ function IdeasInWorkspace() {
     setLoading(false);
   };
 
-  // Une demande dont la fiche (brouillon ou contenu commencé) existe déjà n'est pas montrée deux fois.
-  const shownBriefs = useMemo(() => briefsWithoutTwin(briefs, ideas.filter((i) => getIdeaState(i) !== "todo").map((i) => i.titre)), [briefs, ideas]);
-  const counts = useMemo(() => {
-    const c: Record<IdeaState, number> = { todo: 0, in_progress: 0, created: 0 };
-    for (const idea of ideas) c[getIdeaState(idea)]++;
-    c.in_progress += shownBriefs.length;
-    return c;
-  }, [ideas, shownBriefs]);
+  // Une demande dont la fiche (brouillon ou contenu commencé) existe déjà n'est pas montrée deux fois,
+  // et le même sujet commencé plusieurs fois n'apparaît qu'une fois (la plus récente).
+  const shownBriefs = useMemo(() => latestBySubject(briefsWithoutTwin(briefs, ideas.filter((i) => getIdeaState(i) !== "todo").map((i) => i.titre))), [briefs, ideas]);
+  const allTodo = useMemo(() => ideas.filter((i) => getIdeaState(i) === "todo"), [ideas]);
+  const allContents = useMemo<ContentItem[]>(() => [
+    ...ideas.filter((i) => getIdeaState(i) !== "todo").map((idea) => ({ kind: "idea" as const, idea, date: idea.updated_at || idea.created_at })),
+    ...shownBriefs.map((brief) => ({ kind: "brief" as const, brief, date: brief.created_at || "" })),
+  ], [ideas, shownBriefs]);
+  const viewCounts: Record<IdeaView, number> = { idees: allTodo.length, contenus: allContents.length };
+  // Sans demande précise dans l'adresse : les idées, sauf s'il n'y en a aucune.
+  const view: IdeaView = askedView ?? (!loading && allTodo.length === 0 && allContents.length > 0 ? "contenus" : "idees");
 
-  const filtered = useMemo(() => {
-    let result = ideas.filter(i => view === "all" || (view === "calendar" ? getIdeaState(i) === "created" : getIdeaState(i) !== "created"));
-    if (kind !== "all") result = result.filter(i => getIdeaState(i) === kind);
-    const q = query.trim().toLocaleLowerCase("fr");
-    if (q) result = result.filter(i => [i.titre, i.notes, i.angle, getIdeaPreview(i).text].filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(q));
+  const q = query.trim().toLocaleLowerCase("fr");
+  const todoIdeas = useMemo(() => {
+    let result = allTodo;
+    if (q) result = result.filter(i => [i.titre, i.notes, i.angle].filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(q));
     if (canalFilter !== "all") result = result.filter((i) => (i.canal || "instagram") === canalFilter);
-    // Les idées à développer d'abord, celles du diagnostic en tête (choix I8,
-    // chantier S, 18/10/2026) ; puis les plus fraîches (dernière modification).
-    const rank = (i: SavedIdea) => getIdeaState(i) !== "todo" ? 2 : i.source_module === "diagnostic" ? 0 : 1;
-    // Idées du diagnostic dans leur ordre de naissance, comme sur /creer et l'accueil.
-    const time = (i: SavedIdea) => new Date(rank(i) === 0 ? i.created_at : i.updated_at || i.created_at).getTime();
-    result.sort((a, b) => rank(a) - rank(b) || (rank(a) === 0 ? time(a) - time(b) : time(b) - time(a)));
-    return result;
-  }, [ideas, view, kind, canalFilter, query]);
-  const todoIdeas = filtered.filter((i) => getIdeaState(i) === "todo");
-  const otherIdeas = filtered.filter((i) => getIdeaState(i) !== "todo");
+    // Celles du diagnostic en tête, dans leur ordre de naissance (choix I8, chantier S,
+    // 18/10/2026, comme sur /creer) ; puis les plus fraîches.
+    const diag = (i: SavedIdea) => i.source_module === "diagnostic" ? 0 : 1;
+    const time = (i: SavedIdea) => new Date(diag(i) === 0 ? i.created_at : i.updated_at || i.created_at).getTime();
+    return [...result].sort((a, b) => diag(a) - diag(b) || (diag(a) === 0 ? time(a) - time(b) : time(b) - time(a)));
+  }, [allTodo, q, canalFilter]);
 
-  /** Les briefs n'ont pas de canal : ils n'apparaissent que sans filtre canal. */
-  const filteredBriefs = useMemo(() => {
-    if (view === "calendar" || kind === "todo" || canalFilter !== "all") return [];
-    const q = query.trim().toLocaleLowerCase("fr");
-    return shownBriefs.filter(brief => !q || (brief.subject || "").toLocaleLowerCase("fr").includes(q));
-  }, [shownBriefs, view, kind, canalFilter, query]);
+  /** Contenus et créations pas terminées, du plus récent au plus ancien.
+      Une création pas terminée n'a pas encore de canal : visible seulement sans filtre de canal. */
+  const contents = useMemo(() => {
+    let result = allContents;
+    if (q) result = result.filter((c) => (c.kind === "idea" ? [c.idea.titre, c.idea.notes, c.idea.angle, getIdeaPreview(c.idea).text].filter(Boolean).join(" ") : c.brief.subject || "").toLocaleLowerCase("fr").includes(q));
+    if (canalFilter !== "all") result = result.filter((c) => c.kind === "idea" && (c.idea.canal || "instagram") === canalFilter);
+    if (formatFilter !== "all") result = result.filter((c) => formatFamily(c.kind === "idea" ? c.idea.format : c.brief.format) === formatFilter);
+    const t = (c: ContentItem) => new Date(c.date).getTime() || 0;
+    return [...result].sort((a, b) => t(b) - t(a));
+  }, [allContents, q, canalFilter, formatFilter]);
+  const formatChoices = useMemo(() => {
+    const present = new Set(allContents.map((c) => formatFamily(c.kind === "idea" ? c.idea.format : c.brief.format)));
+    return FORMAT_FAMILIES.filter((f) => present.has(f.id));
+  }, [allContents]);
+  const shownCount = view === "idees" ? todoIdeas.length : contents.length;
+  const filtering = !!q || canalFilter !== "all" || (view === "contenus" && formatFilter !== "all");
 
   /** Reprend un brief là où il s'était arrêté : questions et réponses déjà remplies. */
   const handleResumeBrief = (brief: SavedBrief) => {
@@ -279,13 +310,17 @@ function IdeasInWorkspace() {
   };
 
   const handleDeleteBrief = async (id: string) => {
-    const { error } = await supabase.from("content_briefs").delete().eq("id", id);
+    // Le même sujet commencé plusieurs fois n'est montré qu'une fois : on retire
+    // toutes ses copies, sinon la précédente réapparaîtrait à la place.
+    const subject = briefs.find((b) => b.id === id)?.subject;
+    const ids = Array.from(new Set([id, ...twinBriefIds(briefs, subject)]));
+    const { error } = await supabase.from("content_briefs").delete().in("id", ids);
     if (error) {
       toast.error("Suppression impossible", { description: friendlyError(error) });
       return;
     }
-    setBriefs((prev) => prev.filter((b) => b.id !== id));
-    toast.success("Demande supprimée");
+    setBriefs((prev) => prev.filter((b) => !ids.includes(b.id)));
+    toast.success("Supprimé");
   };
 
   const changeTab = (nextView: IdeaView) => {
@@ -294,12 +329,6 @@ function IdeasInWorkspace() {
     next.set("vue", nextView);
     setSearchParams(next, { replace: true });
   };
-  const changeKind = (nextKind: string) => {
-    const next = new URLSearchParams(searchParams);
-    if (nextKind === "all") next.delete("etat"); else next.set("etat", nextKind);
-    setSearchParams(next, { replace: true });
-  };
-
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("saved_ideas").delete().eq("id", id);
     if (error) {
@@ -407,8 +436,7 @@ function IdeasInWorkspace() {
     );
   };
 
-  const totalCount = ideas.length + shownBriefs.length;
-  const viewCounts = { active: counts.todo + counts.in_progress, calendar: counts.created, all: totalCount };
+  const totalCount = allTodo.length + allContents.length;
 
   const deleteButton = (idea: SavedIdea) => (
     <DeleteIdeaDialog onConfirm={() => handleDelete(idea.id)}>
@@ -418,27 +446,17 @@ function IdeasInWorkspace() {
     </DeleteIdeaDialog>
   );
 
-  const metaFor = (idea: SavedIdea, state: IdeaState) => (
-    <>
-      <span className="text-primary-text">{ideaContentLabel(idea)}</span> · {metaLine(idea)}
-      {state === "created" && idea.planned_date && (
-        <> · <span className="text-[#2E7D32]">{calendarPlacementLabel(formatDate(idea.planned_date, "d MMM"))}</span></>
-      )}
-      {state === "in_progress" && idea.updated_at && (
-        <> · reprise le {formatDate(idea.updated_at, "d MMM")}</>
-      )}
-    </>
-  );
+  const canalLabel = (idea: SavedIdea) => CANAL_OPTIONS.find((c) => c.id === (idea.canal || "instagram"))?.label || "Instagram";
 
   /* Idée encore sans contenu : une carte titre, sans faux visuel (13/11/2026). */
   const renderTodo = (idea: SavedIdea, idx: number) => (
     <li
       key={idea.id}
-      className="relative flex flex-col justify-between gap-3 rounded-xl border border-dashed border-rose-medium bg-card p-4 transition-all animate-fade-in hover:border-solid hover:shadow-sm"
+      className="relative flex flex-col justify-between gap-3 rounded-xl border border-border bg-card p-4 transition-shadow animate-fade-in hover:shadow-sm"
       style={{ animationDelay: `${Math.min(idx, 10) * 0.04}s` }}
     >
       <div className="min-w-0 pr-6">
-        <p className="text-xs text-muted-foreground">{metaFor(idea, "todo")}</p>
+        <p className="text-xs text-muted-foreground">{idea.format === "actu" ? "Actu à commenter" : "Idée"} · {canalLabel(idea)}{sourceLabel(idea.source_module, idea.format) && idea.format !== "actu" ? ` · ${sourceLabel(idea.source_module, idea.format)}` : ""}</p>
         <h3 className="mt-1.5 font-body text-[15px] font-bold leading-snug text-foreground" title={cleanTitle(idea.titre)}>
           <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} aria-busy={openingId === idea.id} className="block w-full text-left disabled:cursor-wait"><span className="line-clamp-4 break-words hover:underline">{cleanTitle(idea.titre)}</span></button>
         </h3>
@@ -448,20 +466,28 @@ function IdeasInWorkspace() {
     </li>
   );
 
+  /** Étiquette posée sur la vignette : où en est ce contenu, en deux mots. */
+  const coverBadge = (label: string | null) => label && (
+    <span data-testid="content-badge" className="pointer-events-none absolute left-2 top-2 max-w-[calc(100%-3.5rem)] truncate rounded-full border border-border bg-card px-2.5 py-0.5 text-2xs font-semibold text-foreground">{label}</span>
+  );
+
   /* Contenu commencé ou fini : vignette (slide 1, story 1 ou début du texte). */
-  const renderIdea = (idea: SavedIdea, idx: number) => {
+  const renderContent = (idea: SavedIdea, idx: number) => {
     const state = getIdeaState(idea);
-    if (state === "todo") return renderTodo(idea, idx);
     const preview = idea.format !== "actu" ? getIdeaPreview(idea) : {};
+    const badge = state === "created"
+      ? (idea.planned_date ? `Au calendrier le ${formatDate(idea.planned_date, "d MMM")}` : "Au calendrier")
+      : ideaContentLabel(idea) === "Brouillon à compléter" ? "Pas terminé" : null;
     return (
       <li key={idea.id} className="group relative flex min-w-0 flex-col animate-fade-in" style={{ animationDelay: `${Math.min(idx, 10) * 0.04}s` }}>
-        <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} tabIndex={-1} aria-hidden="true" className="block w-full rounded-xl text-left transition-shadow group-hover:shadow-md disabled:cursor-wait">
+        <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} tabIndex={-1} aria-hidden="true" className="relative block w-full rounded-xl text-left transition-shadow group-hover:shadow-md disabled:cursor-wait">
           <IdeaCover cover={readCover(idea.cover)} fallback={<TextCover label={formatLabel(idea.format)} text={preview.text || preview.title} />} />
+          {coverBadge(badge)}
         </button>
         <h3 className="mt-2 font-body text-sm font-bold leading-snug text-foreground" title={cleanTitle(idea.titre)}>
           <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} aria-busy={openingId === idea.id} className="block w-full text-left disabled:cursor-wait"><span className="line-clamp-2 break-words hover:underline">{cleanTitle(idea.titre)}</span></button>
         </h3>
-        <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{metaFor(idea, state)}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{[formatLabel(idea.format), canalLabel(idea), activityDateLabel(idea.updated_at || idea.created_at)].filter(Boolean).join(" · ")}</p>
         <div className="mt-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           {primaryAction(idea)}
           {deleteButton(idea)}
@@ -469,6 +495,29 @@ function IdeasInWorkspace() {
       </li>
     );
   };
+
+  /* Création commencée dans Créer (questions répondues, texte pas encore écrit) :
+     le sujet est écrit sur la vignette, plus de carte vide (retours du 26/11/2026). */
+  const renderBrief = (brief: SavedBrief) => (
+    <li key={`brief-${brief.id}`} data-testid="brief-card" className="group relative flex min-w-0 flex-col animate-fade-in">
+      <button onClick={() => handleResumeBrief(brief)} tabIndex={-1} aria-hidden="true" className="relative block w-full rounded-xl text-left transition-shadow group-hover:shadow-md">
+        <IdeaCover cover={null} fallback={<TextCover label={formatLabel(brief.format || "")} text={cleanTitle(brief.subject)} />} />
+        {coverBadge("Pas terminé")}
+      </button>
+      <h3 className="mt-2 font-body text-sm font-bold leading-snug text-foreground" title={cleanTitle(brief.subject)}><button onClick={() => handleResumeBrief(brief)} className="block w-full text-left"><span className="line-clamp-2 break-words hover:underline">{cleanTitle(brief.subject)}</span></button></h3>
+      <p className="mt-0.5 text-xs text-muted-foreground">{[formatLabel(brief.format || ""), activityDateLabel(brief.created_at)].filter(Boolean).join(" · ")}</p>
+      <div className="mt-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <Button size="sm" variant="outline" className="rounded-pill text-xs gap-1.5" onClick={() => handleResumeBrief(brief)}>
+          <PenLine className="h-3.5 w-3.5" /> Reprendre
+        </Button>
+        <DeleteIdeaDialog onConfirm={() => handleDeleteBrief(brief.id)}>
+          <Button variant="ghost" size="sm" aria-label="Supprimer ce contenu pas terminé" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </DeleteIdeaDialog>
+      </div>
+    </li>
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -478,7 +527,7 @@ function IdeasInWorkspace() {
         <div className="flex flex-col gap-3 mb-1 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">Mes idées</h1>
-            <p className="text-base text-muted-foreground mt-1">Tes sujets et tes créations commencées, au même endroit.</p>
+            <p className="text-base text-muted-foreground mt-1">Tes idées à développer et les contenus que tu as créés.</p>
           </div>
           <Button
             onClick={() => setAddOpen(true)}
@@ -487,78 +536,60 @@ function IdeasInWorkspace() {
             <Plus className="h-4 w-4" strokeWidth={2} /> Noter une idée
           </Button>
         </div>
-        <div className="py-5 space-y-4 border-b border-border mb-5">
-          <div className="flex gap-2 flex-wrap">
-            {VIEW_TABS.map(tab => <FilterChip key={tab.id} active={view === tab.id} onClick={() => changeTab(tab.id)}>
-              {tab.label}<span className="ml-2 tabular-nums">{viewCounts[tab.id]}</span>
-            </FilterChip>)}
-          </div>
+        <div className="mt-5 flex gap-7 border-b border-border" role="tablist" aria-label="Mes idées">
+          {VIEW_TABS.map(tab => (
+            <button key={tab.id} type="button" role="tab" aria-selected={view === tab.id} data-testid={`ideas-tab-${tab.id}`} onClick={() => changeTab(tab.id)}
+              className={`-mb-px border-b-[3px] py-2.5 text-[15px] font-semibold whitespace-nowrap transition-colors sm:text-base ${view === tab.id ? "border-bordeaux text-bordeaux" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              {tab.label}{!loading && <span className="ml-1.5 font-normal tabular-nums">{viewCounts[tab.id]}</span>}
+            </button>
+          ))}
+        </div>
+        <div className="py-5 space-y-3">
           <div className="flex flex-wrap gap-3 items-center">
             <input type="search" aria-label="Rechercher dans mes idées" value={query} onChange={e => setQuery(e.target.value)} placeholder="Retrouver un sujet…" className="flex-1 min-w-[180px] basis-full sm:basis-auto rounded-xl border border-border bg-card px-4 py-2 text-sm" />
             <select value={canalFilter} onChange={e => setCanalFilter(e.target.value)} aria-label="Filtrer par canal" className="text-sm bg-card border border-border rounded-xl px-3 py-2 max-w-full">
               <option value="all">Tous les canaux</option>
               {CANAL_OPTIONS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
-            {view !== "calendar" && <select value={kind} onChange={e => changeKind(e.target.value)} aria-label="Filtrer par avancement" className="text-sm bg-card border border-border rounded-xl px-3 py-2 max-w-full">
-              <option value="all">Tous les avancements</option><option value="todo">Idées à développer</option><option value="in_progress">Contenus et demandes commencés</option>
+            {view === "contenus" && formatChoices.length > 1 && <select value={formatFilter} onChange={e => setFormatFilter(e.target.value)} aria-label="Filtrer par format" className="text-sm bg-card border border-border rounded-xl px-3 py-2 max-w-full">
+              <option value="all">Tous les formats</option>
+              {formatChoices.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
             </select>}
           </div>
-          <p className="text-xs text-muted-foreground" data-testid="ideas-summary">{loading ? "Chargement…" : `${filtered.length + filteredBriefs.length} élément(s) dans cette sélection`}</p>
-          {canalFilter !== "all" && shownBriefs.length > 0 && view !== "calendar" && <p className="text-xs text-muted-foreground">Les demandes sans canal choisi sont visibles dans <button onClick={() => setCanalFilter("all")} className="underline">Tous les canaux</button>.</p>}
+          {(loading || filtering) && <p className="text-xs text-muted-foreground" data-testid="ideas-summary">{loading ? "Chargement…" : `${shownCount} résultat${shownCount > 1 ? "s" : ""}`}</p>}
+          {view === "contenus" && canalFilter !== "all" && shownBriefs.length > 0 && <p className="text-xs text-muted-foreground">Les contenus pas terminés n’ont pas encore de canal : ils sont visibles dans <button onClick={() => setCanalFilter("all")} className="underline">Tous les canaux</button>.</p>}
         </div>
-        {!loading && loadError && <div role="alert" className="rounded-xl border border-border bg-muted p-4 mb-4 text-sm"><p>Une partie de tes idées ou de tes demandes n’a pas pu être chargée. La liste peut être incomplète.</p><button onClick={fetchIdeas} className="underline mt-2">Réessayer</button></div>}
+        {!loading && loadError && <div role="alert" className="rounded-xl border border-border bg-muted p-4 mb-4 text-sm"><p>Une partie de tes idées ou de tes contenus n’a pas pu être chargée. La liste peut être incomplète.</p><button onClick={fetchIdeas} className="underline mt-2">Réessayer</button></div>}
 
         {/* Liste */}
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} variant="small" />)}
           </div>
-        ) : filtered.length === 0 && filteredBriefs.length === 0 ? (
+        ) : shownCount === 0 ? (
           !loadError && <EmptyState
-            title={query || canalFilter !== "all" || kind !== "all" ? "Aucun résultat dans cette sélection" : view === "calendar" ? "Aucune idée au calendrier pour le moment" : "Une idée peut commencer par quelques mots"}
-            body={totalCount ? "Tes autres idées restent disponibles." : "Note un sujet, une question entendue ou ce que tu aimerais raconter."}
-            action={totalCount ? <Button variant="outline" onClick={() => { setQuery(""); setCanalFilter("all"); changeTab("all"); }}>Voir toutes mes idées</Button> : <Button onClick={() => setAddOpen(true)}>Noter une idée</Button>}
+            title={filtering ? "Aucun résultat avec ces filtres" : view === "contenus" ? "Aucun contenu créé pour le moment" : totalCount ? "Toutes tes idées ont déjà leur contenu" : "Une idée peut commencer par quelques mots"}
+            body={filtering ? "Tes autres idées et contenus restent disponibles." : view === "contenus" ? "Tes contenus arrivent ici dès que tu en crées un." : "Note un sujet, une question entendue ou ce que tu aimerais raconter."}
+            action={filtering ? <Button variant="outline" onClick={() => { setQuery(""); setCanalFilter("all"); setFormatFilter("all"); }}>Enlever les filtres</Button> : <Button onClick={() => setAddOpen(true)}>Noter une idée</Button>}
           />
+        ) : view === "idees" ? (
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="ideas-todo-list">
+            {todoIdeas.map(renderTodo)}
+          </ul>
         ) : (
-          <>
-          {todoIdeas.length > 0 && otherIdeas.length + filteredBriefs.length > 0 && <h2 data-testid="ideas-todo-heading" className="mb-2.5 text-sm font-semibold text-bordeaux">Tes idées à développer ({todoIdeas.length})</h2>}
-          {todoIdeas.length > 0 && (
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="ideas-todo-list">
-              {todoIdeas.map(renderIdea)}
-            </ul>
-          )}
-          {todoIdeas.length > 0 && otherIdeas.length + filteredBriefs.length > 0 && <h2 data-testid="ideas-contents-heading" className="mt-8 mb-2.5 text-sm font-semibold text-bordeaux">Tes contenus ({otherIdeas.length + filteredBriefs.length})</h2>}
-          {otherIdeas.length + filteredBriefs.length > 0 && (
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4" data-testid="ideas-list">
-              {filteredBriefs.map((brief) => (
-                <li key={`brief-${brief.id}`} className="group relative flex min-w-0 flex-col animate-fade-in">
-                  <button onClick={() => handleResumeBrief(brief)} tabIndex={-1} aria-hidden="true" className="block w-full rounded-xl text-left transition-shadow group-hover:shadow-md">
-                    <IdeaCover cover={null} fallback={<BriefCover format={formatLabel(brief.format || "") || "Contenu"} />} />
-                  </button>
-                  <h3 className="mt-2 font-body text-sm font-bold leading-snug text-foreground" title={cleanTitle(brief.subject)}><button onClick={() => handleResumeBrief(brief)} className="block w-full text-left"><span className="line-clamp-2 break-words hover:underline">{cleanTitle(brief.subject)}</span></button></h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    <span className="text-primary-text">Demande en cours</span>
-                    {brief.created_at && <> · commencé le {formatDate(brief.created_at, "d MMM")}</>}
-                  </p>
-                  <div className="mt-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button size="sm" variant="outline" className="rounded-pill text-xs gap-1.5" onClick={() => handleResumeBrief(brief)}>
-                      <PenLine className="h-3.5 w-3.5" /> Reprendre
-                    </Button>
-                    <DeleteIdeaDialog onConfirm={() => handleDeleteBrief(brief.id)}>
-                      <Button variant="ghost" size="sm" aria-label="Supprimer cette demande" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </DeleteIdeaDialog>
-                  </div>
-                </li>
-              ))}
-              {otherIdeas.map((idea, idx) => renderIdea(idea, todoIdeas.length + idx))}
-            </ul>
-          )}
-          </>
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4" data-testid="ideas-list">
+            {contents.slice(0, shownLimit).map((c, idx) => c.kind === "brief" ? renderBrief(c.brief) : renderContent(c.idea, idx))}
+          </ul>
+        )}
+        {!loading && view === "contenus" && contents.length > shownLimit && (
+          <div className="mt-8 flex justify-center">
+            <Button variant="outline" className="rounded-pill" data-testid="ideas-more" onClick={() => setShownLimit((n) => n + PAGE)}>
+              Voir les contenus plus anciens ({contents.length - shownLimit})
+            </Button>
+          </div>
         )}
 
-        <AddIdeaDialog open={addOpen} onOpenChange={setAddOpen} onAdded={() => { fetchIdeas(); changeTab("active"); }} />
+        <AddIdeaDialog open={addOpen} onOpenChange={setAddOpen} onAdded={() => { fetchIdeas(); changeTab("idees"); }} />
 
         {/* Fiche détail */}
         <Dialog open={!!selectedIdea} onOpenChange={(open) => { if (!open) closeDetail(); }}>

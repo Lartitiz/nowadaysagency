@@ -1,7 +1,7 @@
 import React from 'react';
 // Choix I8 du chantier S (18/10/2026) : dans Mes idées, les idées encore sans
 // contenu passent en haut (celles du diagnostic d'abord), puis les contenus.
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
@@ -50,16 +50,50 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-it('met les idées à développer en haut, le diagnostic d’abord, puis les contenus commencés', async () => {
-  render(<MemoryRouter initialEntries={['/idees?vue=all']}><IdeasPage /></MemoryRouter>);
-  const list = await screen.findByTestId('ideas-list');
-  const todo = screen.getByTestId('ideas-todo-list');
-  const titles = (ul: HTMLElement) => Array.from(ul.children).filter((el) => el.tagName === 'LI').map((li) => li.querySelector('h3')?.textContent);
-  await waitFor(() => expect(titles(list)).toHaveLength(3));
+// Deux onglets depuis le 26/11/2026 : « Idées à développer » et « Mes contenus ».
+const titles = (ul: HTMLElement) => Array.from(ul.children).filter((el) => el.tagName === 'LI').map((li) => li.querySelector('h3')?.textContent);
+
+it('onglet des idées : celles du diagnostic d’abord, et les deux compteurs s’additionnent', async () => {
+  render(<MemoryRouter initialEntries={['/idees']}><IdeasPage /></MemoryRouter>);
+  const todo = await screen.findByTestId('ideas-todo-list');
   expect(titles(todo)).toEqual(['Idée du diagnostic', 'Deuxième idée du diagnostic', 'Idée gardée récente']);
-  expect(titles(list)).toEqual(['Demande commencée', 'Carrousel tout neuf', 'Déjà au calendrier']);
-  expect(screen.getByTestId('ideas-todo-heading')).toHaveTextContent('Tes idées à développer (3)');
-  expect(screen.getByTestId('ideas-contents-heading')).toHaveTextContent('Tes contenus (3)');
+  expect(screen.queryByTestId('ideas-list')).toBeNull();
+  expect(screen.getByTestId('ideas-tab-idees')).toHaveTextContent('Idées à développer3');
+  expect(screen.getByTestId('ideas-tab-contenus')).toHaveTextContent('Mes contenus3');
+});
+
+it('onglet des contenus : du plus récent au plus ancien, étiquette sur la vignette, sujet écrit sur un contenu pas terminé', async () => {
+  render(<MemoryRouter initialEntries={['/idees?vue=contenus']}><IdeasPage /></MemoryRouter>);
+  const list = await screen.findByTestId('ideas-list');
+  await waitFor(() => expect(titles(list)).toHaveLength(3));
+  expect(titles(list)).toEqual(['Carrousel tout neuf', 'Déjà au calendrier', 'Demande commencée']);
+  const brief = screen.getByTestId('brief-card');
+  expect(brief.querySelector('[data-testid="content-badge"]')).toHaveTextContent('Pas terminé');
+  expect(brief.querySelector('[data-testid="idea-cover"]')).toHaveTextContent('Demande commencée');
+  expect(screen.queryByText(/Demande en cours|Demande à reprendre/)).toBeNull();
+  expect(list.children[1].querySelector('[data-testid="content-badge"]')).toHaveTextContent('Au calendrier');
+});
+
+it('les anciennes adresses ouvrent le bon onglet', async () => {
+  render(<MemoryRouter initialEntries={['/idees?etat=created']}><IdeasPage /></MemoryRouter>);
+  expect(await screen.findByTestId('ideas-list')).toBeTruthy();
+});
+
+it('le même sujet commencé plusieurs fois n’apparaît qu’une fois, et le tri par format ne garde que ce format', async () => {
+  state.read.mockReset().mockImplementation((table: string) => ({ data: table === 'saved_ideas' ? [
+    row('reel', 'Mon reel', { format: 'reel', status: 'drafting', has_content: true, created_at: '2026-10-18T10:00:00Z' }),
+    row('car', 'Mon carrousel', { format: 'post_carrousel', status: 'drafting', has_content: true, created_at: '2026-10-17T10:00:00Z' }),
+  ] : [
+    { id: 'b1', subject: 'La pré-commercialisation', format: 'carousel', created_at: '2026-04-13T10:00:00Z' },
+    { id: 'b2', subject: 'La pré-commercialisation', format: 'carousel', created_at: '2026-04-15T10:00:00Z' },
+  ], error: null }));
+  render(<MemoryRouter initialEntries={['/idees?vue=contenus']}><IdeasPage /></MemoryRouter>);
+  const list = await screen.findByTestId('ideas-list');
+  await waitFor(() => expect(titles(list)).toEqual(['Mon reel', 'Mon carrousel', 'La pré-commercialisation']));
+  fireEvent.change(screen.getByLabelText('Filtrer par format'), { target: { value: 'reel' } });
+  expect(titles(list)).toEqual(['Mon reel']);
+  fireEvent.change(screen.getByLabelText('Filtrer par format'), { target: { value: 'carousel' } });
+  expect(titles(list)).toEqual(['Mon carrousel', 'La pré-commercialisation']);
 });
 
 // Vignettes à la Canva (13/11/2026) : une idée sans contenu n'a pas de faux
@@ -70,13 +104,14 @@ it('montre la slide 1 des contenus qui en ont une, une page texte sinon, rien po
     row('texte', 'Post sans visuel', { format: 'post', status: 'drafting', has_content: true, created_at: '2026-10-17T10:00:00Z', preview_data: { body: 'Le début de mon post' } }),
     row('vide', 'Idée sans contenu', { has_content: false, created_at: '2026-10-16T10:00:00Z' }),
   ] : [], error: null }));
-  render(<MemoryRouter initialEntries={['/idees?vue=all']}><IdeasPage /></MemoryRouter>);
+  render(<MemoryRouter initialEntries={['/idees?vue=contenus']}><IdeasPage /></MemoryRouter>);
   const list = await screen.findByTestId('ideas-list');
   await waitFor(() => expect(list.querySelectorAll('[data-testid="idea-cover"]')).toHaveLength(2));
   const covers = Array.from(list.querySelectorAll('[data-testid="idea-cover"]'));
   expect(covers.map((c) => c.getAttribute('data-cover'))).toEqual(['slide', 'text']);
   expect(covers[0]).toHaveTextContent('1/8');
   expect(covers[1]).toHaveTextContent('Le début de mon post');
+  fireEvent.click(screen.getByTestId('ideas-tab-idees'));
   expect(screen.getByTestId('ideas-todo-list').querySelector('[data-testid="idea-cover"]')).toBeNull();
   expect(state.selects.some((c) => c.includes('cover'))).toBe(true);
 });

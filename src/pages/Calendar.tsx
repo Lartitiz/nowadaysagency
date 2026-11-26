@@ -150,7 +150,7 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
         </h1>
         {/* Baseline masquée au doigt : 2 lignes de promesse sur un premier écran
             où l'on vient voir SON calendrier (bilan hebdo 24/08). */}
-        <p className="mt-1 hidden text-base text-muted-foreground sm:block">Tes contenus, tes dates, tes idées à placer.</p>
+        <p className="mt-1 hidden text-base text-muted-foreground sm:block">Tes contenus, tes dates, tes idées.</p>
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
         <Button size="sm" className="rounded-full gap-1.5" onClick={onQuickBatchOpen}>

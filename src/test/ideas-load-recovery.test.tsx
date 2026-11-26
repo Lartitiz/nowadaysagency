@@ -62,6 +62,7 @@ it('recovers a transient error automatically, retrying only the failed collectio
     ? { data: null, error: { message: 'Failed to fetch' } } : success(table));
   render(page());
   await screen.findByRole('button', { name: idea.titre }, { timeout: 2000 });
+  fireEvent.click(screen.getByTestId('ideas-tab-contenus'));
   expect(screen.getByRole('button', { name: brief.subject })).toBeVisible();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   expect(state.read.mock.calls.filter(([table]) => table === 'saved_ideas')).toHaveLength(2);
@@ -139,7 +140,8 @@ it('preserves the last successfully loaded list when a manual refresh fails', as
 it('StrictMode still finishes loading without duplicate rows', async () => {
   render(<React.StrictMode>{page()}</React.StrictMode>);
   await screen.findByRole('button', { name: idea.titre });
-  expect(screen.getByTestId('ideas-summary')).toHaveTextContent('2 élément');
+  expect(screen.getByTestId('ideas-tab-idees')).toHaveTextContent(/1$/);
+  expect(screen.getByTestId('ideas-tab-contenus')).toHaveTextContent(/1$/);
   expect(screen.getAllByRole('button', { name: idea.titre })).toHaveLength(1);
 });
 
