@@ -2224,3 +2224,58 @@ Deno.test("refus de validation : la demande refusée laisse une trace (fonction,
     assertEquals(traces.length, 0);
   } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });
+
+// 26/11/2026 (mixte 9 slides, trois essais en ligne) : 1er contrôle 40 à 56 s, le 2e
+// coupé à 45,0 s (« review-invalid »), réparation jetée, ~80 s perdues. Le 2e reçoit
+// la durée mesurée du 1er + 25 % ; si ce temps ne tient pas, la réparation ne part pas.
+import { recheckJudgeCapMs } from "./steps/finalize.ts";
+Deno.test("2e contrôle : calé sur la durée mesurée du 1er, borné", () => {
+  assertEquals(recheckJudgeCapMs(45_000, 0, 60_000), 45_000);
+  assertEquals(recheckJudgeCapMs(45_000, 20_000, 60_000), 45_000);
+  assertEquals(recheckJudgeCapMs(45_000, 56_000, 60_000), 70_000);
+  assertEquals(recheckJudgeCapMs(45_000, 100_000, 60_000), 75_000);
+});
+for (const judgeEndMs of [100_000, 175_000]) Deno.test(`2e contrôle : 1er contrôle de 56 s, fini à ${judgeEndMs / 1000} s`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch, now = Date.now; let offset = 0;
+  const t0 = now();
+  Date.now = () => t0 + offset;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const draft = { slides: [
+    { slide_number: 1, role: "hook", title: "Les retours demandent une direction commune." },
+    { slide_number: 2, role: "body", title: "Les remarques contradictoires restent à départager." },
+    { slide_number: 3, role: "conclusion", title: "Le choix validé guide les corrections." },
+  ], caption: { body: "Un choix commun précède les modifications.", hashtags: [] } };
+  let writes = 0, judges = 0, recheck: any = null;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    writes++; Object.assign(sink, { model: o.model, total_tokens: 10 });
+    await Promise.resolve();
+    if (writes === 1) offset += 30_000; else offset += 30_000;
+    return JSON.stringify(draft);
+  }) as any;
+  _deps.reviewThread = async (doc: any, options: any) => {
+    if (judges++ === 0) {
+      offset = judgeEndMs;
+      const r: any = await verdict(doc, ["La conclusion est insuffisamment préparée."]);
+      Object.defineProperty(r, "elapsed_ms", { value: 56_000, enumerable: false });
+      return r;
+    }
+    recheck = { abort: options.abortTimeoutMs, call: options.callTimeoutMs };
+    return verdict(doc);
+  };
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", subject: "Choisir une direction avant de modifier", slide_count: 3 }));
+    assertEquals(res.status, 200);
+    const doc = JSON.parse((await res.json()).content);
+    assert(!JSON.stringify(doc).includes("elapsed_ms"), "la durée ne part pas dans le reçu");
+    if (judgeEndMs < 150_000) {
+      assertEquals([writes, judges], [2, 2]);
+      // 56 s + 25 % = 70 s pour le 2e contrôle, au lieu de 45 s.
+      assertEquals([recheck.abort, recheck.call], [70_000, 70_000]);
+    } else {
+      // Il reste 95 s : 30 s de réparation + 70 s de contrôle + 10 s ne tiennent pas, rien n'est lancé.
+      assertEquals([writes, judges], [1, 1]);
+      assertEquals(doc.progression_review.repair_skipped, "time-budget");
+    }
+  } finally { globalThis.fetch = oldFetch; Date.now = now; }
+});

@@ -28,6 +28,11 @@ import { researchSourceWarnings } from "../research-sources.ts";
 
 /** Temps gardé après le 2e juge du fil pour couverture, tu/vous et envoi. */
 export const RECHECK_FINISH_MS = 10_000;
+/** Temps du 2e contrôle (après réparation) : la durée mesurée du 1er + 25 %, jamais sous le
+ * repère attendu, jamais plus de 15 s au-delà du plafond d'un appel. */
+export function recheckJudgeCapMs(expectedMs: number, firstJudgeMs: number, callMs: number): number {
+  return Math.max(expectedMs, Math.min(Math.round(firstJudgeMs * 1.25), callMs + 15_000));
+}
 
 // ── Queue commune de génération ──
 // ── Fil du carrousel (16/09/2026) ──
@@ -212,6 +217,12 @@ export async function finalizeCarousel(
     : photosOnly
     ? await progressionReceipt(doc, "skipped", "pure-photo-no-text")
     : await judge(doc);
+  // 2e JUGE CALÉ SUR LE 1er (26/11/2026, mixte 9 slides) : le premier contrôle a pris
+  // 40 à 56 s, le second n'avait que judgeCapMs (45 s) : coupé à 45,0 s trois fois de
+  // suite (« review-invalid »), la réparation (24 à 38 s) était jetée, ~80 s d'attente
+  // pour rien. Le second reçoit la durée mesurée du premier plus une marge, et la
+  // réparation n'est lancée que si ce temps-là tient (sinon « time-budget », rien n'est lancé).
+  const recheckCapMs = recheckJudgeCapMs(judgeCapMs, receipt.elapsed_ms ?? 0, judgeCallMs);
   const recordUsage = (r: ProgressionResult) => {
     for (
       const k of ["input_tokens", "output_tokens", "total_tokens"] as const
@@ -241,7 +252,7 @@ export async function finalizeCarousel(
     : (opts.expectedRepairMs || 0);
   // Réserve après la réparation : le 2e juge (son plafond, qu'il respecte
   // désormais, cf. judge) + 10 s pour finir.
-  const recheckReserveMs = judgeCapMs + RECHECK_FINISH_MS;
+  const recheckReserveMs = recheckCapMs + RECHECK_FINISH_MS;
   const repairTimeoutMs = Math.min(120_000, remaining() - recheckReserveMs);
   const repairFits = repairTimeoutMs >= 30_000 && repairTimeoutMs >= expectedRepairMs;
   if (wantsRepair && !repairFits) {
@@ -343,7 +354,7 @@ export async function finalizeCarousel(
           correction: { enabled: false },
         });
         const finalCandidate: any = tryParseAiJson(measured.content);
-        const checked = await judge(finalCandidate, "thread_recheck_ms", judgeCapMs);
+        const checked = await judge(finalCandidate, "thread_recheck_ms", recheckCapMs);
         recordUsage(checked);
         candidateStatus = checked.execution_status;
         candidateVerdict = checked.verdict;
