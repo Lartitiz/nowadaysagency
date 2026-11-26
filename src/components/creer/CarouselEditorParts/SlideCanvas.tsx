@@ -192,7 +192,9 @@ export default function SlideCanvas({
   const [editingId, setEditingId] = useState<string | null>(null);
   // Cadre en pointillé avec son nom sous la souris, avant le clic.
   const hover = useHoverBox(frame, width > 0, !!slide.locked || !!cropId || dropping !== false || !!editingId, selected);
-  const shadeValue = onShade && box?.kind === "photo" ? photoShade(slide.html) : null;
+  // Curseur d'ombre sur la barre : quand la photo est choisie, ou le cartouche de lecture (le « bloc bleu »).
+  const onPanel = !!selected && new RegExp(`<[^>]*data-photo-reading-panel[^>]*data-editor-id="${selected}"|<[^>]*data-editor-id="${selected}"[^>]*data-photo-reading-panel`).test(slide.html);
+  const shadeValue = onShade && (box?.kind === "photo" || onPanel) ? photoShade(slide.html) : null;
   const tools = useRef<{
     format: (styles: Record<string, string>) => boolean;
     startEditing: (id: string) => void;

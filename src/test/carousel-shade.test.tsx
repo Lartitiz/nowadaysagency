@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { composeLayout } from "@/lib/carousel-layouts";
-import { extractStyleTokens, getEditorElements, veilAlpha, type EditorSlide } from "@/lib/carousel-editor";
+import { extractStyleTokens, getEditorElements, prepareSlideHtml, veilAlpha, type EditorSlide } from "@/lib/carousel-editor";
 import { photoShade, setDocumentShade, setPhotoShade } from "@/lib/carousel-shade";
 
 const plein = (): EditorSlide =>
@@ -36,6 +36,13 @@ describe("ombre sur la photo", () => {
     expect(shadowOf(light).every((s) => /rgba\(0, ?0, ?0, ?0\.6\)/.test(s))).toBe(true);
     const strong = setPhotoShade(light, 0.7);
     expect(shadowOf(strong).every((s) => !s)).toBe(true);
+  });
+  it("le cartouche de lecture derrière le texte (« bloc bleu ») suit le même curseur", () => {
+    const slide: EditorSlide = { id: "s", data: { slide_number: 1 }, html: prepareSlideHtml('<div style="width:1080px;height:1350px;position:relative"><div data-pptx-photo="1" style="position:absolute;top:0;left:0;width:1080px;height:1350px;background-image:url(https://exemple.test/p.jpg)"></div><div data-photo-reading-panel data-pptx-shape="card" style="position:relative;background:rgba(19,25,83,.93);color:#FFFFFF"><p data-slide-text="body" style="color:#FFFFFF">Texte</p></div></div>') };
+    expect(photoShade(slide.html)).toBe(0.93);
+    const softer = setPhotoShade(slide, 0.3);
+    expect(photoShade(softer.html)).toBe(0.3);
+    expect(softer.html).toMatch(/rgba\(19,\s*25,\s*83,\s*0\.3\)/);
   });
   it("une slide verrouillée garde son ombre, « Mettre partout » compte les slides changées", () => {
     const a = plein(), b = { ...plein(), locked: true }, c = { ...plein(), html: "<div><p data-slide-text=\"body\">Texte seul</p></div>" };

@@ -144,7 +144,9 @@ export default function CanvasToolbar({
       : { left: 0, top: 0 };
   const toolButton = "flex h-8 min-w-8 items-center justify-center rounded-md px-1.5 text-xs font-semibold hover:bg-muted aria-pressed:bg-primary/15";
   const toolbar =
-    box && selected && !slide.locked && box.kind !== "veil" && dropping === false ? (
+    // Slide en petit (volet de réglages du téléphone, 164 px) : la barre d'une photo la recouvrait en entier,
+    // on ne voyait plus l'ombre ni le recadrage bouger. Ses réglages sont dans l'onglet Photo, juste dessous.
+    box && selected && !slide.locked && box.kind !== "veil" && dropping === false && (width >= 240 || box.kind === "text") ? (
       <div
         ref={toolbarRef}
         role="toolbar"
@@ -197,7 +199,7 @@ export default function CanvasToolbar({
             Recadrer
           </button>
         )}
-        {box.kind === "photo" && !box.locked && !box.emptyFrame && cropId !== selected && shade && (
+        {!box.locked && !box.emptyFrame && cropId !== selected && shade && (
           <ShadeSlider compact value={shade.value} onChange={shade.set} />
         )}
         {box.locked && (
