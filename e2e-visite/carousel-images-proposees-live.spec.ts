@@ -90,7 +90,7 @@ test("carrousel sans photo : des images sont proposées d'office", async ({ page
   await page.waitForTimeout(1500);
 
   const receipt = (proposals as any)?.body?.receipt || {};
-  console.log(`🧾 reçu : ${JSON.stringify(receipt).slice(0, 600)}`);
+  console.log(`🧾 reçu : ${JSON.stringify(receipt).slice(0, 1200)}`);
   const posees = await page.locator('img[alt^="Photo "]').count();
   const aChoisir = await page.getByText(/^Image à choisir$/).count();
   const proposees = await page.getByText(/^Proposée/).count();

@@ -23,11 +23,12 @@ import {
  * Le serveur ne fait que proposer : l'écran télécharge et pose les photos.
  * Tout échec laisse le carrousel tel quel.
  */
-export const PHOTO_PROPOSALS_VERSION = "photo-proposals-v3";
+export const PHOTO_PROPOSALS_VERSION = "photo-proposals-v4";
 export const MAX_TARGETS = 10;
 const PLAN_CALL_MS = 20_000;
 const VERIFY_CALL_MS = 30_000;
 const RETRY_LATEST_START_MS = 35_000;
+const THIRD_LATEST_START_MS = 55_000;
 
 export interface ProposalInput {
   subject?: string;
@@ -267,10 +268,11 @@ export async function proposePhotos(input: ProposalInput, deps: Deps): Promise<{
   };
   const first = new Map(needStock.filter((t) => plans.get(t)?.query).map((t) => [t, plans.get(t)!.query!]));
   const second = new Map<number, string>();
+  const third = new Map<number, string>();
   const neutral: number[] = [];
   // Ce que le reçu garde pour comprendre une slide restée vide : requêtes écartées, requêtes neutres.
   const trace = () => ({
-    queries: Object.fromEntries(first), retry_queries: Object.fromEntries(second),
+    queries: Object.fromEntries(first), retry_queries: Object.fromEntries(second), third_queries: Object.fromEntries(third),
     refused_queries: Object.fromEntries(needStock.filter((t) => plans.get(t)?.refused).map((t) => [t, plans.get(t)!.refused])),
     neutral,
   });
@@ -300,6 +302,14 @@ export async function proposePhotos(input: ProposalInput, deps: Deps): Promise<{
         neutral.push(slide);
       }
       await round(second);
+      // Troisième essai (26/11/2026, choix de Laetitia : une image partout, quitte à ce qu'elle
+      // soit neutre) : deux vraies recherches dont le contrôle a refusé toutes les photos
+      // (vu sur une slide « huile » : que des bouteilles). Une requête neutre, une seule fois.
+      const stillMissing = Date.now() - t0 > THIRD_LATEST_START_MS
+        ? [] : missing.filter((t) => !byslide.get(t)!.stock && !neutral.includes(t));
+      for (const [slide, query] of neutralQueries(stillMissing, [...first.values(), ...second.values()])) third.set(slide, query);
+      neutral.push(...third.keys());
+      await round(third);
     }
   } catch (e) {
     return finish("partial", proposals, {
@@ -309,6 +319,6 @@ export async function proposePhotos(input: ProposalInput, deps: Deps): Promise<{
   const served = needStock.filter((t) => byslide.get(t)!.stock).length;
   return finish(served === needStock.length ? "completed" : "partial", proposals, {
     ...trace(),
-    retried: [...second.keys()].filter((t) => byslide.get(t)!.stock),
+    retried: [...new Set([...second.keys(), ...third.keys()])].filter((t) => byslide.get(t)!.stock),
   });
 }
