@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
           customData.ig_audience = { ...aud, fetchedAt: m.fetchedAt };
         }
         if ((m.topPosts?.length || m.flopPosts?.length) && !customData.ig_top_posts) {
-          customData.ig_top_posts = { top: m.topPosts || [], flop: m.flopPosts || [], fetchedAt: m.fetchedAt };
+          customData.ig_top_posts = { top: m.topPosts || [], flop: m.flopPosts || [], recent: m.recentPosts || [], medianLikes: m.medianLikes, medianSample: m.medianSample, fetchedAt: m.fetchedAt };
         }
         if (Object.keys(customData).length) patch.custom_data = customData;
 

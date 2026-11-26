@@ -6,6 +6,7 @@
 // et exécuté en injectant ses dépendances par leur nom (même méthode que
 // ga4-other-source-preservation.test.ts).
 import fs from 'node:fs';
+import { livePostsOf } from '@/features/stats/recent-posts';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { fillEmptyFields, instagramMonthPatch, instagramSaveReport } from '@/features/stats/merge-fetched-stats';
@@ -82,7 +83,7 @@ it('« Remplir depuis Instagram » passe par save_monthly_stats (source instagra
     user: { id: 'me' }, setFetchingLive: noop, workspaceId: 'me',
     invokeWithTimeout: async () => ({ data: { metrics: { followers: 1500, reach30d: 900, audience: { age: [1] } } }, error: null }),
     toast, setAudience: noop, setLivePosts: noop, currentMonthDate: '2026-10-01', allStats: [{ ...row }],
-    instagramMonthPatch, instagramSaveReport, saveStatsPatch, setSelectedMonth: noop,
+    instagramMonthPatch, instagramSaveReport, livePostsOf, saveStatsPatch, setSelectedMonth: noop,
     loadStats: async () => {}, monthLabel: (k: string) => k,
   };
   await new Function(...Object.keys(scope), callback('fetchFromInstagram'))(...Object.values(scope))();

@@ -76,31 +76,63 @@ Deno.test(`un post plus frais que ${MIN_AGE_DAYS} jours n'est jamais proposé`, 
   assertEquals(out.length, 0);
 });
 
-Deno.test("top IG réel NON publié via l'app → candidat instagram (sujet court)", () => {
+Deno.test("top IG réel NON publié via l'app → candidat instagram s'il atteint la médiane", () => {
   const out = rankRecycleCandidates([], [
-    igPost({ id: "a", engagementRate: 0.2 }),
-    igPost({ id: "b", engagementRate: 0.01 }), // sous la moyenne → exclu
+    igPost({ id: "a", likes: 200 }),
+    igPost({ id: "b", likes: 80 }), // pile la médiane → gardé
+    igPost({ id: "c", likes: 10 }), // sous la médiane → exclu
   ], NOW);
-  assertEquals(out.length, 1);
+  assertEquals(out.map((c) => c.id), ["a", "b"]);
   assertEquals(out[0].source, "instagram");
   assertEquals(out[0].content, null);
+  assertEquals(out[0].metrics?.xMedian, 2.5);
 });
 
-Deno.test("tri : top engagement (ER desc) avant revive, cap MAX_CANDIDATES", () => {
+Deno.test("un post viral n'écarte plus les autres bons posts (médiane, pas moyenne)", () => {
+  // Moyenne des likes = 880 : avec elle, seul le viral passait. Médiane = 100.
+  const out = rankRecycleCandidates([], [
+    igPost({ id: "viral", likes: 4000 }),
+    igPost({ id: "bon", likes: 160 }),
+    igPost({ id: "moyen", likes: 100 }),
+    igPost({ id: "bas", likes: 80 }),
+    igPost({ id: "plus-bas", likes: 60 }),
+  ], NOW);
+  assertEquals(out.map((c) => c.id), ["viral", "bon", "moyen"]);
+});
+
+Deno.test("moins de 3 posts mesurés : pas de médiane, aucun post Instagram hors app proposé", () => {
+  const out = rankRecycleCandidates([], [igPost({ id: "a", likes: 500 }), igPost({ id: "b", likes: 5 })], NOW);
+  assertEquals(out.length, 0);
+});
+
+Deno.test("tri : × médiane décroissant avant revive, cap MAX_CANDIDATES", () => {
   const apps = [
     appPost({ id: "m1", published_post_id: "ig1" }),
     appPost({ id: "m2", published_post_id: "ig2" }),
     ...Array.from({ length: 8 }, (_, i) => appPost({ id: `old-${i}`, published_at: daysAgo(50 + i) })),
   ];
   const igs = [
-    igPost({ id: "ig1", engagementRate: 0.05 }),
-    igPost({ id: "ig2", engagementRate: 0.30 }),
+    // m1 a le meilleur taux d'engagement mais peu de likes : c'est × médiane qui classe.
+    igPost({ id: "ig1", likes: 40, engagementRate: 0.30 }),
+    igPost({ id: "ig2", likes: 240, engagementRate: 0.05 }),
+    igPost({ id: "ig3", likes: 80 }),
   ];
   const out = rankRecycleCandidates(apps, igs, NOW);
   assertEquals(out.length, MAX_CANDIDATES);
-  assertEquals(out[0].id, "m2"); // meilleur ER en premier
-  assertEquals(out[1].id, "m1");
-  assertEquals(out[2].reason, "revive");
+  assertEquals(out[0].id, "m2");
+  assertEquals(out[0].metrics?.xMedian, 3);
+  assertEquals(out[1].id, "ig3"); // post Instagram hors app, pile à la médiane
+  assertEquals(out[2].id, "m1");
+  assertEquals(out[3].reason, "revive");
+});
+
+Deno.test("sans médiane possible, les posts app mesurés restent classés par taux d'engagement", () => {
+  const out = rankRecycleCandidates(
+    [appPost({ id: "m1", published_post_id: "ig1" }), appPost({ id: "m2", published_post_id: "ig2" })],
+    [igPost({ id: "ig1", engagementRate: 0.05 }), igPost({ id: "ig2", engagementRate: 0.30 })],
+    NOW,
+  );
+  assertEquals(out.map((c) => c.id), ["m2", "m1"]);
 });
 
 Deno.test("post sans texte (content_draft vide) ignoré", () => {

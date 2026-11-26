@@ -7,62 +7,15 @@
 // Si une métrique n'est pas disponible (type de compte, permission, période vide),
 // on continue sans elle — on ne casse jamais l'audit.
 import { refreshTokenIfNeeded } from "./instagram-graph.ts";
+import { annotatePosts } from "./post-median.ts";
 
 const GRAPH = "https://graph.instagram.com/v23.0";
 
-export interface IgPostMetrics {
-  id: string;
-  subject: string; // début de la légende, sert de "sujet" dans l'audit
-  format: string; // IMAGE / CAROUSEL / VIDEO / REEL
-  timestamp: string;
-  permalink?: string;
-  reach?: number;
-  views?: number; // nouvelle métrique Meta (remplace impressions) — clé pour les Reels
-  likes?: number;
-  comments?: number;
-  saves?: number;
-  shares?: number;
-  engagementRate?: number; // (likes+comments+saves+shares) / (reach ou, à défaut, views)
-}
+export type { IgAudience, IgAudienceBucket, IgLiveMetrics, IgPostMetrics } from "./instagram-insights-types.ts";
+import type { IgAudience, IgAudienceBucket, IgLiveMetrics, IgPostMetrics } from "./instagram-insights-types.ts";
 
-export interface IgAudienceBucket {
-  label: string; // ex: "25-34", "Femmes", "Paris, Île-de-France", "FR"
-  value: number; // nb d'abonnés dans ce segment (compte, pas %)
-}
-
-export interface IgAudience {
-  age?: IgAudienceBucket[]; // tranches d'âge, triées desc
-  gender?: IgAudienceBucket[]; // genre (libellés FR)
-  cities?: IgAudienceBucket[]; // top villes
-  countries?: IgAudienceBucket[]; // top pays (codes ISO)
-}
-
-export interface IgLiveMetrics {
-  username?: string;
-  displayName?: string; // champ "name" du profil
-  biography?: string; // bio du profil
-  profilePictureUrl?: string;
-  website?: string; // lien en bio
-  followers?: number;
-  follows?: number;
-  mediaCount?: number;
-  reach30d?: number;
-  views30d?: number; // vues du compte sur 28 j (remplace impressions, dépréciées par Meta)
-  totalInteractions30d?: number; // likes + commentaires + partages + enregistrements du compte
-  accountsEngaged30d?: number; // nb de comptes uniques ayant interagi
-  profileViews30d?: number; // visites du profil (réintroduit par Meta en 2025)
-  followerGrowth30d?: number;
-  postsLast30d?: number;
-  postsMonthCount?: number; // nb de posts du MOIS CALENDAIRE en cours (≠ fenêtre 30 j)
-  frequencyLabel?: string;
-  avgEngagementRate?: number; // moyenne sur les posts mesurés
-  topPosts: IgPostMetrics[]; // 3 meilleurs par engagement
-  flopPosts: IgPostMetrics[]; // 3 moins bons par engagement
-  audience?: IgAudience; // démographie des abonnés (follower_demographics)
-  fetchedAt: string;
-  partial: boolean; // true si une partie des appels a échoué
-  authError?: boolean; // true si Meta a signalé un token invalide / permission retirée
-}
+/** Nombre de posts récents renvoyés pour la carte « Tes posts récents ». */
+export const RECENT_POSTS_SHOWN = 12;
 
 const GENDER_LABELS_FR: Record<string, string> = {
   F: "Femmes",
@@ -834,7 +787,16 @@ export async function fetchInstagramInsights(
   }
 
   if (postData.partial) partial = true;
-  const measured = postData.posts;
+  // « Sorti du lot ? » : chaque post rapporté à la médiane des likes du compte.
+  const annotated = annotatePosts(postData.posts);
+  const measured = annotated.posts;
+  result.recentPosts = [...measured]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, RECENT_POSTS_SHOWN);
+  if (annotated.med) {
+    result.medianLikes = annotated.med.median;
+    result.medianSample = annotated.med.sample;
+  }
 
   result.postsLast30d = postData.postsLast30d;
   result.frequencyLabel = deriveFrequency(postData.postsLast30d);
