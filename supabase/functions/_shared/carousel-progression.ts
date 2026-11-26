@@ -36,6 +36,8 @@ export interface ProgressionResult {
   repair?: { attempted: true; accepted: boolean; trigger: "needs_repair" | "minor_continuity"; scope?: "local" | "global"; global_reason?: string; slides?: number[]; expected_ms?: number; reason?: string; candidate_status?: string; candidate_verdict?: string | null };
   reason?: string;
   usage?: UsageSink;
+  /** Durée réelle du contrôle (ms), posée par reviewCarouselProgression, jamais sérialisée. */
+  elapsed_ms?: number;
 }
 
 export async function progressionReceipt(
@@ -389,6 +391,9 @@ export async function reviewCarouselProgression(doc: any, opts: {
       call_ms: callMs,
       ...extra,
     }));
+    // Durée réelle du contrôle, pour caler le 2e (finalize.ts). Non énumérable : elle ne part
+    // ni dans le reçu enregistré ni dans une copie par décomposition.
+    Object.defineProperty(result, "elapsed_ms", { value: Date.now() - startedAt, enumerable: false });
     return result;
   };
   const invoke = async (options: AnthropicOptions) => {
