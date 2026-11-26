@@ -29,7 +29,7 @@ import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
-import { overlayPositionLabel, usefulDirective } from "@/features/creer/carousel-photo/labels"; import { allImagesReadyMessage } from "@/lib/carousel-photo-proposals";
+import { overlayPositionLabel, targetLine, usefulDirective } from "@/features/creer/carousel-photo/labels"; import { allImagesReadyMessage } from "@/lib/carousel-photo-proposals";
 import { AnotherProposalButton, CastingNotice, useAnotherProposal } from "@/features/creer/carousel-photo/proposals-ui";
 import { photoResultSignature, needsPhotoResultResync } from "@/features/creer/carousel-photo/resync";
 import { type SlideGenEntry, type SlideGenState, swapGenEntries, withoutGenEntry, removeGenEntryAt, patchGenEntry } from "@/features/creer/carousel-photo/gen-state";
@@ -973,9 +973,9 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                         )}
                       </div>
                     </div>
-                    {usefulDirective(slide.photo_directive) && (
+                    {targetLine(slide) && (
                       <p className="text-2xs text-muted-foreground">
-                        🎯 {usefulDirective(slide.photo_directive)}
+                        🎯 {targetLine(slide)}
                       </p>
                     )}
                     {renderGenerationBlock(idx)}

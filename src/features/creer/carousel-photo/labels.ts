@@ -24,3 +24,14 @@ export function usefulDirective(directive: unknown): string {
   const text = typeof directive === "string" ? directive.trim() : "";
   return /^une (?:image|photo) qui accompagne (?:ce passage\s*:|«)/i.test(text) ? "" : text;
 }
+
+/**
+ * Ligne 🎯 sous une photo déjà posée. Elle décrit l'image VISÉE : sous une photo
+ * que l'app a proposée (bibliothèque ou libre de droit), elle ne décrit donc pas
+ * la photo affichée (« huiles dorées dans une carafe » sous une photo de tissu,
+ * vu le 26/11/2026). On ne l'affiche pas dans ce cas.
+ */
+export function targetLine(slide: { photo_directive?: unknown; cast_source?: unknown } | null | undefined): string {
+  if (slide?.cast_source === "library_auto" || slide?.cast_source === "stock_ambient") return "";
+  return usefulDirective(slide?.photo_directive);
+}
