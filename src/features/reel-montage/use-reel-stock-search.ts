@@ -54,12 +54,14 @@ export function useReelStockSearch({ spoken, subject, montageMode, setClips, act
       }
       if (cancelled()) return;
       setKeywords(kws);
-      await Promise.all(kws.map((kw, i) => runSearch(i, kw, { cancelledRef: cancelled })));
+      // Recherche de départ : un clip déjà posé (reel rouvert) reste en place, on ne
+      // fait que remplir les vignettes. Avant, rouvrir un reel remplaçait les clips choisis.
+      await Promise.all(kws.map((kw, i) => runSearch(i, kw, { cancelledRef: cancelled, keepChosen: true })));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [montageMode]);
 
-  async function runSearch(i: number, kw: string, o?: { cancelledRef?: () => boolean }) {
+  async function runSearch(i: number, kw: string, o?: { cancelledRef?: () => boolean; keepChosen?: boolean }) {
     const { term, locale } = stockSearchFor(kw, labels.current);
     setLoading((L) => set(L, i, true));
     try {
@@ -70,7 +72,7 @@ export function useReelStockSearch({ spoken, subject, montageMode, setClips, act
       setResults((R) => set(R, i, vids));
       // Préserve les clips choisis explicitement (bibliothèque, Studio) et la photo de départ.
       setClips((C) =>
-        set(C, i, C[i]?.source === "mine" || C[i]?.source === "studio" || C[i]?.source === "photo" ? C[i] : vids[0] ? fromStock(vids[0]) : C[i]),
+        set(C, i, (o?.keepChosen && C[i]) || C[i]?.source === "mine" || C[i]?.source === "studio" || C[i]?.source === "photo" ? C[i] : vids[0] ? fromStock(vids[0]) : C[i]),
       );
     } catch (e) {
       if (!o?.cancelledRef?.()) toast.error(readableError(e, "La recherche de vidéos n’a pas abouti. Réessaie dans un instant."));

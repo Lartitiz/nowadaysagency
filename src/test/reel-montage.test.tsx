@@ -480,6 +480,18 @@ describe("ReelMontage — un mot-clé par passage, dans l'ordre (essai filmé du
   });
 });
 
+describe("ReelMontage — reel rouvert", () => {
+  it("garde les clips de la banque déjà choisis (la recherche de départ ne remplit que les vignettes)", async () => {
+    m.suggest.mockResolvedValue({ keywords: ["a", "b"], primary: "a", passages: ["a", "b"], labels: {} });
+    m.search.mockResolvedValue([{ id: 9, url: "https://clips.test/autre.mp4", thumbnail: "t.jpg", duration: 8 }]);
+    const onProjectChange = vi.fn();
+    render(<ReelMontage sections={SECTIONS} onProjectChange={onProjectChange} initialProject={project({ voiceMode: "silent", clips: [stock(1), stock(2)] })} />);
+    await waitFor(() => expect(m.search).toHaveBeenCalledTimes(2));
+    await settle();
+    expect(onProjectChange).not.toHaveBeenCalled();
+  });
+});
+
 describe("ReelMontage — photo de départ du reel", () => {
   const PHOTO = "data:image/jpeg;base64,AAAA";
   const chooseHidden = () => fireEvent.click(screen.getByText("Je ne me montre pas"));
