@@ -297,17 +297,21 @@ describe("boutons des slides", () => {
     render(<Harness />);
     const before = saved();
     fireEvent.click(screen.getByLabelText("Sélectionner la slide 2"));
+    fireEvent.click(screen.getByTestId("slide-menu"));
     fireEvent.click(screen.getByRole("button", { name: "Supprimer la slide" }) as HTMLButtonElement);
     expect(saved().slides.map((s: any) => s.title)).toEqual(["Un", undefined]);
+    fireEvent.click(screen.getByTestId("slide-menu"));
     expect((screen.getByRole("button", { name: "Supprimer la slide" }) as HTMLButtonElement).disabled).toBe(true);
     undo();
     expect(saved()).toEqual(before);
   });
   it("« Verrouiller » verrouille la slide ouverte et désactive ses réglages", () => {
     render(<Harness />);
+    fireEvent.click(screen.getByTestId("slide-menu"));
     fireEvent.click(buttonText("Verrouiller"));
     expect(saved().slides[0].editor_locked).toBe(true);
     expect(screen.getByText("Slide verrouillée : déverrouille-la pour la modifier.")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("slide-menu"));
     expect(buttonText("Déverrouiller")).toBeTruthy();
   });
 });

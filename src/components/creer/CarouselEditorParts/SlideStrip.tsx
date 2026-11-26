@@ -15,7 +15,8 @@
 import { useEffect, useState, type MutableRefObject } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Copy, LayoutGrid, LockKeyhole, Plus, Trash2, Unlock } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowLeft, ArrowRight, ChevronDown, Copy, LayoutGrid, LockKeyhole, Plus, Trash2, Unlock } from "lucide-react";
 import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/features/creer/publish-guards";
 import { CAROUSEL_MAX_SLIDES, renumberDocument, type CarouselDocument, type EditorSlide } from "@/lib/carousel-editor";
 import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
@@ -46,7 +47,7 @@ type StripProps = {
 };
 
 /** Boutons de la slide ouverte : ajouter, dupliquer, supprimer, déplacer (ligne du haut sur ordinateur, sous les vignettes sur téléphone). */
-export function SlideTools({ simple = false, compact = false, active, add, changeSlide, commit, current, document, move, setActive, setSelected, slide, className = "" }: StripProps & { className?: string; /** Icônes seules (ligne du haut en mode « Plus d'outils », 26/11/2026) : le nom reste au survol et pour les lecteurs d'écran. */ compact?: boolean }) {
+export function SlideTools({ simple = false, compact = false, menu = false, active, add, changeSlide, commit, current, document, move, setActive, setSelected, slide, className = "" }: StripProps & { className?: string; /** Icônes seules (ligne du haut en mode « Plus d'outils », 26/11/2026) : le nom reste au survol et pour les lecteurs d'écran. */ compact?: boolean; /** Ligne du haut sur ordinateur : flèches + menu « Cette slide ». */ menu?: boolean }) {
   const last = document.slides.length - 1;
   const full = document.slides.length >= CAROUSEL_MAX_SLIDES;
   const remove = () => {
@@ -71,6 +72,44 @@ export function SlideTools({ simple = false, compact = false, active, add, chang
   };
   const tool = "h-8 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground";
   const name = compact ? "sr-only" : "max-lg:sr-only";
+  const [open, setOpen] = useState(false);
+  const run = (action: () => void) => () => { setOpen(false); action(); };
+  const arrows = (
+    <>
+      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" aria-label="Monter la slide" title="Déplacer la slide avant" disabled={active === 0} onClick={() => move(-1)}>
+        <ArrowLeft size={14} />
+      </Button>
+      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" aria-label="Descendre la slide" title="Déplacer la slide après" disabled={active === last} onClick={() => move(1)}>
+        <ArrowRight size={14} />
+      </Button>
+    </>
+  );
+  // Ligne du haut (ordinateur, 26/11/2026) : les flèches, puis un seul bouton « Cette slide »
+  // qui range dupliquer, verrouiller, supprimer et ajouter, chacun avec son nom écrit.
+  // « Ajouter » tout court y disait la même chose que l'onglet « Ajouter » du panneau.
+  if (menu) {
+    const item = "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs hover:bg-muted disabled:opacity-40";
+    return (
+      <div className={`flex shrink-0 items-center gap-0.5 ${className}`} role="group" aria-label="Slide ouverte" data-testid="slide-order-tools">
+        {arrows}
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button size="sm" variant="ghost" className={tool} data-testid="slide-menu">
+              {slide.locked && <LockKeyhole size={13} className="shrink-0" aria-label="verrouillée" />} Cette slide <ChevronDown size={13} className="shrink-0" aria-hidden="true" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-60 p-1" aria-label="Cette slide">
+            <button type="button" className={item} disabled={full} onClick={run(() => add(true))} aria-label="Dupliquer la slide"><Copy size={14} /> Dupliquer</button>
+            <button type="button" className={item} disabled={full} onClick={run(() => add())} aria-label="Ajouter une slide"><Plus size={14} /> Ajouter une slide après</button>
+            <button type="button" className={item} onClick={run(() => changeSlide({ ...slide, locked: !slide.locked }))}>
+              {slide.locked ? <Unlock size={14} /> : <LockKeyhole size={14} />} {slide.locked ? "Déverrouiller" : "Verrouiller"}
+            </button>
+            <button type="button" className={`${item} text-destructive`} disabled={document.slides.length <= 2 || slide.locked} onClick={run(remove)} aria-label="Supprimer la slide"><Trash2 size={14} /> Supprimer</button>
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  }
   return (
     <div className={`flex shrink-0 items-center gap-0.5 ${className}`} role="group" aria-label="Slide ouverte" data-testid="slide-order-tools">
       <Button size="sm" variant="ghost" className={tool} disabled={full} onClick={() => add()} aria-label="Ajouter une slide" title="Ajouter une slide">
@@ -82,12 +121,7 @@ export function SlideTools({ simple = false, compact = false, active, add, chang
       <Button size="sm" variant="ghost" className={tool} disabled={document.slides.length <= 2 || slide.locked} onClick={remove} aria-label="Supprimer la slide" title="Supprimer la slide">
         <Trash2 size={14} className="shrink-0" /> <span className={name}>Supprimer</span>
       </Button>
-      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" aria-label="Monter la slide" title="Déplacer la slide avant" disabled={active === 0} onClick={() => move(-1)}>
-        <ArrowLeft size={14} />
-      </Button>
-      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" aria-label="Descendre la slide" title="Déplacer la slide après" disabled={active === last} onClick={() => move(1)}>
-        <ArrowRight size={14} />
-      </Button>
+      {arrows}
       {!simple && (
         <Button size="sm" variant="ghost" className={tool} title={slide.locked ? "Déverrouiller la slide" : "Verrouiller la slide"} onClick={() => changeSlide({ ...slide, locked: !slide.locked })}>
           {slide.locked ? <Unlock size={14} className="shrink-0" /> : <LockKeyhole size={14} className="shrink-0" />}
