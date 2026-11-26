@@ -98,13 +98,21 @@ test("contenus figés — carrousel texte : texte, design et export identiques �
   const texts: string[] = [];
   const vides: number[] = [];
   for (let i = 0; i < n; i++) {
+    // Changer de slide recharge le cadre : sans repère, l'attente ci-dessous lisait encore
+    // l'ANCIENNE slide comme « prête » (vu sur le carrousel mixte le 26/11/2026, voir
+    // `editorZones` dans contenus-figes-formats.spec.ts). On marque donc l'ancien document
+    // et on attend qu'il ait été remplacé.
+    const change = (await preview.getAttribute("title")) !== `Éditeur de la slide ${i + 1}`;
+    if (change) await preview.evaluate((f: HTMLIFrameElement) => { if (f.contentDocument) (f.contentDocument as unknown as { __ancien?: boolean }).__ancien = true; });
     await vignettes.nth(i).click();
     await expect(preview).toHaveAttribute("title", `Éditeur de la slide ${i + 1}`, { timeout: 15000 });
     // Une slide restée sans texte ne bloque pas la boucle : elle est comptée plus bas
     // (ligne 🏷️), puis la comparaison aux textes de référence met le test au rouge.
     await page.waitForFunction(() => {
       const f = document.querySelector('iframe[title^="Éditeur de la slide"]') as HTMLIFrameElement | null;
-      return (f?.contentDocument?.body?.innerText || "").trim().length > 0;
+      const doc = f?.contentDocument as (Document & { __ancien?: boolean }) | null | undefined;
+      if (!doc || doc.__ancien || doc.readyState !== "complete") return false;
+      return (doc.body?.innerText || "").trim().length > 0;
     }, null, { timeout: 30000 }).catch(() => {});
     await page.waitForTimeout(800); // fondu de la slide
     const text = await preview.evaluate((f: HTMLIFrameElement) =>
