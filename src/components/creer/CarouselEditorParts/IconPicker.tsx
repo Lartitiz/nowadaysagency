@@ -71,7 +71,7 @@ export const EDITOR_ICONS: Icon[] = [
 
 const fold = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/œ/g, "oe");
 
-export function IconPicker({ disabled, onPick }: { disabled?: boolean; onPick: (name: string, svg: string) => void }) {
+export function IconPicker({ disabled, onPick, tile }: { disabled?: boolean; onPick: (name: string, svg: string) => void; /** Classes de la tuile de l'onglet « Ajouter » (icône au-dessus du nom). */ tile?: string }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const words = fold(query).split(/\s+/).filter(Boolean);
@@ -79,9 +79,13 @@ export function IconPicker({ disabled, onPick }: { disabled?: boolean; onPick: (
   return (
     <Popover open={open} onOpenChange={(next) => { setOpen(next); if (!next) setQuery(""); }}>
       <PopoverTrigger asChild>
+        {tile ? (
+          <button type="button" className={tile} disabled={disabled}><Star size={18} aria-hidden="true" /> Ajouter une icône</button>
+        ) : (
         <Button size="sm" variant="outline" className="px-1 text-xs" disabled={disabled}>
           <Star size={14} className="mr-1" aria-hidden="true" /> Ajouter une icône
         </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-2" aria-label="Choisir une icône">
         <input

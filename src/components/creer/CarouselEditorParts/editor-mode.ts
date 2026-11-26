@@ -1,30 +1,6 @@
-// Chantier D (15/10/2026) : mode de l'éditeur. « simple » (par défaut) montre
-// texte, photo, couleur et police ; « complet » (« Plus d'outils ») montre le
-// panneau complet. Le choix est retenu dans le navigateur.
-import { useState } from "react";
+// Chantier D (15/10/2026) : l'éditeur avait deux modes, « simple » et « complet »
+// (« Plus d'outils »). Panneau à onglets (26/11/2026) : un seul panneau, plus de mode.
+// Il reste ici l'événement partagé entre la barre posée sur la slide et le panneau.
 
-export type EditorMode = "simple" | "complet";
-export const EDITOR_MODE_KEY = "carousel-editor:mode";
-/** Chantier V : le « … » de la barre posée sur la slide demande au panneau simple d'ouvrir la police. */
+/** Chantier V : le « … » de la barre posée sur la slide demande au panneau d'ouvrir la police. */
 export const OPEN_FONT_EVENT = "carousel-editor:police";
-
-const readMode = (): EditorMode => {
-  try {
-    return window.localStorage.getItem(EDITOR_MODE_KEY) === "complet" ? "complet" : "simple";
-  } catch {
-    return "simple";
-  }
-};
-
-export function useEditorMode() {
-  const [mode, setModeState] = useState<EditorMode>(readMode);
-  const setMode = (next: EditorMode) => {
-    setModeState(next);
-    try {
-      window.localStorage.setItem(EDITOR_MODE_KEY, next);
-    } catch {
-      // Stockage indisponible : le choix reste pour la session.
-    }
-  };
-  return [mode, setMode] as const;
-}

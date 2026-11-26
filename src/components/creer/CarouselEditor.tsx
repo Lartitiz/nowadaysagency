@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
 import { Button } from "@/components/ui/button";
-import { LockKeyhole, Minimize2 } from "lucide-react";
+import { Minimize2 } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
@@ -31,8 +31,6 @@ import {
   type ClipboardElement,
   documentColors,
   setElementHtml,
-  editorialVeilAlpha,
-  setEditorialVeilAlpha,
   listLayers,
   moveLayer,
   removeLayer,
@@ -59,23 +57,17 @@ import {
 } from "@/lib/carousel-editor";
 import { type CanvasApi, type CanvasBox } from "@/components/creer/CarouselEditorParts/canvas-geometry";
 import SlideCanvas from "@/components/creer/CarouselEditorParts/SlideCanvas";
-import { LayersPanel, MultiSelectPanel } from "@/components/creer/CarouselEditorParts/LayersPanel";
-import { CarouselThemeSettings, SlideTabSettings } from "@/components/creer/CarouselEditorParts/SlideSettings";
 import { alphaOf, range, toHex } from "@/components/creer/CarouselEditorParts/panel-controls";
-import { TextSettings } from "@/components/creer/CarouselEditorParts/TextSettings";
-import { BlockSettings, PhotoSettings } from "@/components/creer/CarouselEditorParts/ElementSettings";
 import { EditorHeader } from "@/components/creer/CarouselEditorParts/EditorHeader";
 import { useEditorKeys } from "@/components/creer/CarouselEditorParts/editor-keys";
 import { QualityPanel } from "@/components/creer/CarouselEditorParts/QualityPanel";
 import { useFixAll } from "@/components/creer/CarouselEditorParts/use-fix-all";
 import { SlideStrip, SlideTools } from "@/components/creer/CarouselEditorParts/SlideStrip";
 import { TextListDialog } from "@/components/creer/CarouselEditorParts/TextListDialog";
-import { AllSlidesPanel, SavedStylesPanel } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
-import { SimplePanel } from "@/components/creer/CarouselEditorParts/SimplePanel";
+import { EditorPanel } from "@/components/creer/CarouselEditorParts/EditorPanel";
 import { brandInk, isIcon, setIconColor } from "@/components/creer/CarouselEditorParts/editor-icons";
 import { CaptionField } from "@/components/creer/CarouselEditorParts/CaptionField";
 import { EDITOR_GRID, roomStyle, SlideEdgeArrows, slideBoxProps, useSlideFit } from "@/components/creer/CarouselEditorParts/EditorLayout";
-import { useEditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
 import { SlideRedo } from "@/components/creer/CarouselEditorParts/SlideRedoDialog";
 import { replaceSlide, type SlideRedoApi } from "@/components/creer/CarouselEditorParts/slide-redo";
 
@@ -134,14 +126,12 @@ export default function CarouselEditor({
     [measured, setMeasured] = useState<CanvasBox | null>(null),
     [extra, setExtra] = useState<string[]>([]),
     [zoom, setZoom] = useState(1),
-    [panelTab, setPanelTab] = useState<"element" | "slide" | "carrousel">("slide"),
     [instaOpen, setInstaOpen] = useState(false),
     [fitId, setFitId] = useState<string | null>(null),
     [fullscreen, setFullscreen] = useState(false),
     [dragSlide, setDragSlide] = useState<number | null>(null),
     [dropAt, setDropAt] = useState<number | null>(null),
     [hasClip, setHasClip] = useState(false);
-  const [mode, setMode] = useEditorMode();
   // Sélection multiple (Maj + clic) : l'élément principal + les autres.
   const group = selected ? [selected, ...extra.filter((id) => id !== selected)] : [];
   const canvasApi = useRef<CanvasApi | null>(null);
@@ -167,8 +157,6 @@ export default function CarouselEditor({
     setExtra(merged.slice(1));
   };
   useEffect(() => setExtra([]), [active]);
-  // Colonne de droite : un élément choisi ouvre « Élément », un clic dans le vide « Slide ».
-  useEffect(() => setPanelTab(selected ? "element" : "slide"), [selected]);
   // Téléphone : toucher un élément remonte l'aperçu sous l'en-tête.
   useEffect(() => {
     if (!selected) return;
@@ -722,11 +710,11 @@ export default function CarouselEditor({
     </>
   );
   if (!slide) return null;
-  const strip = { channel, simple: mode === "simple", active, add, changeSlide, commit, current, document, dragSlide, dropAt, justDragged, move, reorder, setActive, setDragSlide, setDropAt, setSelected, slide, thumbDrag, thumbIndexAt };
+  const strip = { channel, simple: false, active, add, changeSlide, commit, current, document, dragSlide, dropAt, justDragged, move, reorder, setActive, setDragSlide, setDropAt, setSelected, slide, thumbDrag, thumbIndexAt };
   return (
     <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-3" onKeyDown={(event) => onEditorKey(event.nativeEvent, event.target as HTMLElement)}>
-      <EditorHeader showInstagramPreview={channel !== "linkedin"} active={active} count={document.slides.length} slideTools={<SlideTools {...strip} compact={mode !== "simple"} className="max-md:hidden" />} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
-        redo={slideRedo && slide && <SlideRedo inline={mode === "simple"} api={slideRedo} raw={raw} slide={slide} getDocument={() => current.current} onKeep={(next) => commit(replaceSlide(current.current, next))} />} />
+      <EditorHeader showInstagramPreview={channel !== "linkedin"} active={active} count={document.slides.length} slideTools={<SlideTools {...strip} className="max-md:hidden" />} history={history} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setZoom={setZoom} undo={undo} zoom={zoom}
+        redo={slideRedo && slide && <SlideRedo inline api={slideRedo} raw={raw} slide={slide} getDocument={() => current.current} onKeep={(next) => commit(replaceSlide(current.current, next))} />} />
       {toolsPortal && createPortal(
         <QualityPanel cloudTools={cloudTools} commit={commit} current={current} document={document} fixAll={fixAll} quality={quality} setActive={setActive} setSelected={setSelected} />,
         toolsPortal,
@@ -739,7 +727,7 @@ export default function CarouselEditor({
           className={
             fullscreen
               ? "fixed inset-0 z-50 flex flex-col items-center justify-center gap-2 overflow-auto bg-background p-4"
-              : `sticky top-[calc(var(--app-header-h,49px)+2.5rem)] z-20 order-1 min-w-0 w-full bg-background pb-1 md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:bg-transparent md:pb-0 ${mode === "simple" ? "max-md:static" : ""}`
+              : `sticky top-[calc(var(--app-header-h,49px)+2.5rem)] z-20 order-1 min-w-0 w-full bg-background pb-1 md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:bg-transparent md:pb-0 max-md:static`
           }
           data-canvas-sticky
           onKeyDown={(e) => {
@@ -797,205 +785,21 @@ export default function CarouselEditor({
               setSelected(out.id);
             }}
             colors={palette}
-            simple={mode === "simple"}
+            simple
           />
           </div>
           {/* Sous la slide, collées avec elle : toutes les vignettes en rangée (ordinateur), des points et « Toutes » (téléphone). */}
           {!fullscreen && <SlideStrip {...strip} />}
         </div>
-        {/* Panneau sous la slide sur téléphone ; à côté (avec son propre défilement, à la hauteur de la slide) sur ordinateur. */}
-        <div className={`order-3 min-w-0 space-y-4 md:sticky md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:max-h-[var(--editor-room,calc(100vh-15rem))] md:overflow-y-auto ${mode === "simple" ? "" : "md:rounded-xl md:border md:bg-card md:p-4"}`}>
-          {mode === "simple" ? (
-            <SimplePanel applyCarouselTheme={applyCarouselTheme} canvasApi={canvasApi} changeLayout={changeLayout} changeSlide={changeSlide} commit={commit} css={css} document={document} documentFonts={documentFonts} element={element} elements={elements} fill={fill} fillAlpha={fillAlpha} fillHex={fillHex} filterValue={filterValue} fontQuery={fontQuery} layoutPreviews={layoutPreviews} onAddPhoto={onAddPhoto} onMore={() => setMode("complet")} palette={palette} pickFont={pickFont} selectOne={selectOne} setFilter={setFilter} setFitId={setFitId} setFontQuery={setFontQuery} setPhotoOpen={setPhotoOpen} slide={slide} style={style} themes={themes} />
-          ) : (<>
-          <LayersPanel
-            changeSlide={changeSlide}
-            group={group}
-            layers={layers}
-            lockElement={lockElement}
-            remove={remove}
-            removedLayers={removedLayers}
-            selectAdd={selectAdd}
-            selectOne={selectOne}
-            selected={selected}
-            setSelected={setSelected}
-            slide={slide}
-          />
-          <div role="tablist" aria-label="Réglages" className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
-            {([
-              ["element", "Élément"],
-              ["slide", "Slide"],
-              ["carrousel", "Carrousel"],
-            ] as const).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={panelTab === id}
-                onClick={() => setPanelTab(id)}
-                className={`rounded-md px-2 py-1.5 text-xs font-medium ${panelTab === id ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {slide.locked && (
-            <p role="status" className="text-xs">
-              Slide verrouillée : déverrouille-la pour la modifier.
-            </p>
-          )}
-          {panelTab === "element" && !element && group.length < 2 && (
-            <p className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground">
-              Choisis un élément sur la slide ou dans les calques pour le régler.
-            </p>
-          )}
-          {panelTab === "element" && group.length > 1 && !slide.locked && (
-            <MultiSelectPanel
-              canvasApi={canvasApi}
-              copySelection={copySelection}
-              group={group}
-              groupSelection={groupSelection}
-              removeMany={removeMany}
-              selectOne={selectOne}
-              selected={selected}
-            />
-          )}
-          {panelTab === "element" && element && !slide.locked && listLayers(slide.html).find((l) => l.id === element.id)?.locked && (
-            <div role="status" className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">
-              <span className="flex items-center gap-1.5"><LockKeyhole size={13} /> Élément verrouillé.</span>
-              <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={() => lockElement(element.id, false)}>Déverrouiller</Button>
-            </div>
-          )}
-          {panelTab === "element" && element?.name === "groupe" && !slide.locked && (
-            <Button size="sm" variant="outline" className="w-full" onClick={ungroupSelection} title="⌘⇧G">
-              Dégrouper
-            </Button>
-          )}
-          <fieldset
-            disabled={slide.locked || (panelTab === "element" && !!element && !!listLayers(slide.html).find((l) => l.id === element.id)?.locked)}
-            className="min-w-0 space-y-3 disabled:opacity-50"
-          >
-            {panelTab === "element" && (<>
-            {element?.kind === "text" && (
-              <TextSettings
-                changeSlide={changeSlide}
-                css={css}
-                documentFonts={documentFonts}
-                element={element}
-                fontQuery={fontQuery}
-                pickFont={pickFont}
-                setFitId={setFitId}
-                setFontQuery={setFontQuery}
-                slide={slide}
-                style={style}
-                textShadowOn={textShadowOn}
-              />
-            )}
-            {element?.kind === "photo" && (
-              <PhotoSettings
-                borderControls={borderControls}
-                canvasApi={canvasApi}
-                coord={coord}
-                css={css}
-                element={element}
-                filterValue={filterValue}
-                measured={measured}
-                setFilter={setFilter}
-                style={style}
-              />
-            )}
-            {element?.editorialVeil &&
-              range(
-                "Intensité du voile derrière le texte",
-                editorialVeilAlpha(slide.html) ?? 0.9,
-                0.05,
-                1,
-                (n) => changeSlide(setEditorialVeilAlpha(slide, n), `${slide.id}-editorial-veil`),
-                0.05,
-              )}
-            {element?.role === "veil" &&
-              range(
-                "Intensité du voile",
-                veilAlpha(Object.entries(css).map(([k, v]) => `${k}:${v}`).join(";")) ?? 0.85,
-                0.05,
-                1,
-                (n) =>
-                  changeSlide(
-                    setVeilAlpha(slide, element.id, n),
-                    `${slide.id}-${element.id}-veil`,
-                  ),
-                0.05,
-              )}
-            {element && element.kind !== "photo" && element.role !== "veil" && element.role !== "background" && (
-              <BlockSettings
-                applyBlockPreset={applyBlockPreset}
-                blockPresets={blockPresets}
-                borderControls={borderControls}
-                coord={coord}
-                css={css}
-                element={element}
-                fill={fill}
-                fillAlpha={fillAlpha}
-                fillHex={fillHex}
-                measured={measured}
-                rotate={rotate}
-                rotation={rotation}
-                style={style}
-              />
-            )}
-            {element?.frame && element.role !== "background" && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => remove(element.id)}
-              >
-                Retirer le fond (garder le texte)
-              </Button>
-            )}
-            </>)}
-            {panelTab === "slide" && (<>
-            <SlideTabSettings
-              addReady={addReady}
-              changeLayout={changeLayout}
-              changeSlide={changeSlide}
-              clipboard={clipboard}
-              hasClip={hasClip}
-              layoutPreviews={layoutPreviews}
-              onAddPhoto={onAddPhoto}
-              onOpenStudio={onOpenStudio}
-              paste={paste}
-              selectOne={selectOne}
-              setPhotoOpen={setPhotoOpen}
-              setSelected={setSelected}
-              slide={slide}
-            />
-            </>)}
-            {panelTab === "carrousel" && (
-            <CarouselThemeSettings applyCarouselTheme={applyCarouselTheme} themes={themes} />
-            )}
-            {panelTab === "element" && element && element.role !== "background" && (
-            <AllSlidesPanel
-              applyAll={applyAll}
-              commit={commit}
-              css={css}
-              document={document}
-              element={element}
-            />
-            )}
-            {panelTab === "element" && element && savedStyles && element.role !== "background" && (
-              <SavedStylesPanel
-                applySaved={applySaved}
-                element={element}
-                saveStyle={saveStyle}
-                savedStyles={savedStyles}
-                setStyleName={setStyleName}
-                styleKind={styleKind}
-                styleName={styleName}
-              />
-            )}
-          </fieldset>
-          </>)}
-        </div>
+        {/* Panneau à onglets (EditorPanel.tsx) : sous la slide sur téléphone ; à côté, à la hauteur de la slide, sur ordinateur. */}
+        <EditorPanel className="order-3 min-w-0 md:sticky md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:h-[var(--editor-room,calc(100vh-15rem))]"
+          addReady={addReady} applyAll={applyAll} applyBlockPreset={applyBlockPreset} applyCarouselTheme={applyCarouselTheme} applySaved={applySaved} blockPresets={blockPresets} borderControls={borderControls} canvasApi={canvasApi}
+          changeLayout={changeLayout} changeSlide={changeSlide} clipboard={clipboard} commit={commit} coord={coord} copySelection={copySelection} css={css} document={document} documentFonts={documentFonts} element={element}
+          elements={elements} fill={fill} fillAlpha={fillAlpha} fillHex={fillHex} filterValue={filterValue} fontQuery={fontQuery} group={group} groupSelection={groupSelection} hasClip={hasClip} layers={layers}
+          layoutPreviews={layoutPreviews} lockElement={lockElement} measured={measured} onAddPhoto={onAddPhoto} onOpenStudio={onOpenStudio} palette={palette} paste={paste} pickFont={pickFont} remove={remove}
+          removeMany={removeMany} removedLayers={removedLayers} rotate={rotate} rotation={rotation} saveStyle={saveStyle} savedStyles={savedStyles} selectAdd={selectAdd} selectOne={selectOne} selected={selected}
+          setFilter={setFilter} setFitId={setFitId} setFontQuery={setFontQuery} setPhotoOpen={setPhotoOpen} setSelected={setSelected} setStyleName={setStyleName} slide={slide} style={style} styleKind={styleKind}
+          styleName={styleName} textShadowOn={textShadowOn} themes={themes} ungroupSelection={ungroupSelection} />
       </div>
       <CaptionField channel={channel} value={captionText(document.caption)} onChange={(text) => commit({ ...document, caption: captionFromText(text) }, "caption")} />
       <RedFlagsChecker

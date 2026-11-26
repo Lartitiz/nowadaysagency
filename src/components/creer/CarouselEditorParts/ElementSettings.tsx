@@ -16,7 +16,9 @@ export interface BlockPreset {
 }
 
 /** Photo choisie : affichage, cadrage, zoom, opacité, cadre, retouche. */
-export function PhotoSettings({ borderControls, canvasApi, coord, css, element, filterValue, measured, setFilter, style }: {
+export function PhotoSettings({ advanced = false, borderControls, canvasApi, coord, css, element, filterValue, measured, setFilter, style }: {
+  /** Onglet « Photo » (26/11/2026) : l'affichage, le zoom et la luminosité sont déjà au-dessus. */
+  advanced?: boolean;
   borderControls: ReactNode;
   canvasApi: MutableRefObject<CanvasApi | null>;
   coord: (key: "left" | "top") => number;
@@ -29,7 +31,8 @@ export function PhotoSettings({ borderControls, canvasApi, coord, css, element, 
 }) {
   return (
     <>
-                <PanelSection title="Photo" defaultOpen>
+                <PanelSection title={advanced ? "Cadrage et opacité" : "Photo"} defaultOpen={!advanced}>
+                {!advanced && (
                 <label className="block text-xs">
                   Affichage de la photo
                   <select
@@ -51,6 +54,7 @@ export function PhotoSettings({ borderControls, canvasApi, coord, css, element, 
                     <option value="contain">Voir toute la photo</option>
                   </select>
                 </label>
+                )}
                 {range(
                   "Cadrage horizontal",
                   numberOr(
@@ -100,7 +104,7 @@ export function PhotoSettings({ borderControls, canvasApi, coord, css, element, 
                     });
                   },
                 )}
-                {range(
+                {!advanced && range(
                   "Zoom photo",
                   Number(css["--editor-zoom"]) || 1,
                   1,
@@ -132,7 +136,7 @@ export function PhotoSettings({ borderControls, canvasApi, coord, css, element, 
                 {range("Arrondi des coins", Math.min(200, parseFloat(css["border-radius"] || css["border-top-left-radius"]) || 0), 0, 200, (n) => style({ "border-radius": `${n}px`, overflow: "hidden" }))}
                 </PanelSection>
                 <PanelSection title="Retouche de la photo">
-                {range("Luminosité", filterValue("brightness", 1), 0.5, 1.5, (n) => setFilter({ brightness: n }), 0.05)}
+                {!advanced && range("Luminosité", filterValue("brightness", 1), 0.5, 1.5, (n) => setFilter({ brightness: n }), 0.05)}
                 {range("Contraste", filterValue("contrast", 1), 0.5, 1.5, (n) => setFilter({ contrast: n }), 0.05)}
                 {range("Saturation", filterValue("saturate", 1), 0, 2, (n) => setFilter({ saturate: n }), 0.05)}
                 <div className="flex flex-wrap gap-1">

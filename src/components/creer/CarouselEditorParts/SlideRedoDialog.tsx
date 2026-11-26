@@ -30,7 +30,7 @@ export function SlideRedo({ api, raw, slide, getDocument, onKeep, inline = false
   slide: EditorSlide;
   getDocument: () => CarouselDocument;
   onKeep: (next: EditorSlide) => void;
-  /** Mode simple : la demande s'écrit dans le panneau (`SLIDE_ASK_SLOT`), sans fenêtre. */
+  /** La demande s'écrit dans le panneau (`SLIDE_ASK_SLOT`), sans fenêtre. Panneau à onglets (26/11/2026) : c'est le cas partout ; sur ordinateur le bloc est collé en bas du panneau, en version courte (idées sur une ligne, champ d'une ligne). */
   inline?: boolean;
 }) {
   const redo = useSlideRedo({ api, raw, getDocument, onKeep });
@@ -70,7 +70,7 @@ export function SlideRedo({ api, raw, slide, getDocument, onKeep, inline = false
       redo.submit();
     };
     return createPortal(
-      <section aria-label="Demander un changement à l'IA" data-testid="slide-ask" className="space-y-2 rounded-xl border-[1.5px] border-primary bg-card p-3">
+      <section aria-label="Demander un changement à l'IA" data-testid="slide-ask" className="space-y-2 rounded-xl border-[1.5px] border-primary bg-card p-3 md:rounded-none md:border-0 md:bg-transparent md:p-0">
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-primary">
           <Sparkles size={15} aria-hidden="true" />
           {state.status === "result" ? `Slide ${index + 1} : voici la nouvelle version` : "Demander un changement à l'IA"}
@@ -103,10 +103,10 @@ export function SlideRedo({ api, raw, slide, getDocument, onKeep, inline = false
           <p className="text-xs text-muted-foreground">{reason}</p>
         ) : (
           <>
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Idées de changement">
+            <div className="flex flex-wrap gap-1.5 md:flex-nowrap md:overflow-x-auto md:pb-0.5 md:[scrollbar-width:none]" role="group" aria-label="Idées de changement">
               {SLIDE_ASK_IDEAS.map((idea) => (
                 <button key={idea} type="button" aria-pressed={redo.instruction === idea} onClick={() => { redo.setInstruction(idea); setHint(false); }}
-                  className="rounded-full border bg-muted px-2.5 py-1 text-xs aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:font-medium aria-pressed:text-primary">
+                  className="shrink-0 rounded-full border bg-muted px-2.5 py-1 text-xs aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:font-medium aria-pressed:text-primary">
                   {idea}
                 </button>
               ))}
@@ -118,7 +118,7 @@ export function SlideRedo({ api, raw, slide, getDocument, onKeep, inline = false
               rows={2}
               aria-label="Dis ce que tu veux changer sur cette slide"
               placeholder="Ou écris ta demande : « ajoute l'exemple du café »"
-              className="w-full rounded-xl border bg-background p-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="w-full rounded-xl border bg-background p-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary md:h-10 md:resize-none md:py-2"
               onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) ask(); }}
             />
             {hint && <p role="alert" className="text-xs text-error">Choisis une idée ou écris ta demande.</p>}
@@ -126,7 +126,7 @@ export function SlideRedo({ api, raw, slide, getDocument, onKeep, inline = false
             <Button className="w-full gap-1.5" onClick={ask} data-testid="slide-ask-submit">
               <Wand2 size={15} /> Refaire cette slide · 1 crédit
             </Button>
-            <p className="text-center text-2xs text-muted-foreground">Les autres slides ne bougent pas.{api.remainingLabel ? ` ${api.remainingLabel}` : ""}</p>
+            <p className="text-center text-2xs text-muted-foreground md:hidden">Les autres slides ne bougent pas.{api.remainingLabel ? ` ${api.remainingLabel}` : ""}</p>
           </>
         )}
       </section>,
