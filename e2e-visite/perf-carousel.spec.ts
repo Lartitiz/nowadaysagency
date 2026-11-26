@@ -22,6 +22,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { exportAndCheckPptx } from "./pptx-export-check";
+import { autoOpenReadyCarousel, carouselTextReady } from "./carousel-ready";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -182,7 +183,9 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
 
   // ⏲ Jalon TEXTE : les actions du résultat ("Publier ou programmer") ne
   // s'affichent qu'une fois la génération terminée (generating=false + result).
-  await expect(page.getByTestId("publish-or-schedule").first()).toBeVisible({ timeout: 300000 });
+  // 26/11/2026 : texte prêt = annonce de fin à l'écran ; le bouton « Ouvrir mon carrousel » est cliqué dès qu'il arrive.
+  autoOpenReadyCarousel(page);
+  await expect(carouselTextReady(page)).toBeVisible({ timeout: 300000 });
   const tTextReady = Date.now();
   console.log(`⏲ 📝 TEXTE affiché après ${((tTextReady - tClickGen) / 1000).toFixed(1)}s`);
   if (!tDraft) console.log("⚠️ aucune slide brouillon affichée avant le texte final");

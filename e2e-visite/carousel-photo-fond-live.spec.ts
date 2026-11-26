@@ -20,6 +20,7 @@ import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { tapCarouselSse, watchWaitingScreen } from "./carousel-wait-probe";
 import { fillPhotoContextStep } from "./photo-context-step";
+import { autoOpenReadyCarousel } from "./carousel-ready";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/carousel-photo-fond");
@@ -117,6 +118,7 @@ test("carrousel « Tes photos en fond » : plan, brouillons sur photo, texte sur
   // L'écran résultat #608 : le signal « génération finie » = le bouton « Publier
   // ou programmer » (data-testid, plus robuste que le texte), « ajouter au
   // calendrier » a disparu (même correctif que perf-carousel #612 côté main).
+  autoOpenReadyCarousel(page);
   const result = page.getByTestId("publish-or-schedule").first();
   const validationError = page.getByText(/Données invalides/i).first();
   // 3e issue : refus LÉGITIME de la garde de cohérence photo/idée (`carousel-ai`,

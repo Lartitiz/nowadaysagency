@@ -33,6 +33,7 @@ import { sondeModifierTexte, sondeCalendrierSuit } from "./retouches-sonde";
 import { sondeIconeExport } from "./icone-export-sonde";
 import { sondeMisesEnPage } from "./mises-en-page-sonde";
 import { exportAndCheckPptx } from "./pptx-export-check";
+import { autoOpenReadyCarousel } from "./carousel-ready";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const IDEA = "Pourquoi poster moins mais mieux change tout pour les solopreneurs";
@@ -86,6 +87,7 @@ test("contenus figés — carrousel texte : texte, design et export identiques �
   if (await genDir.isVisible().catch(() => false)) await genDir.click();
   else await genBtn.click();
 
+  autoOpenReadyCarousel(page);
   await expect(page.getByTestId("publish-or-schedule").first()).toBeVisible({ timeout: 300000 });
   const vignettes = page.locator('[aria-label="Slides du carrousel"] > button');
   await expect.poll(() => vignettes.count(), { timeout: 120000 }).toBeGreaterThanOrEqual(3);

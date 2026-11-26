@@ -10,6 +10,7 @@
  * Le flux de la page reste intact (tee).
  */
 import type { Page } from "@playwright/test";
+import { autoOpenReadyCarousel, carouselTextReady } from "./carousel-ready";
 
 export async function tapCarouselSse(page: Page): Promise<void> {
   page.on("console", (m) => { if (m.text().startsWith("[SSE]")) console.log(`   ${m.text()}`); });
@@ -64,6 +65,7 @@ export function watchWaitingScreen(page: Page, shotPrefix: string): void {
     await page.waitForTimeout(15000);
     await page.screenshot({ path: `${shotPrefix}-brouillon.png` });
   }).catch(() => console.log("⚠️ aucune slide brouillon affichée"));
-  page.getByTestId("publish-or-schedule").first().waitFor({ state: "visible", timeout: 800000 })
+  autoOpenReadyCarousel(page);
+  carouselTextReady(page).waitFor({ state: "visible", timeout: 800000 })
     .then(() => console.log(`⏲ 📝 RÉSULTAT affiché après ${since()}s`)).catch(() => {});
 }

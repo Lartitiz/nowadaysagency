@@ -47,7 +47,7 @@ export default function CarouselAdvancedOptions({
   );
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="mt-4">
+    <Collapsible open={open} onOpenChange={setOpen} className="mt-1">
       <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-xl px-1 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
         <Settings2 className="h-3.5 w-3.5 shrink-0" />
         <span className="font-medium">Options avancées</span>

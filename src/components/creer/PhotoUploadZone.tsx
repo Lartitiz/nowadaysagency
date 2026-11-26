@@ -1,9 +1,9 @@
 import { lazy, Suspense, useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
 import { readableError } from "@/lib/error-messages";
 import { Upload, X, GripVertical, Wand2, Undo2, Globe, Library, Loader2, Images, Sparkles } from "lucide-react";
+import { PhotoContextInput, PhotoPairChip, PhotoPairHint } from "./PhotoPairChip";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { PhotoEditDialog } from "./PhotoEditDialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
@@ -46,6 +46,7 @@ export interface PhotoItem {
   stockSourceUrl?: string;
   /** Posée par l'app en ambiance sur un carrousel (src/lib/stock-ambient-photos.ts), pas choisie par l'utilisatrice. */
   stockAmbient?: boolean;
+  autoContext?: string; // légende proposée par l'IA dès l'import (use-auto-describe-photos.ts)
 }
 
 function mimeFromBase64(input: string, fallback = "image/jpeg"): string {
@@ -55,6 +56,7 @@ function mimeFromBase64(input: string, fallback = "image/jpeg"): string {
 }
 
 export interface PhotoUploadZoneProps {
+  pairMarks?: boolean; // pastille « Avant / Après » sous chaque vignette dès 2 photos (PhotoPairChip.tsx)
   maxPhotos?: number;
   onPhotosChange: (photos: PhotoItem[]) => void;
   onDescriptionChange: (description: string) => void;
@@ -158,7 +160,7 @@ export function PhotoUploadZone({
   aiAutoPickCount,
   libraryCount = 0,
   layout,
-  pickFromLibrary,
+  pickFromLibrary, pairMarks,
 }: PhotoUploadZoneProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -654,6 +656,7 @@ export function PhotoUploadZone({
                 : "+ Ajouter un contexte par photo"}
             </button>
           </div>
+          {pairMarks && <PhotoPairHint photos={photos} />}
           <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
             {photos.map((p, idx) => (
               <div key={p.id ?? `${p.name}-${idx}`} className="flex flex-col gap-1.5">
@@ -713,16 +716,9 @@ export function PhotoUploadZone({
                     const next = [...photos]; [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]]; updatePhotos(next);
                   }}>→</button>
                 </div>}
+                {pairMarks && <PhotoPairChip photos={photos} index={idx} onChange={updatePhotos} />}
                 <button type="button" className="min-h-9 text-xs text-primary hover:underline" onClick={() => setPrepareIdx(idx)}>Adapter le format</button>
-                {showContexts && (
-                  <Input
-                    value={p.context ?? ""}
-                    onChange={(e) => updateContext(idx, e.target.value)}
-                    placeholder="Ex : le moment, le lieu ou le détail à retenir"
-                    maxLength={200}
-                    className="h-8 text-xs px-2"
-                  />
-                )}
+                {showContexts && <PhotoContextInput value={p.context} pairMarks={pairMarks} onChange={(v) => updateContext(idx, v)} />}
               </div>
             ))}
           </div>

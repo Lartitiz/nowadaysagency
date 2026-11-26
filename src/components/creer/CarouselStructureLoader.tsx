@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { elapsedLabel } from "@/components/creer/GenerationTimeHint";
 import { waitPhaseEnded, waitPhaseStarted } from "@/lib/generation-wait-clock";
+import { initialRows, stepPhotos, type ContextStepPhoto } from "@/features/creer/photo-context-step";
 
 /**
  * Loader de l'étape "structure" des carrousels photo/mix.
@@ -31,7 +32,21 @@ const MESSAGES_SANS_PHOTOS = [
 // Un peu après la relance serveur du plan (80 s, carousel-ai/structure-hedge.ts).
 const SLOW_AFTER_S = 85;
 
-export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhotos?: boolean }) {
+/**
+ * 26/11/2026 (test filmé de Laetitia, maquette validée) : la première minute ne
+ * montrait qu'une phrase et une barre. Le serveur ne dit rien pendant le plan,
+ * donc on n'invente pas d'étapes : on montre ce qu'on a vraiment en main, les
+ * photos telles qu'elles sont comprises (avec leur avant / après) et les
+ * réponses données aux questions.
+ */
+const ROLE_LABEL = { before: "Avant", after: "Après" } as const;
+
+export default function CarouselStructureLoader({ hasPhotos = false, photos = [], answers = [] }: { hasPhotos?: boolean; photos?: ContextStepPhoto[]; answers?: string[] }) {
+  const chosen = stepPhotos(photos);
+  const rows = initialRows(photos);
+  const understood = chosen.map((p, i) => ({ preview: p.preview, text: rows[i]?.text || "", role: rows[i]?.role || null })).filter((p) => p.preview);
+  const kept = answers.map((a) => a.trim()).filter(Boolean).slice(0, 3);
+  const rich = understood.length > 0 || kept.length > 0;
   const messages = hasPhotos ? MESSAGES_PHOTOS : MESSAGES_SANS_PHOTOS;
   const [messageIndex, setMessageIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -70,7 +85,7 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
   const elapsed = Math.max(0, Math.round((now - waitStart) / 1000));
 
   return (
-    <div className="py-16 text-center space-y-5 animate-fade-in max-w-md mx-auto">
+    <div className={`${rich ? "py-8 max-w-2xl" : "py-16 max-w-md"} text-center space-y-5 animate-fade-in mx-auto`}>
       <span className="inline-block text-2xs font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 rounded-full px-3 py-1">
         D'abord le plan des slides
       </span>
@@ -98,6 +113,36 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
           : "Je prépare le plan (environ une minute), puis je rédige les slides. Compte 3 à 4 minutes en tout pour ton carrousel."}{" "}
         <span data-testid="structure-elapsed">Déjà {elapsedLabel(elapsed)}.</span>
       </p>
+      {rich && (
+        <div className="grid gap-5 text-left sm:grid-cols-2" data-testid="structure-material">
+          {understood.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Tes photos, comme je les ai comprises</p>
+              <ul className="space-y-2">
+                {understood.map((p, i) => (
+                  <li key={i} className="flex gap-3">
+                    <img src={p.preview} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+                    <div className="min-w-0 text-xs leading-snug text-foreground">
+                      <p className="line-clamp-3">{p.text || `Photo ${i + 1}`}</p>
+                      {p.role && <span className="mt-1 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-2xs font-medium text-primary">{ROLE_LABEL[p.role]}</span>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {kept.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Ce que je retiens de tes réponses</p>
+              <ul className="space-y-2">
+                {kept.map((a, i) => (
+                  <li key={i} className="border-l-2 border-primary/25 pl-3 text-xs leading-snug text-foreground line-clamp-4">« {a} »</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
       {slow && (
         <p className="text-xs text-muted-foreground animate-fade-in">
           C'est plus long que d'habitude : je relance la structure en parallèle, encore une minute environ.

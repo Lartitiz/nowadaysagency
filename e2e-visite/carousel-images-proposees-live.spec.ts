@@ -14,6 +14,7 @@ import { test, expect } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
+import { autoOpenReadyCarousel } from "./carousel-ready";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/carousel-images-proposees");
@@ -81,6 +82,7 @@ test("carrousel sans photo : des images sont proposées d'office", async ({ page
   else await genBtn.click();
   console.log("🚀 Générer cliqué");
 
+  autoOpenReadyCarousel(page);
   const result = page.getByTestId("publish-or-schedule").first();
   await expect(result, "le carrousel ne s'est pas affiché").toBeVisible({ timeout: 780_000 });
   await page.screenshot({ path: path.join(SHOTS, "2-texte-affiche.png"), fullPage: true, timeout: 30000 });

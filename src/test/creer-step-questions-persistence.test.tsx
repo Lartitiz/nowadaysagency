@@ -61,4 +61,13 @@ describe("CreerStepQuestions — nouveau récit", () => {
     fireEvent.click(screen.getByRole("button", { name: "Générer directement" }));
     expect(onSkip).toHaveBeenCalledOnce(); expect(onNext).not.toHaveBeenCalled();
   });
+  it("écran allégé (26/11/2026) : l'exemple reste au-dessus de la case, « Un autre récit » seulement à la dernière question", () => {
+    render(<CreerStepQuestions {...base} allowNarrative questions={[{ id: "q1", question: "Quel objectif ?", placeholder: "Ex. : la lumière, depuis qu'on a ouvert la cloison" }, { id: "q2", question: "Quel détail ?" }]} onNext={vi.fn()} onSkip={vi.fn()} />);
+    expect(screen.getByTestId("creer-question-example").textContent).toBe("Par exemple : la lumière, depuis qu'on a ouvert la cloison");
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).placeholder).toBe("Ta réponse…");
+    expect(screen.queryByText("Un autre récit à raconter ?")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Suivant/ }));
+    expect(screen.queryByTestId("creer-question-example")).toBeNull();
+    expect(screen.getByText("Un autre récit à raconter ?")).toBeTruthy();
+  });
 });

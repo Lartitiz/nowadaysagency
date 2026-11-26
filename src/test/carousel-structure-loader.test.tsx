@@ -25,4 +25,16 @@ describe("CarouselStructureLoader", () => {
       vi.useRealTimers();
     }
   });
+  it("première minute : les photos telles qu'elles sont comprises et les réponses données, rien d'inventé (26/11/2026)", () => {
+    render(<CarouselStructureLoader hasPhotos photos={[
+      { id: "a", preview: "blob:a", context: "AVANT — pièce vide" },
+      { id: "b", preview: "blob:b", context: "APRÈS", libraryContext: "Description : étagères sur mur bleu nuit" },
+    ]} answers={["La lumière, depuis qu'on a ouvert la cloison.", "  "]} />);
+    expect(screen.getByText("pièce vide")).toBeTruthy();
+    expect(screen.getByText("Étagères sur mur bleu nuit")).toBeTruthy();
+    expect(screen.getByText("Avant")).toBeTruthy();
+    expect(screen.getByText("Après")).toBeTruthy();
+    expect(screen.getByText("« La lumière, depuis qu'on a ouvert la cloison. »")).toBeTruthy();
+    expect(screen.getByText(/environ une minute/)).toBeTruthy();
+  });
 });

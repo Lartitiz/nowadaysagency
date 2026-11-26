@@ -88,7 +88,7 @@ interface Props {
   initialFormat?: string;
   initialChannel?: ChannelId;
   initialCarouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides";
-  initialSlideLength?: SlideLength;
+  initialSlideLength?: SlideLength; /** Réglages du carrousel rangés dans « Plus d'options » (26/11/2026). */ carouselExtraOptions?: React.ReactNode;
   suggestedFormat?: string;
   initialPhotos?: PhotoItem[];
   initialPhotoDescription?: string;
@@ -106,7 +106,7 @@ interface Props {
   onIdeaChange?: (text: string) => void;
 }
 
-export default function CreerStepFormat({ idea, directStart, objective, forcedChannel, onChannelChange, initialFormat, initialChannel, initialCarouselSubMode, initialSlideLength, suggestedFormat, initialPhotos, initialPhotoDescription, newsjackingActive, onNext, onSelectionChange, onBack, onIdeaChange }: Props) {
+export default function CreerStepFormat({ idea, directStart, objective, forcedChannel, onChannelChange, initialFormat, initialChannel, initialCarouselSubMode, initialSlideLength, suggestedFormat, initialPhotos, initialPhotoDescription, newsjackingActive, onNext, onSelectionChange, onBack, onIdeaChange, carouselExtraOptions }: Props) {
   // Pré-sélection du canal : on déduit du format déjà choisi, sinon du format
   // suggéré par le newsjacking. Évite de juxtaposer « L'IA suggère : Carrousel »
   // (un format) avec « Sur quel canal publier ? » (un canal) — la suggestion
@@ -780,7 +780,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
             }}
             onDescriptionChange={setPhotoDescription}
             title={uploadedPhotos.length > 0 ? `Tes photos (${uploadedPhotos.length})` : carouselSubMode === "photo" ? "Tes photos (facultatif)" : undefined}
-            layout="tiles" pickFromLibrary={pickFromLibrary} hideDescription={uploadedPhotos.length === 0}
+            layout="tiles" pickFromLibrary={pickFromLibrary} pairMarks={carouselSubMode !== "pure_photo"} hideDescription={uploadedPhotos.length === 0}
             compact={uploadedPhotos.length > 0}
             stockSearchSeed={idea}
             openStockSignal={stockSignal}
@@ -897,7 +897,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
             </ul>
           </div>
         )}
-        </FormatMoreOptions>
+        {selectedFormat === "carousel" && carouselExtraOptions}</FormatMoreOptions>
       )}
 
       {/* Pinterest specifics */}

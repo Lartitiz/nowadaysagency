@@ -26,6 +26,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { traceurDeCreations, supprimeLignesCreees } from "./nettoyage-camille";
+import { autoOpenReadyCarousel } from "./carousel-ready";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/fonctionnel");
@@ -189,6 +190,7 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
   // le timeout du front est à 180 s — le spec doit laisser au produit sa
   // fenêtre légitime avant de rougir (échec 2/2 du 10/07 = latence Sonnet 5,
   // pas un hang : diagnostic chip task_5b4a5a20).
+  autoOpenReadyCarousel(page);
   const calBtn = page.getByTestId("publish-or-schedule").first();
   let calBtnFound = false;
   try {

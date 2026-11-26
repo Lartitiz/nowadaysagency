@@ -25,6 +25,8 @@ export interface ContextStepPhoto {
   preview?: string;
   context?: string;
   libraryContext?: string;
+  /** Légende proposée par l'IA dès l'import (photo hors « Mes photos », 26/11/2026). */
+  autoContext?: string;
   stockAmbient?: boolean;
 }
 
@@ -84,7 +86,8 @@ export function suggestPhotoContext(photo: ContextStepPhoto): { text: string; ro
   const stored = libraryLine(photo.libraryContext, "Description");
   const description = isAssistantReply(stored) ? "" : stored;
   const name = libraryLine(photo.libraryContext, "Nom") || photo.name;
-  const source = description || (STUDIO_NAME.test(name || "") ? "" : readableFileName(name));
+  const auto = (photo.autoContext || "").trim();
+  const source = description || auto || (STUDIO_NAME.test(name || "") ? "" : readableFileName(name));
   if (!source) return { text: "", role: null };
   const role: PairRole | null = BEFORE_WORD.test(` ${source} `) ? "before" : AFTER_WORD.test(` ${source} `) ? "after" : null;
   // Le marqueur porte déjà l'avant / après : on le retire du texte proposé.
@@ -105,6 +108,15 @@ export function needsContextStep(photos: ContextStepPhoto[]): boolean {
   return stepPhotos(photos).some((p) => !splitPairMark(p.context).text);
 }
 
+/**
+ * Toutes les photos ont déjà une ligne (la leur ou une description toute prête) :
+ * la fenêtre n'apprend rien à personne, on ne l'ouvre pas (retour de Laetitia du
+ * 26/11/2026 : « si c'est déjà écrit, ça ne sert à rien cette étape »).
+ */
+export function allRowsFilled(rows: ContextStepRow[]): boolean {
+  return rows.length > 0 && rows.every((r) => !!r.text.trim());
+}
+
 /** Même lot de photos = même signature (on ne redemande pas pour ce lot). */
 export function contextStepSignature(photos: ContextStepPhoto[]): string {
   return stepPhotos(photos).map((p, i) => p.id || p.preview?.slice(-40) || p.name || String(i)).join("|");
@@ -122,9 +134,11 @@ export interface ContextStepRow {
 export function initialRows(photos: ContextStepPhoto[]): ContextStepRow[] {
   const rows = stepPhotos(photos).map((p, i) => {
     const own = splitPairMark(p.context);
-    if (own.text || own.role) return { key: p.id || String(i), text: own.text, role: own.role, suggested: false };
+    if (own.text) return { key: p.id || String(i), text: own.text, role: own.role, suggested: false };
     const s = suggestPhotoContext(p);
-    return { key: p.id || String(i), text: s.text, role: s.role, suggested: !!s.text };
+    // Pastille posée dans la galerie sans texte (« AVANT » seul) : elle garde la
+    // main sur le rôle, la description toute prête remplit la ligne.
+    return { key: p.id || String(i), text: s.text, role: own.role || s.role, suggested: !!s.text };
   });
   return normalizePair(rows);
 }
@@ -173,4 +187,39 @@ export function applyContextRows<T extends ContextStepPhoto>(photos: T[], rows: 
     const context = withPairMark(pair ? row.role : null, row.text);
     return context === (p.context || "") ? p : { ...p, context };
   });
+}
+
+// ── Pastille « Avant / Après » de la galerie (26/11/2026) ──────────────────
+// Laetitia : la personne doit pouvoir dire dans la galerie qu'une paire est un
+// avant / après. Une touche : Avant ; une autre : Après ; une troisième : rien.
+// Le rôle voyage dans le contexte, comme depuis la fenêtre.
+
+/** Rôle suivant d'une photo au toucher de sa pastille. */
+export function cyclePairRole<T extends ContextStepPhoto>(photos: T[], index: number): T[] {
+  return photos.map((p, i) => {
+    if (i !== index) return p;
+    const own = splitPairMark(p.context);
+    const next: PairRole | null = own.role === null ? "before" : own.role === "before" ? "after" : null;
+    return { ...p, context: withPairMark(next, own.text) };
+  });
+}
+
+/** Libellé de chaque pastille (« Avant · 1 ») : le n-ième avant va avec le n-ième après. */
+export function pairChips(photos: ContextStepPhoto[]): { role: PairRole | null; label: string }[] {
+  let before = 0;
+  let after = 0;
+  return photos.map((p) => {
+    const role = p?.stockAmbient ? null : splitPairMark(p.context).role;
+    if (role === "before") return { role, label: `Avant · ${++before}` };
+    if (role === "after") return { role, label: `Après · ${++after}` };
+    return { role: null, label: "Avant / après ?" };
+  });
+}
+
+/** Des pastilles sont posées mais il n'y a pas autant d'avants que d'après. */
+export function pairChipsUnbalanced(photos: ContextStepPhoto[]): boolean {
+  const roles = photos.map((p) => splitPairMark(p.context).role);
+  const b = roles.filter((r) => r === "before").length;
+  const a = roles.filter((r) => r === "after").length;
+  return b !== a;
 }

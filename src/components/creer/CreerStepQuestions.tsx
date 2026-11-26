@@ -80,6 +80,12 @@ function QuestionsLoading() {
   );
 }
 
+/** « Ex. : la lumière… » → « la lumière… » (l'écran écrit lui-même « Par exemple : »). */
+export function questionExample(placeholder?: string): string {
+  const clean = (placeholder || "").trim().replace(/^(ex(emple)?\.?|par exemple)\s*:\s*/i, "").replace(/…$|\.{3}$/, "").trim();
+  return clean.length >= 3 ? clean : "";
+}
+
 interface Props {
   format: string;
   subject: string;
@@ -148,9 +154,11 @@ export default function CreerStepQuestions({
   };
 
   const hasAnswers = Object.values(answers).some((value) => value.trim());
+  // 26/11/2026 (retour de Laetitia : « ça charge l'écran ») : un simple lien, plus un
+  // encadré sous chaque question. L'écran des questions ne le montre qu'à la dernière.
   const narrativeField = allowNarrative ? (
-    <details className="rounded-xl border p-4 text-left">
-      <summary className="cursor-pointer text-sm font-medium">Un autre récit à raconter ?</summary>
+    <details className="text-left" data-testid="creer-narrative">
+      <summary className="cursor-pointer text-sm text-muted-foreground underline underline-offset-2 hover:text-primary">Un autre récit à raconter ?</summary>
       <label htmlFor="creation-narrative" className="block text-sm mt-3 mb-2">
         Ce que tu veux raconter (optionnel)
       </label>
@@ -269,6 +277,7 @@ export default function CreerStepQuestions({
 
   const q = questions[currentIndex];
   const isLast = currentIndex === questions.length - 1;
+  const example = questionExample(q.placeholder);
 
   const handleNext = () => {
     if (!isLast) {
@@ -308,17 +317,20 @@ export default function CreerStepQuestions({
       {/* Question */}
       <div className="space-y-3">
         <label htmlFor={`creation-question-${q.id}`} className="block text-lg sm:text-xl font-semibold leading-snug text-foreground">{q.question}</label>
+        {/* L'exemple reste lisible pendant qu'on écrit (avant : dans la case, il disparaissait au premier mot). */}
+        {example && <p id={`creation-question-example-${q.id}`} className="text-sm text-muted-foreground" data-testid="creer-question-example">Par exemple : {example}</p>}
         <Textarea
           id={`creation-question-${q.id}`}
           value={answers[q.id] || ""}
           onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-          placeholder={q.placeholder || "Ta réponse…"}
+          placeholder="Ta réponse…"
+          aria-describedby={example ? `creation-question-example-${q.id}` : undefined}
           rows={4}
           className="resize-none"
         />
       </div>
 
-      {narrativeField}
+      {(isLast || !!answers["Le récit que je souhaite raconter"]) && narrativeField}
 
       {/* Navigation — collée en bas pour que « Générer » reste visible sans défiler sur
           téléphone, au-dessus de la barre du menu du bas (chantier I, comme l'écran Format). */}
