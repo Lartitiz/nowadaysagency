@@ -4,7 +4,7 @@
 // pour être enregistré comme les autres éditions.
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import StoryResult from "@/components/creer/formatRenderers/StoryResult";
 
 const mocks = vi.hoisted(() => ({ exportPng: vi.fn(), invoke: vi.fn() }));
@@ -106,9 +106,10 @@ describe("Stories : gestes de séquence", () => {
     mocks.invoke.mockResolvedValue({ data: { result: "« Nouvelle version de la deuxième »" }, error: null });
     render(<StoryResult result={three()} onStoriesUpdate={onStoriesUpdate} />);
     goTo(2);
-    fireEvent.click(screen.getByRole("button", { name: "Refaire cette story (story 2)" }));
-    fireEvent.change(screen.getByLabelText(/Dis ce que tu veux changer/), { target: { value: "plus court" } });
-    fireEvent.click(screen.getByRole("button", { name: "Refaire cette story · 1 crédit" }));
+    // Ordinateur (26/11/2026) : le champ et le bouton sont dans le panneau, sans fenêtre.
+    const ask = within(screen.getAllByTestId("story-ask")[1]);
+    fireEvent.change(ask.getByLabelText(/Dis ce que tu veux changer/), { target: { value: "plus court" } });
+    fireEvent.click(ask.getByRole("button", { name: "Refaire cette story · 1 crédit (story 2)" }));
     await waitFor(() => expect(screen.getByTestId("story-redo-proposal")).toHaveTextContent("Nouvelle version de la deuxième"));
 
     const [fn, { body }] = mocks.invoke.mock.lastCall!;
@@ -129,12 +130,11 @@ describe("Stories : gestes de séquence", () => {
     const onStoriesUpdate = vi.fn();
     mocks.invoke.mockResolvedValueOnce({ data: null, error: { message: "Tu as utilisé tous tes crédits ce mois-ci." } });
     render(<StoryResult result={three()} onStoriesUpdate={onStoriesUpdate} />);
-    fireEvent.click(screen.getByRole("button", { name: "Refaire cette story (story 1)" }));
-    fireEvent.click(screen.getByRole("button", { name: "Refaire cette story · 1 crédit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refaire cette story · 1 crédit (story 1)" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Tu as utilisé tous tes crédits ce mois-ci.");
 
     mocks.invoke.mockResolvedValueOnce({ data: { result: "Autre chose" }, error: null });
-    fireEvent.click(screen.getByRole("button", { name: "Refaire cette story · 1 crédit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refaire cette story · 1 crédit (story 1)" }));
     fireEvent.click(await screen.findByRole("button", { name: "Garder la mienne" }));
     expect(onStoriesUpdate).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Texte complet de la story 1")).toHaveValue("Première");
