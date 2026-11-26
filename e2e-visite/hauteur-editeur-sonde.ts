@@ -53,7 +53,10 @@ const VIEWPORTS = [
 // slide (la colonne n'en montrait que 4 sur 14), qui leur laisse environ 80 px de haut.
 // Seuils : 420 / 290 / 320 (environ 5 % sous la mesure du jour ; la largeur va par paliers de 16 px
 // sur ordinateur : 440 et 296 ou 312 px).
-const SLIDE_MIN: Record<string, number> = { ordi: 420, "petit écran": 290, telephone: 320 };
+// 26/11/2026, slide en grand (#2070 : menu de l'app en barre fine pendant la retouche, étapes et
+// « Créer un autre contenu » montés dedans) : 486 / 358 / 356 px mesurés en ligne. Seuils relevés à
+// 460 / 340 (un palier de 16 px sous la mesure) ; téléphone inchangé.
+const SLIDE_MIN: Record<string, number> = { ordi: 460, "petit écran": 340, telephone: 320 };
 
 const fr = (n: number) => n.toFixed(2).replace(".", ",");
 
