@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { useStickyHeightVar } from "@/hooks/use-sticky-height-var";
-import { requestCarouselTextList, useCarouselEditorShown } from "@/lib/carousel-editor-shown";
+import { requestCarouselTextList, useCarouselEditorShown, useCarouselSheet } from "@/lib/carousel-editor-shown";
 import { ArrowUpRight, Check, ChevronDown, Copy, Download, Lightbulb, Loader2, MoreHorizontal, Palette, Pencil, RefreshCw, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -100,6 +100,8 @@ export default function ResultActions(p: ResultActionsProps) {
   // « Enregistré dans Mes idées » passe dans « Plus d'options ».
   const editorShown = useCarouselEditorShown();
   const oneLine = isCarousel && editorShown;
+  // Volet de réglages ouvert sur téléphone : la barre se cache, « Terminé » la ramène.
+  const sheet = useCarouselSheet();
 
   // ── Récupérer : télécharger les visuels, ou copier le texte ──
   const download: DownloadSpec | null =
@@ -378,7 +380,7 @@ export default function ResultActions(p: ResultActionsProps) {
         ref={barRef}
         data-testid="result-actions"
         data-one-line={oneLine || undefined}
-        className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] md:bottom-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-3 bg-background/95 backdrop-blur-sm border-t border-border/60"
+        className={`sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] md:bottom-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-3 bg-background/95 backdrop-blur-sm border-t border-border/60 ${sheet ? "max-md:hidden" : ""}`}
       >
         {/* Deux lignes : l'action principale en entier, puis les deux autres et
             le menu (une seule ligne tronquait les libellés dans la colonne étroite). */}

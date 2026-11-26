@@ -16,7 +16,7 @@ import NotificationBell from "@/components/NotificationBell";
 import { WorkspaceSwitcher } from "@/components/AppHeader";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { useCarouselEditorShown } from "@/lib/carousel-editor-shown";
+import { useCarouselEditorShown, useCarouselSheet } from "@/lib/carousel-editor-shown";
 import { appHeaderSlotRef } from "@/lib/app-header-slot";
 
 interface NavItem {
@@ -73,6 +73,7 @@ export default function AppSidebar() {
   // fine (48 px au lieu de 80) qui accueille les étapes et « Créer un autre contenu ».
   // Accueil et Calendrier restent à un clic : le logo, et « Mon espace ».
   const editing = useCarouselEditorShown();
+  const sheet = useCarouselSheet();
   // Modules désactivés (feature-flags) : mêmes règles que ProtectedRoute, sinon la
   // sidebar affiche des liens morts (clic → redirection dashboard) aux non-admins.
   const visibleSections = NAV_SECTIONS
@@ -368,7 +369,7 @@ export default function AppSidebar() {
           largeur du haut), comme c'était le cas quand cette barre vivait
           dans AppHeader. */}
       {!sessionActive && (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.05)] md:hidden">
+        <nav className={`fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.05)] md:hidden ${sheet ? "hidden" : ""}`}>
           <div className="flex items-center justify-around min-h-14 pb-[env(safe-area-inset-bottom)]">
             {quickNav.map((item) => {
               const active = isQuickNavActive(item);
