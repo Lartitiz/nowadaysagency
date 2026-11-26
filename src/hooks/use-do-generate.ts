@@ -87,6 +87,8 @@ interface UseDoGenerateParams {
   photoDumpResolving: boolean;
   selectedReelHook: ReelHook | null;
   questions: Question[];
+  /** Un contenu est déjà affiché (la fenêtre des photos fermée ne doit alors rien déplacer). */
+  hasResult?: boolean;
   aurianaDemoActive: boolean;
   ideaText: string;
   /** Histoire de « Je te pose des questions », déjà filtrée sur le sujet (story-answers.ts). */
@@ -144,6 +146,7 @@ export function useDoGenerate({
   photoDumpResolving,
   selectedReelHook,
   questions,
+  hasResult,
   aurianaDemoActive,
   ideaText,
   story,
@@ -224,6 +227,12 @@ export function useDoGenerate({
   const latestDoGenerate = useRef<(a: Record<string, string>, h?: ReelHook | null) => Promise<void>>();
   const photoContextStep = usePhotoContextStep({
     applyPhotos: (next) => { setUploadedPhotos(next); setGeneratedWithPhotos(next); savePhotos(next); },
+    // Rejeu du 25/11/2026 : la page est déjà passée à l'écran de résultat quand la
+    // fenêtre s'ouvre ; fermée par la croix, elle laissait « Session expirée ou
+    // contenu indisponible » alors que rien n'avait été lancé. On revient à l'écran
+    // d'où la création est partie (les précisions, sinon le format et ses photos).
+    // Un contenu déjà affiché (« Régénérer ») ne bouge pas.
+    onCancel: () => { if (!hasResult) setStep(questions.length > 0 ? "questions" : "format"); },
   });
   const doGenerate = async (ansInput: Record<string, string>, reelHookOverride?: ReelHook | null) => {
     if (!selectedFormat) return;

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act, render, screen, fireEvent } from "@testing-library/react";
+import { renderHook, act, render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { useState } from "react";
 
 // Cœur de la génération (doGenerate) : 6 sous-flux selon format/sous-mode.
@@ -136,6 +136,7 @@ function makeParams(overrides: Record<string, any> = {}) {
     photoDumpResolving: f.photoDumpResolving,
     selectedReelHook: f.selectedReelHook,
     questions: f.questions,
+    hasResult: (f as any).hasResult,
     aurianaDemoActive: f.aurianaDemoActive,
     ideaText: f.ideaText,
     isDemoMode: f.isDemoMode,
@@ -691,6 +692,38 @@ describe("étape « Que montre chaque photo ? »", () => {
     const body = mocks.invokeWithTimeout.mock.calls[0][1].body;
     expect(body.type).toBe("structure_proposal");
     expect(body.photos.map((p: any) => p.context)).toEqual(["AVANT — Cuisine", undefined, "APRÈS — Cuisine"]);
+  });
+
+  // Rejeu à l'écran du 25/11/2026 : fermée par la croix, la fenêtre laissait l'écran de
+  // résultat vide « Session expirée ou contenu indisponible » (rien n'avait été lancé).
+  it("fermée par la croix : rien n'est lancé et on revient à l'écran d'où l'on vient", async () => {
+    const fermer = async () => { await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Fermer la fenêtre" })); }); };
+    // Parti des précisions : retour aux précisions.
+    let setStep = vi.fn();
+    let box = mount({ setStep, questions: [{ id: "q_0", question: "Quel chantier ?" }] });
+    await act(async () => { await box.gen!({}); });
+    await fermer();
+    expect(screen.queryByText("Que montre chaque photo ?")).toBeNull();
+    expect(box.p.generate).not.toHaveBeenCalled();
+    expect(setStep).toHaveBeenCalledWith("questions");
+    // La question se repose au clic suivant.
+    await act(async () => { await box.gen!({}); });
+    expect(screen.getByText("Que montre chaque photo ?")).toBeTruthy();
+    cleanup();
+    // Parti du format, sans précisions : retour au format et à ses photos.
+    setStep = vi.fn();
+    box = mount({ setStep, questions: [] });
+    await act(async () => { await box.gen!({}); });
+    await fermer();
+    expect(setStep).toHaveBeenCalledWith("format");
+    cleanup();
+    // Un contenu est déjà affiché (« Régénérer ») : la page ne bouge pas.
+    setStep = vi.fn();
+    box = mount({ setStep, questions: [], hasResult: true });
+    await act(async () => { await box.gen!({}); });
+    await fermer();
+    expect(setStep).not.toHaveBeenCalled();
+    expect(box.p.generate).not.toHaveBeenCalled();
   });
 
   it("aucune étape quand chaque photo a déjà sa ligne, ni en texte d'abord, ni pour le premier contenu", async () => {
