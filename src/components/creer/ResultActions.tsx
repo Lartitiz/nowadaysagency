@@ -100,7 +100,8 @@ export default function ResultActions(p: ResultActionsProps) {
   // « Enregistré dans Mes idées » passe dans « Plus d'options ».
   const editorShown = useCarouselEditorShown();
   // Stories aussi depuis le 26/11/2026 : leur écran signale sa présence comme l'éditeur de carrousel.
-  const oneLine = (isCarousel || format === "story") && editorShown;
+  // Reel aussi depuis l'atelier du 26/11/2026.
+  const oneLine = (isCarousel || format === "story" || format === "reel") && editorShown;
   // Volet de réglages ouvert sur téléphone : la barre se cache, « Terminé » la ramène.
   const sheet = useCarouselSheet();
 

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /* Écran « Monter la vidéo » d'un reel (fiche 16 de docs/robustesse/gros-fichiers.md,
@@ -489,6 +489,43 @@ describe("ReelMontage — reel rouvert", () => {
     await waitFor(() => expect(m.search).toHaveBeenCalledTimes(2));
     await settle();
     expect(onProjectChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("ReelMontage — atelier du 26/11/2026 : la vidéo à gauche, un passage à droite", () => {
+  it("la scène montre le passage en cours et ses vignettes ; la voix s'enregistre dans le passage", async () => {
+    render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "recorded", clips: [stock(1), null] })} />);
+    await settle();
+    const stage = screen.getByTestId("reel-stage");
+    // Jamais vide : le clip du passage 1, lisible au clic, avec le texte prévu à l'écran.
+    expect(within(stage).getByRole("button", { name: "Lire le clip de ce passage" })).toBeInTheDocument();
+    expect(within(stage).getByText("Un")).toBeInTheDocument();
+    // L'enregistreur est dans la carte du passage, sous « Ta voix ».
+    const card = document.getElementById("studio-reel-passage-0")!;
+    expect(within(card).getByText("Ta voix")).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Poser les voix de test" })).toBeInTheDocument();
+    // Une vignette change le passage affiché à droite ; un passage sans image le dit.
+    fireEvent.click(within(stage).getByRole("button", { name: "Passage 2" }));
+    expect(screen.getByText("Passage 2 sur 2")).toBeInTheDocument();
+    expect(within(stage).getByText("Choisis l’image de ce passage")).toBeInTheDocument();
+  });
+
+  it("sans voix : pas de bloc « Ta voix » ; l'aperçu s'ouvre dans la scène, les retouches à droite", async () => {
+    render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent", clips: [stock(1), stock(2)] })} />);
+    await settle();
+    expect(screen.queryByText("Ta voix")).toBeNull();
+    assemble();
+    await screen.findByRole("region", { name: "Aperçu de ton reel" });
+    expect(within(screen.getByTestId("reel-stage")).getByTestId("reel-preview-player")).toBeInTheDocument();
+    expect(within(screen.getByTestId("reel-stage")).getByRole("button", { name: /Aperçu/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("vidéo déjà montée : elle est dans la scène, « Ta vidéo est prête » et le téléchargement à droite", async () => {
+    render(<ReelMontage sections={SECTIONS} initialMp4Url="https://stockage.test/reel.mp4" initialProject={project({ voiceMode: "recorded", clips: [stock(1), stock(2)], voiceClips: [voice(1), voice(2)] })} />);
+    await settle();
+    expect(screen.getByTestId("reel-stage").querySelector("video")?.getAttribute("src")).toBe("https://stockage.test/reel.mp4");
+    expect(screen.getByText("Ta vidéo est prête")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Télécharger le MP4/ })).toBeInTheDocument();
   });
 });
 

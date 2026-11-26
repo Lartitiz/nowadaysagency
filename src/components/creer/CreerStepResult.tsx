@@ -587,7 +587,7 @@ export default function CreerStepResult({
         return <CarouselResult result={result} onSlidesUpdate={onSlidesUpdate} onStaleChange={onCarouselStaleChange} />;
       case "reel":
         // Reel enregistré tout seul (13/11/2026) : même encadré que le carrousel et les stories.
-        return <>{carouselCloudTools}<ReelResult initialMp4Url={reelMp4Url} result={result} workspaceId={reelWorkspaceId} onStepChange={setReelStep} onMp4Change={onReelMp4Change} onResultChange={onReelResultChange} startPhoto={photos?.[0]?.base64 || null} /></>;
+        return <ReelResult saveStatus={carouselCloudTools} onEdit={onEdit} initialMp4Url={reelMp4Url} result={result} workspaceId={reelWorkspaceId} onStepChange={setReelStep} onMp4Change={onReelMp4Change} onResultChange={onReelResultChange} startPhoto={photos?.[0]?.base64 || null} />;
       case "story":
         // Sauvegarde continue des stories : même encadré que le carrousel (rien sans elle).
         return <>{carouselCloudTools}<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} /></>;
@@ -639,7 +639,7 @@ export default function CreerStepResult({
       {/* 1. Contenu (slides, caption, visuels, etc.)
           Stories (chantier 2, 12/11/2026) : une seule façon de retoucher, la case
           « Texte de la story » de chaque story. Plus de grand texte technique. */}
-      {!isCarousel && format !== "story" && onEdit && result && (
+      {!isCarousel && format !== "story" && format !== "reel" && onEdit && result && (
         <div className="flex justify-end">
           <Button variant="outline" onClick={onEdit} className="gap-2">
             <Pencil className="h-4 w-4" /> Éditer le texte
