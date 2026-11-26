@@ -412,13 +412,16 @@ function IdeasInWorkspace() {
   const renderContent = (idea: SavedIdea, idx: number) => {
     const state = getIdeaState(idea);
     const preview = idea.format !== "actu" ? getIdeaPreview(idea) : {};
+    // Brouillon de Créer rangé avant l'écriture : la liste n'en connaît que la phrase
+    // « Brouillon commencé (étape)… » (draftPreviewText). On écrit le sujet à la place.
+    const creerDraft = /^Brouillon commencé \(/.test(preview.text || "");
     const badge = state === "created"
       ? (idea.planned_date ? `Au calendrier le ${formatDate(idea.planned_date, "d MMM")}` : "Au calendrier")
-      : ideaContentLabel(idea) === "Brouillon à compléter" ? "Pas terminé" : null;
+      : creerDraft || ideaContentLabel(idea) === "Brouillon à compléter" ? "Pas terminé" : null;
     return (
       <li key={idea.id} className="group relative flex min-w-0 flex-col animate-fade-in" style={{ animationDelay: `${Math.min(idx, 10) * 0.04}s` }}>
         <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} tabIndex={-1} aria-hidden="true" className="relative block w-full rounded-xl text-left transition-shadow group-hover:shadow-md disabled:cursor-wait">
-          <IdeaCover cover={readCover(idea.cover)} fallback={<TextCover label={formatLabel(idea.format)} text={preview.text || preview.title} />} />
+          <IdeaCover cover={readCover(idea.cover)} fallback={<TextCover label={formatLabel(idea.format)} text={creerDraft ? cleanTitle(idea.titre) : preview.text || preview.title} />} />
           {coverBadge(badge)}
         </button>
         <h3 className="mt-2 font-body text-sm font-bold leading-snug text-foreground" title={cleanTitle(idea.titre)}>
