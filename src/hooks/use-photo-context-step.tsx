@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import PhotoContextStepDialog from "@/components/creer/PhotoContextStepDialog";
 import {
-  applyContextRows, contextStepSignature, initialRows, needsContextStep, stepPhotos,
+  allRowsFilled, applyContextRows, contextStepSignature, initialRows, needsContextStep, stepPhotos,
   type ContextStepPhoto, type ContextStepRow,
 } from "@/features/creer/photo-context-step";
 
@@ -54,8 +54,16 @@ export function usePhotoContextStep({ applyPhotos, onCancel, describe }: PhotoCo
     const sig = contextStepSignature(photos);
     if (asked.current.has(sig)) return false;
     asked.current.add(sig);
-    pending.current = { photos, resume };
     const start = initialRows(photos);
+    // Chaque photo a déjà sa ligne : on l'écrit sans ouvrir la fenêtre, et
+    // doGenerate repart au rendu suivant avec les photos à jour.
+    if (allRowsFilled(start)) {
+      applyPhotos(applyContextRows(photos, start));
+      resumeNext.current = resume;
+      setTick((t) => t + 1);
+      return true;
+    }
+    pending.current = { photos, resume };
     setRows(start);
     setPreviews(stepPhotos(photos).map((p) => p.preview || ""));
     setOpen(true);

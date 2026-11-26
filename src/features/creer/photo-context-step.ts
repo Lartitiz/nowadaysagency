@@ -25,6 +25,8 @@ export interface ContextStepPhoto {
   preview?: string;
   context?: string;
   libraryContext?: string;
+  /** Légende proposée par l'IA dès l'import (photo hors « Mes photos », 26/11/2026). */
+  autoContext?: string;
   stockAmbient?: boolean;
 }
 
@@ -84,7 +86,8 @@ export function suggestPhotoContext(photo: ContextStepPhoto): { text: string; ro
   const stored = libraryLine(photo.libraryContext, "Description");
   const description = isAssistantReply(stored) ? "" : stored;
   const name = libraryLine(photo.libraryContext, "Nom") || photo.name;
-  const source = description || (STUDIO_NAME.test(name || "") ? "" : readableFileName(name));
+  const auto = (photo.autoContext || "").trim();
+  const source = description || auto || (STUDIO_NAME.test(name || "") ? "" : readableFileName(name));
   if (!source) return { text: "", role: null };
   const role: PairRole | null = BEFORE_WORD.test(` ${source} `) ? "before" : AFTER_WORD.test(` ${source} `) ? "after" : null;
   // Le marqueur porte déjà l'avant / après : on le retire du texte proposé.
@@ -103,6 +106,15 @@ export function stepPhotos<T extends ContextStepPhoto>(photos: T[]): T[] {
 /** Au moins une photo choisie n'a aucune ligne de contexte. */
 export function needsContextStep(photos: ContextStepPhoto[]): boolean {
   return stepPhotos(photos).some((p) => !splitPairMark(p.context).text);
+}
+
+/**
+ * Toutes les photos ont déjà une ligne (la leur ou une description toute prête) :
+ * la fenêtre n'apprend rien à personne, on ne l'ouvre pas (retour de Laetitia du
+ * 26/11/2026 : « si c'est déjà écrit, ça ne sert à rien cette étape »).
+ */
+export function allRowsFilled(rows: ContextStepRow[]): boolean {
+  return rows.length > 0 && rows.every((r) => !!r.text.trim());
 }
 
 /** Même lot de photos = même signature (on ne redemande pas pour ce lot). */

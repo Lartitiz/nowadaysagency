@@ -46,6 +46,8 @@ export interface PhotoItem {
   stockSourceUrl?: string;
   /** Posée par l'app en ambiance sur un carrousel (src/lib/stock-ambient-photos.ts), pas choisie par l'utilisatrice. */
   stockAmbient?: boolean;
+  /** Légende proposée par l'IA dès l'import (use-auto-describe-photos.ts). */
+  autoContext?: string;
 }
 
 function mimeFromBase64(input: string, fallback = "image/jpeg"): string {

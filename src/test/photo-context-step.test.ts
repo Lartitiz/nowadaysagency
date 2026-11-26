@@ -91,3 +91,24 @@ describe("marqueur de paire", () => {
     expect(needsContextStep([{ context: "façade" }, { stockAmbient: true }])).toBe(false);
   });
 });
+
+describe("fenêtre sautée quand tout est déjà décrit (26/11/2026)", () => {
+  it("description de la photothèque ou légende d'import : la ligne est remplie", async () => {
+    const { allRowsFilled, initialRows } = await import("@/features/creer/photo-context-step");
+    const rows = initialRows([
+      { id: "a", libraryContext: "Nom : IMG_5315\nDescription : pièce vide au parquet en chevrons" },
+      { id: "b", name: "IMG_0001.jpg", autoContext: "Cuisine beige équipée" },
+    ]);
+    expect(rows.map((r) => r.text)).toEqual(["Pièce vide au parquet en chevrons", "Cuisine beige équipée"]);
+    expect(allRowsFilled(rows)).toBe(true);
+  });
+  it("une seule photo sans rien : la fenêtre reste", async () => {
+    const { allRowsFilled, initialRows } = await import("@/features/creer/photo-context-step");
+    const rows = initialRows([
+      { id: "a", libraryContext: "Description : façade" },
+      { id: "b", name: "IMG_0001.jpg" },
+    ]);
+    expect(allRowsFilled(rows)).toBe(false);
+    expect(allRowsFilled([])).toBe(false);
+  });
+});

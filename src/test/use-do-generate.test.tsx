@@ -687,6 +687,20 @@ describe("étape « Que montre chaque photo ? »", () => {
     expect(box.p.generate).toHaveBeenCalledTimes(2);
   });
 
+  it("chaque photo déjà décrite (photothèque ou légende d'import) : pas de fenêtre, les lignes partent dans la création (26/11/2026)", async () => {
+    const described = [
+      { id: "a", base64: "p1", name: "IMG_5315 — Studio", libraryContext: "Nom : IMG_5315\nDescription : pièce vide au parquet en chevrons", preview: "blob:a" },
+      { id: "b", base64: "p2", name: "IMG_2041.jpg", autoContext: "Cuisine beige équipée", preview: "blob:b" },
+    ];
+    const box = mount({}, described);
+    await act(async () => { await box.gen!({}); });
+    expect(screen.queryByText("Que montre chaque photo ?")).toBeNull();
+    expect(box.p.generate).toHaveBeenCalledTimes(1);
+    expect(box.p.generate.mock.calls[0][0].photos.map((p: any) => p.context)).toEqual([
+      "Pièce vide au parquet en chevrons", "Cuisine beige équipée",
+    ]);
+  });
+
   it("carrousel photo : les contextes partent dans la proposition de plan", async () => {
     mocks.invokeWithTimeout.mockResolvedValue({ data: { result: { slides: [{ slide_number: 1 }] } }, error: null });
     const box = mount({ carouselSubMode: "photo" });
