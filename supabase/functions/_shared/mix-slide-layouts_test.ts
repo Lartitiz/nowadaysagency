@@ -238,6 +238,9 @@ Deno.test("mix : couleur principale claire → la slide texte isolée garde le f
   const texte = { slide_number: 4, slide_type: "text_only", title: "Un titre", body: "Un texte court." };
   const out = composeMixSlide(texte, rose, { isFirst: false, previous: "photo_aplat", photoCount: 3 })!;
   if (!/background:#FFF4F8/i.test(out.html)) throw new Error("fond de charte attendu");
+  // Fond teinté (crème) avec une couleur principale sombre : la slide claire est voulue, elle reste.
+  const creme: MixCharter = { color_primary: "#5E7A5E", color_secondary: "#5E7A5E", color_background: "#F4EFE8", color_text: "#1E2A22" };
+  if (!/background:#F4EFE8/i.test(composeMixSlide(texte, creme, { isFirst: false, previous: "photo_aplat", photoCount: 3 })!.html)) throw new Error("fond crème attendu");
   // Fond déjà sombre : pas d'aplat fort (il ne se détacherait pas).
   const sombre: MixCharter = { color_primary: "#131953", color_background: "#1C1C20" };
   const out2 = composeMixSlide(texte, sombre, { isFirst: false, previous: "photo_aplat", photoCount: 3 })!;

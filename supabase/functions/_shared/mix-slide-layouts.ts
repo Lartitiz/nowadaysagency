@@ -152,10 +152,13 @@ function tokens(ch: MixCharter) {
   const onFlat = readable(background, flat);
   // Aplat « fort » (même règle que la couverture du carrousel texte, piste A du
   // 25/11/2026) : la couleur principale porte un texte blanc (4,5:1) et se
-  // détache du fond (3:1). Les slides texte du mixte vont alors TOUTES sur cet
+  // détache d'un fond blanc. Les slides texte du mixte vont alors sur cet
   // aplat : entre deux photos, une slide blanche au texte nu paraissait vide
   // (répétition du 25/11/2026, slides 5 et 7 d'un mixte de 8).
-  const strongFlat = !!primary && flat === primary && contrast("#FFFFFF", primary) >= 4.5 && contrast(primary, background) >= 3;
+  // Seulement sur un fond BLANC ou presque : un fond teinté (crème, rose pâle)
+  // porte déjà la marque, la slide claire y est voulue (maquette céramiste du
+  // 02/10/2026) ; un fond blanc ne porte rien.
+  const strongFlat = !!primary && flat === primary && contrast("#FFFFFF", primary) >= 4.5 && contrast(primary, background) >= 3 && contrast(background, "#FFFFFF") < 1.08;
   const radiusRaw = String(ch.border_radius ?? "").trim().toLowerCase();
   const named: Record<string, number> = { none: 0, square: 0, sharp: 0, rounded: 20, soft: 20, pill: 24, organic: 24 };
   const radius = named[radiusRaw] ?? (/^\d+(?:\.\d+)?(?:px)?$/.test(radiusRaw) ? Math.min(24, Number.parseFloat(radiusRaw)) : 16);
