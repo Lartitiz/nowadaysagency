@@ -35,6 +35,10 @@ test("carrousel sans photo : des images sont proposées d'office", async ({ page
     }
   });
 
+  // Essai de la sonde contre l'ancien comportement : SONDE_SANS_PROPOSITIONS=1 coupe
+  // la fonction (comme avant le 26/11/2026) ; la ligne 🖼️ doit alors passer au 🟠.
+  if (process.env.SONDE_SANS_PROPOSITIONS) await page.route("**/functions/v1/carousel-photo-proposals", (r) => r.abort());
+
   await page.goto("/creer?new=1", { waitUntil: "networkidle" });
   const closeBtn = page.locator('[data-testid="branding-banner-close"], button[aria-label*="ermer"]').first();
   if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) await closeBtn.click();
@@ -80,20 +84,23 @@ test("carrousel sans photo : des images sont proposées d'office", async ({ page
   console.log(`📝 texte affiché : ${recherche} slide(s) en recherche, ${aChoisirAvant} « Image à choisir »`);
 
   // La recherche se fait en arrière-plan : on attend la réponse puis la fin de l'attente.
-  await expect.poll(() => proposals?.status ?? 0, { timeout: 150_000, message: "carousel-photo-proposals n'a pas répondu" }).toBe(200);
-  await expect(page.getByText(/On te cherche une image/i)).toHaveCount(0, { timeout: 60_000 });
+  // Sans lever d'erreur ici : la ligne 🖼️ doit s'écrire même si la fonction est en panne.
+  await expect.poll(() => proposals?.status ?? 0, { timeout: 150_000 }).toBeGreaterThan(0).catch(() => {});
+  await expect(page.getByText(/On te cherche une image/i)).toHaveCount(0, { timeout: 60_000 }).catch(() => {});
   await page.waitForTimeout(1500);
 
-  const receipt = proposals!.body?.receipt || {};
+  const receipt = (proposals as any)?.body?.receipt || {};
   console.log(`🧾 reçu : ${JSON.stringify(receipt).slice(0, 600)}`);
   const posees = await page.locator('img[alt^="Photo "]').count();
   const aChoisir = await page.getByText(/^Image à choisir$/).count();
   const proposees = await page.getByText(/^Proposée/).count();
   const autres = await page.getByRole("button", { name: /^Une autre$/ }).count();
   // 🖼️ Images proposées : ✅ si au moins une image posée, 🟠 si toutes les slides restent à choisir.
-  console.log(`🖼️ Images proposées : ${posees > 0 ? "✅" : "🟠"} ${posees} posée(s) dont ${proposees} marquée(s) « Proposée », ${aChoisir} à choisir, ${autres} bouton(s) « Une autre »`);
+  const reponse = (proposals as any)?.status ?? "aucune réponse";
+  console.log(`🖼️ Images proposées : ${posees > 0 ? "✅" : "🟠"} fonction ${reponse}, ${posees} posée(s) dont ${proposees} marquée(s) « Proposée », ${aChoisir} à choisir, ${autres} bouton(s) « Une autre »`);
   await page.screenshot({ path: path.join(SHOTS, "3-images-proposees.png"), fullPage: true, timeout: 30000 });
 
+  expect(reponse, "carousel-photo-proposals n'a pas répondu 200").toBe(200);
   expect(posees, "aucune image posée d'office").toBeGreaterThan(0);
   expect(proposees, "les images posées ne sont pas marquées « Proposée »").toBe(posees);
   // Plus de texte de slide recopié en « image idéale », ni de position en anglais.
