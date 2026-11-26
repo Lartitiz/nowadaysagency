@@ -162,3 +162,24 @@ Deno.test("filet : la relance règle une question sur deux, on garde le meilleur
   // La relance ouvre la première mais ferme la seconde : avant, tout était rejeté.
   assertEquals(JSON.parse(await relancerQuestionsSiBesoin(doc(fermee, bonne), async () => doc(ouverte, abimee))).questions, [ouverte, bonne]);
 });
+
+// Second rejeu à l'écran (26/11/2026, carrousel photos) : « …, et pour quelle raison ? » passait,
+// et une question de choix « tu veux partir de A, ou de B ? ».
+Deno.test("questions-form : seconde question après une préposition, et question de choix « tu veux… ou… »", () => {
+  assertEquals(
+    couperSecondeQuestion("Sur l'appartement de ces photos, quel choix de travaux as-tu décidé ou suivi, et pour quelle raison ?"),
+    "Sur l'appartement de ces photos, quel choix de travaux as-tu décidé ou suivi ?",
+  );
+  assertEquals(
+    couperSecondeQuestion("Quelle pièce as-tu rénovée en premier dans cet appartement, et avec quel artisan ?"),
+    "Quelle pièce as-tu rénovée en premier dans cet appartement ?",
+  );
+  // « et » qui relie deux noms dans une seule question : rien ne bouge.
+  const une = "Quelle étape de ta méthode surprend le plus tes acheteurs et tes notaires ?";
+  assertEquals(couperSecondeQuestion(une), une);
+  const choix = "Pour ce carrousel sur la visite d'un appartement rénové pièce par pièce, tu veux partir d'une opération précise que tu as menée, ou d'une lecture plus générale du sujet ?";
+  assert(questionFermee(choix));
+  assert(!questionFermee("Quel est le critère qui fait basculer ta décision sur une opération au prix pourtant bon ?"));
+  assert(!questionFermee("Comment expliques-tu à un partenaire ou un investisseur qu'un bon prix ne suffit pas ?"));
+  assert(!questionFermee("Peux-tu me raconter une opération que tu as refusée malgré un bon prix ?"));
+});
