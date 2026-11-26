@@ -283,14 +283,25 @@ describe('initial creation draft through real React components', () => {
     expect(loadFlowState()?.editingIdeaId).toBeNull(); expect(loadFlowState()?.calendarPostId).toBeNull(); expect(loadFlowState()?.result).toBeUndefined();
     app.unmount(); closeTab(); mount(); expect(screen.getByRole('textbox')).toHaveValue('');
   });
-  it('keeps a photo-only draft when saving it through the text-only conflict path is unsupported', async () => {
+  // 26/11/2026 : la fenêtre ne propose plus d'enregistrer un brouillon parti de photos
+  // (impossible) ; elle annonce l'abandon. « Reprendre » le garde entier, photos comprises.
+  it('brouillon parti de photos : la fenêtre annonce l’abandon sans rien effacer ; rouvrir la page retrouve le brouillon et ses photos', async () => {
     saveFlowState({step:'idea',ideaText:'',photoEntry:true,photoSubject:'',creationId:'photo-draft'});
     await savePhotos([{id:'p',userPhotoId:'library-1',name:'Portrait'}]);
     const before=loadFlowState(); const app=mount('/creer?new=1'); expect(await screen.findByRole('dialog')).toBeVisible();
-    fireEvent.click(screen.getByText('Démarrer le nouveau contenu'));
-    await waitFor(() => expect(screen.getByText('Reprendre mon contenu en cours')).toBeEnabled());
+    expect(screen.getByTestId('draft-photo-notice')).toHaveTextContent('sinon il sera abandonné');
+    expect(screen.queryByRole('checkbox')).toBeNull();
     expect(loadFlowState()).toEqual(before); expect(loadPhotos()).toHaveLength(1);
+    expect(screen.getByText('Reprendre mon contenu en cours')).toBeEnabled();
     app.unmount(); mount(); await waitFor(() => expect(screen.getByTestId('photos')).toHaveTextContent('Portrait'));
+  });
+  it('brouillon parti de photos : « Démarrer le nouveau contenu » démarre vraiment (plus de bouton muet)', async () => {
+    saveFlowState({step:'idea',ideaText:'',photoEntry:true,photoSubject:'',creationId:'photo-draft'});
+    await savePhotos([{id:'p',userPhotoId:'library-1',name:'Portrait'}]);
+    mount('/creer?new=1'); expect(await screen.findByRole('dialog')).toBeVisible();
+    fireEvent.click(screen.getByText('Démarrer le nouveau contenu'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(loadFlowState()?.creationId).not.toBe('photo-draft');
   });
   it('ignores late library replies from the first A visit after A → B → A', async () => {
     const resolvers: ((x:any)=>void)[]=[];

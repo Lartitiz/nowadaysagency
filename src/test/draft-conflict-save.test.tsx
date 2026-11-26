@@ -45,6 +45,8 @@ describe("protecting the current draft", () => {
     await waitFor(() => expect(mocks.error).toHaveBeenCalled());
     expect(onStartNew).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Reprendre mon contenu en cours" })).toBeEnabled();
+    // L'échec se lit aussi dans la fenêtre, pas seulement dans le message flottant.
+    expect(screen.getByRole("alert")).toHaveTextContent("Impossible d’enregistrer le contenu");
   });
   it("saves the actual document and its channel before starting", async () => {
     mocks.insert.mockResolvedValue({ error: null });
@@ -73,15 +75,30 @@ describe("protecting the current draft", () => {
     expect(onStartNew).not.toHaveBeenCalled(); expect(mocks.success).not.toHaveBeenCalled();
   });
 
+  // Rejeu à l'écran du 26/11/2026 : case cochée d'office + enregistrement impossible =
+  // « Démarrer le nouveau contenu » muet. Plus de case : la fenêtre annonce l'abandon,
+  // le bouton démarre, et rien n'est écrit dans Mes idées (jamais de fausse sauvegarde).
   it.each([
     {step:"format", photoCount:1},
     {step:"idea", photoDescription:"Description avant import", photoSubject:"Sujet photo"},
-  ])("keeps unarchived photo inputs at $step instead of confirming a text-only save", async (photoDraft) => {
+  ])("brouillon parti de photos ($step) : pas de case, l'abandon est annoncé, le bouton démarre sans rien enregistrer", async (photoDraft) => {
     const onStartNew=vi.fn();
     render(<DraftConflictDialog open draft={{...draft,result:null,editContent:"",...photoDraft}} newSubject="Nouveau" onResume={vi.fn()} onStartNew={onStartNew}/>);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.getByTestId("draft-photo-notice")).toHaveTextContent("Ce brouillon part de photos");
+    expect(screen.getByTestId("draft-photo-notice")).toHaveTextContent("sinon il sera abandonné");
     fireEvent.click(screen.getByText("Démarrer le nouveau contenu"));
-    await waitFor(() => expect(mocks.error).toHaveBeenCalled());
-    expect(mocks.insert).not.toHaveBeenCalled(); expect(onStartNew).not.toHaveBeenCalled();
+    await waitFor(() => expect(onStartNew).toHaveBeenCalledTimes(1));
+    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.error).not.toHaveBeenCalled();
+    expect(mocks.success).not.toHaveBeenCalled();
   });
+
+  it("brouillon sans photo : la case reste, cochée d'office", () => {
+    render(<DraftConflictDialog open draft={draft} newSubject="Nouveau" onResume={vi.fn()} onStartNew={vi.fn()}/>);
+    expect(screen.getByRole("checkbox")).toBeChecked();
+    expect(screen.queryByTestId("draft-photo-notice")).toBeNull();
+  });
+
 
 });
