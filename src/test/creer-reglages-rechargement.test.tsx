@@ -49,6 +49,8 @@ vi.mock('@/components/creer/CreerStepIdea', () => ({ default: (p: any) => <div>
 </div> }));
 vi.mock('@/components/creer/CreerStepFormat', () => ({ default: (p: any) => <div>
   <p>Étape format</p>
+  {/* 26/11/2026 : « Options avancées » est rangé dans « Plus d'options » de l'étape Format. */}
+  {p.carouselExtraOptions}
   <button onClick={() => { p.onSelectionChange({ channel: 'instagram', format: 'reel', carouselSubMode: null, slideLength: 'auto' }); p.onNext('reel'); }}>Passer au reel</button>
 </div> }));
 vi.mock('@/components/creer/CreerStepResult', () => ({ default: (p: any) => <div data-testid="result">Contenu {p.format}</div> }));
@@ -76,7 +78,7 @@ const REGLAGES = {
 };
 
 function recharger(state: Record<string, unknown>) {
-  saveFlowState({ step: 'questions', ideaText: 'Mes 3 erreurs de débutante', selectedFormat: 'carousel', carouselSubMode: 'text', questions: [{ id: 'q1', question: 'Pour qui ?' }], ...state } as any);
+  saveFlowState({ step: 'format', ideaText: 'Mes 3 erreurs de débutante', selectedFormat: 'carousel', carouselSubMode: 'text', questions: [{ id: 'q1', question: 'Pour qui ?' }], ...state } as any);
   render(<StrictMode><MemoryRouter initialEntries={['/creer']}><Routes><Route path="/creer" element={<CreerUnifie />} /></Routes></MemoryRouter></StrictMode>);
 }
 
