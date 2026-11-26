@@ -264,6 +264,9 @@ verify_jwt = false
 [functions.stock-photo-keywords]
 verify_jwt = false
 
+[functions.carousel-photo-proposals]
+verify_jwt = false
+
 [functions.social-oauth-start]
 verify_jwt = false
 

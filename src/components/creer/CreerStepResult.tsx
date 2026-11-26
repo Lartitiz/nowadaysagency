@@ -270,6 +270,8 @@ interface Props {
   onStoriesUpdate?: (stories: any[]) => void;
   /** Remonte l'état « visuels périmés » du carrousel photo (bloque publication/export en amont). */
   onCarouselStaleChange?: (stale: boolean) => void;
+  /** L'app cherche une image pour les slides « Image à choisir » d'un carrousel photo. */
+  photoProposalsSearching?: boolean;
   photos?: PhotoItem[];
   /** Remplacement de photo d'une slide de carrousel : ajoute la photo au set et renvoie son index 1-based. */
   onAddPhoto?: (photo: PhotoItem) => number;
@@ -343,6 +345,7 @@ export default function CreerStepResult({
   onSlidesUpdate,
   onStoriesUpdate,
   onCarouselStaleChange,
+  photoProposalsSearching,
   photos,
   onAddPhoto,
   carouselColors,
@@ -575,7 +578,7 @@ export default function CreerStepResult({
     // chaque slide et « Ajouter une photo » (l'écran texte montrait des slides vides).
     if (format === "carousel" && (r?.carousel_type === "photo" || (r?.carousel_type === "mix" && ((photos && photos.length > 0) || hasCastingSlides)))) {
       return (
-        <CarouselPhotoResult onOpenStudio={onOpenCarouselStudio} result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} colors={carouselColors} onColorsChange={onCarouselColorsChange} charterColors={charterColors} onStaleChange={onCarouselStaleChange} />
+        <CarouselPhotoResult onOpenStudio={onOpenCarouselStudio} result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} colors={carouselColors} onColorsChange={onCarouselColorsChange} charterColors={charterColors} onStaleChange={onCarouselStaleChange} photoProposalsSearching={photoProposalsSearching} />
       );
     }
 
