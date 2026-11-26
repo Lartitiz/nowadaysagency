@@ -53,6 +53,9 @@ const NEUTRAL = new Set([
   // 26/10/2026 : capacités par modèle (température, réflexion, outil forcé, plafond)
   // et tiers Haiku / Opus, sortis d'anthropic.ts (cliquet gros fichiers). Infrastructure.
   "model-capabilities",
+  // 26/11/2026 : recherche et vérification des photos libres de droit (Pexels),
+  // partagées avec carousel-photo-proposals. Ni règle d'écriture ni de design.
+  "stock-photo-verified",
 ]);
 
 /**

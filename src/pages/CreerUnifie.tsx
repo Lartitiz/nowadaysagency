@@ -105,6 +105,7 @@ import { useReelArtifact } from "@/hooks/use-reel-artifact";
 import { useCreerPublish } from "@/hooks/use-creer-publish";
 import { useCreerEntryInit } from "@/hooks/use-creer-entry-init";
 import { creerResultKey, useFreshEntryCleanup, useCreerResultSession, useRestorePersistedFlow, useAutoPersistFlow } from "@/hooks/use-creer-flow-persistence";
+import { usePhotoProposals } from "@/hooks/use-photo-proposals";
 import { useLibraryPhotosPreload, usePhotosRehydration, usePhotosSnapshot, useAddCarouselPhoto, useLibraryAutoCast } from "@/hooks/use-creer-photos";
 import LaunchSequenceResults from "@/components/creer/LaunchSequenceResults";
 import { useBrandCharter } from "@/hooks/use-branding";
@@ -1298,6 +1299,13 @@ function CreerWorkspace() {
 
   // ═══ Casting automatique bibliothèque (régime texte d'abord) : use-creer-photos.ts ═══
   useLibraryAutoCast({ result, textFirstRowsSnapshotRef, uploadedPhotosLiveRef, setUploadedPhotos, savePhotos, setResult });
+  // Images proposées d'office sur les slides « Image à choisir » (26/11/2026) : use-photo-proposals.ts.
+  const photoProposals = usePhotoProposals({
+    enabled: step === "result" && selectedFormat === "carousel" && !!session?.user?.id && !isDemoMode && !aurianaDemoActive
+      && !generating && !streaming && photosRestored && !conflictPending && visualSlides.length === 0 && libraryPhotosForCasting !== undefined,
+    result, subject: ideaText || photoSubject, libraryRows: textFirstCatalogRows, workspaceId,
+    uploadedPhotosLiveRef, setUploadedPhotos, savePhotos, setResult,
+  });
 
   // Compteur de crédits honnête : le débit vient d'avoir lieu côté serveur quand
   // un résultat arrive — sans ça, le cache 60 s de useUserPlan affiche l'ancien
@@ -1890,6 +1898,7 @@ function CreerWorkspace() {
                 carouselColors={selectedFormat === "carousel" ? carouselColors : undefined}
                 onCarouselColorsChange={selectedFormat === "carousel" ? setCarouselColors : undefined}
                 onCarouselStaleChange={selectedFormat === "carousel" ? setCarouselVisualsStale : undefined}
+                photoProposalsSearching={photoProposals.searching}
                 charterColors={
                   selectedFormat === "carousel" && charterData?.color_primary
                     ? {

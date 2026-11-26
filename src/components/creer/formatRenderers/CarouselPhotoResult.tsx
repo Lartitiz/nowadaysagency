@@ -19,7 +19,7 @@ import { useIsDemoMode } from "@/contexts/DemoContext";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
-import { ChevronDown, AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, ImagePlus, Palette, RotateCcw, Trash2, Plus, Search, Type, Sparkles, Newspaper } from "lucide-react";
+import { ChevronDown, AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, ImagePlus, Loader2, Palette, RotateCcw, Trash2, Plus, Search, Type, Sparkles, Newspaper } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import NewsPhotoPickerDialog from "@/components/creer/NewsPhotoPickerDialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
@@ -29,6 +29,9 @@ import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
+import { stockPhotoToPhotoItem } from "@/lib/stock-photos";
+import { isPexelsPhoto, toStockPhoto } from "@/lib/carousel-photo-proposals";
+import { overlayPositionLabel, usefulDirective } from "@/features/creer/carousel-photo/labels";
 import { photoResultSignature, needsPhotoResultResync } from "@/features/creer/carousel-photo/resync";
 import { type SlideGenEntry, type SlideGenState, swapGenEntries, withoutGenEntry, removeGenEntryAt, patchGenEntry } from "@/features/creer/carousel-photo/gen-state";
 import {
@@ -78,6 +81,8 @@ interface CarouselPhotoResultProps {
    *  qu'il y en a, CreerStepResult ouvre l'éditeur de carrousel) : il signale donc
    *  toujours « à jour », pour lever un état laissé par l'éditeur. */
   onStaleChange?: (stale: boolean) => void;
+  /** L'app cherche une image pour les slides « Image à choisir » (use-photo-proposals.ts). */
+  photoProposalsSearching?: boolean;
 }
 
 // ─── Main component ───
@@ -89,7 +94,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSlidesUpdate, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto, colors, onColorsChange, charterColors, onStaleChange }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSlidesUpdate, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto, colors, onColorsChange, charterColors, onStaleChange, photoProposalsSearching = false }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
   // Construit la version "fullText" mono-bloc à partir des sous-champs
@@ -286,10 +291,41 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
     const newIndex = onAddPhoto?.(photo);
     if (!newIndex) return;
     const next = slides.map((s, i) =>
-      i === slideIdx ? { ...s, photo_index: newIndex, cast_source: castSource, studio_image_receipt: undefined, studio_image_source: undefined, photo_library_id: photo.userPhotoId } : s,
+      i === slideIdx ? { ...s, photo_index: newIndex, cast_source: castSource, studio_image_receipt: undefined, studio_image_source: undefined, photo_library_id: photo.userPhotoId, stock_alternates: undefined, stock_credit: undefined } : s,
     );
     setSlides(next);
     notify(next, caption);
+  };
+
+  // « Une autre » : la photo libre de droit proposée laisse sa place à la suivante
+  // déjà vérifiée par le serveur (stock_alternates), sans nouvel appel IA.
+  const [alternateLoadingIdx, setAlternateLoadingIdx] = useState<number | null>(null);
+  const slidesRef = useRef(slides);
+  slidesRef.current = slides;
+  const showAnotherProposal = async (slideIdx: number) => {
+    const target = slides[slideIdx];
+    const [nextPhoto, ...rest] = (Array.isArray(target?.stock_alternates) ? target.stock_alternates : []).filter(isPexelsPhoto);
+    if (!nextPhoto || alternateLoadingIdx !== null) return;
+    setAlternateLoadingIdx(slideIdx);
+    try {
+      const item = { ...(await stockPhotoToPhotoItem(toStockPhoto(nextPhoto))), stockAmbient: true };
+      const newIndex = onAddPhoto?.(item);
+      if (!newIndex) return;
+      // Les slides ont pu bouger pendant le téléchargement : on repart de l'état du moment.
+      const current = slidesRef.current;
+      const at = current.includes(target) ? current.indexOf(target) : slideIdx;
+      if (current[at]?.cast_source !== "stock_ambient") return;
+      const next = current.map((s: any, i: number) => i === at ? {
+        ...s, photo_index: newIndex, cast_source: "stock_ambient", stock_alternates: rest.length ? rest : undefined,
+        stock_credit: { source: "pexels", photographer: nextPhoto.photographer || "", source_url: nextPhoto.source_url || "" },
+      } : s);
+      setSlides(next);
+      notify(next, caption);
+    } catch (e) {
+      toast.error("Cette photo n'a pas pu être chargée", { description: readableError(e, "Réessaie dans un instant.") });
+    } finally {
+      setAlternateLoadingIdx(null);
+    }
   };
 
   // Casting bibliothèque (régime texte d'abord) : la photo choisie dans la
@@ -796,19 +832,27 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                 // ═══ Slide à caster (régime texte d'abord) : directive sans photo posée ═══
                 const isCasting = !!slide.photo_directive && !Number.isInteger(slide.photo_index);
                 if (isCasting) {
+                  // L'app cherche encore une image pour cette slide (pas pour une photo d'actu, choisie à la main).
+                  const searchingHere = photoProposalsSearching && !slide.news_entity;
+                  const directive = usefulDirective(slide.photo_directive);
                   return (
                     <div className="rounded-lg border border-dashed border-warning/50 bg-warning-bg/40 p-3 space-y-2.5">
                       <div className="flex items-start gap-2.5">
                         <div className="h-16 w-12 shrink-0 rounded-md border border-dashed border-border bg-background/60 flex items-center justify-center text-muted-foreground">
-                          <ImagePlus size={18} />
+                          {searchingHere ? <Loader2 size={18} className="animate-spin" /> : <ImagePlus size={18} />}
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1" role={searchingHere ? "status" : undefined}>
                           <p className="text-2xs font-semibold uppercase tracking-wide text-warning">
-                            Image à choisir
+                            {searchingHere ? "On te cherche une image…" : "Image à choisir"}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            <span className="font-medium text-foreground">L'image idéale ici :</span>{" "}
-                            {slide.photo_directive}
+                            {searchingHere ? (
+                              "D'abord dans ta bibliothèque, sinon parmi des photos libres de droit. Tu peux aussi en choisir une tout de suite."
+                            ) : directive ? (
+                              <><span className="font-medium text-foreground">L'image idéale ici :</span>{" "}{directive}</>
+                            ) : (
+                              "Choisis l'image qui va avec le texte de cette slide."
+                            )}
                           </p>
                         </div>
                       </div>
@@ -904,7 +948,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                         {slide.cast_source === "library_auto" && (
                           <Badge variant="secondary" className="text-2xs bg-success-bg text-success border-transparent">
                             <Sparkles size={10} className="mr-1" />
-                            Castée depuis ta bibliothèque
+                            Proposée depuis ta bibliothèque
                           </Badge>
                         )}
                         {slide.cast_source === "generated" && (
@@ -916,7 +960,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                         {slide.cast_source === "stock_ambient" && (
                           <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary border-transparent">
                             <ImageIcon size={10} className="mr-1" />
-                            Photo libre de droit · remplace-la par la tienne si tu veux
+                            Proposée · photo libre de droit
                           </Badge>
                         )}
                         {slide.cast_source === "news_stock" && (
@@ -935,6 +979,19 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                           >
                             <ImageIcon size={13} className="mr-1" />
                             {photo?.preview ? "Changer la photo" : "Ajouter une photo"}
+                          </Button>
+                        )}
+                        {onAddPhoto && slide.cast_source === "stock_ambient" && Array.isArray(slide.stock_alternates) && slide.stock_alternates.length > 0 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            disabled={alternateLoadingIdx !== null}
+                            onClick={() => showAnotherProposal(idx)}
+                          >
+                            {alternateLoadingIdx === idx ? <Loader2 size={13} className="mr-1 animate-spin" /> : <RefreshCw size={13} className="mr-1" />}
+                            Une autre
                           </Button>
                         )}
                         {slide.photo_directive && (
@@ -979,9 +1036,9 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                         )}
                       </div>
                     </div>
-                    {slide.photo_directive && (
+                    {usefulDirective(slide.photo_directive) && (
                       <p className="text-2xs text-muted-foreground">
-                        🎯 {slide.photo_directive}
+                        🎯 {usefulDirective(slide.photo_directive)}
                       </p>
                     )}
                     {renderGenerationBlock(idx)}
@@ -1014,7 +1071,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                       />
                       {slide.overlay_position && (
                         <Badge variant="outline" className="text-2xs">
-                          {slide.overlay_position.replace(/_/g, " ")}
+                          {overlayPositionLabel(slide.overlay_position)}
                         </Badge>
                       )}
                     </div>
