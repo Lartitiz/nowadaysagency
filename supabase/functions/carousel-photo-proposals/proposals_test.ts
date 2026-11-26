@@ -190,3 +190,30 @@ Deno.test("photo-proposals : requêtes neutres de dernier recours (acceptées, d
   assertEquals(receipt.neutral, [1]);
   assertEquals(receipt.refused_queries, { "1": "handmade soap bar" });
 });
+
+Deno.test("photo-proposals : troisième essai neutre quand deux vraies recherches n'ont rien d'acceptable", async () => {
+  const calls: string[] = [];
+  const neutral = neutralQueries([1], ["golden oil bowl", "olive oil texture"]).get(1)!;
+  const call = (async (opts: any) => {
+    if (opts.tool.name === "plan_images") return JSON.stringify({ plans: [{ slide: 1, ideal: "De l'huile dorée dans un bol", library_photo: null, query: "golden oil bowl" }] });
+    if (opts.tool.name === "requetes_de_secours") return JSON.stringify({ queries: [{ slide: 1, query: "olive oil texture" }] });
+    const ids: string[] = opts.tool.input_schema.properties.checks.items.properties.photo.enum;
+    // Les photos d'huile montrent des bouteilles : refusées. Seule la photo neutre (91) passe.
+    return JSON.stringify({
+      choices: [{ slide: 1, photo: ids.includes("91") ? "91" : null, reason: "x" }],
+      checks: ids.map((photo) => ({ photo, people: false, products_or_text: photo !== "91" })),
+    });
+  }) as any;
+  const { proposals, receipt } = await proposePhotos({ subject: "Huiles", brand: "Savonnerie", slides, targets: [1] }, {
+    usage: {}, call, apiKey: "k", logger: () => {},
+    fetchImpl: fakeFetch({
+      "golden oil bowl": [pexelsPhoto(71, "Oil")], "olive oil texture": [pexelsPhoto(81, "Olive oil")], [neutral]: [pexelsPhoto(91, "Stone")],
+    }, calls),
+  });
+  assertEquals(calls, ["golden oil bowl", "olive oil texture", neutral]);
+  assertEquals(proposals[0].stock!.id, "91");
+  assertEquals(receipt.third_queries, { "1": neutral });
+  assertEquals(receipt.neutral, [1]);
+  assertEquals(receipt.retried, [1]);
+  assertEquals(receipt.status, "completed");
+});
