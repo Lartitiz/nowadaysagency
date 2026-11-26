@@ -29,6 +29,11 @@ export function buildFixInstructions(a: RedacAnalysis): string {
       `CTA DUPLIQUÉ : le "cta" de la caption répète la dernière slide. Réécris le cta de la CAPTION pour qu'il soit COMPLÉMENTAIRE (autre formulation, autre angle d'invitation), pas une copie.`,
     );
   }
+  if (a.captionCopiedSentences?.length) {
+    lines.push(
+      `LÉGENDE QUI RECOPIE LES SLIDES : ces phrases de la caption sont déjà sur les slides :\n${a.captionCopiedSentences.map((t) => `- « ${t} »`).join("\n")}\nRéécris hook et body de la CAPTION pour qu'ils apportent ce que les slides ne disent pas (pourquoi ce contenu, une précision ou une prise de position présentes dans les sources) ou résument le propos avec d'autres mots. N'invente rien pour la différencier : une légende plus courte vaut mieux qu'une copie. Ne touche pas aux slides.`,
+    );
+  }
   for (const m of a.moulded) {
     lines.push(`FORMULE MOULÉE : « ${m} » est une signature IA récurrente. Réécris-la autrement (ou supprime-la).`);
   }
