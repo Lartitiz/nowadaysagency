@@ -181,6 +181,7 @@ describe("aller-retour complet dans l'éditeur, branché comme /creer", () => {
     expect(log.length).toBe(4);
     expect((screen.getByLabelText("Annuler la modification") as HTMLButtonElement).disabled).toBe(false);
 
+    fireEvent.click(screen.getByTestId("slide-menu"));
     fireEvent.click(screen.getByText("Verrouiller").closest("button")!);
     await settle();
     expect(log.length).toBe(5);
@@ -205,6 +206,7 @@ describe("aller-retour complet dans l'éditeur, branché comme /creer", () => {
     expect(reopen[0].raw.slides).toEqual(final.raw.slides);
     expect(reopen[0].raw.caption).toEqual(final.raw.caption);
     expect(reopen[0].raw._carousel_document_id).toBe(final.raw._carousel_document_id);
+    fireEvent.click(screen.getByTestId("slide-menu"));
     expect(screen.getByText("Déverrouiller")).toBeTruthy();
   });
 

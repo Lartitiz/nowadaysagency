@@ -115,13 +115,16 @@ describe("ordre des slides en mode simple", () => {
     fireEvent.click(within(tools).getByLabelText("Descendre la slide"));
     expect(saved().r.slides.map((s: any) => s.title)).toEqual(["Suite", "Mon atelier", "Dernière"]);
     expect(screen.getByTestId("slide-count").textContent).toBe("Slide 2 sur 3");
-    fireEvent.click(within(tools).getByLabelText("Dupliquer la slide"));
+    // « Cette slide » (26/11/2026) : dupliquer, verrouiller et supprimer sont rangés dans ce menu.
+    fireEvent.click(screen.getByTestId("slide-menu"));
+    fireEvent.click(screen.getByLabelText("Dupliquer la slide"));
     expect(saved().r.slides.map((s: any) => s.title)).toEqual(["Suite", "Mon atelier", "Mon atelier", "Dernière"]);
   });
 
   it("« Supprimer la slide » prévient et « Annuler » la remet à sa place", () => {
     render(<Harness />);
     fireEvent.click(screen.getByRole("button", { name: "Sélectionner la slide 2" }));
+    fireEvent.click(screen.getByTestId("slide-menu"));
     fireEvent.click(screen.getByRole("button", { name: /Supprimer la slide/ }));
     expect(saved().r.slides.map((s: any) => s.title)).toEqual(["Mon atelier", "Dernière"]);
     const t = toasts.find((x) => x.message === "Slide supprimée");

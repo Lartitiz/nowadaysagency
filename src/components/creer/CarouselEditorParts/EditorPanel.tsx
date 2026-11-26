@@ -167,11 +167,12 @@ export function EditorPanel(p: Props) {
     <PanelSection title="Réglages avancés" icon={<SlidersHorizontal size={14} aria-hidden="true" />}>{advancedBody}</PanelSection>
   );
 
-  const tabButton = (id: PanelTab, label: string, Icon: typeof Type, extra = "") => (
-    <button key={id} type="button" role="tab" id={`panel-tab-${id}`} aria-selected={tab === id} aria-controls="panel-content" onClick={() => open(id)}
-      className={`flex min-w-[3.6rem] shrink-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-center text-[10.5px] font-medium leading-tight text-muted-foreground hover:text-foreground aria-selected:bg-background aria-selected:text-primary aria-selected:shadow-sm aria-selected:ring-1 aria-selected:ring-primary/25 ${extra}`}>
+  // Téléphone : tous les onglets tiennent dans la largeur (plus de rangée qui défile et cache « Texte »), d'où un nom court pour l'IA.
+  const tabButton = (id: PanelTab, label: string, Icon: typeof Type, extra = "", short = "") => (
+    <button key={id} type="button" role="tab" id={`panel-tab-${id}`} aria-selected={tab === id} aria-controls="panel-content" aria-label={short ? label : undefined} onClick={() => open(id)}
+      className={`flex flex-col max-md:min-w-0 max-md:flex-1 md:min-w-[3.6rem] md:shrink-0 items-center gap-1 rounded-xl px-1 py-2 text-center text-[10.5px] font-medium leading-tight text-muted-foreground hover:text-foreground aria-selected:bg-background aria-selected:text-primary aria-selected:shadow-sm aria-selected:ring-1 aria-selected:ring-primary/25 ${extra}`}>
       <Icon size={19} aria-hidden="true" />
-      {label}
+      {short || label}
     </button>
   );
 
@@ -183,9 +184,9 @@ export function EditorPanel(p: Props) {
           <Button size="sm" variant="outline" className="h-8 shrink-0 rounded-full px-4" onClick={() => p.sheet.set(false)}>Terminé</Button>
         </div>
       )}
-      <div role="tablist" aria-label="Réglages de la slide" className="flex gap-1 overflow-x-auto rounded-xl bg-muted/60 p-1 md:flex-col md:overflow-visible md:rounded-none md:border-r md:p-1.5">
+      <div role="tablist" aria-label="Réglages de la slide" className="flex gap-0.5 rounded-xl bg-muted/60 p-1 md:flex-col md:gap-1 md:overflow-visible md:rounded-none md:border-r md:p-1.5">
         {TABS.map(([id, label, Icon]) => tabButton(id, label, Icon))}
-        {tabButton("ia", "Demander à l’IA", Sparkles, "text-primary md:hidden")}
+        {tabButton("ia", "Demander à l’IA", Sparkles, "text-primary md:hidden", "IA")}
         {tabButton("calques", "Calques", Layers, "md:mt-auto")}
       </div>
       <div className={`flex min-h-0 min-w-0 flex-col ${p.sheet.open ? "max-md:flex-1 max-md:overflow-y-auto max-md:overscroll-contain max-md:pb-6" : ""}`}
