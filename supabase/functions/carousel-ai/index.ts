@@ -363,7 +363,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       // invitation à raconter un cas (choix de Laetitia). Conclusion, confidence
       // et chute sobre sans appel ne sont plus tirées.
       const CAPTION_ENDINGS: Array<{ requiresQuestion: boolean; instruction: string }> = [
-        { requiresQuestion: true, instruction: `une QUESTION spécifique au cœur du carrousel (jamais générique, elle reprend un mot ou une image des slides)` },
+        { requiresQuestion: true, instruction: `une QUESTION ouverte, qui ne se répond pas par oui ou non, sur la vie de la personne qui lit et au cœur du carrousel (jamais générique, elle reprend un mot ou une image des slides)` },
         { requiresQuestion: false, instruction: `une INVITATION à raconter UN cas précis en commentaire, à l'impératif — SANS point d'interrogation` },
       ];
       captionEndingRule = CAPTION_ENDINGS[Math.floor(Math.random() * CAPTION_ENDINGS.length)];

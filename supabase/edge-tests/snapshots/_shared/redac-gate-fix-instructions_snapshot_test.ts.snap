@@ -39,6 +39,10 @@ snapshot[`buildFixInstructions (carrousel) : consignes envoyées au correcteur, 
 
 CTA DUPLIQUÉ : le "cta" de la caption répète la dernière slide. Réécris le cta de la CAPTION pour qu'il soit COMPLÉMENTAIRE (autre formulation, autre angle d'invitation), pas une copie.
 
+DURÉE D'EXEMPLE NON ANNONCÉE : ces phrases donnent une durée que les sources ne fournissent pas, comme si c'était un fait :
+- « Il faut trois semaines pour un bol. »
+Soit la phrase dit clairement que c'est un exemple (« par exemple », « imaginons »), soit elle dit la même chose sans durée précise (« si l'opération dure plus longtemps que prévu »). N'invente aucune autre donnée.
+
 FORMULE MOULÉE : « Ce qui me dérange » est une signature IA récurrente. Réécris-la autrement (ou supprime-la).
 
 CHIFFRES SANS SOURCE : ces chiffres ne viennent ni du brief, ni des réponses de l'utilisatrice, ni de son branding, ni de l'actu fournie :
@@ -75,7 +79,7 @@ PHRASES DÉJÀ PUBLIÉES DANS UN CONTENU RÉCENT DE LA MARQUE : ces passages rep
 - « Chaque pièce sort de mon atelier après de longues heures de tournage et de patience »
 L'audience suit le compte : la même phrase d'un contenu à l'autre se voit tout de suite. Reformule chaque passage avec des mots neufs, ou remplace-le par un autre fait des sources s'il ne sert pas ce propos. N'ajoute aucun fait.
 
-CHUTE DE CAPTION NON CONFORME : la forme imposée pour cette génération est « une question ouverte sur le sujet ». La caption ne contient aucune question : réécris le champ "cta" de la CAPTION en question spécifique au sujet.\`
+CHUTE DE CAPTION NON CONFORME : la forme imposée pour cette génération est « une question ouverte sur le sujet ». La caption ne contient aucune question, ou une question qui se répond par oui ou non : réécris le champ "cta" de la CAPTION en question OUVERTE spécifique au sujet, qui porte sur la vie de la personne qui lit (« Qu'est-ce qui… ? », « Comment… ? »).\`
 `;
 
 snapshot[`buildFixInstructions (carrousel) : chute imposée sans question, cta en question 1`] = `\`CHUTE DE CAPTION NON CONFORME : la forme imposée pour cette génération est « une confidence courte ». La caption se termine par une question alors que la forme imposée n'en est pas une : réécris le champ "cta" de la CAPTION dans la forme imposée, SANS aucun point d'interrogation. Garde le sens, change la forme.\``;

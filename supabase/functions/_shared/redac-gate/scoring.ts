@@ -13,6 +13,8 @@ export interface RedacAnalysis {
   ctaDuplicated: boolean;
   /** Phrases de la légende recopiées d'une slide, quand elles en font plus de la moitié (étude du 26/11/2026). */
   captionCopiedSentences?: string[];
+  /** Phrases qui donnent une durée en lettres absente des sources, sans l'annoncer comme exemple. */
+  exampleDurations?: string[];
   moulded: string[];
   hashtagsCount: number;
   fabricatedNumbers: string[];
@@ -40,6 +42,7 @@ export function redacViolations(a: RedacAnalysis): number {
     a.reversals.length + // Dès la première formule ajoutée par le modèle.
     (a.ctaDuplicated ? 1 : 0) +
     (a.captionCopiedSentences?.length ? 1 : 0) +
+    (a.exampleDurations?.length ? 1 : 0) +
     a.moulded.length +
     Math.min(3, a.fabricatedNumbers.length) +
     Math.min(3, a.unsourcedResearchNumbers?.length ?? 0) +

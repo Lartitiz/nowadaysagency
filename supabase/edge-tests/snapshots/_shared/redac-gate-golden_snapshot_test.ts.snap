@@ -74,6 +74,7 @@ snapshot[`golden runRedacGate : carrousel corrigé, quality_check calculé par l
     captionCopiedSentences: [],
     ctaDuplicated: false,
     durationConflicts: [],
+    exampleDurations: [],
     fabricatedNumbers: [],
     hashtagsCount: 4,
     hookEchoes: [],
@@ -92,6 +93,7 @@ snapshot[`golden runRedacGate : carrousel corrigé, quality_check calculé par l
     captionCopiedSentences: [],
     ctaDuplicated: true,
     durationConflicts: [],
+    exampleDurations: [],
     fabricatedNumbers: [
       "70 (« …jour à l'atelier. Le constat 70 % des clientes ne savent pas… »)",
     ],
@@ -144,6 +146,7 @@ snapshot[`golden runRedacGate : carrousel corrigé, quality_check calculé par l
       score: 100,
       slides_over_50_words: [],
       source: "code",
+      unannounced_example_durations: 0,
       unsourced_research_numbers: 0,
     },
     slides: [
@@ -211,6 +214,7 @@ snapshot[`golden runRedacGate : LinkedIn, correction refusée (chiffre inventé 
       score: 80,
       slides_over_50_words: [],
       source: "code",
+      unannounced_example_durations: 0,
       unsourced_research_numbers: 0,
     },
     slides: [

@@ -5,9 +5,10 @@
 // hashtags, quality_check calculé par le code, chute de légende (lot 4).
 
 import { carouselEditorialFields } from "../carousel-editorial-review.ts";
+import { questionFermee } from "../questions-form.ts";
 import { wordCount, sentencesOf, tokenSimilarity } from "./text-utils.ts";
 import { MOULDED_VERBATIMS, findReversals, dropUserSourcedReversals } from "./reversals.ts";
-import { numbersIn, findFabricatedNumbers } from "./numbers.ts";
+import { numbersIn, findFabricatedNumbers, letterDurations } from "./numbers.ts";
 import { findDurationConflicts } from "./durations.ts";
 import { type EchoContext, findHookEchoes, findBrandCopyOverlap, findRecentEchoes } from "./echoes.ts";
 import { type RedacAnalysis, redacViolations, redacScore } from "./scoring.ts";
@@ -23,6 +24,18 @@ export function slideTexts(s: any): string {
 /** Corps mesurable d'une slide pour la règle « 50 mots » (titre exclu). */
 export function slideBody(s: any): string {
   return [s?.body, s?.overlay_text].filter(Boolean).join(" ");
+}
+
+const EXAMPLE_MARKER = /(par exemple|exemple|imagin|prenons|admettons|disons|mettons|suppos)/i;
+/**
+ * Durée écrite en lettres (« six mois ») que les sources ne donnent pas et que
+ * la phrase ne présente pas comme un exemple (test en ligne du 26/11/2026 :
+ * « rentable sur six mois, moyenne sur dix-huit »). Les chiffres en chiffres
+ * restent à findFabricatedNumbers.
+ */
+export function findUnannouncedExampleDurations(sentences: string[], allowed?: Set<string>): string[] {
+  if (!allowed) return [];
+  return sentences.filter((s) => !EXAMPLE_MARKER.test(s) && letterDurations(s).some((d) => !allowed.has(d.value)));
 }
 
 /**
@@ -72,6 +85,7 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, 
   );
 
   const captionCopiedSentences = findCaptionCopiedSentences(caption, slides);
+  const exampleDurations = findUnannouncedExampleDurations(sentencesOf(allText), allowedNumbers);
 
   const moulded = MOULDED_VERBATIMS.map((re) => allText.match(re)?.[0]).filter(Boolean) as string[];
 
@@ -103,7 +117,7 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, 
   const inventedExperiences = findInventedExperiences(allText, testimonySource);
 
   return {
-    reversals, overlongSlides, overlongOverlays, ctaDuplicated, captionCopiedSentences, moulded,
+    reversals, overlongSlides, overlongOverlays, ctaDuplicated, captionCopiedSentences, exampleDurations, moulded,
     hashtagsCount, fabricatedNumbers, unsourcedResearchNumbers, researchNumbersUsed, durationConflicts, brandCopyOverlap, hookEchoes,
     recentEchoes, inventedTestimonials, inventedExperiences,
   };
@@ -147,6 +161,7 @@ export function buildQualityCheck(a: RedacAnalysis, repassed: boolean, researchC
     overlays_over_28_words: a.overlongOverlays,
     caption_cta_duplicates_slide: a.ctaDuplicated,
     caption_sentences_copied_from_slides: a.captionCopiedSentences?.length ?? 0,
+    unannounced_example_durations: a.exampleDurations?.length ?? 0,
     moulded_verbatims: a.moulded,
     fabricated_numbers: a.fabricatedNumbers.length,
     unsourced_research_numbers: a.unsourcedResearchNumbers?.length ?? 0,
@@ -213,7 +228,8 @@ export function captionEndingViolated(parsed: any, rule?: CaptionEndingRule): bo
   const cta = String(caption.cta || "").trim();
   const bodyTail = String(caption.body || "").trim().split("\n").filter(Boolean).pop() || "";
   const tail = (cta || bodyTail).trim();
-  if (rule.requiresQuestion) return !/\?/.test(cta + " " + bodyTail);
+  // Question exigée : absente, ou fermée (oui/non) quand elle est dans le cta (26/11/2026).
+  if (rule.requiresQuestion) return !/\?/.test(cta + " " + bodyTail) || (/\?/.test(cta) && questionFermee(cta));
   // Forme non-question : un « ? » dans le cta, ou une fin de caption en question, = violation.
   return /\?/.test(cta) || /\?\s*$/.test(tail);
 }
