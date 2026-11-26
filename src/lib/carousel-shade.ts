@@ -5,7 +5,8 @@
 // dans l'onglet Photo et sur la barre posée sur la slide.
 // Trois formes d'ombre existent dans les slides : le dégradé ou l'aplat `data-injected-scrim`
 // (mises en page, carrousel mixte, garde de lisibilité) et le voile du texte éditorial
-// (`style[data-photo-editorial-veil]`). Toutes suivent le même curseur.
+// (`style[data-photo-editorial-veil]`). Toutes suivent le même curseur, ainsi que le cartouche de
+// lecture (`data-photo-reading-panel`, le « bloc bleu » derrière le texte, vu sur le compte démo).
 import {
   editorialVeilAlpha,
   getEditorElements,
@@ -23,9 +24,9 @@ const AUTO_CONTOUR = "0 2px 14px rgba(0,0,0,0.6)";
 const sameShadow = (a: string | undefined, b: string) => (a || "").replace(/\s+/g, "") === b.replace(/\s+/g, "");
 
 function scrims(html: string): { id: string; alpha: number }[] {
-  if (!html.includes("data-injected-scrim")) return [];
+  if (!html.includes("data-injected-scrim") && !html.includes("data-photo-reading-panel")) return [];
   const doc = new DOMParser().parseFromString(html, "text/html");
-  return Array.from(doc.querySelectorAll<HTMLElement>("[data-injected-scrim][data-editor-id]"))
+  return Array.from(doc.querySelectorAll<HTMLElement>("[data-injected-scrim][data-editor-id],[data-photo-reading-panel][data-editor-id]"))
     .map((el) => ({ id: el.dataset.editorId!, alpha: veilAlpha(el.getAttribute("style") || "") }))
     .filter((s): s is { id: string; alpha: number } => s.alpha !== null);
 }

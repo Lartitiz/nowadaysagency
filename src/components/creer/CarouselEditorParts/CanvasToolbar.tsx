@@ -197,7 +197,7 @@ export default function CanvasToolbar({
             Recadrer
           </button>
         )}
-        {box.kind === "photo" && !box.locked && !box.emptyFrame && cropId !== selected && shade && (
+        {!box.locked && !box.emptyFrame && cropId !== selected && shade && (
           <ShadeSlider compact value={shade.value} onChange={shade.set} />
         )}
         {box.locked && (
