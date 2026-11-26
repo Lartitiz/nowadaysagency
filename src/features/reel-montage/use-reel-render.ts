@@ -57,6 +57,11 @@ export function useReelRender({ initialMp4Url = null, renderKey, onPhaseChange, 
   const [previewOpen, setPreviewOpen] = useState(false);
   const instantPreview = hasInstantPreview(montageMode, voiceMode);
   const archiveBusy = useRef(false);
+  // Aperçu en préparation (liens du Studio, plan) : visible à l'écran, sinon le
+  // clic sur « Assembler mon reel » ne montrait rien (essai filmé du 26/11/2026).
+  const [preparingPreview, setPreparingPreview] = useState(false);
+  // Demande d'amener l'aperçu déjà ouvert à l'écran (nouveau clic sur le bouton du bas).
+  const [previewFocus, setPreviewFocus] = useState(0);
 
   useEffect(() => {
     onPhaseChange?.(phase);
@@ -119,10 +124,14 @@ export function useReelRender({ initialMp4Url = null, renderKey, onPhaseChange, 
   /** « Assembler mon reel » : aperçu immédiat (sans voix) ou rendu MP4 (autres modes). */
   async function handleAssemble() {
     if (!instantPreview) return renderMp4();
+    // Aperçu déjà ouvert pour ces entrées : on le remontre, on ne le refait pas.
+    // Le refaire rechargeait le lecteur et tous les clips (« ça ralentit quand je reclique »).
+    if (previewOpen && previewPlan) { setPreviewFocus(n => n + 1); return; }
     if (renderBusy.current || archiveBusy.current) return;
     if (!passGuards()) return;
     const generation = activeRender.current.generation;
     renderBusy.current = true;
+    setPreparingPreview(true);
     try {
       const chosen = chosenClips(clips);
       const plan = await buildMontagePlan({ spoken, clips, chosen, cutaways, montageMode, voiceMode, voiceUrls, voiceDurations, charter, workspaceId });
@@ -135,6 +144,7 @@ export function useReelRender({ initialMp4Url = null, renderKey, onPhaseChange, 
       toast.error(readableError(e, "L’aperçu n’a pas pu se préparer."));
     } finally {
       renderBusy.current = false;
+      if (activeRender.current.mounted) setPreparingPreview(false);
     }
   }
 
@@ -263,6 +273,6 @@ export function useReelRender({ initialMp4Url = null, renderKey, onPhaseChange, 
     activeRender, handleAssemble, handleArchiveRetry, handleDownload,
     instantPreview, previewPlan: previewOpen ? previewPlan : null, hasPreview: !!previewPlan,
     reopenPreview: () => { if (previewPlan) setPreviewOpen(true); },
-    renderMp4,
+    renderMp4, preparingPreview, previewFocus,
   };
 }

@@ -37,13 +37,16 @@ export function useReelStockSearch({ spoken, subject, montageMode, setClips, act
     (async () => {
       let kws: string[] = [];
       try {
-        const { keywords: k, primary, labels: l } = await suggestStockKeywords({
-          subject: subject || spoken.map((s) => s.texte_parle).join(" ").slice(0, 120),
-          slides: spoken.map((s) => s.texte_parle || ""),
+        const texts = spoken.map((s) => s.texte_parle || "");
+        const { keywords: k, primary, labels: l, passages } = await suggestStockKeywords({
+          subject: subject || texts.join(" ").slice(0, 120),
+          slides: texts,
+          // Une requête par passage, dans l'ordre (le n°i ne glisse plus sur le passage suivant).
+          ...(texts.length <= 10 ? { passages: texts } : {}),
         }, { count: Math.min(Math.max(spoken.length, 1), 10) });
         labels.current = l ?? {};
         kws = spoken.map((_, i) => {
-          const kw = k[i] || primary;
+          const kw = passages?.[i] || k[i] || primary;
           return kw ? stockKeywordLabel(kw, labels.current) : subject || "";
         });
       } catch {
