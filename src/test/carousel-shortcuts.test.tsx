@@ -95,7 +95,8 @@ describe("editor keyboard shortcuts", () => {
   it("lists the shortcuts", () => {
     const { width } = setup();
     try {
-      fireEvent.click(screen.getByLabelText("Voir les raccourcis clavier"));
+      // Slide en grand (26/11/2026) : la liste est dans le bouton « ⋯ » de la ligne d'outils.
+      fireEvent.click(screen.getByTestId("editor-view-menu"));
       expect(screen.getByText("Raccourcis clavier")).toBeTruthy();
       expect(screen.getByText("Dupliquer l’élément")).toBeTruthy();
     } finally { width.mockRestore(); }

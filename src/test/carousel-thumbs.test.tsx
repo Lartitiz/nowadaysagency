@@ -63,6 +63,8 @@ describe("preview zoom and full screen", () => {
     // Éditeur facile (20/11/2026) : zoom et « En grand » sont dans « Plus d'outils ».
     window.localStorage.setItem("carousel-editor:mode", "complet");
     render(<Harness />);
+    // Slide en grand (26/11/2026) : ils sont rangés dans le bouton « ⋯ » de la ligne d'outils.
+    fireEvent.click(screen.getByTestId("editor-view-menu"));
     fireEvent.click(screen.getByLabelText("Zoomer l’aperçu"));
     expect(screen.getByText("150 %")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Ouvrir l’aperçu en grand"));

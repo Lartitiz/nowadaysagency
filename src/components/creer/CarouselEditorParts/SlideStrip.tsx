@@ -188,10 +188,9 @@ export function SlideStrip(props: StripProps) {
           <Plus size={16} />
         </button>
       </div>
-      {/* Les boutons de la slide : avec les vignettes ouvertes sur téléphone ; sous les vignettes en mode
-          « Plus d'outils » (la ligne du haut y est pleine) ; dans la ligne du haut en mode simple. */}
-      {/* 26/11/2026 : à partir de 1024 px, ils sont dans la ligne du haut dans les deux modes (la slide reprend leur hauteur). */}
-      {(all || !props.simple) && <SlideTools {...props} className={`flex-wrap justify-center lg:hidden ${props.simple ? "md:hidden" : all ? "" : "max-md:hidden"}`} />}
+      {/* Les boutons de la slide : avec les vignettes ouvertes sur téléphone. Sur tablette et ordinateur, ils sont
+          dans la ligne du haut dans les deux modes (26/11/2026 : la slide reprend la hauteur de leur rangée). */}
+      {all && <SlideTools {...props} className="flex-wrap justify-center md:hidden" />}
       {/* Une seule ligne sous les vignettes : elle doit tenir au-dessus de la barre « Publier » (EditorLayout.tsx). */}
       <div className="flex flex-wrap items-center justify-center gap-x-3 text-center text-2xs leading-tight text-muted-foreground">
         {document.slides.length > 1 && (

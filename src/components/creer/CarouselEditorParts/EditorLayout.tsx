@@ -33,7 +33,8 @@ export function measureSlideFit(grid: HTMLElement): SlideFit {
   if (bar) bottom -= (parseFloat(getComputedStyle(bar).bottom) || 0) + bar.getBoundingClientRect().height;
   const room = Math.max(0, Math.round(bottom - top - (phone ? PHONE_RESERVE : DESKTOP_GAP)));
   const column = grid.querySelector<HTMLElement>("[data-canvas-sticky]")?.clientWidth || grid.clientWidth || MAX_WIDTH;
-  // Mode « Plus d'outils » : les boutons de la slide sont sous les vignettes, la slide leur laisse leur hauteur.
+  // Rangée de boutons affichée sous les vignettes (s'il y en a une) : la slide lui laisse sa hauteur.
+  // Depuis le 26/11/2026 il n'y en a plus sur ordinateur (boutons dans la ligne du haut).
   const tools = grid.querySelector<HTMLElement>('[data-canvas-sticky] [data-testid="slide-order-tools"]')?.offsetHeight ?? 0;
   const under = phone ? 0 : (window.innerHeight < 800 ? STRIP_RESERVE_SHORT : STRIP_RESERVE) + (tools ? tools + 4 : 0);
   const free = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, column - (phone ? 0 : ARROWS_RESERVE), (room - under) * 0.8));
