@@ -28,8 +28,10 @@ export function significantStems(text: string): Set<string> {
   const plain = (text || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   for (const w of plain.match(/[a-z]{4,}/g) || []) {
     if (STOP.has(w)) continue;
-    const base = w.replace(/(?:es|s|x|e)$/, "");
-    if (base.length < 4 || STOP.has(base)) continue;
+    // « prix », « choix » : un mot court garde sa dernière lettre.
+    const stripped = w.replace(/(?:es|s|x|e)$/, "");
+    const base = stripped.length < 4 ? w : stripped;
+    if (STOP.has(base)) continue;
     out.add(base.length > 5 ? base.slice(0, 5) : base);
   }
   return out;

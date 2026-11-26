@@ -29,8 +29,22 @@ Deno.test("tri : un sujet sans rapport ne retient rien (l'écriture reste celle 
   assertEquals(livedMaterialPrompt({}), "");
 });
 
-Deno.test("tri : un seul mot commun ne suffit pas", () => {
-  assertEquals(selectLivedMaterial("Le prix du silence sur les réseaux", buildMaterialCandidates(CTX, BRIEFS)), []);
+Deno.test("tri : un ou deux mots communs ne suffisent pas", () => {
+  const candidates = buildMaterialCandidates(CTX, BRIEFS);
+  assertEquals(selectLivedMaterial("Le prix du silence sur les réseaux", candidates), []);
+  assertEquals(selectLivedMaterial("Le prix des tasses en porcelaine chez les grandes enseignes", candidates), []);
+});
+
+Deno.test("tri : cas réel du 26/11, deux mots vagues en commun avec un ancien SUJET ne ramènent rien", () => {
+  const briefs = [{ subject: "Une erreur fréquente dans mon domaine", answers: { q_0: "Beaucoup de vendeurs pensent que repeindre suffit à convaincre un acheteur pressé de signer." } }];
+  assertEquals(selectLivedMaterial("Les 3 erreurs qui plombent la marge d'une première opération de marchand de biens", buildMaterialCandidates({}, briefs)), []);
+});
+
+Deno.test("tri : le même sujet qu'un ancien brief retrouve la réponse d'alors, même dite avec d'autres mots", () => {
+  const briefs = [{ subject: "Coulisses : ce qu'on a trouvé en ouvrant le mur", answers: { q_0: "Une ancienne cheminée condamnée derrière le placo, avec le conduit encore ouvert. Rien sur les plans." } }];
+  const picked = selectLivedMaterial("Coulisses : ce qu'on a trouvé en ouvrant le mur", buildMaterialCandidates({}, briefs));
+  assertEquals(picked.length, 1);
+  assert(picked[0].text.includes("cheminée"));
 });
 
 Deno.test("candidats : ni réponse courte, ni matière éditoriale de l'IA, ni histoire pré-remplie par l'IA", () => {
