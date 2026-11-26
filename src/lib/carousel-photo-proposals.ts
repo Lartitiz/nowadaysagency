@@ -131,6 +131,22 @@ export function applyPhotoProposals(raw: any, resolved: ResolvedProposal[]): any
   return rebindReceiptsAfterPhotoCast(raw, next);
 }
 
+/**
+ * Des images ont été posées par l'app : les visuels ne se créent plus tout seuls,
+ * ils attendent le clic sur « Créer les visuels » pour que l'utilisatrice puisse
+ * d'abord changer une image proposée (choix de Laetitia du 26/11/2026).
+ */
+export function visualsWaitForClick(raw: any): boolean {
+  return Number(raw?.photo_proposals?.placed) > 0;
+}
+
+/** Bandeau de l'écran quand toutes les slides photo ont leur image. */
+export function allImagesReadyMessage(raw: any): string {
+  return visualsWaitForClick(raw)
+    ? "Chaque slide a une image proposée : change celles que tu veux, puis crée les visuels."
+    : "Toutes les slides photo ont leur image : tu peux créer les visuels.";
+}
+
 /** Le carrousel affiché est-il encore celui de la demande ? (sinon : nouvelle génération entre-temps) */
 export function sameCarousel(raw: any, passages: string[]): boolean {
   if (!Array.isArray(raw?.slides)) return false;

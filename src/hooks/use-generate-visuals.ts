@@ -1,5 +1,5 @@
 import { applyReviewedPhotoAssignments, carouselCompositionWarnings } from "@/lib/carousel-composition-fidelity";
-import { readableError } from "@/lib/error-messages";
+import { readableError } from "@/lib/error-messages"; import { visualsWaitForClick } from "@/lib/carousel-photo-proposals";
 import { visualSlidePayload } from "@/lib/visual-slide-payload";
 import { fitGeneratedSchemaSlides } from "@/lib/carousel-schema-fit";
 import { useEffect, useRef } from "react";
@@ -532,7 +532,7 @@ export function useGenerateVisuals({
         s?.photo_directive &&
         !Number.isInteger(s?.photo_index),
     );
-    if (hasUncastPhotoSlide) return;
+    if (hasUncastPhotoSlide || visualsWaitForClick(result?.raw)) return; // images proposées par l'app : on attend son clic
     // Tentatives bornées par rédaction : 1 essai + 1 retry sur échec transitoire.
     const attemptKey = `${creationId ?? ""}:${writingRef.current.epoch}`;
     if (autoVisualsAttemptRef.current.key !== attemptKey) {
