@@ -113,18 +113,19 @@ export function LayoutGallery({ changeLayout, layoutPreviews, slide }: {
 }) {
   return (
     <>
-      <div className="grid grid-cols-3 gap-2" role="group" aria-label="Mises en page">
+      {/* Deux colonnes (26/11/2026) : à 84 px de large, le texte des aperçus était illisible. */}
+      <div className="grid grid-cols-2 gap-2" role="group" aria-label="Mises en page">
         {layoutPreviews.map((l) => (
           <button
             key={l.variant}
             type="button"
             disabled={slide.locked}
             onClick={() => changeLayout(l.variant)}
-            className={`rounded-lg border p-1 text-center text-2xs hover:border-primary disabled:opacity-50 ${slide.data.layout_variant === l.variant ? "border-primary ring-1 ring-primary" : ""}`}
+            className={`min-w-0 rounded-lg border p-1 text-center text-2xs hover:border-primary disabled:opacity-50 ${slide.data.layout_variant === l.variant ? "border-primary ring-1 ring-primary" : ""}`}
             aria-label={`Mise en page ${l.label}`}
           >
-            <SlideThumb html={l.preview.html} />
-            <span className="mt-0.5 block leading-tight">{l.label}</span>
+            <SlideThumb html={l.preview.html} width="fill" />
+            <span className="mt-0.5 block text-xs leading-tight">{l.label}</span>
           </button>
         ))}
       </div>

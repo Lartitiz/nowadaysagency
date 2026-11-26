@@ -21,6 +21,7 @@ import { FontPicker } from "@/components/creer/CarouselEditorParts/FontPicker";
 import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import { range, toHex } from "@/components/creer/CarouselEditorParts/panel-controls";
 import { iconColor, isIcon, setIconColor } from "@/components/creer/CarouselEditorParts/editor-icons";
+import { frenchSpacingText } from "@/lib/french-spacing";
 
 export type SimplePart = "texte" | "photo" | "couleurs";
 
@@ -204,7 +205,10 @@ export function SimpleParts({ part, canvasApi, changeSlide, commit, css, documen
             onFocus={() => { if (t.id !== text?.id) selectOne(t.id); }}
             onChange={(e) => {
               setFitId(t.id);
-              changeSlide(patchElement(slide, t.id, { text: e.target.value }), `text-${slide.id}-${t.id}`);
+              // Espace insécable avant « : ; ! ? » (french-spacing.ts) : même longueur, le curseur est remis à sa place.
+              const field = e.target, at = field.selectionStart, value = frenchSpacingText(field.value);
+              changeSlide(patchElement(slide, t.id, { text: value }), `text-${slide.id}-${t.id}`);
+              if (value !== field.value && at !== null) requestAnimationFrame(() => field.setSelectionRange(at, at));
             }}
           />
           {t.id === text?.id && (

@@ -30,7 +30,7 @@ import {
   pasteElement,
   type ClipboardElement,
   documentColors,
-  setElementHtml,
+  setElementHtml, frenchSpacingSlide,
   listLayers,
   moveLayer,
   removeLayer,
@@ -277,7 +277,7 @@ export default function CarouselEditor({
   // Texte tapé sur la slide, enregistré mot à mot (`live`, sans ajustement) : une étape d'Annuler par mot ou pause.
   const editSlideText = (id: string, next: EditorSlide, live?: boolean) => {
     if (!live) setFitId(id);
-    if (next.html !== slide.html) changeSlide(next, `text-${slide.id}-${id}`);
+    const fixed = live ? next : frenchSpacingSlide(next); if (fixed.html !== slide.html) changeSlide(fixed, `text-${slide.id}-${id}`); // fin de frappe : insécables (french-spacing.ts)
   };
   const moveMany = (moves: Record<string, Record<string, string>>) => {
     let next = slide;
