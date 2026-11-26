@@ -10,7 +10,7 @@
 // 3. Détection des violations face_cam=non (l'utilisatrice ne veut pas se
 //    montrer : aucun plan ni format visuel face cam ne doit subsister).
 
-import { fixFrenchElisions } from "./redac-gate.ts";
+import { findChoppyFragments, fixFrenchElisions } from "./redac-gate.ts";
 
 /** Rythme parlé naturel : 2,5 mots par seconde (~150 mots/min). */
 const WORDS_PER_SECOND = 2.5;
@@ -399,6 +399,72 @@ export function reelHookIsPresentation(text: unknown): boolean {
   return /^(bonjour|bonsoir|hello|coucou|salut|hey)\b/.test(t)
     || /^(je m'appelle|moi,? c'est|je me pr[ée]sente|bienvenue)\b/.test(t)
     || /^aujourd'hui,? (je vais|on va|je vous|je te|j'aimerais|je voulais) .{0,20}parl/.test(t);
+}
+
+// ═══ Voix parlée, pas hachée (Loom de Laetitia du 26/11/2026) ═══
+// « Rien sur les plans. Une cheminée condamnée derrière la cloison. Deux
+// semaines de chantier décalées. » : « c'est pas un hook […] c'est une vraie
+// personne qui parle » ; « Sur le papier tout était calé : diagnostic fait,
+// devis signé… » : « c'est pas des phrases, c'est haché ». Les reels relevés
+// le même soir (veille TikTok, voix off de rénovation et de parcours) ouvrent
+// tous par une phrase entière : « En pleine rénovation, j'ai découvert une
+// pièce cachée au milieu de la maison. »
+
+/** Première phrase d'un texte (coupée après . ! ? ou …). */
+function firstSentence(text: string): string {
+  return (text || "").trim().split(/(?<=[.!?…])\s+/)[0] || "";
+}
+
+/**
+ * L'accroche est-elle faite de bouts de phrases sans verbe (style télégraphique) ?
+ * Vrai si elle enchaîne deux fragments sans verbe, ou si elle ouvre par un
+ * fragment suivi d'autre chose. Une question n'est jamais hachée ici.
+ */
+export function reelHookIsChoppy(text: unknown): boolean {
+  if (typeof text !== "string" || !text.trim()) return false;
+  if (findChoppyFragments(text).runs.length > 0) return true;
+  return findChoppyFragments(firstSentence(text)).fragments > 0 && /[.!…]\s+\S/.test(text.trim());
+}
+
+const PARTICIPE_RE = /^\p{L}+(?:é|ée|és|ées|i|ie|is|ies|ise|ises|it|ite|its|ites|u|ue|us|ues|ert|erte|erts|ertes|int|inte|ints|ait|aite|aits)$/iu;
+const DETERMINANT_RE = /^(?:le|la|les|l'\p{L}*|un|une|des|mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|votre|vos|leur|leurs|ce|cet|cette|ces)$/iu;
+const SUJET_OU_AUXILIAIRE_RE = /(?<![\p{L}])(?:je|j'|tu|il|elle|on|nous|vous|ils|elles|c'|ça|est|sont|a|ont|avait|avaient|était|étaient)(?![\p{L}])/iu;
+
+/**
+ * Listes écrites « nom + participe » (« diagnostic fait, devis signé, planning
+ * envoyé aux artisans ») : deux éléments ou plus, chacun sans sujet ni
+ * auxiliaire, dont le 2e mot est un participe. C'est de l'écrit : à l'oral on
+ * dit « on avait fait le diagnostic, le devis était signé ».
+ */
+export function findWrittenParticipleLists(text: string): string[] {
+  const found: string[] = [];
+  for (const sentence of (text || "").split(/(?<=[.!?…;])\s+|\s*:\s+/)) {
+    const items = sentence.split(/\s*,\s*|\s+et\s+/).map((x) => x.trim().replace(/[.!?…;]+$/, "")).filter(Boolean);
+    let run: string[] = [];
+    const flush = () => { if (run.length >= 2) found.push(run.join(", ")); run = []; };
+    for (const item of items) {
+      const clean = item.replace(/[’]/g, "'");
+      const all = clean.split(/\s+/);
+      // Un déterminant devant le nom (« la recette testée ») ne compte pas.
+      const words = DETERMINANT_RE.test(all[0] ?? "") ? all.slice(1) : all;
+      const ok = words.length >= 2 && words.length <= 5 && PARTICIPE_RE.test(words[1]) && !SUJET_OU_AUXILIAIRE_RE.test(clean);
+      if (ok) run.push(item); else flush();
+    }
+    flush();
+  }
+  return found;
+}
+
+/** Passages hachés du texte parlé, section par section (numéros à partir de 1). */
+export function reelChoppyPassages(parsed: any): { section: number; extraits: string[] }[] {
+  const out: { section: number; extraits: string[] }[] = [];
+  sectionsOf(parsed).forEach((s, i) => {
+    const text = typeof s.texte_parle === "string" ? s.texte_parle : "";
+    const extraits = [...findChoppyFragments(text).runs, ...findWrittenParticipleLists(text)];
+    if (i === 0 && !extraits.length && reelHookIsChoppy(text)) extraits.push(firstSentence(text));
+    if (extraits.length) out.push({ section: i + 1, extraits });
+  });
+  return out;
 }
 
 /** Fuites de gabarit connues (mesurées 8/8 à l'audit) — détection déterministe. */

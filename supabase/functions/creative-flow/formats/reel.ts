@@ -10,7 +10,7 @@ import { enforceAudienceAddress, type AudienceAddress } from "../../_shared/audi
 import { tryParseAiJson } from "../../_shared/parse-ai-json.ts";
 import { applyCorrectionPassReel } from "../../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, enforceNoAddedLegalRules, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, hookEchoesBefore, textRedacRawCount } from "../../_shared/redac-gate.ts";
-import { countReelSpokenWords, enforceReelNoFaceCam, enforceSelectedReelHook, finalizeReelScript, reelAuditableText, extractReelTexts, reinjectReelTexts, reelTemplateLeaks, reelOverlaysNotFromScript, reelHookIsPresentation } from "../../_shared/reel-postprocess.ts";
+import { countReelSpokenWords, enforceReelNoFaceCam, enforceSelectedReelHook, finalizeReelScript, reelAuditableText, extractReelTexts, reinjectReelTexts, reelTemplateLeaks, reelOverlaysNotFromScript, reelHookIsPresentation, reelHookIsChoppy, reelChoppyPassages } from "../../_shared/reel-postprocess.ts";
 import { recapHooksLine } from "../../_shared/multi-subject.ts";
 import { REEL_PREMIERE_PHRASE } from "../../_shared/format-briefs/reel.ts";
 import { CORRECTION_ABORT_MS, addrOpts, extractImagePayload, gateNumbers } from "../shared.ts";
@@ -50,6 +50,16 @@ export function normalizeHooksResponse(parsed: any, params: { body: any; rawCont
   if (sansPresentation.length > 0 && sansPresentation.length < parsed.hooks.length) {
     console.log(JSON.stringify({ event: "reel_hook_presentation_ecarte", count: parsed.hooks.length - sansPresentation.length }));
     parsed.hooks = sansPresentation;
+  }
+  // Accroche en bouts de phrases (« Rien sur les plans. Une cheminée condamnée… »,
+  // Loom du 26/11/2026) : écartée de la même façon, tant qu'il en reste. Le hook
+  // choisi part tel quel dans le script, aucune relecture ne le rattrape ensuite.
+  const enPhrases = parsed.hooks.filter((h: any) => !reelHookIsChoppy(h.text));
+  if (enPhrases.length > 0 && enPhrases.length < parsed.hooks.length) {
+    console.log(JSON.stringify({ event: "reel_hook_hache_ecarte", count: parsed.hooks.length - enPhrases.length }));
+    parsed.hooks = enPhrases;
+  } else if (enPhrases.length === 0 && parsed.hooks.length > 0) {
+    console.warn(JSON.stringify({ event: "reel_hooks_tous_haches", count: parsed.hooks.length }));
   }
   // Élisions déterministes AVANT affichage : le hook choisi est ensuite
   // verrouillé tel quel sur le script (enforceSelectedReelHook) — une
@@ -150,6 +160,13 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
     if (!hookVerrouille && reelHookIsPresentation(firstSpoken)) {
       extras.push(`L'ACCROCHE SE PRÉSENTE AU LIEU D'ENTRER DANS LE SUJET : réécris [SECTION 1 - PARLE] (et [SECTION 1 - OVERLAY], extrait de la nouvelle phrase) sans bonjour, sans nom ni métier annoncés, sans annonce du sujet. Ouvre par un paradoxe tiré du reste du script (deux faits vrais qui ont l'air de se contredire), ou par l'aveu qu'elle a donné s'il y en a un. N'ajoute aucun fait.`);
     }
+    // Style haché (bouts de phrases sans verbe, listes « nom + participe ») :
+    // mesuré en code, remis en phrases parlées par la relecture. Le hook choisi
+    // n'est jamais touché (son choix prime).
+    const hache = reelChoppyPassages(parsed).filter((p) => !(p.section === 1 && hookVerrouille));
+    if (hache.length) {
+      extras.push(`PASSAGES HACHÉS À REMETTRE EN PHRASES PARLÉES (ce n'est pas comme ça qu'on parle) :\n${hache.map((p) => `- [SECTION ${p.section} - PARLE] : ${p.extraits.map((e) => `« ${e} »`).join(" ; ")}`).join("\n")}\nRéécris chacun en phrases entières, avec un sujet et un verbe conjugué, reliées comme à l'oral (« et là », « du coup », « sauf que », « quand ») : « diagnostic fait, devis signé » devient « on avait fait le diagnostic, le devis était signé ». Garde les mêmes faits et à peu près le même nombre de mots ; n'ajoute rien.`);
+    }
     if (body.face_cam === "non") {
       extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
     }
@@ -229,6 +246,8 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
   await enforceReelAudienceAddress(parsed, params.audienceAddress);
   applyReelCreuxTip(parsed);
   finalizeReelScript(parsed, body.selected_hook);
+  const hacheRestant = reelChoppyPassages(parsed);
+  if (hacheRestant.length) console.warn(JSON.stringify({ event: "reel_hache_restant", sections: hacheRestant.map((p) => p.section) }));
   // Encore trop long après les deux coupes : trace lisible dans les journaux
   // (l'écran de montage refuse déjà en français au-delà de 60 s).
   const photoCount = reelPhotosOf(body).length;
@@ -405,7 +424,7 @@ export const HOOKS_TOOL = {
           properties: {
             type: { type: "string", description: "vecu_perso | contre_intuition | objection_retournee | question_choc | fait_brut | scene_coupee" },
             type_label: { type: "string", description: "label court lisible du type, ex. « Vécu perso »" },
-            text: { type: "string", description: "le hook PARLÉ, 8-20 mots, 1-2 phrases, tension immédiate" },
+            text: { type: "string", description: "le hook PARLÉ : une phrase entière qu'on dit (sujet et verbe conjugué), 8-20 mots, tension immédiate ; jamais des bouts de phrases à la suite" },
             text_overlay: { type: "string", description: "texte à l'écran en muet : extrait de 3 à 8 mots du hook parlé (text), recopié tel quel, qui se comprend seul ; casse normale, pas de majuscules imposées" },
             format_recommande: { type: "string", description: "face_cam_confession | voix_off_broll | hook_loop" },
             format_label: { type: "string", description: "nom de la structure en français simple : « Face caméra », « Voix off sur images » ou « Boucle courte »" },
@@ -460,14 +479,15 @@ RÈGLES ABSOLUES :
    - contre_intuition (« Contre-intuition ») : affirmation qui renverse une croyance.
    - objection_retournee (« Objection retournée ») : la phrase qu'on lui oppose, puis le retournement.
    - question_choc (« Question choc ») : question qui pique, jamais rhétorique molle.
-   - fait_brut (« Fait brut ») : fait concret/chiffre FOURNI (brief ou branding), sec, sans emballage.
-   - scene_coupee (« Scène coupée ») : on entre au milieu d'une scène, in medias res.
-2. text = ce qu'elle DIT (8-20 mots, 1-2 phrases, oral naturel, tension immédiate).
+   - fait_brut (« Fait brut ») : fait concret/chiffre FOURNI (brief ou branding), dit dans une phrase entière.
+   - scene_coupee (« Scène coupée ») : on entre dans SA scène au moment où ça bascule, racontée en une phrase (« En pleine rénovation, j'ai découvert… »).
+2. text = ce qu'elle DIT : UNE phrase entière (8-20 mots), oral naturel, tension immédiate.
+   Une 2e phrase seulement si elle prolonge la 1re. Jamais une rafale de bouts de phrases.
    ❌ "Aujourd'hui je vais te parler de..." ❌ hook descriptif ❌ slogan LinkedIn.
 2bis. ${REEL_PREMIERE_PHRASE}
    Parmi les 3 hooks, au moins UN est un paradoxe tiré de sa matière ; un aveu
    seulement si elle a donné l'erreur ou le raté. Les autres types restent
-   possibles, aucun ne se présente.${noFaceCam ? " En voix off (elle ne se montre pas), les 3 hooks sont un paradoxe ou un aveu." : ""}
+   possibles, aucun ne se présente.${noFaceCam ? " En voix off (elle ne se montre pas), les 3 hooks sont un paradoxe, un aveu ou sa scène." : ""}
 2ter. SI SA MATIÈRE RACONTE UN VÉCU (son parcours, une erreur, une situation de
    travail qui a mal tourné), un des hooks peut ouvrir ce récit. Le portrait à la
    troisième personne (« Voici [son prénom]. Elle… », une narratrice parle d'elle)
