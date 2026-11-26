@@ -98,6 +98,9 @@ test("carrousel sans photo : des images sont proposées d'office", async ({ page
   // 🖼️ Images proposées : ✅ si au moins une image posée, 🟠 si toutes les slides restent à choisir.
   const cibles = await page.getByText(/^🎯/).count();
   console.log(`🎯 Ligne « image visée » sous une photo proposée : ${cibles}`);
+  const notesPhoto = await page.getByText(/^💡.*\b(photos?|images?|visuels?)\b/i).count();
+  console.log(`💡 Note qui parle de la photo, sous une photo proposée : ${notesPhoto}`);
+  if (aChoisir === 0) expect(notesPhoto, "la note 💡 parle de la photo visée, pas de la photo posée").toBe(0);
   if (aChoisir === 0) expect(cibles, "la ligne 🎯 décrit l'image visée, pas la photo posée").toBe(0);
   const reponse = (proposals as any)?.status ?? "aucune réponse";
   console.log(`🖼️ Images proposées : ${posees > 0 ? "✅" : "🟠"} fonction ${reponse}, ${posees} posée(s) dont ${proposees} marquée(s) « Proposée », ${aChoisir} à choisir, ${autres} bouton(s) « Une autre »`);
