@@ -103,6 +103,19 @@ describe('angles d’attaque du reel', () => {
     expect(mocks.generate).toHaveBeenCalledWith({ q1: 'Les artisanes' }, ANGLES[1]);
   });
 
+  it('« Je ne me montre pas » : les angles sont redemandés en voix off, et le choix est retenu', async () => {
+    await ouvrirQuestions();
+    fireEvent.click(await screen.findByText('Passer les questions, générer directement'));
+    await waitFor(() => expect(mocks.hookProps?.hooks).toHaveLength(3));
+    expect(mocks.hookProps.faceCam).toBe('oui');
+    await act(async () => { mocks.hookProps.onFaceCamChange('non'); });
+    await waitFor(() => expect(mocks.invoke).toHaveBeenCalledTimes(2));
+    expect(mocks.invoke.mock.calls[1][1].body.face_cam).toBe('non');
+    expect(mocks.invoke.mock.calls[1][1].body.exclude_hooks).toBeUndefined();
+    await waitFor(() => expect(mocks.hookProps.faceCam).toBe('non'));
+    expect(localStorage.getItem('reel_se_filme')).toBe('non');
+  });
+
   it('« Continuer sans choisir » → génération sans angle imposé', async () => {
     await ouvrirQuestions();
     fireEvent.click(await screen.findByText('Passer les questions, générer directement'));

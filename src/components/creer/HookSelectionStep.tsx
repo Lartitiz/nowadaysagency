@@ -13,9 +13,12 @@ import {
   Sparkles,
   RefreshCw,
   Loader2,
+  Video,
+  EyeOff,
 } from "lucide-react";
 import StickyStepBar from "./StickyStepBar";
 import { readableReelFormat } from "@/lib/reel-shot-purpose";
+import type { ReelFaceCam } from "@/lib/reel-film-preference";
 
 // Lot 7 reels : l'utilisatrice choisit son angle d'attaque AVANT la génération
 // complète. La forme de ReelHook = celle du `selected_hook` que reelBrief
@@ -42,6 +45,44 @@ interface Props {
   onSkip: () => void;
   onRefresh: () => void;
   onBack: () => void;
+  /** « Je me filme » / « Je ne me montre pas » : les pastilles ne s'affichent que si le changement est branché. */
+  faceCam?: ReelFaceCam;
+  onFaceCamChange?: (value: ReelFaceCam) => void;
+}
+
+const FACE_CAM_CHOICES: { value: ReelFaceCam; label: string; Icon: typeof Video }[] = [
+  { value: "oui", label: "Je me filme", Icon: Video },
+  { value: "non", label: "Je ne me montre pas", Icon: EyeOff },
+];
+
+/** Deux pastilles au-dessus des accroches : changer de choix redemande les accroches (gratuit). */
+function FaceCamChoice({ faceCam, onChange }: { faceCam: ReelFaceCam; onChange: (value: ReelFaceCam) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <p id="reel-face-cam-label" className="text-xs text-muted-foreground">Pour ce reel</p>
+      <div role="radiogroup" aria-labelledby="reel-face-cam-label" className="flex flex-wrap gap-2">
+        {FACE_CAM_CHOICES.map(({ value, label, Icon }) => {
+          const active = faceCam === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              data-testid={`reel-face-cam-${value}`}
+              onClick={() => { if (!active) onChange(value); }}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                active ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-primary/40"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 const TYPE_ICONS: Record<string, typeof Heart> = {
@@ -83,6 +124,8 @@ export default function HookSelectionStep({
   onSkip,
   onRefresh,
   onBack,
+  faceCam = "oui",
+  onFaceCamChange,
 }: Props) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
@@ -132,6 +175,8 @@ export default function HookSelectionStep({
           Les 3 premières secondes décident de tout. Trois façons d'ouvrir ce reel : choisis celle qui te ressemble.
         </p>
       </div>
+
+      {onFaceCamChange && <FaceCamChoice faceCam={faceCam} onChange={onFaceCamChange} />}
 
       {/* Récupération ratée alors que des angles sont déjà là (« 3 autres angles »
           qui échoue) : on garde les cartes ET on dit ce qui s'est passé. Sans ce

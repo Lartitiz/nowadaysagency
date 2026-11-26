@@ -284,7 +284,7 @@ function CreerWorkspace() {
   const [answers, setAnswers] = useState<Record<string, string>>(ps?.answers || {});
   // Lot 7 reels : choix de l'angle d'attaque avant génération (use-reel-hooks.ts).
   const reelHooksStep = useReelHooks();
-  const { reelHooks, hooksLoading, hooksRefreshing, hooksError, selectedReelHook, setSelectedReelHook, pendingReelAnswersRef } = reelHooksStep;
+  const { reelHooks, hooksLoading, selectedReelHook, setSelectedReelHook, pendingReelAnswersRef } = reelHooksStep;
   const [editContent, setEditContent] = useState(ps?.editContent || "");
   // Texte de l'étape « Modifier » à son ouverture (ou à la dernière sauvegarde) :
   // sert à savoir s'il reste des modifications non appliquées.
@@ -1691,14 +1691,12 @@ function CreerWorkspace() {
 
             {step === "hook_selection" && (
               <HookSelectionStep
-                hooks={reelHooks}
-                loading={hooksLoading}
-                refreshing={hooksRefreshing}
-                error={hooksError}
+                {...reelHooksStep.screenProps}
                 onSelect={handleHookSelect}
                 onSkip={handleHookSkip}
                 onRefresh={() => fetchReelHooks(pendingReelAnswersRef.current, reelHooks.map((h) => h.text))}
                 onBack={() => setStep("questions")}
+                onFaceCamChange={(v) => { reelHooksStep.setFaceCam(v); void fetchReelHooks(pendingReelAnswersRef.current); }}
               />
             )}
 

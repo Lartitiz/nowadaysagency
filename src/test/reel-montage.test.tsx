@@ -586,3 +586,17 @@ describe("ReelMontage — charte graphique dans le montage sans voix (14/11/2026
     m.charter = null;
   });
 });
+
+describe("ReelMontage — choix déjà fait sur l'écran des accroches", () => {
+  it("sans choix enregistré : la question est posée ; avec « Je ne me montre pas » : elle ne l'est plus, « Changer » reste", () => {
+    localStorage.removeItem("reel_se_filme");
+    const first = render(<ReelMontage sections={SECTIONS} />);
+    expect(screen.getByText("Comment veux-tu ce reel ?")).toBeInTheDocument();
+    first.unmount();
+    localStorage.setItem("reel_se_filme", "non");
+    render(<ReelMontage sections={SECTIONS} />);
+    expect(screen.queryByText("Comment veux-tu ce reel ?")).toBeNull();
+    expect(screen.getByText("Changer")).toBeInTheDocument();
+    localStorage.removeItem("reel_se_filme");
+  });
+});
