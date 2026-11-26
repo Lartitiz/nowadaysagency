@@ -21,13 +21,20 @@ export interface PhotoContextStepOptions {
   applyPhotos: (photos: any[]) => void;
   /** Fenêtre fermée sans choisir (croix, Échap, clic à côté) : rien n'est lancé. */
   onCancel?: () => void;
+  /**
+   * Légende automatique d'une photo dont la ligne arrive vide (photo importée, hors
+   * « Mes photos ») : rend "" si elle n'a rien à proposer. Sans elle, rien ne change.
+   */
+  describe?: (photo: any) => Promise<string>;
 }
 
-export function usePhotoContextStep({ applyPhotos, onCancel }: PhotoContextStepOptions) {
+export function usePhotoContextStep({ applyPhotos, onCancel, describe }: PhotoContextStepOptions) {
   const asked = useRef(new Set<string>());
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<ContextStepRow[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  // Lignes dont la légende automatique est en route (« Je regarde la photo… »).
+  const [describing, setDescribing] = useState<string[]>([]);
   const pending = useRef<{ photos: any[]; resume: Resume } | null>(null);
   const resumeNext = useRef<Resume | null>(null);
   const [tick, setTick] = useState(0);
@@ -48,10 +55,29 @@ export function usePhotoContextStep({ applyPhotos, onCancel }: PhotoContextStepO
     if (asked.current.has(sig)) return false;
     asked.current.add(sig);
     pending.current = { photos, resume };
-    setRows(initialRows(photos));
+    const start = initialRows(photos);
+    setRows(start);
     setPreviews(stepPhotos(photos).map((p) => p.preview || ""));
     setOpen(true);
+    describeEmptyRows(photos, start);
     return true;
+  };
+
+  // Chaque ligne vide reçoit sa légende dès qu'elle arrive, sauf si la personne a
+  // écrit entre-temps ou si la fenêtre s'est refermée (ou rouverte sur d'autres photos).
+  const describeEmptyRows = (photos: ContextStepPhoto[], start: ContextStepRow[]) => {
+    if (!describe) { setDescribing([]); return; }
+    const chosen = stepPhotos(photos);
+    const todo = start.map((row, i) => ({ row, photo: chosen[i] as any })).filter(({ row, photo }) => !row.text && !!photo?.base64);
+    setDescribing(todo.map(({ row }) => row.key));
+    for (const { row, photo } of todo) {
+      void describe(photo).catch(() => "").then((text) => {
+        if (pending.current?.photos !== photos) return;
+        setDescribing((keys) => keys.filter((k) => k !== row.key));
+        const clean = (text || "").trim();
+        if (clean) setRows((rows) => rows.map((r) => (r.key === row.key && !r.text ? { ...r, text: clean, suggested: true } : r)));
+      });
+    }
   };
 
   const finish = (apply: boolean) => {
@@ -79,6 +105,7 @@ export function usePhotoContextStep({ applyPhotos, onCancel }: PhotoContextStepO
       previews={previews}
       rows={rows}
       onRowsChange={setRows}
+      describingKeys={describing}
       onConfirm={() => finish(true)}
       onSkip={() => finish(false)}
       onCancel={cancel}

@@ -10,6 +10,8 @@ export interface PhotoContextStepDialogProps {
   open: boolean;
   previews: string[];
   rows: ContextStepRow[];
+  /** Lignes dont la légende automatique est en route. */
+  describingKeys?: string[];
   onRowsChange: (rows: ContextStepRow[]) => void;
   onConfirm: () => void;
   onSkip: () => void;
@@ -23,7 +25,7 @@ const ROLE_LABEL: Record<PairRole, string> = { before: "C'est l'avant", after: "
  * photo (pré-remplie quand on peut le deviner gratuitement) et la paire
  * avant / après. « Passer » lance la création sans rien changer.
  */
-export default function PhotoContextStepDialog({ open, previews, rows, onRowsChange, onConfirm, onSkip, onCancel }: PhotoContextStepDialogProps) {
+export default function PhotoContextStepDialog({ open, previews, rows, describingKeys = [], onRowsChange, onConfirm, onSkip, onCancel }: PhotoContextStepDialogProps) {
   const canPair = rows.length >= 2;
   const pairDone = hasCompletePair(rows);
   const halfPair = !pairDone && rows.some((r) => r.role);
@@ -65,7 +67,8 @@ export default function PhotoContextStepDialog({ open, previews, rows, onRowsCha
                   id={`photo-ctx-${i}`}
                   value={row.text}
                   maxLength={PHOTO_CONTEXT_TEXT_MAX}
-                  placeholder="Ex. : la façade côté rue"
+                  placeholder={describingKeys.includes(row.key) && !row.text ? "Je regarde la photo…" : "Ex. : la façade côté rue"}
+                  aria-busy={describingKeys.includes(row.key) && !row.text}
                   onChange={(e) => update(i, { text: e.target.value, suggested: false })}
                 />
                 {row.suggested && (

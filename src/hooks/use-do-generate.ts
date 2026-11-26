@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { describeImportedPhoto } from "@/features/creer/describe-imported-photo";
 import { usePhotoContextStep } from "@/hooks/use-photo-context-step";
 import { readableError } from "@/lib/error-messages";
 import { useNavigate } from "react-router-dom";
@@ -233,6 +234,8 @@ export function useDoGenerate({
     // d'où la création est partie (les précisions, sinon le format et ses photos).
     // Un contenu déjà affiché (« Régénérer ») ne bouge pas.
     onCancel: () => { if (!hasResult) setStep(questions.length > 0 ? "questions" : "format"); },
+    // Photos importées depuis l'ordinateur : une légende proposée toute seule (26/11/2026).
+    describe: (photo) => describeImportedPhoto(photo, workspaceId !== session?.user?.id ? workspaceId : undefined),
   });
   const doGenerate = async (ansInput: Record<string, string>, reelHookOverride?: ReelHook | null) => {
     if (!selectedFormat) return;
