@@ -149,11 +149,20 @@ async function editorZones(page: Page): Promise<Zone[]> {
     label: `slide-${i + 1}`,
     locator: preview,
     before: async () => {
+      // Changer de slide recharge le cadre (0,1 à 0,2 s d'ordinaire, plus avec une photo
+      // lourde). Sans repère, l'attente ci-dessous lisait encore l'ANCIENNE slide comme
+      // « prête » et la capture tombait parfois pendant le chargement : slide toute
+      // blanche ou texte vide (2 rejeux du mixte sur 5 le 26/11/2026). On marque donc
+      // l'ancien document et on attend qu'il ait été remplacé.
+      const change = (await preview.getAttribute("title")) !== `Éditeur de la slide ${i + 1}`;
+      if (change) await preview.evaluate((f: HTMLIFrameElement) => { if (f.contentDocument) (f.contentDocument as unknown as { __ancien?: boolean }).__ancien = true; });
       await vignettes.nth(i).click();
       await expect(preview).toHaveAttribute("title", `Éditeur de la slide ${i + 1}`, { timeout: 15000 });
       await page.waitForFunction(() => {
         const f = document.querySelector('iframe[title^="Éditeur de la slide"]') as HTMLIFrameElement | null;
-        const body = f?.contentDocument?.body;
+        const doc = f?.contentDocument as (Document & { __ancien?: boolean }) | null | undefined;
+        if (!doc || doc.__ancien || doc.readyState !== "complete") return false;
+        const body = doc.body;
         if (!body) return false;
         const imgs = [...body.querySelectorAll("img")];
         // Une slide « Photos brutes » n'a ni texte ni forcément de <img> (photo en fond).
