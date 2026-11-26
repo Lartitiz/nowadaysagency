@@ -143,3 +143,12 @@ describe("pastille avant / après de la galerie (26/11/2026)", () => {
     expect(applyContextRows(photos, rows).map((p) => p.context)).toEqual(["AVANT — Pièce vide", "APRÈS — Salon meublé"]);
   });
 });
+
+describe("légende de l'IA et nom de fichier (26/11/2026)", () => {
+  it("la légende passe avant le nom du fichier, qui garde son avant / après", async () => {
+    const { suggestPhotoContext } = await import("@/features/creer/photo-context-step");
+    expect(suggestPhotoContext({ name: "cuisine-avant.jpg", autoContext: "Cuisine vide aux murs jaunis" })).toEqual({ text: "Cuisine vide aux murs jaunis", role: "before" });
+    expect(suggestPhotoContext({ name: "fixtures-portrait-test.jpg", autoContext: "Portrait d'une femme sur fond jaune" }).text).toBe("Portrait d'une femme sur fond jaune");
+    expect(suggestPhotoContext({ name: "cuisine-avant.jpg" })).toEqual({ text: "Cuisine", role: "before" });
+  });
+});

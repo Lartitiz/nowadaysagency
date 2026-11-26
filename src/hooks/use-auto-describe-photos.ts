@@ -9,7 +9,7 @@
 import { useEffect, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { describeImportedPhotoOnce } from "@/features/creer/describe-imported-photo";
-import { splitPairMark, suggestPhotoContext } from "@/features/creer/photo-context-step";
+import { splitPairMark } from "@/features/creer/photo-context-step";
 
 type AutoPhoto = {
   id?: string;
@@ -25,8 +25,10 @@ type AutoPhoto = {
 /** Photo qui n'a encore aucune ligne et qu'on peut décrire. */
 export function needsAutoDescription(p: AutoPhoto): boolean {
   if (!p?.id || !p.base64 || p.stockAmbient) return false;
-  if (splitPairMark(p.context).text) return false;
-  return !suggestPhotoContext(p).text;
+  if (splitPairMark(p.context).text || (p.autoContext || "").trim()) return false;
+  // Un nom de fichier lisible ne vaut pas une description (essai réel du 26/11/2026 :
+  // « Fixtures portrait test » servait de description) : seule celle de « Mes photos » dispense.
+  return !/^Description : \S/m.test(p.libraryContext || "");
 }
 
 export function useAutoDescribePhotos<T extends AutoPhoto>({

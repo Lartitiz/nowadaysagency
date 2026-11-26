@@ -723,12 +723,14 @@ describe("étape « Que montre chaque photo ? »", () => {
   // « Mes photos », reçoit une légende proposée toute seule.
   it("photo importée sans légende : la ligne vide est remplie toute seule, marquée « à vérifier »", async () => {
     let rendre: (t: string) => void = () => {};
-    mocks.describeImported.mockImplementation(() => new Promise<string>((r) => { rendre = r; }));
+    // Chaque photo importée est envoyée une fois (un nom lisible ne vaut pas une description) ;
+    // ici seule celle de IMG_2041.jpg met du temps à revenir, les deux autres ne rendent rien.
+    mocks.describeImported.mockImplementation((photo: { id?: string }) => (photo?.id === "b" ? new Promise<string>((r) => { rendre = r; }) : Promise.resolve("")));
     const box = mount({ workspaceId: "ws-1" });
     await act(async () => { await box.gen!({}); });
-    // Seule la photo sans suggestion gratuite (IMG_2041.jpg) est envoyée, une fois.
-    expect(mocks.describeImported).toHaveBeenCalledTimes(1);
-    expect(mocks.describeImported.mock.calls[0][0]).toMatchObject({ id: "b", base64: "p2" });
+    const envois = mocks.describeImported.mock.calls.map((c: any[]) => c[0].id).sort();
+    expect(envois.filter((id: string) => id === "b")).toHaveLength(1);
+    expect(mocks.describeImported.mock.calls.find((c: any[]) => c[0].id === "b")![0]).toMatchObject({ id: "b", base64: "p2" });
     const champ = () => screen.getAllByRole("textbox")[1] as HTMLInputElement;
     expect(champ().placeholder).toBe("Je regarde la photo…");
     expect(champ().value).toBe("");

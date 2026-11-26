@@ -87,11 +87,15 @@ export function suggestPhotoContext(photo: ContextStepPhoto): { text: string; ro
   const description = isAssistantReply(stored) ? "" : stored;
   const name = libraryLine(photo.libraryContext, "Nom") || photo.name;
   const auto = (photo.autoContext || "").trim();
-  const source = description || auto || (STUDIO_NAME.test(name || "") ? "" : readableFileName(name));
+  // Le nom du fichier ne sert de description qu'à défaut de mieux ; il garde en
+  // revanche son mot « avant » / « après » même quand la légende vient de l'IA.
+  const fromName = STUDIO_NAME.test(name || "") ? "" : readableFileName(name);
+  const source = description || auto || fromName;
   if (!source) return { text: "", role: null };
-  const role: PairRole | null = BEFORE_WORD.test(` ${source} `) ? "before" : AFTER_WORD.test(` ${source} `) ? "after" : null;
+  const roleOf = (t: string): PairRole | null => (BEFORE_WORD.test(` ${t} `) ? "before" : AFTER_WORD.test(` ${t} `) ? "after" : null);
+  const role = roleOf(source) || (description ? null : roleOf(fromName));
   // Le marqueur porte déjà l'avant / après : on le retire du texte proposé.
-  const text = role && !description
+  const text = role && source === fromName
     ? source.replace(role === "before" ? BEFORE_WORD : AFTER_WORD, " ").replace(/\s+/g, " ").trim()
     : source;
   const capped = text.slice(0, PHOTO_CONTEXT_TEXT_MAX);
