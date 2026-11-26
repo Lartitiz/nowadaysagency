@@ -64,3 +64,32 @@ Deno.test("accroches : celle en bouts de phrases est écartée (Loom du 26/11), 
   assertEquals(normalizeHooksResponse(seules, params), null);
   assertEquals(seules.hooks.length, 1);
 });
+
+import { enforceReelSpokenSentences } from "./formats/reel.ts";
+
+const scriptHache = () => ({ script: [
+  { section: "hook", texte_parle: "Au démoulage, j'ai vu que mes quarante savons avaient des poches de liquide." },
+  { section: "body", texte_parle: "Tout était calé : recette testée, étiquettes imprimées, date de livraison fixée." },
+] });
+
+Deno.test("remise en phrases : gardée quand le script est moins haché, l'accroche choisie jamais signalée", async () => {
+  const parsed: any = scriptHache();
+  let consigne = "";
+  await enforceReelSpokenSentences(parsed, { body: {}, fullContext: "", hookLocked: true, pass: async (p: any, o: any) => {
+    consigne = o.extraInstructions;
+    return { ...p, script: [p.script[0], { ...p.script[1], texte_parle: "Tout était calé, j'avais testé la recette, les étiquettes étaient imprimées." }] };
+  } });
+  assert(consigne.includes("[SECTION 2 - PARLE]"));
+  assert(!consigne.includes("- [SECTION 1 - PARLE]"));
+  assertEquals(parsed.script[1].texte_parle, "Tout était calé, j'avais testé la recette, les étiquettes étaient imprimées.");
+});
+
+Deno.test("remise en phrases : refusée si rien ne change, sans appel si rien n'est haché", async () => {
+  const parsed: any = scriptHache();
+  await enforceReelSpokenSentences(parsed, { body: {}, fullContext: "", hookLocked: false, pass: async (p: any) => structuredClone(p) });
+  assertEquals(parsed.script[1].texte_parle, scriptHache().script[1].texte_parle);
+  let appels = 0;
+  const propre: any = { script: [{ section: "hook", texte_parle: "J'ai jeté quarante savons la veille de les livrer." }] };
+  await enforceReelSpokenSentences(propre, { body: {}, fullContext: "", hookLocked: false, pass: async (p: any) => { appels++; return p; } });
+  assertEquals(appels, 0);
+});

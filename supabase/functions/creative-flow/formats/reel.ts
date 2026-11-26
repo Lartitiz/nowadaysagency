@@ -160,13 +160,6 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
     if (!hookVerrouille && reelHookIsPresentation(firstSpoken)) {
       extras.push(`L'ACCROCHE SE PRÉSENTE AU LIEU D'ENTRER DANS LE SUJET : réécris [SECTION 1 - PARLE] (et [SECTION 1 - OVERLAY], extrait de la nouvelle phrase) sans bonjour, sans nom ni métier annoncés, sans annonce du sujet. Ouvre par un paradoxe tiré du reste du script (deux faits vrais qui ont l'air de se contredire), ou par l'aveu qu'elle a donné s'il y en a un. N'ajoute aucun fait.`);
     }
-    // Style haché (bouts de phrases sans verbe, listes « nom + participe ») :
-    // mesuré en code, remis en phrases parlées par la relecture. Le hook choisi
-    // n'est jamais touché (son choix prime).
-    const hache = reelChoppyPassages(parsed).filter((p) => !(p.section === 1 && hookVerrouille));
-    if (hache.length) {
-      extras.push(`PASSAGES HACHÉS À REMETTRE EN PHRASES PARLÉES (ce n'est pas comme ça qu'on parle) :\n${hache.map((p) => `- [SECTION ${p.section} - PARLE] : ${p.extraits.map((e) => `« ${e} »`).join(" ; ")}`).join("\n")}\nRéécris chacun en phrases entières, avec un sujet et un verbe conjugué, reliées comme à l'oral (« et là », « du coup », « sauf que », « quand ») : « diagnostic fait, devis signé » devient « on avait fait le diagnostic, le devis était signé ». Garde les mêmes faits, ses mots et à peu près le même nombre de mots ; n'ajoute rien. Vaut aussi quand le passage recopie ses réponses : ce sont des notes écrites, le script les dit à l'oral (ça prime sur la conservation des formulations fournies, pour ces passages seulement).`);
-    }
     if (body.face_cam === "non") {
       extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
     }
@@ -233,6 +226,9 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
   // (scripts de 62 à 75 s mesurés sur le compte de démo). Une passe dédiée à la
   // coupe, gardée seulement si le texte raccourcit.
   await enforceReelMaxWords(parsed, { body, effectiveObjective, fullContext });
+  // Style haché : passe dédiée, après la coupe (qui peut elle aussi resserrer).
+  // Dans la relecture générale, la demande se perdait (vu en ligne le 26/11).
+  await enforceReelSpokenSentences(parsed, { body, fullContext, effectiveObjective, hookLocked: hasChosenHook || (typeof body.selected_hook?.text === "string" && Boolean(body.selected_hook.text.trim()) && !body.selected_hook.text.trim().startsWith("(")) });
   // Filets déterministes TOUJOURS appliqués, même si la correction a échoué :
   // - le hook choisi reste verrouillé (l'instruction de la passe est probabiliste) ;
   // - lecture_test = concat des texte_parle FINAUX (sinon le monologue affiché
@@ -375,6 +371,55 @@ export async function enforceReelMaxWords(parsed: any, params: {
       console.error("[creative-flow] coupe du reel ignorée (script intact) :", e);
       return;
     }
+  }
+}
+
+// ═══ VOIX PARLÉE, PAS HACHÉE (Loom de Laetitia du 26/11/2026) ═══
+// « c'est pas des phrases, c'est haché » : bouts de phrases sans verbe et listes
+// « nom + participe » (« recette testée, étiquettes imprimées »), souvent
+// recopiés de ses réponses écrites comme des notes. Repérés en code
+// (reelChoppyPassages), remis en phrases par une passe qui ne voit que ça ;
+// gardée seulement si le texte est moins haché et pas plus long que le plafond.
+
+/** Nombre d'extraits hachés du script (accroche choisie exclue). */
+function reelChoppyCount(parsed: any, hookLocked: boolean): number {
+  return reelChoppyPassages(parsed).filter((p) => !(p.section === 1 && hookLocked)).reduce((n, p) => n + p.extraits.length, 0);
+}
+
+export async function enforceReelSpokenSentences(parsed: any, params: {
+  body: any;
+  fullContext: string;
+  effectiveObjective?: string | null;
+  hookLocked: boolean;
+  /** Pour les tests : remplace la passe IA. */
+  pass?: typeof applyCorrectionPassReel;
+}): Promise<void> {
+  const hache = reelChoppyPassages(parsed).filter((p) => !(p.section === 1 && params.hookLocked));
+  if (!hache.length) return;
+  const before = reelChoppyCount(parsed, params.hookLocked);
+  const wordsBefore = countReelSpokenWords(parsed);
+  const pass = params.pass ?? applyCorrectionPassReel;
+  try {
+    const corrected = await pass(parsed, {
+      logger: (msg) => console.log(msg),
+      authoredText: authoredContentSource(params.body),
+      sourceContext: params.fullContext,
+      extraInstructions: `UNE SEULE TÂCHE : REMETTRE EN PHRASES PARLÉES CES PASSAGES HACHÉS (ce n'est pas comme ça qu'on parle) :\n${hache.map((p) => `- [SECTION ${p.section} - PARLE] : ${p.extraits.map((e) => `« ${e} »`).join(" ; ")}`).join("\n")}\nRéécris seulement ces morceaux, en phrases entières avec un sujet et un verbe conjugué, reliées comme à l'oral : « tout était calé : recette testée, étiquettes imprimées » devient « tout était calé, j'avais testé la recette, les étiquettes étaient imprimées ». Garde les mêmes faits, ses mots, et à peu près le même nombre de mots ; n'ajoute rien. Ses réponses sont des notes écrites : quand un passage les recopie, dis-les à l'oral (ça prime sur la conservation des formulations fournies, pour ces passages seulement). Ne touche à rien d'autre${params.hookLocked ? ", ni à [SECTION 1 - PARLE] et [SECTION 1 - OVERLAY] (l'accroche qu'elle a choisie)" : ""}.`,
+      abortTimeoutMs: CORRECTION_ABORT_MS,
+    });
+    if (!corrected || typeof corrected !== "object") return;
+    const after = reelChoppyCount(corrected, params.hookLocked);
+    const wordsAfter = countReelSpokenWords(corrected);
+    // Une phrase remise d'aplomb prend quelques mots : 10 de marge, le montage tient jusqu'à 60 s.
+    const cap = Math.max(reelSpokenWordCap(params.effectiveObjective), wordsBefore) + 10;
+    if (!(after < before && wordsAfter > 0 && wordsAfter <= cap)) {
+      console.log(JSON.stringify({ event: "reel_phrases_refusee", before, after, wordsBefore, wordsAfter }));
+      return;
+    }
+    Object.assign(parsed, corrected);
+    console.log(JSON.stringify({ event: "reel_phrases", before, after, wordsBefore, wordsAfter }));
+  } catch (e) {
+    console.error("[creative-flow] remise en phrases du reel ignorée (script intact) :", e);
   }
 }
 
