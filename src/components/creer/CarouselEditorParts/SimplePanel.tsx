@@ -22,6 +22,8 @@ import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import { range, toHex } from "@/components/creer/CarouselEditorParts/panel-controls";
 import { iconColor, isIcon, setIconColor } from "@/components/creer/CarouselEditorParts/editor-icons";
 import { frenchSpacingText } from "@/lib/french-spacing";
+import { photoShade, setDocumentShade, setPhotoShade } from "@/lib/carousel-shade";
+import { ShadeSlider } from "@/components/creer/CarouselEditorParts/ShadeSlider";
 
 export type SimplePart = "texte" | "photo" | "couleurs";
 
@@ -105,6 +107,7 @@ export function SimpleParts({ part, canvasApi, changeSlide, commit, css, documen
   );
 
   if (part === "photo") {
+    const shade = photoShade(slide.html);
     return (
       <section aria-label="Photo de cette slide" data-testid="panel-photo" className="space-y-2.5">
         <div>
@@ -138,6 +141,17 @@ export function SimpleParts({ part, canvasApi, changeSlide, commit, css, documen
             {range("Zoom photo", Number(css["--editor-zoom"]) || 1, 1, 3, (n) => canvasApi.current?.zoomPhoto(photo.id, n), 0.05)}
             {range("Luminosité", filterValue("brightness", 1), 0.5, 1.5, (n) => setFilter({ brightness: n }), 0.05)}
           </>
+        )}
+        {shade !== null && (
+          <div className="space-y-1 rounded-lg bg-muted/50 p-2.5" data-testid="photo-shade">
+            {sectionTitle("Ombre sur la photo", many && { testId: "shade-everywhere", label: "Mettre partout", disabled: slide.locked, onClick: () => {
+              const out = setDocumentShade(document, shade);
+              commit(out.document);
+              toast.success(out.changed > 1 ? `Ombre réglée sur ${out.changed} slides` : "Ombre réglée", { description: "Tu peux annuler." });
+            } })}
+            <p className="text-2xs text-muted-foreground">La couleur posée sur la photo pour lire le texte.</p>
+            <ShadeSlider value={shade} disabled={slide.locked} onChange={(n) => changeSlide(setPhotoShade(slide, n), `shade-${slide.id}`)} />
+          </div>
         )}
       </section>
     );

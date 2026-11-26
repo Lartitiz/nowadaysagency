@@ -10,6 +10,7 @@ import { photoShapeOf, placeToolbar, type ElementRect, type EditorSlide } from "
 import type { QualityIssue } from "@/lib/carousel-quality";
 import { isFullBleedBox, type CanvasBox } from "@/components/creer/CarouselEditorParts/canvas-geometry";
 import { PhotoShapePicker } from "@/components/creer/CarouselEditorParts/PanelBits";
+import { ShadeSlider } from "@/components/creer/CarouselEditorParts/ShadeSlider";
 import { ToolbarMore } from "@/components/creer/CarouselEditorParts/ToolbarMore";
 
 /** Élément choisi tel que mesuré dans l'aperçu (boîte et style utiles à la barre). */
@@ -48,6 +49,7 @@ export default function CanvasToolbar({
   simple = false,
   outside = false,
   onCenter,
+  shade,
 }: {
   box: SelectionBox | null;
   selected: string | null;
@@ -80,6 +82,8 @@ export default function CanvasToolbar({
   simple?: boolean;
   /** « Centrer sur la slide » (menu « … » du mode simple). */
   onCenter?: () => void;
+  /** Ombre posée sur la photo (carousel-shade.ts) : curseur dans la barre quand une photo est choisie. */
+  shade?: { value: number; set: (value: number) => void } | null;
   /** La barre peut sortir de la slide (au-dessus ou en dessous) plutôt que de cacher un texte qui la remplit. */
   outside?: boolean;
 }) {
@@ -149,6 +153,10 @@ export default function CanvasToolbar({
         className="absolute z-10 flex w-max max-w-[calc(100%-8px)] flex-wrap items-center gap-0.5 rounded-lg border bg-background p-1 shadow-lg"
         style={toolbarPosition()}
       >
+        {/* Nom de ce qui est choisi (26/11/2026, « savoir sur quoi on clique »). */}
+        <span data-testid="selection-name" className="mx-0.5 rounded-full bg-primary px-2 py-0.5 text-2xs font-semibold text-primary-foreground">
+          {box.kind === "text" ? "Texte" : box.kind === "photo" ? "Photo" : "Forme"}
+        </span>
         {selectedIssue && !box.locked && (
           <button
             type="button"
@@ -188,6 +196,9 @@ export default function CanvasToolbar({
           <button type="button" className={toolButton} onClick={() => setCropId(selected)} title="Recadrer (double-clic sur la photo)">
             Recadrer
           </button>
+        )}
+        {box.kind === "photo" && !box.locked && !box.emptyFrame && cropId !== selected && shade && (
+          <ShadeSlider compact value={shade.value} onChange={shade.set} />
         )}
         {box.locked && (
           <button type="button" className={toolButton} aria-label="Déverrouiller l’élément" onClick={() => latest.current.onLock?.(box.lockedId || selected, false)}>
