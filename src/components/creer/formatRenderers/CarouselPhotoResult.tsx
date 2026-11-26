@@ -29,7 +29,7 @@ import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
-import { overlayPositionLabel, targetLine, usefulDirective, visibleNote } from "@/features/creer/carousel-photo/labels"; import { allImagesReadyMessage } from "@/lib/carousel-photo-proposals";
+import { targetLine, usefulDirective, visibleNote } from "@/features/creer/carousel-photo/labels"; import { allImagesReadyMessage } from "@/lib/carousel-photo-proposals";
 import { AnotherProposalButton, CastingNotice, useAnotherProposal } from "@/features/creer/carousel-photo/proposals-ui";
 import { photoResultSignature, needsPhotoResultResync } from "@/features/creer/carousel-photo/resync";
 import { type SlideGenEntry, type SlideGenState, swapGenEntries, withoutGenEntry, removeGenEntryAt, patchGenEntry } from "@/features/creer/carousel-photo/gen-state";
@@ -1006,11 +1006,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                         className={`resize-none min-h-[48px] ${OVERLAY_STYLE_CLASS[slide.overlay_style] || "text-sm"}`}
                         rows={2}
                       />
-                      {slide.overlay_position && (
-                        <Badge variant="outline" className="text-2xs">
-                          {overlayPositionLabel(slide.overlay_position)}
-                        </Badge>
-                      )}
+                      {/* Plus de pastille « Texte en bas à gauche » : le dessin de la slide choisit la place selon la photo (26/11/2026). */}
                     </div>
                 </>
               ) : (

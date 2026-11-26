@@ -1,6 +1,6 @@
 // Lot E3-1 (14/10/2026) : petites briques d'affichage de l'éditeur,
 // déplacées à l'identique depuis CarouselEditor.tsx.
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { PHOTO_SHAPES } from "@/lib/carousel-editor";
 
@@ -53,10 +53,19 @@ export function PanelSection({ title, defaultOpen = false, storageKey, icon, alw
 }
 
 /** Miniature réelle d'une slide (rendu du HTML exporté, réduit). */
-export function SlideThumb({ html, width = 84 }: { html: string; width?: number }) {
-  const W = width;
+export function SlideThumb({ html, width = 84 }: { html: string; /** "fill" : toute la largeur de la case (mesurée). */ width?: number | "fill" }) {
+  const box = useRef<HTMLSpanElement>(null);
+  const [measured, setMeasured] = useState(84);
+  useEffect(() => {
+    const el = box.current;
+    if (width !== "fill" || !el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setMeasured(Math.max(40, Math.round(el.getBoundingClientRect().width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [width]);
+  const W = width === "fill" ? measured : width;
   return (
-    <span className="relative block overflow-hidden rounded-md bg-white" style={{ width: W, height: W * 1.25 }} aria-hidden="true">
+    <span ref={box} className="relative block overflow-hidden rounded-md bg-white" style={{ width: width === "fill" ? "100%" : W, height: W * 1.25 }} aria-hidden="true">
       <iframe
         title=""
         tabIndex={-1}

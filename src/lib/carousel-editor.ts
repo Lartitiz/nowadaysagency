@@ -1,5 +1,5 @@
 import { photoEditorialMarkup } from "../../supabase/functions/_shared/photo-editorial";
-import { fixMisplacedAnchors } from "./carousel-anchor-fix";
+import { fixMisplacedAnchors } from "./carousel-anchor-fix"; import { frenchSpacingDoc } from "./french-spacing"; export { frenchSpacingSlide } from "./french-spacing";
 import { KEPT_PHOTO, rememberDocumentAccents, withCharte } from "./carousel-layouts";
 /** The saved HTML is the editable design and the source of every visual export.
  * Structured fields are kept in sync for captions, regeneration and calendar views.
@@ -257,7 +257,7 @@ export function prepareSlideHtml(html: string): string {
   doc.querySelectorAll<HTMLElement>("[data-mix-text]").forEach((el) => {
     if (!el.hasAttribute("data-pptx-shape")) el.setAttribute("data-editor-shape", "group");
   });
-  tagDecors(doc);
+  tagDecors(doc); frenchSpacingDoc(doc);
   const elements = new Set<HTMLElement>([
     ...textNodes(doc),
     ...photoNodes(doc).filter((el) => !el.closest("[data-photo-glass]")),

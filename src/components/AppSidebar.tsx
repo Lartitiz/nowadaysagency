@@ -63,6 +63,10 @@ export default function AppSidebar() {
   const location = useLocation();
   const { user, isAdmin, signOut } = useAuth();
   const { plan, usage, bonusCredits, loading: planLoading } = useUserPlan();
+  // « Crédits… » seulement au tout premier chargement : chaque rafraîchissement (après une création,
+  // un retour sur l'onglet) faisait clignoter « Illimité » en « Crédits… » (vu le 26/11/2026).
+  const creditsShown = useRef(false);
+  if (!planLoading) creditsShown.current = true;
   const navigate = useNavigate();
   const isBinome = plan === "binome";
 
@@ -140,7 +144,7 @@ export default function AppSidebar() {
               </button>
             </nav>
             <div className="flex shrink-0 items-center gap-2">
-              {planLoading ? <span role="status" className="text-xs text-muted-foreground">Crédits…</span> : <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />}
+              {planLoading && !creditsShown.current ? <span role="status" className="text-xs text-muted-foreground">Crédits…</span> : <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />}
               <NotificationBell only="desktop" />
               <button type="button" aria-label="Mon compte" onClick={() => { setOpen(true); setWsPopoverOpen(true); }} className="h-9 w-9 shrink-0 rounded-full border border-border bg-rose-pale text-sm font-semibold text-bordeaux">{initial}</button>
             </div>
