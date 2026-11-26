@@ -93,6 +93,7 @@ export async function correctPostStreamContent(
       body.answers ? JSON.stringify(body.answers) : "",
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
+      typeof body.lived_material === "string" ? body.lived_material : "",
     ], researchSource);
     // L'écho d'accroche est mesuré DÈS ce contrôle : sans lui, un post dont le
     // seul défaut est de redire une accroche précédente sortait « déjà propre »

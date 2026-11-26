@@ -19,6 +19,7 @@ import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-st
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { buildDepthBlock, splitDepthMaterial, type ResearchLink } from "../_shared/depth-research.ts";
 import { livedCaseFromCarouselBody, researchNumbersCapFor } from "../_shared/lived-case.ts";
+import { attachLivedMaterial, livedMaterialOf, livedMaterialPrompt } from "../_shared/lived-material.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { _deps, type CarouselRequestContext, buildPhotoContextRecap, normalizeGeneratedPlanFields, normalizeSlideType, pickCorrectionModel } from "./shared.ts";
 import { buildSystemPrompt, buildExpressFullPrompt } from "./prompts.ts";
@@ -206,6 +207,12 @@ export async function handleRequest(req: Request): Promise<Response> {
     // pour détecter une recopie quasi mot pour mot (audit slop 18/08). Aucune
     // requête supplémentaire — ctx.tone est déjà fetché par getUserContext().
     const brandGuardText = buildBrandGuardText(ctx);
+    // Matière vécue retrouvée (26/11/2026) : sans cas donné pour ce carrousel, le
+    // code cherche dans ce qu'elle a déjà écrit les passages qui parlent du sujet.
+    await attachLivedMaterial({ body, ctx, supabase, userId, workspaceId: workspace_id, tag: "carousel-ai",
+      enabled: livedCase.mode === "none" && (type === "express_full" || type === "slides") && !body.user_slides?.length,
+      subjectText: [body.subject, body.subject_details, body.editorial_angle].filter((v) => typeof v === "string").join("\n"),
+      alreadyGiven: authoredContentSource(body) });
 
     // Recent briefs context — fetched server-side for deepening_questions ET pour la
     // génération elle-même (anti-sérialité, audit qualité 11/07 : sans mémoire des
@@ -302,6 +309,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       Array.isArray(body.photo_contexts || body.photos) ? (body.photo_contexts || body.photos).map((p: any) => p?.context || "").join("\n") : "",
       Array.isArray(body.photo_catalog) ? body.photo_catalog.map((p: any) => p?.description || "").join("\n") : "",
       brandingContext || "",
+      livedMaterialOf(body),
     ].filter(Boolean).join("\n");
 
     // Anti-sérialité : la génération connaît les sujets récents du compte et doit
@@ -386,6 +394,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       ? await _deps.fetchRecentTexts(userId, workspace_id)
       : [];
     if (recentTexts.length) systemPrompt += `\n\n${recentPassagesPrompt(recentTexts)}`;
+    if (livedMaterialOf(body)) systemPrompt += `\n\n${livedMaterialPrompt(body)}`;
     if (previousHooks.length) {
       console.log(`[carousel-ai] ${previousHooks.length} accroche(s) déjà écrite(s) sur ce sujet — garde anti-redite active`);
     }

@@ -5,6 +5,7 @@
 
 import { applyTestimonyRemovalPass } from "../correction-pass.ts";
 import { sentencesOf } from "./text-utils.ts";
+import { splitRetrievedMaterial, supportedByMaterial } from "./material-match.ts";
 import { textRedacRawCount, type TextRedacAnalysis } from "./scoring.ts";
 
 // ── Témoignages inventés (04/10/2026) ──
@@ -56,8 +57,11 @@ function testimonyPassages(text: string): string[] {
  */
 export function findInventedTestimonials(text: string, sourceText?: string): string[] {
   if (sourceText === undefined) return [];
-  if (testimonyPassages(sourceText).length) return [];
-  return testimonyPassages(text || "");
+  // Matière retrouvée (26/11/2026) : elle n'ouvre pas la porte à tout témoignage,
+  // seuls ceux qui s'y retrouvent passent.
+  const [written, retrieved] = splitRetrievedMaterial(sourceText);
+  if (testimonyPassages(written).length) return [];
+  return testimonyPassages(text || "").filter((p) => !supportedByMaterial(p, retrieved));
 }
 
 // ── Vécu personnel inventé (04/10/2026) ──
@@ -125,8 +129,9 @@ function experiencePassages(text: string, stripQuotes = true): string[] {
  */
 export function findInventedExperiences(text: string, sourceText?: string): string[] {
   if (sourceText === undefined) return [];
-  if (experiencePassages(sourceText, false).length || PROVIDED_EXPERIENCE_RE.test(sourceText)) return [];
-  return experiencePassages(text || "");
+  const [written, retrieved] = splitRetrievedMaterial(sourceText);
+  if (experiencePassages(written, false).length || PROVIDED_EXPERIENCE_RE.test(written)) return [];
+  return experiencePassages(text || "").filter((p) => !supportedByMaterial(p, retrieved));
 }
 
 /**

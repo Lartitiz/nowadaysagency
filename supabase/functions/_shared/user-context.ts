@@ -108,7 +108,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     // Plusieurs lignes storytelling possibles (contrainte unique retirée volontairement) :
     // on prend la primaire, sinon la plus récente — MÊME critère que chat-guide pour que
     // Coach et génération lisent la même histoire.
-    read(scoped("storytelling", "step_7_polished, step_6_full_story, imported_text").order("is_primary", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(1).maybeSingle()),
+    read(scoped("storytelling", "step_7_polished, step_6_full_story, imported_text, source").order("is_primary", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(1).maybeSingle()),
     fetchPersona(),
     read(scoped("brand_profile", "voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, conviction_pairs, conviction_shift, conviction_verbatims, conviction_unspoken, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, target_description, target_problem, target_beliefs, channels, mission, offer").maybeSingle()),
     // brand_proposition n'a pas de contrainte unique → tri + limit(1) pour éviter un crash
