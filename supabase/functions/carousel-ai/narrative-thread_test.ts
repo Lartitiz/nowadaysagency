@@ -34,7 +34,7 @@ Deno.test("fil : un texte relié, sans répétition ni sondage, n'a aucun défau
   const d = narrativeThreadDefects([
     "Je suis tombée sur ce mot en lisant les tendances de l'année.",
     "Et j'ai souri, parce que je le dis depuis longtemps.",
-    "Mais le lisse, ce n'est pas qu'une photo trop parfaite.",
+    "Le lisse, ce n'est pas qu'une photo trop parfaite.",
     "Alors je préfère montrer mes coulisses, et je trouve ça plutôt rassurant.",
   ]);
   assertEquals(threadDefectCount(d), 0);
@@ -220,7 +220,7 @@ import { captionDefectCount, narrativeCaptionDefects, narrativeCaptionFix } from
 import { CAROUSEL_CONTINUITY, FIL_NE_PAS_DECROCHER, FIL_RAISON_DE_GLISSER, FIL_TEST_ENVOI, CAROUSEL_CAPTION_WRITING, CAROUSEL_FACTS, buildCarouselWritingSystem } from "./writing-contract.ts";
 import { numbersIn } from "../_shared/redac-gate.ts";
 
-const SAIN = ["Je suis tombée sur ce mot.", "Et j'ai souri.", "Mais le lisse, c'est aussi une phrase.", "Alors personne ne s'y reconnaît.", "Du coup, je préfère nommer un moment vécu."];
+const SAIN = ["Je suis tombée sur ce mot.", "Et j'ai souri.", "Le lisse, c'est aussi une phrase.", "Personne ne s'y reconnaît.", "Du coup, je préfère nommer un moment vécu."];
 const withCaption = (paragraphs: string[], caption: any) => ({ ...draft(paragraphs), caption: { hook: "", body: "", cta: "", hashtags: [], ...caption } });
 
 Deno.test("fil partagé : le photo et le mixte reçoivent les mêmes phrases que le carrousel texte", async () => {
@@ -287,4 +287,61 @@ Deno.test("mixte hors LinkedIn : le récit continu reçoit le repère de longueu
   assert(!(await systemOf({ carousel_type: "photo" })).includes("CARROUSEL MIXTE :"));
   const linkedin = await systemOf({ carousel_type: "mix", channel: "linkedin" });
   assert(!linkedin.includes("CARROUSEL MIXTE : vise") && linkedin.includes("LINKEDIN, CARROUSEL MIXTE"));
+});
+
+// ─── Relecture de Laetitia du 26/11/2026 au soir : liaisons, rythme, slide 2, ligne d'humour ───
+import { RECIT_RYTHME, SHORT_SLIDE_WORDS } from "./narrative-thread.ts";
+
+const LONG = (debut: string) => `${debut} ${Array.from({ length: 30 }, () => "mot").join(" ")}.`;
+
+Deno.test("liaisons : plus d'un paragraphe sur deux qui commence par un mot de liaison = un tic à réécrire", () => {
+  const tic = narrativeThreadDefects(["Je pars de là.", "Et j'ajoute ceci.", "Mais il y a une limite.", "Alors je tranche.", "Du coup, je conclus."]);
+  assertEquals(tic.liaisonTic, true);
+  assert(narrativeThreadFix(tic).includes("un sur deux au plus"));
+  const sain = narrativeThreadDefects(["Je pars de là.", "Et j'ajoute ceci.", "Cette limite existe.", "Elle se contourne.", "Du coup, je conclus."]);
+  assertEquals(sain.liaisonTic, false);
+  assert(RECIT_FIL_A_VOIX_HAUTE.includes("Au plus un paragraphe sur deux commence par un mot de liaison"));
+});
+
+Deno.test("rythme : aucun paragraphe d'une phrase courte, ou slide 2 trop chargée, seulement quand le rythme est demandé", () => {
+  const plat = [LONG("Je pars de là"), LONG("Cette idée tient"), LONG("Ce point compte"), LONG("La fin arrive")];
+  assertEquals(narrativeThreadDefects(plat).flatRhythm, false, "sans demande, pas de mesure");
+  const d = narrativeThreadDefects(plat, [], { rhythm: true });
+  assertEquals([d.flatRhythm, d.heavySecond], [true, false]);
+  assert(narrativeThreadFix(d).includes(`UNE seule phrase de ${SHORT_SLIDE_WORDS} mots au plus`));
+  const avecCourte = narrativeThreadDefects([plat[0], "Mon visage, c'est ma façon de signer.", plat[2], plat[3]], [], { rhythm: true });
+  assertEquals(avecCourte.flatRhythm, false);
+  // Deux phrases courtes ne font pas une slide « d'une phrase ».
+  assertEquals(narrativeThreadDefects([plat[0], "Oui. Non.", plat[2], plat[3]], [], { rhythm: true }).flatRhythm, true);
+  const lourde = narrativeThreadDefects([`${plat[0]} ${plat[1]}`, "Une phrase courte.", plat[2], plat[3]], [], { rhythm: true });
+  assertEquals(lourde.heavySecond, true);
+  assert(narrativeThreadFix(lourde).includes("slide 2"));
+});
+
+Deno.test("rythme : consigne donnée au récit qui raconte, pas à une liste ; texte plat → la réécriture unique", async () => {
+  const plat = [LONG("Je pars de là"), LONG("Cette idée tient"), LONG("Ce point compte"), LONG("Celle-ci aussi"), LONG("La fin arrive")];
+  const rythme = [plat[0], "Mon visage, c'est ma façon de signer.", plat[2], plat[3], plat[4]];
+  let system = "", writes = 0; const feedbacks: string[] = [];
+  const result = await createContinuousNarrative({ ...base, body: { ...base.body, carousel_type: "mix" }, write: async (o) => {
+    system ||= o.system || "";
+    const sent = JSON.parse((o.messages[0].content as any)[0].text); if (sent.feedback) feedbacks.push(sent.feedback);
+    return JSON.stringify(draft(++writes === 1 ? plat : rythme));
+  } });
+  assert(system.includes(RECIT_RYTHME));
+  assertEquals(writes, 2);
+  assert(feedbacks[0].includes("même poids"), feedbacks[0]);
+  assertEquals(result!.doc.narrative_draft.paragraphs, rythme);
+  // Liste demandée (famille E) : ni consigne ni mesure.
+  let liste = "", n = 0;
+  await createContinuousNarrative({ ...base, body: { ...base.body, carousel_type: "mix", editorial_angle: "tips" }, write: async (o) => { liste ||= o.system || ""; n++; return JSON.stringify(draft(plat)); } });
+  assert(!liste.includes("RYTHME (sauf liste"), "pas de rythme imposé à une liste");
+  assertEquals(n, 1);
+});
+
+Deno.test("ligne d'humour : un vécu au passé est retiré, une remarque reste", () => {
+  assertEquals(closingAside("J'ai retourné pas mal de savons avant d'en fabriquer."), "");
+  assertEquals(closingAside("On a tous un savon qui traîne au fond du placard."), "");
+  assertEquals(closingAside("Je sais, je fais des listes pour tout."), "Je sais, je fais des listes pour tout.");
+  assertEquals(closingAside("Promis, la liste d'ingrédients mord moins qu'elle en a l'air."), "Promis, la liste d'ingrédients mord moins qu'elle en a l'air.");
+  assert(RECIT_RELECTURE_CARROUSEL.includes("une remarque et jamais un souvenir"));
 });
