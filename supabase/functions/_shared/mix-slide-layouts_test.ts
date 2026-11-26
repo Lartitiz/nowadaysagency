@@ -227,6 +227,10 @@ Deno.test("mix : couleur principale sombre → chaque slide texte passe sur l'ap
   if (out.layout !== "respiration") throw new Error("respiration attendue : " + out.layout);
   if (!/background:#131953/i.test(out.html)) throw new Error("aplat bleu nuit attendu");
   if (!/color:#FFFFFF/i.test(out.html)) throw new Error("texte blanc attendu");
+  // Juste après une slide à schéma (« pause », déjà sur l'aplat) : la slide texte reste claire.
+  const apresPause = composeMixSlide(texte, nuit, { isFirst: false, previous: "pause", photoCount: 3 })!;
+  if (!/background:#FFFFFF/i.test(apresPause.html)) throw new Error("fond clair attendu après une pause");
+  if (!/color:#131953/i.test(apresPause.html)) throw new Error("titre bleu nuit attendu sur fond clair");
 });
 
 Deno.test("mix : couleur principale claire → la slide texte isolée garde le fond de charte ; titre dans la couleur principale si la secondaire ne se lit pas", () => {

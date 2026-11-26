@@ -493,12 +493,13 @@ export function composeMixSlide(
     if (s.visual_schema) {
       const html = !opts.isFirst ? pause(p, t, s.visual_schema) : null;
       if (html) return done(html, "pause");
-      const plain = done(respiration(p, t, t.strongFlat || opts.previous === "respiration" && !opts.isFirst || opts.isFirst), "respiration");
+      const plain = done(respiration(p, t, t.strongFlat && opts.previous !== "pause" || opts.previous === "respiration" && !opts.isFirst || opts.isFirst), "respiration");
       return plain ? { ...plain, schema_dropped: true } : null;
     }
     // Deux slides texte d'affilée : la seconde passe sur l'aplat de charte.
-    // Aplat fort (couleur principale sombre) : toutes y passent.
-    return done(respiration(p, t, t.strongFlat || opts.previous === "respiration" && !opts.isFirst || opts.isFirst), "respiration");
+    // Aplat fort (couleur principale sombre) : toutes y passent, sauf juste
+    // après une slide « pause » (déjà sur l'aplat) : pas deux fonds pleins de suite.
+    return done(respiration(p, t, t.strongFlat && opts.previous !== "pause" || opts.previous === "respiration" && !opts.isFirst || opts.isFirst), "respiration");
   }
   if (!hasText) {
     // Photo seule : plein cadre, sans voile.
