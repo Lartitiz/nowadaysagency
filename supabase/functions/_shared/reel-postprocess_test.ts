@@ -443,3 +443,29 @@ Deno.test("enforceReelCoverKeyword : un montant avec milliers reste entier", () 
   enforceReelCoverKeyword(b);
   assertEquals(b.cover_mot_cle, "7 500 €");
 });
+
+// ═══ Accroche qui se présente (étude Instagram du 26/11/2026) ═══
+import { reelHookIsPresentation } from "./reel-postprocess.ts";
+
+Deno.test("reelHookIsPresentation : bonjour, nom annoncé, bienvenue, annonce du sujet", () => {
+  for (const t of [
+    "Bonjour, je m'appelle Léa et je suis céramiste.",
+    "Moi c'est Camille, je fais des savons.",
+    "« Coucou tout le monde ! »",
+    "Bienvenue sur mon compte.",
+    "Aujourd'hui je vais te parler de mes prix.",
+    "Aujourd’hui, on va parler de portage salarial.",
+  ]) assert(reelHookIsPresentation(t), t);
+});
+
+Deno.test("reelHookIsPresentation : un paradoxe, un aveu ou une scène ne sont pas une présentation", () => {
+  for (const t of [
+    "J'ai doublé mes prix et j'ai gagné des clientes.",
+    "J'ai perdu 4 000 euros en signant ce bail.",
+    "Aujourd'hui j'ai refusé une commande.",
+    "Je suis céramiste et je n'ai pas touché la terre depuis un mois.",
+    "On me dit bonjour, puis on me demande une remise.",
+    "",
+  ]) assert(!reelHookIsPresentation(t), t);
+  assert(!reelHookIsPresentation(null));
+});

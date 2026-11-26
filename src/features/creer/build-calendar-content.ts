@@ -11,11 +11,12 @@ export interface CalendarContent {
 }
 
 /**
- * Cap déterministe des hashtags (règle : 3 max Instagram, ciblés) — le modèle
- * en sort 5+ malgré la consigne. Dédoublonne (insensible casse/#) et garde
+ * Cap déterministe des hashtags (5 au plus, décision de Laetitia du 26/11/2026 :
+ * le reel affichait jusqu'à 5 hashtags et n'en gardait que 3 au calendrier) — le
+ * modèle en sort parfois plus malgré la consigne. Dédoublonne (insensible casse/#) et garde
  * les premiers, formes d'origine préservées.
  */
-export function capHashtags(list: unknown, max = 3): string[] {
+export function capHashtags(list: unknown, max = 5): string[] {
   if (!Array.isArray(list)) return [];
   const seen = new Set<string>();
   const out: string[] = [];

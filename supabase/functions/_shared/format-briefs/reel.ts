@@ -13,6 +13,28 @@ import {
 import { annoncedItems } from "./common.ts";
 import { recapReelBlock } from "../multi-subject.ts";
 
+// ═══ Étude Instagram du 26/11/2026, § 10 « reels en voix off » (veille du 21/11) ═══
+// Trois consignes, toutes conditionnées à la matière fournie : rien ne s'invente.
+
+/** Première phrase du reel : un paradoxe ou un aveu, jamais une présentation. Lue aussi par l'étape « hooks ». */
+export const REEL_PREMIERE_PHRASE = `PREMIÈRE PHRASE : UN PARADOXE OU UN AVEU, JAMAIS UNE PRÉSENTATION. Le reel n'ouvre ni par un bonjour, ni par son nom, son métier ou l'annonce du sujet (« Bonjour, je m'appelle… », « Moi c'est…, je suis… », « Bienvenue sur mon compte », « Aujourd'hui je vais te parler de… »). Deux ouvertures tiennent le mieux : le PARADOXE (deux faits vrais de sa matière ou de son métier qui ont l'air de se contredire) et l'AVEU (une erreur, un doute, un raté qu'ELLE a donné dans son brief ou ses réponses, dit en « je »). L'aveu ne s'invente jamais : sans erreur ni raté dans sa matière, ouvre par le paradoxe.`;
+
+/** Le creux : le récit passe par l'obstacle, seulement quand elle l'a raconté. */
+export const REEL_CREUX = `══ LE CREUX (seulement si SA matière le contient) ══
+
+Quand son brief ou ses réponses racontent un moment où ça a coincé (un obstacle, une erreur, un refus, un doute, une période difficile), le script PASSE par ce moment : on l'entend avant ce qu'elle a fait et avant le résultat, avec ses mots, sans l'adoucir ni le réduire à une demi-phrase. Un succès raconté sans son obstacle ne retient pas : c'est le creux qui fait rester, pas les images. Le creux sert alors de situation concrète, et le mécanisme s'explique à partir de lui.
+Si sa matière ne contient AUCUN obstacle vécu : n'en invente pas (ni galère, ni échec, ni doute, ni somme perdue). Garde la construction symptôme → mécanisme → reformulation, et demande-le-lui dans "personal_tip" : une seule question ouverte, au tu, sur ce qui a coincé avant que ça marche.`;
+
+/** Les quatre formats de l'étude, comme trames que la rédaction choisit selon la matière (aucun choix en plus à l'écran). */
+export const REEL_TRAMES = `══ TRAMES DE RÉCIT (facultatives, seulement si SA matière les porte) ══
+
+Quand son brief ou ses réponses contiennent le récit qu'il faut, tu peux bâtir le script sur l'une de ces quatre trames au lieu du déroulé habituel. Tu choisis en silence, sans rien lui demander. Aucune ne s'impose : sans récit vécu dans sa matière, tu n'en prends aucune. Ce sont des constructions, pas des phrases à recopier. Chaque étape se remplit uniquement avec ce qu'elle a donné : une étape sans matière saute, elle ne s'invente pas. La durée ne change pas (55 secondes au plus).
+- SON HISTOIRE (elle a raconté son parcours) : paradoxe d'ouverture → qui elle est, en une phrase → le décalage → le creux → le déclencheur concret → les obstacles qu'elle a cités (trois au plus, chacun dit puis repris en texte à l'écran) → ce qu'elle a fait → aujourd'hui.
+- L'ERREUR (elle a raconté une erreur) : l'aveu en ouverture, avec sa somme ou son chiffre si elle l'a donné, repris en texte à l'écran → pourquoi c'était logique sur le moment → un mot sec qui renverse → ce à quoi elle n'avait pas pensé → ce qu'il en reste → la leçon.
+- LE RÉCIT EN PLEIN TRAVAIL (elle a raconté une situation de travail qui a mal tourné) : une ouverture qui dit qu'elle s'en souvient encore → la situation → le moment où ça a déraillé → la leçon, tournée vers ce qu'ELLE a changé depuis, jamais contre une personne (cliente, collègue, fournisseur : ni nommés ni moqués).
+- LE PORTRAIT À LA TROISIÈME PERSONNE (« Voici [son prénom] ») : une narratrice parle d'elle en « elle » : le contre-pied d'un cliché de son métier → comment elle travaille → une preuve chiffrée SI elle en a donné une → une fin qui dit qu'on la connaît maintenant. Uniquement quand l'accroche choisie l'ouvre déjà ainsi, toujours en voix off sur images (jamais face caméra), et seulement si son prénom figure dans le contexte.
+Si l'accroche choisie ouvre déjà l'une de ces trames (un aveu d'erreur, « Voici… »), suis cette trame.`;
+
 export interface ReelBriefParams {
   effectiveObjective?: string | null;
   face_cam?: string | null;
@@ -140,7 +162,9 @@ AVANT D'ÉCRIRE, identifie aussi :
 3. QUEL EST LE HOOK DES 3 PREMIÈRES SECONDES ?
    Le spectateur décide en 1-3 secondes de rester ou scroller. Le hook 
    doit créer une TENSION immédiate.
+   ${REEL_PREMIERE_PHRASE}
    ❌ "Aujourd'hui je vais te parler de..."
+   ❌ "Bonjour, moi c'est Léa, je suis céramiste."
    ❌ "3 erreurs à éviter sur Instagram"
    ✅ "Arrête de poster tous les jours." (affirmation choc)
    ✅ "Ma cliente avait 10K abonnés et zéro client." (fait concret)
@@ -157,6 +181,10 @@ AVANT D'ÉCRIRE, identifie aussi :
      • VALIDATION : "Ça va lui faire du bien d'entendre ça"
      • CONTRE-INTUITION DÉBATTABLE : "Tiens, ça va la faire réagir"
    La qualité send-worthy doit être INTRINSÈQUE au contenu, pas un CTA explicite.
+
+${REEL_CREUX}
+
+${REEL_TRAMES}
 
 ══ RÈGLES DE SCRIPT ══
 
@@ -233,7 +261,8 @@ CTA   : "Donc avant de toucher à tes prix, regarde plutôt comment tu les dis.
 
 INTERDITS :
 - Script qui LISTE des conseils au lieu de RACONTER + EXPLIQUER LE POURQUOI
-- Hook descriptif ("Aujourd'hui on va parler de...")
+- Hook descriptif ("Aujourd'hui on va parler de...") ou hook qui se présente ("Bonjour, je m'appelle...")
+- Obstacle, erreur ou galère qu'elle n'a pas racontés
 - Hook impersonnel sans sujet humain
 - Texte à l'écran qui dit ce qu'elle ne dit pas (information, chiffre ou formule absents de son texte parlé)
 - Script qu'on ne peut pas dire à voix haute naturellement
@@ -309,7 +338,7 @@ RÈGLE : ces éléments sont plus importants que le template. Le script doit son
 
 L'utilisatrice n'a pas fourni d'éléments personnels.
 Génère le script normalement mais REMPLIS le champ "personal_tip" du JSON :
-"Ce script sera bien plus fort avec ton anecdote perso. Ajoute un truc vécu avant de filmer."`;
+"Ce script sera bien plus fort avec un moment vécu. Raconte une fois où ça a coincé pour toi sur ce sujet, et ce que tu as fait ensuite."`;
 
   // ── Hook choisi (fallback auto champ par champ) ──
   // Un hook récupéré côté `step:"hooks"` peut n'avoir que son `text`. On fusionne
@@ -392,7 +421,8 @@ CONTEXTE GÉNÉRATION :
 3 structures possibles, choisis celle qui sert LE sujet (pas ta préférée) :
 - face_cam_confession : elle parle à la caméra (confession, décryptage, coup de gueule).
 - voix_off_broll : elle FAIT (gestes du métier filmés), sa voix raconte par-dessus.
-  Idéal pour montrer le process, l'atelier, le concret.
+  Idéal pour montrer le process, l'atelier, le concret, et pour un récit vécu
+  (parcours, erreur) posé sur des images qu'elle a déjà : mains, bureau, objets, atelier.
 - hook_loop : boucle courte et percutante, la fin renvoie au début (replays).
 Ne choisis PAS face_cam_confession par réflexe : "duree_justification" doit dire
 en 1 phrase pourquoi CETTE structure sert CE sujet.

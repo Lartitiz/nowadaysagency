@@ -52,6 +52,9 @@ Parler le langage de la plateforme sans emprunter la personnalité de la semaine
 // Ce test attrape un export oublié ou ajouté par erreur.
 Deno.test("format-briefs : la liste des exports est exactement celle attendue", () => {
   assertEquals(Object.keys(briefs).sort(), [
+    "REEL_CREUX",
+    "REEL_PREMIERE_PHRASE",
+    "REEL_TRAMES",
     "captionBrief",
     "carouselBrief",
     "linkedinBrief",

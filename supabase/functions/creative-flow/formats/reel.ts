@@ -10,8 +10,9 @@ import { enforceAudienceAddress, type AudienceAddress } from "../../_shared/audi
 import { tryParseAiJson } from "../../_shared/parse-ai-json.ts";
 import { applyCorrectionPassReel } from "../../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, enforceNoAddedLegalRules, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, hookEchoesBefore, textRedacRawCount } from "../../_shared/redac-gate.ts";
-import { countReelSpokenWords, enforceReelNoFaceCam, enforceSelectedReelHook, finalizeReelScript, reelAuditableText, extractReelTexts, reinjectReelTexts, reelTemplateLeaks, reelOverlaysNotFromScript } from "../../_shared/reel-postprocess.ts";
+import { countReelSpokenWords, enforceReelNoFaceCam, enforceSelectedReelHook, finalizeReelScript, reelAuditableText, extractReelTexts, reinjectReelTexts, reelTemplateLeaks, reelOverlaysNotFromScript, reelHookIsPresentation } from "../../_shared/reel-postprocess.ts";
 import { recapHooksLine } from "../../_shared/multi-subject.ts";
+import { REEL_PREMIERE_PHRASE } from "../../_shared/format-briefs/reel.ts";
 import { CORRECTION_ABORT_MS, addrOpts, extractImagePayload, gateNumbers } from "../shared.ts";
 
 // ═══ NORMALISATION HOOKS (lot 7) ═══
@@ -43,6 +44,13 @@ export function normalizeHooksResponse(parsed: any, params: { body: any; rawCont
   );
   // Objets valides uniquement : un hook sans texte parlé est inutilisable.
   parsed.hooks = parsed.hooks.filter((h: any) => h && typeof h === "object" && typeof h.text === "string" && h.text.trim());
+  // Accroche qui se présente (« Bonjour, je m'appelle… ») : écartée tant qu'il
+  // en reste d'autres à proposer (jamais un écran vide pour ça).
+  const sansPresentation = parsed.hooks.filter((h: any) => !reelHookIsPresentation(h.text));
+  if (sansPresentation.length > 0 && sansPresentation.length < parsed.hooks.length) {
+    console.log(JSON.stringify({ event: "reel_hook_presentation_ecarte", count: parsed.hooks.length - sansPresentation.length }));
+    parsed.hooks = sansPresentation;
+  }
   // Élisions déterministes AVANT affichage : le hook choisi est ensuite
   // verrouillé tel quel sur le script (enforceSelectedReelHook) — une
   // coquille née ici se propagerait partout (vécu 21/07 : « qu'on marchand »).
@@ -135,6 +143,12 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
     if (offScript.length) {
       extras.push(`TEXTE À L'ÉCRAN HORS DE SES MOTS : ${offScript.map((n) => `[SECTION ${n} - OVERLAY]`).join(", ")} contient des mots que son texte parlé ne dit pas. Remplace chacun par un extrait de 3 à 8 mots recopié tel quel du [SECTION n - PARLE] de la même section (son mot ou son chiffre fort), sans majuscules imposées.`);
     }
+    // Accroche écrite par la rédaction qui se présente : à réécrire (jamais
+    // celle que l'utilisatrice a choisie, son choix prime).
+    const firstSpoken = (Array.isArray(parsed?.script) ? parsed.script : Array.isArray(parsed?.sections) ? parsed.sections : [])[0]?.texte_parle;
+    if (!hookVerrouille && reelHookIsPresentation(firstSpoken)) {
+      extras.push(`L'ACCROCHE SE PRÉSENTE AU LIEU D'ENTRER DANS LE SUJET : réécris [SECTION 1 - PARLE] (et [SECTION 1 - OVERLAY], extrait de la nouvelle phrase) sans bonjour, sans nom ni métier annoncés, sans annonce du sujet. Ouvre par un paradoxe tiré du reste du script (deux faits vrais qui ont l'air de se contredire), ou par l'aveu qu'elle a donné s'il y en a un. N'ajoute aucun fait.`);
+    }
     if (body.face_cam === "non") {
       extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
     }
@@ -212,6 +226,7 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
   // par l'utilisatrice reste reverrouillé tel qu'elle l'a choisi, la lecture
   // test et les durées suivent le texte final).
   await enforceReelAudienceAddress(parsed, params.audienceAddress);
+  applyReelCreuxTip(parsed);
   finalizeReelScript(parsed, body.selected_hook);
   // Encore trop long après les deux coupes : trace lisible dans les journaux
   // (l'écran de montage refuse déjà en français au-delà de 60 s).
@@ -225,6 +240,24 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
     console.warn(JSON.stringify({ event: "reel_trop_long", seconds: finalSeconds, max: REEL_MAX_SECONDS, words: countReelSpokenWords(parsed), objective: effectiveObjective ?? null }));
   }
   return echoesBefore;
+}
+
+// ═══ CONSEIL SOUS LE SCRIPT : LA QUESTION DU CREUX (26/11/2026) ═══
+// Sans élément personnel, la consigne commune (context.ts) fait renvoyer un
+// conseil générique (« Ajoute une anecdote perso… »). Pour un reel, l'étude
+// Instagram dit précisément quoi demander : le moment où ça a coincé. On pose
+// donc cette question à la place, en code (la consigne commune reste la même
+// pour les autres formats).
+
+/** Question posée sous le script quand elle n'a raconté aucun vécu. */
+export const REEL_CREUX_TIP = "Ce script sera bien plus fort avec un moment vécu. Raconte une fois où ça a coincé pour toi sur ce sujet, et ce que tu as fait ensuite : c'est ce passage qui fait rester.";
+
+/** Remplace le conseil générique par la question du creux. Renvoie vrai si le conseil a changé. */
+export function applyReelCreuxTip(parsed: any): boolean {
+  if (!parsed || typeof parsed !== "object" || typeof parsed.personal_tip !== "string") return false;
+  if (!/Ajoute une anecdote perso|toi tu incarnes|ton anecdote perso/i.test(parsed.personal_tip)) return false;
+  parsed.personal_tip = REEL_CREUX_TIP;
+  return true;
 }
 
 // ═══ DURÉE MAXIMALE DU REEL (12/11/2026) ═══
@@ -430,6 +463,15 @@ RÈGLES ABSOLUES :
    - scene_coupee (« Scène coupée ») : on entre au milieu d'une scène, in medias res.
 2. text = ce qu'elle DIT (8-20 mots, 1-2 phrases, oral naturel, tension immédiate).
    ❌ "Aujourd'hui je vais te parler de..." ❌ hook descriptif ❌ slogan LinkedIn.
+2bis. ${REEL_PREMIERE_PHRASE}
+   Parmi les 3 hooks, au moins UN est un paradoxe tiré de sa matière ; un aveu
+   seulement si elle a donné l'erreur ou le raté. Les autres types restent
+   possibles, aucun ne se présente.${noFaceCam ? " En voix off (elle ne se montre pas), les 3 hooks sont un paradoxe ou un aveu." : ""}
+2ter. SI SA MATIÈRE RACONTE UN VÉCU (son parcours, une erreur, une situation de
+   travail qui a mal tourné), un des hooks peut ouvrir ce récit. Le portrait à la
+   troisième personne (« Voici [son prénom]. Elle… », une narratrice parle d'elle)
+   est possible pour UN hook au plus, seulement si son prénom figure dans le
+   contexte, avec format_recommande = voix_off_broll. Rien de vécu ne s'invente.
 3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots) : UNIQUEMENT ses mots,
    un extrait du hook parlé (text) recopié tel quel, celui qui fonctionne SEUL sans
    le son et porte son mot ou chiffre fort. Jamais une information que le parlé ne
