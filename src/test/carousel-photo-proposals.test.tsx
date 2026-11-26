@@ -8,7 +8,7 @@ vi.mock("@/lib/photo-storage", () => ({ userPhotoToBase64: mocks.toBase64 }));
 vi.mock("@/lib/stock-photos", () => ({ stockPhotoToPhotoItem: mocks.stockItem }));
 
 import { allImagesReadyMessage, applyPhotoProposals, proposalTargets, sameCarousel, slidePassage, visualsWaitForClick } from "@/lib/carousel-photo-proposals";
-import { overlayPositionLabel, usefulDirective } from "@/features/creer/carousel-photo/labels";
+import { overlayPositionLabel, targetLine, usefulDirective } from "@/features/creer/carousel-photo/labels";
 import { usePhotoProposals } from "@/hooks/use-photo-proposals";
 
 const waiting = (text: string, extra: Record<string, unknown> = {}) => ({
@@ -95,6 +95,15 @@ describe("libellés de l'écran carrousel photo", () => {
     expect(usefulDirective("Une image qui accompagne ce passage : La découpe commence")).toBe("");
     expect(usefulDirective("Une photo qui accompagne « La découpe commence »")).toBe("");
     expect(usefulDirective("Un plan d'appartement annoté sur une table")).toBe("Un plan d'appartement annoté sur une table");
+  });
+
+  it("la ligne 🎯 ne s'affiche pas sous une photo proposée par l'app", () => {
+    const directive = "Des huiles dorées dans une carafe";
+    expect(targetLine({ photo_directive: directive, cast_source: "stock_ambient" })).toBe("");
+    expect(targetLine({ photo_directive: directive, cast_source: "library_auto" })).toBe("");
+    expect(targetLine({ photo_directive: directive, cast_source: "generated" })).toBe(directive);
+    expect(targetLine({ photo_directive: directive })).toBe(directive);
+    expect(targetLine(undefined)).toBe("");
   });
 });
 
