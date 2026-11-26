@@ -262,6 +262,18 @@ const FICHES_A_RELIRE = [
   { user_id: "u-sam", autofill_status: "completed", updated_at: ilYa(8 * J), reviewed: SEPT },
 ];
 
+// Générations refusées (sonde 🚫 du 26/11/2026) : deux refus du compte de
+// recette cette semaine (le cas du 25/11), un refus d'une cliente, un vieux
+// refus hors fenêtre, et une ligne d'un autre évènement du journal.
+const REFUS = (user_id: string, quand: string, message: string) => ({ user_id, event: "generation_refusee", created_at: quand, payload: { fonction: "carousel-ai", message, type: "express_full", carousel_type: "photo" } });
+const JOURNAL_TECHNIQUE = [
+  REFUS("u-test", ilYa(2 * J), "Données invalides: confirmed_structure.3.overlay_position: Invalid enum value"),
+  REFUS("u-test", ilYa(2 * J - 60_000), "Données invalides: confirmed_structure.3.overlay_position: Invalid enum value"),
+  REFUS("u-marie", ilYa(1 * J), "Données invalides: confirmed_structure.1.image_role: Expected string, received null"),
+  REFUS("u-jo", ilYa(20 * J), "Données invalides: narrative_thread"),
+  { user_id: "u-jo", event: "carousel_visual_request", created_at: ilYa(1 * J), payload: {} },
+];
+
 /** La base complète, pour les deux scopes. Chaque test peut remplacer une table. */
 export function mondeComplet(): FauxMonde {
   return {
@@ -286,6 +298,7 @@ export function mondeComplet(): FauxMonde {
       content_quality_events: EVENEMENTS_QUALITE,
       ai_usage_hors_credit: HORS_CREDIT,
       branding_autofill: FICHES_A_RELIRE,
+      frontend_debug_logs: JOURNAL_TECHNIQUE,
     },
     cronJobs: CRON_JOBS,
     photoroom: { status: 200, body: { credits: { available: 790, subscription: 1000 } } },

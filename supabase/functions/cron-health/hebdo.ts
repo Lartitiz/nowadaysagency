@@ -17,6 +17,7 @@ import { debitsDoubles } from "./debits-doubles.ts";
 import { horsCreditParSource, lireHorsCredit } from "./hors-credit.ts";
 import { fichesCoincees, lireFichesCoincees } from "./fiches-coincees.ts";
 import { connexionsFigees, PLATEFORMES_AUTO_RENOUVELEES } from "./connexions-figees.ts";
+import { generationsRefusees, lireGenerationsRefusees } from "./generations-refusees.ts";
 
 export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }: {
   supabase: any;
@@ -26,7 +27,7 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
   emailOf: Map<string, string>;
 }) {
   const since35d = new Date(now - 35 * DAY).toISOString();
-  const [aiRows, calRows, higgsfield, ownerRows, emailsCoupes, horsCreditRows, fichesRows, connRows] = await Promise.all([
+  const [aiRows, calRows, higgsfield, ownerRows, emailsCoupes, horsCreditRows, fichesRows, connRows, refusRows] = await Promise.all([
     fetchAllRows(
       supabase,
       "ai_usage",
@@ -50,6 +51,8 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
     // « 🔌 Connexions figées » : Google / Canva / Pinterest pas renouvelées depuis 30 j.
     fetchAllRows(supabase, "social_connections", "user_id, platform, token_expires_at", (q) => q.in("platform", [...PLATEFORMES_AUTO_RENOUVELEES]))
       .catch((e) => ({ erreur: String((e as any)?.message || e).slice(0, 90) })),
+    // « 🚫 Générations refusées » : refus « Données invalides » des 7 derniers jours.
+    lireGenerationsRefusees(supabase, fetchAllRows, now).catch((e) => ({ erreur: String((e as any)?.message || e).slice(0, 90) })),
   ]);
   const espaces_owner_multiples = espacesOwnerMultiples(ownerRows, { emailOf, isClient, now });
   const ai = aiRows.filter((a: any) => isClient(a.user_id));
@@ -104,5 +107,7 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
     fiches_coincees: Array.isArray(fichesRows) ? fichesCoincees(fichesRows, { isClient, now }) : fichesRows,
     // « 🔌 Connexions figées » : 0 attendu ; > 0 = à reconnecter (ou app Google repassée en test).
     connexions_figees: Array.isArray(connRows) ? connexionsFigees(connRows, { isClient, now }) : connRows,
+    // « 🚫 Générations refusées » : 0 attendu ; ≥ 1 = un champ écrit par l'IA est refusé à la reprise (#2053).
+    generations_refusees: Array.isArray(refusRows) ? generationsRefusees(refusRows, { isClient, now }) : refusRows,
   };
 }

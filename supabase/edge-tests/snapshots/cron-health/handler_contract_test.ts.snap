@@ -780,6 +780,16 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
     plus_ancienne: "2026-10-04",
   },
   generated_at: "2026-10-09T08:00:00.000Z",
+  generations_refusees: {
+    clientes: 1,
+    comptes: 2,
+    dernier: {
+      date: "2026-10-08",
+      fonction: "carousel-ai",
+      message: "Données invalides: confirmed_structure.1.image_role: Expected string, received null",
+    },
+    refus: 3,
+  },
   higgsfield: {
     actif: true,
     alerte: null,
@@ -1255,6 +1265,7 @@ snapshot[`weekly : liste des requêtes (tables, colonnes, filtres) 1`] = `
   "GET content_quality_events user_id,format,redac_score,redac_repassed,created_at,content_preview created_at=gte.2026-09-04T08:00:00.000Z [0+1000]",
   "GET email_sends template_id,status,sent_at sent_at=gte.2026-10-02T08:00:00.000Z [0+1000]",
   "GET email_templates id,name [0+1000]",
+  "GET frontend_debug_logs user_id,created_at,payload created_at=gte.2026-10-02T08:00:00.000Z event=eq.generation_refusee [0+1000]",
   "GET generated_carousels user_id,carousel_type,subject,hook_text,caption,slides,slide_count,quality_score,calendar_post_id,status,created_at,updated_at created_at=gte.2026-09-04T08:00:00.000Z [0+1000]",
   "GET higgsfield_image_spend source,estimated_usd,status,created_at created_at=gte.2026-10-01T00:00:00.000Z [0+1000]",
   "GET profiles user_id,email,created_at [0+1000]",
