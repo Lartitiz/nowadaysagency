@@ -159,7 +159,7 @@ export function ReelPreview({ duration, tweaks, setTweaks, passages, workspaceId
       <p className="text-2xs text-muted-foreground">
         {busy
           ? fabricationMessage(elapsed)
-          : "Retouche autant que tu veux : l’aperçu est immédiat. La vidéo n’est fabriquée qu’au téléchargement (environ 2 minutes)."}
+          : "Retouche autant que tu veux : l’aperçu est immédiat. La vidéo n’est fabriquée qu’au téléchargement (3 à 4 minutes)."}
       </p>
     </section>
   );

@@ -21,10 +21,11 @@ export function formatElapsed(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-/** Temps écoulé + une seule durée annoncée : « 0:07 (compte environ 2 minutes) ». */
+/** Temps écoulé + une seule durée annoncée : « 0:07 (compte 3 à 4 minutes) ». */
 export function waitNote(seconds: number): string {
-  return seconds < 150
-    ? `${formatElapsed(seconds)} (compte environ 2 minutes)`
+  // Mesuré le 26/11/2026 sur un reel de 48 s sans voix : un peu plus de 4 minutes.
+  return seconds < 270
+    ? `${formatElapsed(seconds)} (compte 3 à 4 minutes)`
     : `${formatElapsed(seconds)} (c’est plus long que d’habitude, ça continue)`;
 }
 

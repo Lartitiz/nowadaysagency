@@ -63,7 +63,12 @@ export function MontageResult({ previewOpen = false, preparingPreview = false, c
   <div data-testid="montage-assemble-bar" className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom)+var(--result-actions-h,0px))] md:bottom-[var(--result-actions-h,0px)] z-20 -mx-3 sm:-mx-4 flex items-center justify-between gap-2 border-t border-border bg-card/95 px-3 sm:px-4 py-3 backdrop-blur">
     {/* Fabrication lancée depuis l'aperçu : son attente est plus bas dans le panneau, hors de
         vue. On la répète ici, dans la barre toujours visible (essai réel du 26/11/2026). */}
-    {phase === "rendering" && previewOpen ? <BarProgress /> : (
+    {phase === "rendering" && previewOpen ? <BarProgress /> : phase === "done" && mp4Url && !previewOpen ? (
+      // Vidéo prête : son téléchargement est plus bas dans le panneau, on le met aussi ici.
+      <Button type="button" variant="outline" size="sm" onClick={() => void handleDownload()} disabled={downloading} data-testid="montage-bar-download">
+        <Download className="h-4 w-4 mr-1.5" />{downloading ? "Téléchargement…" : <>Télécharger<span className="hidden sm:inline">&nbsp;ma vidéo</span></>}
+      </Button>
+    ) : (
     <span className="text-2xs text-muted-foreground">
       {ready} clip{ready > 1 ? "s" : ""} sur {spoken.length} prêt{ready > 1 ? "s" : ""}
     </span>

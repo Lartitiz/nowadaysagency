@@ -435,7 +435,7 @@ describe("ReelMontage — message pendant l'assemblage, selon le mode", () => {
 
   it("sans voix : parle du texte à l'écran, jamais de la voix ni des sous-titres", async () => {
     const msg = await rendering({ voiceMode: "silent", clips: [stock(1), stock(2)] });
-    expect(msg.textContent).toMatch(/environ 2 minutes/);
+    expect(msg.textContent).toMatch(/3 à 4 minutes/);
     expect(msg.textContent).not.toMatch(/voix|sous-titres/);
   });
 
@@ -526,6 +526,8 @@ describe("ReelMontage — atelier du 26/11/2026 : la vidéo à gauche, un passag
     expect(screen.getByTestId("reel-stage").querySelector("video")?.getAttribute("src")).toBe("https://stockage.test/reel.mp4");
     expect(screen.getByText("Ta vidéo est prête")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Télécharger le MP4/ })).toBeInTheDocument();
+    // Et dans la barre du bas, toujours à l'écran.
+    expect(screen.getByTestId("montage-bar-download")).toHaveTextContent("Télécharger ma vidéo");
   });
 });
 
@@ -621,7 +623,7 @@ describe("ReelMontage — aperçu immédiat du reel sans voix (14/11/2026)", () 
 
     fireEvent.click(screen.getByRole("button", { name: "Télécharger ma vidéo" }));
     const msg = await screen.findByText(/Fabrication de ta vidéo/);
-    expect(msg.textContent).toMatch(/0:0\d \(compte environ 2 minutes\)/);
+    expect(msg.textContent).toMatch(/0:0\d \(compte 3 à 4 minutes\)/);
     expect(msg.textContent).not.toMatch(/≈/);
     // Une seule roue qui tourne : celle de l'aperçu, pas « Montage en cours… » en bas en même temps.
     expect(screen.queryByText("Montage en cours…")).toBeNull();
