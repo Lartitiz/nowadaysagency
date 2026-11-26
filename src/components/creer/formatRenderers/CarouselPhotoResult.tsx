@@ -29,7 +29,7 @@ import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
-import { overlayPositionLabel, usefulDirective } from "@/features/creer/carousel-photo/labels";
+import { overlayPositionLabel, usefulDirective } from "@/features/creer/carousel-photo/labels"; import { allImagesReadyMessage } from "@/lib/carousel-photo-proposals";
 import { AnotherProposalButton, CastingNotice, useAnotherProposal } from "@/features/creer/carousel-photo/proposals-ui";
 import { photoResultSignature, needsPhotoResultResync } from "@/features/creer/carousel-photo/resync";
 import { type SlideGenEntry, type SlideGenState, swapGenEntries, withoutGenEntry, removeGenEntryAt, patchGenEntry } from "@/features/creer/carousel-photo/gen-state";
@@ -613,7 +613,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
               <p className="text-sm font-semibold text-foreground">Ton carrousel est écrit ✍️</p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {uncastCount === 0
-                  ? "Toutes les slides photo ont leur image : tu peux créer les visuels."
+                  ? allImagesReadyMessage(r)
                   : `${uncastCount === 1 ? "Il reste 1 image à choisir." : `Il reste ${uncastCount} images à choisir.`}${r?.carousel_type === "photo" ? "" : " Les slides texte sont prêtes."}`}
               </p>
             </div>

@@ -7,7 +7,7 @@ vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: mocks.invoke })
 vi.mock("@/lib/photo-storage", () => ({ userPhotoToBase64: mocks.toBase64 }));
 vi.mock("@/lib/stock-photos", () => ({ stockPhotoToPhotoItem: mocks.stockItem }));
 
-import { applyPhotoProposals, proposalTargets, sameCarousel, slidePassage } from "@/lib/carousel-photo-proposals";
+import { allImagesReadyMessage, applyPhotoProposals, proposalTargets, sameCarousel, slidePassage, visualsWaitForClick } from "@/lib/carousel-photo-proposals";
 import { overlayPositionLabel, usefulDirective } from "@/features/creer/carousel-photo/labels";
 import { usePhotoProposals } from "@/hooks/use-photo-proposals";
 
@@ -65,6 +65,20 @@ describe("images proposées : pose sur le carrousel", () => {
     expect(sameCarousel(moved, ["Un", "Deux"])).toBe(true);
     expect(sameCarousel({ slides: [waiting("Autre carrousel")] }, ["Un", "Deux"])).toBe(false);
     expect(slidePassage({ title: "Titre", body: "Corps" })).toBe("Titre\nCorps");
+  });
+});
+
+describe("images proposées : les visuels attendent le clic", () => {
+  it("dès qu'une image a été posée par l'app, pas de création automatique des visuels", () => {
+    const raw = { slides: [waiting("Un"), waiting("Deux")] };
+    const stockOnly = applyPhotoProposals(raw, [{ passage: "Un", ideal: null, source: "stock" as const, photoIndex: 1, stock: stock("11"), alternates: [] }]);
+    expect(visualsWaitForClick(stockOnly)).toBe(true);
+    expect(allImagesReadyMessage(stockOnly)).toMatch(/image proposée.*change celles que tu veux/);
+    // Rien de posé (ou carrousel fait avec ses propres photos) : la création automatique reste comme avant.
+    const nothing = applyPhotoProposals(raw, [{ passage: "Un", ideal: "Une façade d'immeuble ancien", source: null, photoIndex: null, alternates: [] }]);
+    expect(visualsWaitForClick(nothing)).toBe(false);
+    expect(visualsWaitForClick({ slides: [{ slide_type: "photo_full", photo_index: 1, cast_source: "stock_ambient" }] })).toBe(false);
+    expect(allImagesReadyMessage({ slides: [] })).toBe("Toutes les slides photo ont leur image : tu peux créer les visuels.");
   });
 });
 

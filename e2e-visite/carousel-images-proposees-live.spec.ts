@@ -106,5 +106,22 @@ test("carrousel sans photo : des images sont proposées d'office", async ({ page
   // Plus de texte de slide recopié en « image idéale », ni de position en anglais.
   await expect(page.getByText(/Une image qui accompagne ce passage/i)).toHaveCount(0);
   await expect(page.getByText(/^(top|bottom|center|middle)([ _-](left|right|center))?$/i)).toHaveCount(0);
+
+  // Images proposées par l'app : les visuels attendent le clic (26/11/2026), le temps de changer une image.
+  await page.waitForTimeout(8000);
+  await expect(page.getByRole("heading", { name: /Personnaliser mon carrousel/i }), "les visuels se sont créés tout seuls").toHaveCount(0);
+  await expect(page.getByText(/Analyse de la charte graphique/i), "les visuels se créent tout seuls").toHaveCount(0);
+
+  // « Une autre » : la photo de la slide change, sans erreur.
+  const autre = page.getByRole("button", { name: /^Une autre$/ }).first();
+  if (await autre.isVisible().catch(() => false)) {
+    const srcs = () => page.locator('img[alt^="Photo "]').evaluateAll((els) => els.map((e) => (e as HTMLImageElement).src.slice(-60)).join("|"));
+    const avant = await srcs();
+    await autre.click();
+    await expect.poll(srcs, { timeout: 30_000, message: "« Une autre » n'a pas changé la photo" }).not.toBe(avant);
+    await expect(page.getByText(/n'a pas pu être chargée/i)).toHaveCount(0);
+    console.log("🔁 « Une autre » : photo changée");
+    await page.screenshot({ path: path.join(SHOTS, "4-une-autre.png"), fullPage: true, timeout: 30000 });
+  }
   await page.close();
 });
