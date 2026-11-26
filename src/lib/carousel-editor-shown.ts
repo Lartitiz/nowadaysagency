@@ -26,6 +26,27 @@ export function useMarkCarouselEditorShown() {
   }, []);
 }
 
+// Volet téléphone (26/11/2026) : vrai tant qu'un onglet du panneau est ouvert « en volet »
+// sur téléphone. La slide passe en petit, collée en haut, et les deux barres du bas
+// (actions, menu de l'app) se cachent pour laisser la place aux réglages.
+let sheet = false;
+
+/** Vrai tant que le volet de réglages est ouvert sur téléphone. */
+export function useCarouselSheet() {
+  return useSyncExternalStore(
+    (l) => { listeners.add(l); return () => listeners.delete(l); },
+    () => sheet,
+    () => false,
+  );
+}
+
+/** Ouvre ou ferme le volet de réglages (éditeur de carrousel, téléphone). */
+export function setCarouselSheet(open: boolean) {
+  if (sheet === open) return;
+  sheet = open;
+  notify();
+}
+
 // Chantier X (18/10/2026) : « Modifier le texte » du menu « Plus d'options »
 // ouvre la liste du texte de toutes les slides dans l'éditeur affiché.
 const textListOpeners = new Set<() => void>();

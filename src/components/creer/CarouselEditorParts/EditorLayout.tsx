@@ -5,7 +5,9 @@
 // Maintenant, la page mesure la place réelle entre le haut de la grille de
 // l'éditeur et la barre « Publier » collée en bas, et la slide la prend
 // (plafond 540 px de large : la moitié des 1080 px exportés, toujours net).
-import { useLayoutEffect, useState, type CSSProperties, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useState, type CSSProperties, type RefObject } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { setCarouselSheet, useCarouselSheet } from "@/lib/carousel-editor-shown";
 // Flèches ‹ › sur les bords de la slide (19/11/2026), posées dans la boîte ci-dessous (relative).
 export { SlideEdgeArrows } from "./SlideEdgeArrows";
 
@@ -83,9 +85,9 @@ export const roomStyle = (fit: SlideFit | null): CSSProperties | undefined =>
   fit ? ({ "--editor-room": `${Math.max(fit.room, Math.round(fit.width * 1.25))}px` } as CSSProperties) : undefined;
 
 /** Cadre de la slide : la largeur mesurée, sinon l'ancienne règle (avant la première mesure). */
-export const slideBoxProps = (fit: SlideFit | null) =>
+export const slideBoxProps = (fit: SlideFit | null, sheet = false) =>
   fit
-    ? { className: "relative mx-auto w-full", style: { maxWidth: fit.width } }
+    ? { className: "relative mx-auto w-full", style: { maxWidth: sheet ? Math.min(fit.width, SHEET_SLIDE) : fit.width } }
     : { className: "relative mx-auto w-full max-w-[min(540px,30vh)] md:max-w-[min(540px,max(240px,calc((100vh-456px)*0.8)))]", style: undefined };
 
 /** Grille de l'éditeur : la slide et ses vignettes dessous, le panneau à droite (ordinateur) ; slide, points, puis panneau (téléphone). */
@@ -100,4 +102,28 @@ export function outsideRoom(slide: Element | null | undefined): { above: number;
   const header = Math.max(window.document.querySelector("header")?.getBoundingClientRect().bottom ?? 0, window.document.querySelector("[data-editor-toolbar]")?.getBoundingClientRect().bottom ?? 0);
   const bar = window.document.querySelector('[data-testid="result-actions"]')?.getBoundingClientRect().top ?? window.innerHeight;
   return { above: Math.max(0, r.top - Math.max(0, header)), below: Math.max(0, Math.min(bar, window.innerHeight) - r.bottom) };
+}
+
+// Volet téléphone (26/11/2026, maquette du même jour). Avant, sur téléphone, les réglages
+// étaient sous la slide : pour changer une taille ou une couleur il fallait descendre, et on
+// ne voyait plus la slide qu'on réglait. Maintenant, ouvrir un onglet (ou toucher une case)
+// met la slide en petit en haut de l'écran, les réglages défilent dessous dans leur propre
+// zone, et « Terminé » rend sa taille à la slide.
+/** Largeur de la slide (px) quand le volet est ouvert : elle reste lisible et laisse plus de la moitié de l'écran aux réglages. */
+const SHEET_SLIDE = 164;
+
+/** Classes de la grille quand le volet est ouvert : elle prend la hauteur de l'écran sous la ligne d'outils. */
+export const SHEET_GRID = " max-md:h-[calc(100dvh-var(--app-header-h,49px)-2.75rem)] max-md:scroll-mt-[calc(var(--app-header-h,49px)+2.75rem)] max-md:gap-2 max-md:overflow-hidden";
+
+/** Volet de réglages du téléphone : ouvert ou non, et de quoi l'ouvrir ou le fermer. Toujours fermé sur ordinateur. */
+export function usePhoneSheet(grid: RefObject<HTMLElement>, off = false) {
+  const phone = useIsMobile();
+  const open = useCarouselSheet() && phone && !off;
+  useEffect(() => () => setCarouselSheet(false), []);
+  useEffect(() => {
+    if (open) grid.current?.scrollIntoView?.({ block: "start" });
+    // Les barres du bas se cachent ou reviennent : la slide se remesure.
+    window.dispatchEvent(new Event("resize"));
+  }, [open, grid]);
+  return { open, phone, set: setCarouselSheet };
 }

@@ -10,6 +10,8 @@
 //   n'en sort pas tout seul, et l'éditeur s'en souvient d'une fois sur l'autre.
 // - Les réglages pointus de l'ancien « Plus d'outils » sont sous la partie simple de
 //   l'onglet de l'élément choisi, derrière une ligne « Réglages avancés » à déplier.
+// - Téléphone : ouvrir un onglet ou toucher une case ouvre le « volet » (EditorLayout.tsx) : la slide
+//   passe en petit en haut, les réglages défilent dessous, « Terminé » rend sa taille à la slide.
 // - « Demander un changement à l'IA » reste collé en bas sur ordinateur (SlideRedoDialog.tsx
 //   s'y affiche) ; sur téléphone, c'est un onglet de plus.
 import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
@@ -58,6 +60,8 @@ type Props =
     className: string;
     savedStyles?: CarouselStylesApi;
     ungroupSelection: () => void;
+    /** Volet de réglages du téléphone (EditorLayout.tsx). */
+    sheet: { open: boolean; phone: boolean; set: (open: boolean) => void };
   };
 
 /** L'éditeur se souvient de l'onglet « Calques » (comme il se souvenait de « Plus d'outils ») ; sinon il s'ouvre sur « Texte ». */
@@ -106,6 +110,7 @@ export function EditorPanel(p: Props) {
   }, []);
   const open = (next: PanelTab) => {
     setTab(next);
+    if (p.sheet.phone) p.sheet.set(true);
     // « Photo » : la photo de la slide est choisie d'office, ses réglages sont là tout de suite.
     if (next === "photo" && element?.kind !== "photo") {
       const first = elements.find((e) => e.kind === "photo");
@@ -171,13 +176,26 @@ export function EditorPanel(p: Props) {
   );
 
   return (
-    <div className={`${p.className} md:grid md:grid-cols-[4.5rem_minmax(0,1fr)] md:overflow-hidden md:rounded-xl md:border md:bg-card`} data-testid="editor-panel">
+    <div className={`${p.className} md:grid md:grid-cols-[4.5rem_minmax(0,1fr)] md:overflow-hidden md:rounded-xl md:border md:bg-card ${p.sheet.open ? "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col" : ""}`} data-testid="editor-panel">
+      {p.sheet.open && (
+        <div className="mb-1.5 flex items-center justify-between gap-2 md:hidden">
+          <p className="text-xs text-muted-foreground">Slide {p.document.slides.indexOf(slide) + 1} : tes réglages s’appliquent en direct.</p>
+          <Button size="sm" variant="outline" className="h-8 shrink-0 rounded-full px-4" onClick={() => p.sheet.set(false)}>Terminé</Button>
+        </div>
+      )}
       <div role="tablist" aria-label="Réglages de la slide" className="flex gap-1 overflow-x-auto rounded-xl bg-muted/60 p-1 md:flex-col md:overflow-visible md:rounded-none md:border-r md:p-1.5">
         {TABS.map(([id, label, Icon]) => tabButton(id, label, Icon))}
         {tabButton("ia", "Demander à l’IA", Sparkles, "text-primary md:hidden")}
         {tabButton("calques", "Calques", Layers, "md:mt-auto")}
       </div>
-      <div className="flex min-h-0 min-w-0 flex-col">
+      <div className={`flex min-h-0 min-w-0 flex-col ${p.sheet.open ? "max-md:flex-1 max-md:overflow-y-auto max-md:overscroll-contain max-md:pb-6" : ""}`}
+        // Téléphone : toucher une case des réglages ouvre le volet (la slide reste visible au-dessus du clavier).
+        onFocusCapture={(e) => {
+          if (!p.sheet.phone || p.sheet.open || !(e.target as HTMLElement).matches?.("input, textarea, select")) return;
+          const field = e.target as HTMLElement;
+          p.sheet.set(true);
+          window.setTimeout(() => field.scrollIntoView?.({ block: "nearest" }), 80);
+        }}>
         <div id="panel-content" role="tabpanel" aria-labelledby={`panel-tab-${shown}`} className={`min-h-0 min-w-0 flex-1 space-y-3 pt-3 md:overflow-y-auto md:p-3 ${tab === "ia" ? "max-md:hidden" : ""}`}>
           {slide.locked && (
             <div role="status" className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">

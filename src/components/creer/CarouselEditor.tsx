@@ -67,7 +67,7 @@ import { TextListDialog } from "@/components/creer/CarouselEditorParts/TextListD
 import { EditorPanel } from "@/components/creer/CarouselEditorParts/EditorPanel";
 import { brandInk, isIcon, setIconColor } from "@/components/creer/CarouselEditorParts/editor-icons";
 import { CaptionField } from "@/components/creer/CarouselEditorParts/CaptionField";
-import { EDITOR_GRID, roomStyle, SlideEdgeArrows, slideBoxProps, useSlideFit } from "@/components/creer/CarouselEditorParts/EditorLayout";
+import { EDITOR_GRID, roomStyle, SHEET_GRID, SlideEdgeArrows, slideBoxProps, usePhoneSheet, useSlideFit } from "@/components/creer/CarouselEditorParts/EditorLayout";
 import { SlideRedo } from "@/components/creer/CarouselEditorParts/SlideRedoDialog";
 import { replaceSlide, type SlideRedoApi } from "@/components/creer/CarouselEditorParts/slide-redo";
 
@@ -131,7 +131,7 @@ export default function CarouselEditor({
     [fullscreen, setFullscreen] = useState(false),
     [dragSlide, setDragSlide] = useState<number | null>(null),
     [dropAt, setDropAt] = useState<number | null>(null),
-    [hasClip, setHasClip] = useState(false);
+    [hasClip, setHasClip] = useState(false), sheet = usePhoneSheet(grid, fullscreen);
   // Sélection multiple (Maj + clic) : l'élément principal + les autres.
   const group = selected ? [selected, ...extra.filter((id) => id !== selected)] : [];
   const canvasApi = useRef<CanvasApi | null>(null);
@@ -719,7 +719,7 @@ export default function CarouselEditor({
         <QualityPanel cloudTools={cloudTools} commit={commit} current={current} document={document} fixAll={fixAll} quality={quality} setActive={setActive} setSelected={setSelected} />,
         toolsPortal,
       )}
-      <div ref={grid} className={EDITOR_GRID} style={roomStyle(fit)}>
+      <div ref={grid} className={EDITOR_GRID + (sheet.open ? SHEET_GRID : "")} style={roomStyle(fit)}>
       <TextListDialog document={document} commit={commit} getDocument={() => current.current} />
         {/* Téléphone : l'aperçu reste collé sous l'en-tête pendant qu'on fait défiler les réglages. Sa taille suit la
             place réelle au-dessus de la barre « Publier » (EditorLayout.tsx). */}
@@ -737,8 +737,8 @@ export default function CarouselEditor({
           {fullscreen && <Button size="sm" variant="ghost" className="h-7 gap-1 self-end px-2 text-2xs" aria-label="Quitter le plein écran" onClick={() => setFullscreen(false)}>
               <Minimize2 size={14} /> Quitter le plein écran
             </Button>}
-          <div {...(fullscreen ? { className: "relative w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]" } : slideBoxProps(fit))}>
-          <SlideEdgeArrows active={active} count={document.slides.length} goTo={goToSlide} hideOnPhone={!!selected} />
+          <div {...(fullscreen ? { className: "relative w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]" } : slideBoxProps(fit, sheet.open))}>
+          <SlideEdgeArrows active={active} count={document.slides.length} goTo={goToSlide} hideOnPhone={!!selected || sheet.open} />
           <SlideCanvas
             onHistoryKey={onHistoryKey}
             slide={slide}
@@ -789,10 +789,10 @@ export default function CarouselEditor({
           />
           </div>
           {/* Sous la slide, collées avec elle : toutes les vignettes en rangée (ordinateur), des points et « Toutes » (téléphone). */}
-          {!fullscreen && <SlideStrip {...strip} />}
+          {!fullscreen && !sheet.open && <SlideStrip {...strip} />}
         </div>
         {/* Panneau à onglets (EditorPanel.tsx) : sous la slide sur téléphone ; à côté, à la hauteur de la slide, sur ordinateur. */}
-        <EditorPanel className="order-3 min-w-0 md:sticky md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:h-[var(--editor-room,calc(100vh-15rem))]"
+        <EditorPanel sheet={sheet} className="order-3 min-w-0 md:sticky md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:h-[var(--editor-room,calc(100vh-15rem))]"
           addReady={addReady} applyAll={applyAll} applyBlockPreset={applyBlockPreset} applyCarouselTheme={applyCarouselTheme} applySaved={applySaved} blockPresets={blockPresets} borderControls={borderControls} canvasApi={canvasApi}
           changeLayout={changeLayout} changeSlide={changeSlide} clipboard={clipboard} commit={commit} coord={coord} copySelection={copySelection} css={css} document={document} documentFonts={documentFonts} element={element}
           elements={elements} fill={fill} fillAlpha={fillAlpha} fillHex={fillHex} filterValue={filterValue} fontQuery={fontQuery} group={group} groupSelection={groupSelection} hasClip={hasClip} layers={layers}
