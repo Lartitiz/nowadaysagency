@@ -625,6 +625,8 @@ describe("ReelMontage — aperçu immédiat du reel sans voix (14/11/2026)", () 
     expect(msg.textContent).not.toMatch(/≈/);
     // Une seule roue qui tourne : celle de l'aperçu, pas « Montage en cours… » en bas en même temps.
     expect(screen.queryByText("Montage en cours…")).toBeNull();
+    // L'attente est aussi dans la barre du bas, toujours à l'écran.
+    expect(within(screen.getByTestId("montage-assemble-bar")).getByText(/Je fabrique ta vidéo… 0:0\d/)).toBeInTheDocument();
   });
 
   it("« Plus court » raccourcit les passages envoyés au rendu", async () => {
