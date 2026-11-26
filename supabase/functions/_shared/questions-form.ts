@@ -50,7 +50,7 @@ export const QUESTIONS_OUVERTES_RETRY = `Certaines questions se répondent par o
 
 // Question fermée (15/11/2026, vue par la sonde ❓ du matin) : la proposition qui porte le « ? »
 // commence comme un oui/non. « Peux-tu raconter… » n'en est pas une (invitation polie).
-const DEBUT_FERME = /^(tu (as|connais|fais|utilises|te souviens|aurais|veux|préfères|souhaites)|as-tu|aurais-tu|connais-tu|est-ce qu|y a-t-il|il y a|existe-t-il)(\s|\b)/i;
+const DEBUT_FERME = /^(tu (as|connais|fais|utilises|te souviens|aurais|veux|préfères|souhaites)|as-tu|aurais-tu|connais-tu|est-ce qu(?:e|['’])|y a-t-il|il y a|existe-t-il)(\s|\b)/i;
 export function questionFermee(q: string): boolean {
   const avant = String(q || "").split("?")[0] ?? "";
   const morceaux = avant.split(/[,:;.]/).map((m) => m.trim());

@@ -216,3 +216,9 @@ Deno.test("questions-form : « et que doit… » est une seconde question, « et
   const une = "Quelle étape as-tu menée toi-même et que tu referais sur ta prochaine opération ?";
   assertEquals(couperSecondeQuestion(une), une);
 });
+
+Deno.test("question fermée : « Est-ce que tu… ? » est reconnue comme « Est-ce qu'il… ? » (26/11/2026)", () => {
+  assert(questionFermee("Est-ce que tu écris un mot dans tes colis ?"));
+  assert(questionFermee("Est-ce qu'il t'arrive de relire ?"));
+  assert(!questionFermee("Qu'est-ce que tu écris dans tes colis ?"));
+});

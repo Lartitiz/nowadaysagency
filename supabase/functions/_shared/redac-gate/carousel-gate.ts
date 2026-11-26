@@ -16,7 +16,7 @@ import { researchNumbers, baseInputText, enforceResearchNumberSources, emptiedMa
 import { enforceNoInventedTestimonials } from "./testimony.ts";
 import { enforceNoAddedLegalRules } from "./legal-rules.ts";
 import { analyzeCarouselRedac, normalizeCaptionHashtags, buildQualityCheck, captionEndingViolated, type CaptionEndingRule, emptyAnalysis } from "./carousel-analysis.ts";
-import { buildFixInstructions } from "./fix-instructions.ts";
+import { buildFixInstructions, CAPTION_QUESTION_OUVERTE_FIX } from "./fix-instructions.ts";
 
 export interface RedacGateResult {
   content: string;
@@ -199,7 +199,7 @@ export async function runRedacGate(
     fixes += (fixes ? "\n\n" : "") +
       `CHUTE DE CAPTION NON CONFORME : la forme imposée pour cette génération est « ${opts.captionEnding.instruction} ». ` +
       (opts.captionEnding.requiresQuestion
-        ? `La caption ne contient aucune question, ou une question qui se répond par oui ou non : réécris le champ "cta" de la CAPTION en question OUVERTE spécifique au sujet, qui porte sur la vie de la personne qui lit (« Qu'est-ce qui… ? », « Comment… ? »).`
+        ? CAPTION_QUESTION_OUVERTE_FIX
         : `La caption se termine par une question alors que la forme imposée n'en est pas une : réécris le champ "cta" de la CAPTION dans la forme imposée, SANS aucun point d'interrogation. Garde le sens, change la forme.`);
   }
   const review = first.parsed.editorial_review;

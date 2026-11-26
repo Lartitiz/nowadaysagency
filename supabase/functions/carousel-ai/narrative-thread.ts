@@ -11,6 +11,10 @@
 // de la marque. Un fichier = une mission : consignes + mesure déterministe,
 // branchées dans continuous-narrative.ts.
 
+import { findCaptionCopiedSentences, findUnannouncedExampleDurations, emptyAnalysis } from "../_shared/redac-gate/carousel-analysis.ts";
+import { buildFixInstructions, CAPTION_QUESTION_OUVERTE_FIX } from "../_shared/redac-gate/fix-instructions.ts";
+import { sentencesOf } from "../_shared/redac-gate/text-utils.ts";
+import { questionFermee } from "../_shared/questions-form.ts";
 import { newsWriting } from "./variant-writing.ts";
 
 /** Consigne du récit continu : un texte qui se dit d'une traite. */
@@ -178,4 +182,40 @@ export function briefExamplesPrompt(examples: string[]): string {
 }
 
 /** Reçu de la réécriture du fil : avant, après, gardée ou non, et pourquoi. */
-export interface ThreadRewriteReceipt { before: number; after: number | null; accepted: boolean; reason: string; missing_example_before: boolean; missing_example_after: boolean | null }
+export interface ThreadRewriteReceipt { before: number; after: number | null; accepted: boolean; reason: string; missing_example_before: boolean; missing_example_after: boolean | null; /** Défauts de légende (recopie, durée d'exemple, question fermée) avant et après. */ caption_before?: number; caption_after?: number | null }
+
+// ─── Légende et durées d'exemple du récit continu (26/11/2026) ──────────────
+// Les trois contrôles du carrousel texte (redac-gate) : sur le chemin photo et
+// mixte la porte ne fait que mesurer (aucune correction), ils rejoignent donc
+// la réécriture unique de continuous-narrative.ts.
+
+export interface CaptionDefects {
+  /** Phrases de la légende déjà écrites sur les slides (plus de la moitié, au moins 2). */
+  copied: string[];
+  /** Phrases qui donnent une durée en lettres absente des sources, sans l'annoncer comme exemple. */
+  durations: string[];
+  /** La question de caption.cta se répond par oui ou non. */
+  closedQuestion: boolean;
+}
+
+/** Mesure sans IA. `allowedNumbers` absent : les durées ne sont pas mesurées. */
+export function narrativeCaptionDefects(n: { hook: string; paragraphs: string[]; caption: { hook: string; body: string; cta: string } }, allowedNumbers?: Set<string>): CaptionDefects {
+  const slides = [{ title: n.hook }, ...n.paragraphs.map((body) => ({ body }))];
+  const all = [n.hook, ...n.paragraphs, n.caption.hook, n.caption.body, n.caption.cta].filter(Boolean).join("\n");
+  const cta = String(n.caption.cta || "");
+  return {
+    copied: findCaptionCopiedSentences(n.caption, slides),
+    durations: findUnannouncedExampleDurations(sentencesOf(all), allowedNumbers),
+    closedQuestion: cta.includes("?") && questionFermee(cta),
+  };
+}
+
+export const captionDefectCount = (d: CaptionDefects) => (d.copied.length ? 1 : 0) + d.durations.length + (d.closedQuestion ? 1 : 0);
+
+/** Consigne de réécriture (phrases du redac-gate) ; chaîne vide sans défaut. */
+export function narrativeCaptionFix(d: CaptionDefects): string {
+  return [
+    buildFixInstructions({ ...emptyAnalysis(), captionCopiedSentences: d.copied, exampleDurations: d.durations }),
+    d.closedQuestion ? CAPTION_QUESTION_OUVERTE_FIX : "",
+  ].filter(Boolean).join("\n");
+}

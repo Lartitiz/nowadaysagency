@@ -1,4 +1,4 @@
-import { photoReadingContract } from "./writing-contract.ts";
+import { CAROUSEL_CAPTION_WRITING, photoReadingContract, RECIT_CONTINU_FIL } from "./writing-contract.ts";
 import { COMMON } from "../_shared/carousel-editorial-contract.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import {
@@ -14,7 +14,7 @@ import {
 import { isLinkedInMix, LINKEDIN_MIX_RECIT_LENGTH, LINKEDIN_MIX_SLIDE_WORDS, linkedinMixLongPassages } from "./variant-writing.ts";
 import { isPhotoOverlay, PHOTO_OVERLAY_RECIT_LENGTH, PHOTO_OVERLAY_SLIDE_WORDS, photoNarratorCheck, photoNarratorFix, photoNarratorRule, photoOverlayLongPassages } from "./photo-narrative.ts";
 import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
-import { narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount, closingAside, RECIT_RELECTURE_CARROUSEL, briefExamples, briefExamplesPrompt, type ThreadRewriteReceipt } from "./narrative-thread.ts";
+import { narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount, closingAside, RECIT_RELECTURE_CARROUSEL, briefExamples, briefExamplesPrompt, narrativeCaptionDefects, narrativeCaptionFix, captionDefectCount, type ThreadRewriteReceipt } from "./narrative-thread.ts";
 import { findRecentEchoes, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { angleFamily, type AngleFamily } from "../_shared/angle-families.ts";
 import { narrativeCoverAccent, narrativeMixLayout, narrativePhotoLayout } from "./layout.ts";
@@ -32,7 +32,7 @@ import {
   VOIX_ORALE_LINKEDIN,
 } from "../_shared/socle.ts";
 
-export const NARRATIVE_VERSION = "continuous-prose-v4-socle";
+export const NARRATIVE_VERSION = "continuous-prose-v5-fil";
 export class NarrativePhotoMismatch extends Error {}
 /** Same evidence composeNarrative requires: pixels, contexts or a planned photo. */
 function hasPhotoEvidence(body: any): boolean {
@@ -269,6 +269,8 @@ export async function createContinuousNarrative(options: {
   audienceAddress?: AudienceAddress | null;
   /** Textes des derniers contenus de la marque (_shared/recent-passages.ts) : à ne pas redire. */
   recentTexts?: string[];
+  /** Chiffres et durées des sources (numbersIn du texte d'entrée) : une durée en lettres absente s'annonce comme un exemple. Absent : non mesuré. */
+  allowedNumbers?: Set<string>;
   /** Textes de ton écrits par la personne (fiche de marque) : « je » ou « nous » du carrousel photo. */
   brandVoiceText?: string;
   startedAt: number;
@@ -337,7 +339,7 @@ Choisis UNE proposition précise qui mérite d'être développée avec les faits
 Une présentation factuelle bien liée ne suffit pas à une demande de récit : chaque paragraphe doit faire avancer ce que tu défends, pas ouvrir une nouvelle rubrique. Ne donne pas toute la réponse immédiatement pour remplir ensuite avec des descriptions. Pas de suspense artificiel. Une demande explicite de liste, tutoriel ou catalogue conserve sa forme.
 Les photos seront placées ensuite. Leur contexte peut éclairer les faits, mais leur ordre, leurs couleurs et leurs motifs ne dictent pas ton texte. Aucune référence « sur cette photo ». Ne fabrique ni conviction intime, ni souvenir ni fait technique pour rendre le propos intéressant. Tu peux développer une interprétation prudente de faits attestés.
 Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas à ordonner les paragraphes. photo_mismatch est réservé à une contradiction frontale avec une chose concrète que la demande promet de montrer ; retourne alors sa raison, sans inventer un récit. Un décalage d'ambiance ou une illustration indirecte ne justifient pas ce refus.
-Écris hook (accroche de couverture : 4 à 10 mots qui créent une tension ou un manque, jamais un titre-étiquette), puis paragraphs : les paragraphes PUBLICS successifs, sans titres de rubriques ni consignes pour un futur rédacteur. ${RECIT_CONTINU_PARAGRAPHE} Le dernier termine réellement ce propos (voir FIN ci-dessous), sans ouvrir automatiquement une offre commerciale. Caption résume fidèlement ; caption.cta porte en une phrase la question pour les commentaires, reliée à la fin. idea nomme précisément la proposition développée.`,
+Écris hook (accroche de couverture : 4 à 10 mots qui créent une tension ou un manque, jamais un titre-étiquette), puis paragraphs : les paragraphes PUBLICS successifs, sans titres de rubriques ni consignes pour un futur rédacteur. ${RECIT_CONTINU_PARAGRAPHE} Le dernier termine réellement ce propos (voir FIN ci-dessous), sans ouvrir automatiquement une offre commerciale. ${CAROUSEL_CAPTION_WRITING} caption.cta porte en une phrase la question pour les commentaires, reliée à la fin : une question ouverte (« Qu'est-ce qui… ? », « Comment… ? »), jamais une question qui se répond par oui ou non. idea nomme précisément la proposition développée.`,
     recitContinuFond(livedCaseFromCarouselBody(body).mode),
     // Sa voix orale (socle, règle 4) : aussi sur le chemin par défaut photo et mixte.
     body?.channel === "linkedin" ? VOIX_ORALE_LINKEDIN : VOIX_ORALE,
@@ -345,6 +347,9 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     RECIT_FIL_A_VOIX_HAUTE,
     // Relecture du 15/11/2026 avec la méthode carrousel (narrative-thread.ts).
     RECIT_RELECTURE_CARROUSEL,
+    // Règles du fil du carrousel texte (étude Instagram du 26/11/2026), mêmes phrases :
+    // test d'envoi, slide qui finit ouverte, enjeu d'abord, passages d'une phrase, durée d'exemple annoncée.
+    RECIT_CONTINU_FIL,
     hasNews ? narrativeNewsWriting(body) : "",
     RECIT_CONTINU_COUVERTURE,
     RECIT_CONTINU_SOLUTION_FIN,
@@ -457,13 +462,16 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     long: photoOverlayLongPassages(n.paragraphs, body),
     voice: photoNarratorCheck([n.hook, ...n.paragraphs], body, options.brandVoiceText),
     thread: narrativeThreadDefects(n.paragraphs, briefExamples(body)),
+    // Légende recopiée, durée d'exemple non annoncée, question fermée (26/11/2026).
+    caption: narrativeCaptionDefects(n, options.allowedNumbers),
   });
   const before = photoDefects(narrative);
   const threadRewrite: ThreadRewriteReceipt = {
     before: threadDefectCount(before.thread), after: null, accepted: false, reason: "not-needed",
     missing_example_before: before.thread.missingExample.length > 0, missing_example_after: null,
+    caption_before: captionDefectCount(before.caption), caption_after: null,
   };
-  const needsRewrite = !!(before.long.length || before.voice || threadDefectCount(before.thread));
+  const needsRewrite = !!(before.long.length || before.voice || threadDefectCount(before.thread) || captionDefectCount(before.caption));
   if (needsRewrite) threadRewrite.reason = "time-budget";
   if (needsRewrite && remaining() >= 150000) {
     threadRewrite.reason = "repair-failed";
@@ -472,13 +480,15 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
         before.long.length ? `Paragraphes trop longs pour être posés sur une photo : ${before.long.join(", ")}. Ramène chacun à ${PHOTO_OVERLAY_SLIDE_WORDS} mots au plus, phrases courtes, sans perdre d'idée ; déplace les détails dans caption.body.` : "",
         before.voice ? `Narrateur incohérent (passages ${before.voice.offenders.join(", ")}, la couverture compte pour 1). ${photoNarratorFix(before.voice.target)}` : "",
         narrativeThreadFix(before.thread),
+        narrativeCaptionFix(before.caption),
       ].filter(Boolean);
       const fixed = await draft(`${asks.join("\n")}\nGarde le même nombre de paragraphes.`, narrative);
       const after = photoDefects(fixed);
       const offenders = (v: typeof before.voice) => v?.offenders.length || 0;
       const threads = (d: typeof before) => threadDefectCount(d.thread);
-      const noWorse = after.long.length <= before.long.length && offenders(after.voice) <= offenders(before.voice) && threads(after) <= threads(before);
-      const better = after.long.length < before.long.length || offenders(after.voice) < offenders(before.voice) || threads(after) < threads(before);
+      const captions = (d: typeof before) => captionDefectCount(d.caption);
+      const noWorse = after.long.length <= before.long.length && offenders(after.voice) <= offenders(before.voice) && threads(after) <= threads(before) && captions(after) <= captions(before);
+      const better = after.long.length < before.long.length || offenders(after.voice) < offenders(before.voice) || threads(after) < threads(before) || captions(after) < captions(before);
       threadRewrite.after = threads(after);
       threadRewrite.missing_example_after = after.thread.missingExample.length > 0;
       const accepted = fixed.paragraphs.length === narrative.paragraphs.length && noWorse && better;
@@ -487,7 +497,9 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
         : fixed.paragraphs.length !== narrative.paragraphs.length ? "paragraph-count"
         : after.long.length > before.long.length ? "longer"
         : offenders(after.voice) > offenders(before.voice) ? "narrator"
-        : threads(after) > threads(before) ? "thread-worse" : "not-better";
+        : threads(after) > threads(before) ? "thread-worse"
+        : captions(after) > captions(before) ? "caption-worse" : "not-better";
+      threadRewrite.caption_after = captions(after);
       if (accepted) narrative = fixed;
     } catch { /* le premier texte reste */ }
   }

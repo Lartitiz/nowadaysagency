@@ -7,7 +7,7 @@ import { type CarouselRequestContext, stageTimer, _deps, buildPhotoContextRecap,
 import { type UsageSink } from "../../_shared/anthropic.ts";
 import { photoMatchReserveMs, photoMatchPhotoCount } from "../final-photo-match.ts";
 import { NarrativePhotoMismatch } from "../continuous-narrative.ts";
-import { runRedacGate } from "../../_shared/redac-gate.ts";
+import { numbersIn, runRedacGate } from "../../_shared/redac-gate.ts";
 import { finalizeCarousel } from "./finalize.ts";
 import { addOutlineUsage } from "../outline.ts";
 import { logContentQuality, threadOutcome, carouselDurations } from "../../_shared/content-quality.ts";
@@ -30,7 +30,7 @@ export async function continuousCarouselResponse(ctx: CarouselRequestContext): P
     body:ctx.body, brandingContext:ctx.brandingContext, recentTexts,
     photoContext:buildPhotoContextRecap(ctx.body.photo_contexts || ctx.body.photos),
     newsContext:typeof ctx.newsContext === "string" ? ctx.newsContext : "",
-    authoredText:ctx.currentAuthoredText, audienceAddress:ctx.audienceAddress, brandVoiceText:ctx.brandGuardText, startedAt:ctx.startedAt, usage,
+    authoredText:ctx.currentAuthoredText, allowedNumbers:numbersIn(ctx.gateInputText), audienceAddress:ctx.audienceAddress, brandVoiceText:ctx.brandGuardText, startedAt:ctx.startedAt, usage,
     emitStatus:ctx.emitStatus, write:_deps.callCarouselWriter, reserveMs:matchReserveMs,
     onDraft:(slides)=>ctx.emitStatus("draft",{slides}), timings:clock.timings,
   }); } catch(error) {

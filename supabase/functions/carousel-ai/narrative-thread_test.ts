@@ -214,3 +214,68 @@ Deno.test("exemple de l'angle : lu aussi dans le brief d'idée envoyé par l'app
   assert(!ex.includes("Sa réponse"), "l'en-tête de la matière n'est pas un exemple");
   assertEquals(briefExamples({ deepening_answers: { q_0: "« un mot » seul" } }), []);
 });
+
+// ─── Règles du carrousel texte portées sur le photo et le mixte (26/11/2026) ───
+import { captionDefectCount, narrativeCaptionDefects, narrativeCaptionFix } from "./narrative-thread.ts";
+import { CAROUSEL_CONTINUITY, FIL_NE_PAS_DECROCHER, FIL_RAISON_DE_GLISSER, FIL_TEST_ENVOI, CAROUSEL_CAPTION_WRITING, CAROUSEL_FACTS, buildCarouselWritingSystem } from "./writing-contract.ts";
+import { numbersIn } from "../_shared/redac-gate.ts";
+
+const SAIN = ["Je suis tombée sur ce mot.", "Et j'ai souri.", "Mais le lisse, c'est aussi une phrase.", "Alors personne ne s'y reconnaît.", "Du coup, je préfère nommer un moment vécu."];
+const withCaption = (paragraphs: string[], caption: any) => ({ ...draft(paragraphs), caption: { hook: "", body: "", cta: "", hashtags: [], ...caption } });
+
+Deno.test("fil partagé : le photo et le mixte reçoivent les mêmes phrases que le carrousel texte", async () => {
+  for (const rule of [FIL_TEST_ENVOI, FIL_RAISON_DE_GLISSER, FIL_NE_PAS_DECROCHER]) assert(CAROUSEL_CONTINUITY.includes(rule), rule.slice(0, 40));
+  assert(buildCarouselWritingSystem("", false, "", "").includes(CAROUSEL_CAPTION_WRITING));
+  for (const carousel_type of ["photo", "mix"]) {
+    let system = "";
+    await createContinuousNarrative({ ...base, body: { ...base.body, carousel_type }, write: async (o) => { system ||= o.system || ""; return JSON.stringify(draft(["Un.", "Et deux.", "Mais trois.", "Alors quatre.", "Du coup cinq."])); } });
+    for (const rule of [FIL_TEST_ENVOI, FIL_RAISON_DE_GLISSER, FIL_NE_PAS_DECROCHER, CAROUSEL_FACTS, CAROUSEL_CAPTION_WRITING]) assert(system.includes(rule), `${carousel_type} : ${rule.slice(0, 40)}`);
+    assert(system.includes("jamais une question qui se répond par oui ou non"), carousel_type);
+    assert(!system.includes("Caption résume fidèlement"), "l'ancienne consigne de légende est partie");
+  }
+  // Le repère de longueur propre à la photo reste.
+  let photo = "";
+  await createContinuousNarrative({ ...base, write: async (o) => { photo ||= o.system || ""; return JSON.stringify(draft(SAIN)); } });
+  assert(photo.includes("25 à 40 mots"), "repère photo gardé");
+});
+
+Deno.test("légende du récit continu : recopie, durée d'exemple non annoncée, question fermée mesurées sans IA", () => {
+  const slides = ["Je prépare chaque commande à la main dans mon atelier de Rennes.", "Et chaque colis part avec un petit mot écrit pour la cliente.", "Mais ce geste rend la marque rentable sur six mois."];
+  const n = withCaption(slides, { hook: "Je prépare chaque commande à la main dans mon atelier de Rennes.", body: "Chaque colis part avec un petit mot écrit pour la cliente.", cta: "Est-ce que tu écris un mot dans tes colis ?" });
+  const d = narrativeCaptionDefects(n, numbersIn("Atelier à Rennes."));
+  assertEquals(d.copied.length, 2);
+  assertEquals(d.durations.length, 1);
+  assertEquals(d.closedQuestion, true);
+  assertEquals(captionDefectCount(d), 3);
+  const fix = narrativeCaptionFix(d);
+  assert(fix.includes("LÉGENDE QUI RECOPIE LES SLIDES") && fix.includes("DURÉE D'EXEMPLE NON ANNONCÉE") && fix.includes("question OUVERTE"), fix);
+  const sain = narrativeCaptionDefects(withCaption(SAIN, { hook: "Pourquoi j'en parle.", body: "Une précision.", cta: "Qu'est-ce qui te fait t'arrêter sur un post ?" }), numbersIn(""));
+  assertEquals(captionDefectCount(sain), 0);
+  assertEquals(narrativeCaptionFix(sain), "");
+  // Sans texte d'entrée connu, les durées ne sont pas mesurées.
+  assertEquals(narrativeCaptionDefects(n).durations, []);
+});
+
+Deno.test("légende du récit continu : question fermée → la réécriture unique, gardée si elle la rouvre", async () => {
+  const feedbacks: string[] = [];
+  let writes = 0;
+  const result = await createContinuousNarrative({
+    ...base, allowedNumbers: numbersIn(""),
+    write: async (o) => {
+      const sent = JSON.parse((o.messages[0].content as any)[0].text);
+      if (sent.feedback) feedbacks.push(sent.feedback);
+      return JSON.stringify(withCaption(SAIN, { cta: ++writes === 1 ? "Est-ce que tu relis tes légendes ?" : "Qu'est-ce qui te fait relire une légende ?" }));
+    },
+  });
+  assertEquals(writes, 2);
+  assert(feedbacks[0].includes("question OUVERTE"), feedbacks[0]);
+  assertEquals(result!.doc.caption.cta, "Qu'est-ce qui te fait relire une légende ?");
+  const receipt = (result!.doc.narrative_draft as any).thread_rewrite;
+  assertEquals([receipt.accepted, receipt.caption_before, receipt.caption_after], [true, 1, 0]);
+});
+
+Deno.test("légende du récit continu : sans défaut, aucune réécriture en plus", async () => {
+  let writes = 0;
+  await createContinuousNarrative({ ...base, allowedNumbers: numbersIn(""), write: async () => { writes++; return JSON.stringify(withCaption(SAIN, { hook: "Pourquoi j'en parle.", body: "Une précision.", cta: "Qu'est-ce qui te fait t'arrêter sur un post ?" })); } });
+  assertEquals(writes, 1);
+});
