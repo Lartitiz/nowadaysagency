@@ -279,3 +279,12 @@ Deno.test("légende du récit continu : sans défaut, aucune réécriture en plu
   await createContinuousNarrative({ ...base, allowedNumbers: numbersIn(""), write: async () => { writes++; return JSON.stringify(withCaption(SAIN, { hook: "Pourquoi j'en parle.", body: "Une précision.", cta: "Qu'est-ce qui te fait t'arrêter sur un post ?" })); } });
   assertEquals(writes, 1);
 });
+
+Deno.test("mixte hors LinkedIn : le récit continu reçoit le repère de longueur du carrousel texte, pas le photo ni LinkedIn", async () => {
+  const systemOf = async (body: any) => { let system = ""; await createContinuousNarrative({ ...base, body: { ...base.body, ...body }, write: async (o) => { system ||= o.system || ""; return JSON.stringify(draft(SAIN)); } }); return system; };
+  const mix = await systemOf({ carousel_type: "mix" });
+  assert(mix.includes("CARROUSEL MIXTE : vise environ 20 à 45 mots par paragraphe, 50 au plus"), "repère mixte");
+  assert(!(await systemOf({ carousel_type: "photo" })).includes("CARROUSEL MIXTE :"));
+  const linkedin = await systemOf({ carousel_type: "mix", channel: "linkedin" });
+  assert(!linkedin.includes("CARROUSEL MIXTE : vise") && linkedin.includes("LINKEDIN, CARROUSEL MIXTE"));
+});
