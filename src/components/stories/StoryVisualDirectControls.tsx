@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import StoryFramePreview from "@/components/stories/StoryFramePreview";
 import { resolveStoryViewport, type StoryVisualPlan } from "@/lib/story-visual";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -24,6 +24,8 @@ interface Props {
   onTextTouched?: (box: StoryTextBox) => void;
   /** Placement dans la mise en page de l'atelier (grille de StoryResult). */
   className?: string;
+  /** Story pas affichée (une seule l'est à la fois) : sa taille se mesure quand elle le devient. */
+  hidden?: boolean;
 }
 
 /**
@@ -31,9 +33,41 @@ interface Props {
  * directement sur la story, on le glisse pour le déplacer, on glisse le fond
  * photo pour le recadrer. Avant : un bouton « Texte / Photo » à choisir, et le
  * texte s'écrivait seulement dans la case à gauche.
- * Aperçu : 300 px de large sur ordi (250 avant), 200 px sur téléphone.
+ * Aperçu : 200 px sur téléphone. Sur ordinateur (26/11/2026), la story prend la hauteur
+ * libre entre le haut de son cadre et la barre « Publier » collée en bas : 240 à 360 px de
+ * large, par paliers de 8 px (300 px fixes avant : coupée en bas sur un petit portable,
+ * petite sur un grand écran).
  */
-const PREVIEW_WIDTH = { desktop: 300, mobile: 200 } as const;
+const PREVIEW_WIDTH = { desktop: 300, mobile: 200, min: 240, max: 360 } as const;
+/** Sous la story : la ligne d'aide et un peu d'air au-dessus de la barre du bas. */
+const UNDER_STORY = 44;
+
+/** Largeur de la story sur ordinateur, mesurée sur la page en haut de défilement. */
+function measureStoryWidth(frame: HTMLElement): number {
+  const top = frame.getBoundingClientRect().top + window.scrollY;
+  const bar = window.document.querySelector<HTMLElement>('[data-testid="result-actions"]');
+  const bottom = window.innerHeight - (bar ? bar.getBoundingClientRect().height : 0);
+  const free = ((bottom - top - UNDER_STORY) * 9) / 16;
+  if (!Number.isFinite(free) || top <= 0) return PREVIEW_WIDTH.desktop;
+  return Math.max(PREVIEW_WIDTH.min, Math.min(PREVIEW_WIDTH.max, Math.floor(free / 8) * 8));
+}
+
+function useStoryWidth(frame: React.RefObject<HTMLDivElement>, mobile: boolean, key: unknown): number {
+  const [width, setWidth] = useState<number>(PREVIEW_WIDTH.desktop);
+  useLayoutEffect(() => {
+    if (mobile) return;
+    let raf = 0;
+    const update = () => { if (frame.current?.offsetParent) setWidth(measureStoryWidth(frame.current)); };
+    const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
+    update();
+    // La page se met en place après l'arrivée (haut replié, barre du bas) : on remesure quand elle bouge.
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : null;
+    observer?.observe(window.document.body);
+    window.addEventListener("resize", schedule);
+    return () => { cancelAnimationFrame(raf); observer?.disconnect(); window.removeEventListener("resize", schedule); };
+  }, [frame, mobile, key]);
+  return mobile ? PREVIEW_WIDTH.mobile : width;
+}
 const STORY_W = 1080;
 /** Au-delà de 4 px, le geste est un glissé, pas un toucher. */
 const DRAG_THRESHOLD = 4;
@@ -50,10 +84,11 @@ export default function StoryVisualDirectControls({
   inlineField,
   onTextTouched,
   className = "",
+  hidden = false,
 }: Props) {
-  const width = useIsMobile() ? PREVIEW_WIDTH.mobile : PREVIEW_WIDTH.desktop;
-  const scale = width / STORY_W;
   const frame = useRef<HTMLDivElement>(null);
+  const width = useStoryWidth(frame, useIsMobile(), hidden);
+  const scale = width / STORY_W;
   const [editing, setEditing] = useState<StoryTextBox | null>(null);
   const [hover, setHover] = useState<"text" | "photo" | null>(null);
   const drag = useRef<{

@@ -2,8 +2,12 @@
 // la story, rangé comme celui du carrousel (« Touche un texte… », puis Mise en
 // page, Texte, Photo). Les cases et les boutons sont ceux d'avant, déplacés
 // ici depuis StoryResult : mêmes noms, mêmes effets.
-import type { ReactNode } from "react";
-import { RotateCcw } from "lucide-react";
+// Panneau à onglets (26/11/2026, maquette du même jour), comme celui du carrousel : une
+// colonne d'icônes (Texte, Photo), un sujet affiché à la fois, et sur ordinateur « Demander
+// un changement à l'IA » collé en bas. Les deux onglets restent montés : le choix des photos
+// (StoryPhotoSuggestions) pose la photo d'office même quand on regarde « Texte ».
+import { useState, type ReactNode } from "react";
+import { ImageIcon, RotateCcw, Sparkles, Type } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,11 +35,13 @@ export interface StoryEditorPanelProps {
   resetViewport: (mode: "text" | "photo") => void;
   /** Crédit de la photo et choix des photos (StoryPhotoSuggestions). */
   photoTools: ReactNode;
+  /** Ordinateur : le bouton « Refaire cette story », collé en bas du panneau. */
+  ask?: ReactNode;
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="space-y-2 rounded-xl border border-border bg-background p-3" aria-label={title}>
+    <section className="space-y-2" aria-label={title}>
       <h3 className="text-sm font-semibold">{title}</h3>
       {children}
     </section>
@@ -49,10 +55,24 @@ export default function StoryEditorPanel(p: StoryEditorPanelProps) {
   const visual = story.visual;
   const position = !Number.isFinite(visual?.text_position_y) ? (visual?.text_position || "middle") : null;
   const zoom = resolveStoryViewport(visual).photoZoom;
+  const [tab, setTab] = useState<"texte" | "photo">("texte");
+  const shown = visual ? tab : "texte";
+  const tabButton = (id: "texte" | "photo", label: string, Icon: typeof Type) => (
+    <button key={id} type="button" role="tab" id={`story-${i}-tab-${id}`} aria-selected={shown === id} aria-controls={`story-${i}-pane-${id}`} onClick={() => setTab(id)}
+      className="flex min-w-[3.6rem] shrink-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-center text-[10.5px] font-medium leading-tight text-muted-foreground hover:text-foreground aria-selected:bg-background aria-selected:text-primary aria-selected:shadow-sm aria-selected:ring-1 aria-selected:ring-primary/25">
+      <Icon size={19} aria-hidden="true" />
+      {label}
+    </button>
+  );
   return (
-    <div className="min-w-0 space-y-3" data-story-panel={i + 1}>
-      <p className="px-1 text-xs text-muted-foreground">Touche un texte sur la story pour l'écrire directement dessus.</p>
-
+    <div className="min-w-0 md:grid md:grid-cols-[4.5rem_minmax(0,1fr)] md:overflow-hidden md:rounded-xl md:border md:bg-card" data-story-panel={i + 1}>
+      <div role="tablist" aria-label={`Réglages de la story ${i + 1}`} className="flex gap-1 rounded-xl bg-muted/60 p-1 md:flex-col md:rounded-none md:border-r md:p-1.5">
+        {tabButton("texte", "Texte", Type)}
+        {visual && tabButton("photo", "Photo", ImageIcon)}
+      </div>
+      <div className="flex min-w-0 flex-col">
+      <div id={`story-${i}-pane-texte`} role="tabpanel" aria-labelledby={`story-${i}-tab-texte`} hidden={shown !== "texte"} className={shown === "texte" ? "min-w-0 space-y-4 pt-3 md:p-3" : "hidden"}>
+      <p className="text-xs text-muted-foreground">Touche un texte sur la story pour l'écrire directement dessus.</p>
       {visual && (
         <Section title="Mise en page">
           <div className="flex items-center gap-1.5 flex-wrap" role="group" aria-label="Emplacement du texte">
@@ -130,8 +150,10 @@ export default function StoryEditorPanel(p: StoryEditorPanelProps) {
           </div>
         )}
       </Section>
+      </div>
 
       {visual && (
+        <div id={`story-${i}-pane-photo`} role="tabpanel" aria-labelledby={`story-${i}-tab-photo`} hidden={shown !== "photo"} className={shown === "photo" ? "min-w-0 space-y-4 pt-3 md:p-3" : "hidden"}>
         <Section title="Photo">
           <div className="flex items-center gap-1.5" role="group" aria-label="Fond de la story">
             <span className="text-xs text-muted-foreground">Fond :</span>
@@ -157,7 +179,15 @@ export default function StoryEditorPanel(p: StoryEditorPanelProps) {
           )}
           {p.photoTools}
         </Section>
+        </div>
       )}
+      {p.ask && (
+        <div className="mt-auto space-y-1.5 border-t border-primary/25 bg-primary/[0.03] p-2.5 max-md:hidden">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-primary"><Sparkles size={14} aria-hidden="true" /> Demander un changement à l'IA</p>
+          {p.ask}
+        </div>
+      )}
+      </div>
     </div>
   );
 }

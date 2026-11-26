@@ -84,6 +84,8 @@ describe("Stories : édition et remplacement du résultat", () => {
     render(<StoryResult result={{ stories: [{ text, face_cam: false }] }} />);
     const html = previewHtml();
     expect(html).toContain(text);
+    // Panneau à onglets (26/11/2026) : le fond se règle dans l'onglet « Photo ».
+    fireEvent.click(screen.getByRole("tab", { name: "Photo" }));
     expect(screen.getByRole("button", { name: "📷 Photo" })).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -404,5 +406,26 @@ describe("Stories : édition et remplacement du résultat", () => {
   it("ne propose pas de supprimer la dernière story restante", () => {
     render(<StoryResult result={sequence("Unique story")} />);
     expect(screen.queryByRole("button", { name: "Supprimer la story" })).not.toBeInTheDocument();
+  });
+});
+
+// Panneau à onglets des stories (26/11/2026) : Texte et Photo, un sujet affiché à la fois.
+describe("Stories : panneau à onglets", () => {
+  it("s'ouvre sur « Texte » ; « Photo » montre le fond, et le choix des photos reste monté dans les deux cas", () => {
+    render(<StoryResult result={{ stories: [{ text: "Une story.", face_cam: false }] }} />);
+    expect(screen.getByRole("tab", { name: "Texte" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("Texte complet de la story 1")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "📷 Photo" })).toBeNull();
+    // Monté même caché : c'est lui qui pose la photo d'office.
+    expect(document.querySelector('[data-story-background="photo"]')).not.toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Photo" }));
+    expect(screen.getByRole("button", { name: "📷 Photo" })).toBeVisible();
+    expect(screen.queryByRole("textbox", { name: "Texte complet de la story 1" })).toBeNull();
+  });
+  it("sur ordinateur, « Refaire cette story » est en bas du panneau, sous « Demander un changement à l'IA »", () => {
+    render(<StoryResult result={{ stories: [{ text: "Une story.", face_cam: false }] }} />);
+    const panel = document.querySelector('[data-story-panel="1"]')!;
+    expect(panel.textContent).toContain("Demander un changement à l'IA");
+    expect(panel.querySelector("button[class]") && Array.from(panel.querySelectorAll("button")).some((b) => /Refaire cette story/.test(b.textContent || ""))).toBe(true);
   });
 });
