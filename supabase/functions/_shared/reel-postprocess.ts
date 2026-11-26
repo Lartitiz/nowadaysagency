@@ -387,6 +387,20 @@ export function enforceReelNoFaceCam(parsed: any): boolean {
   return touched;
 }
 
+/**
+ * L'accroche se présente-t-elle au lieu d'entrer dans le sujet ? (étude Instagram
+ * du 26/11/2026 : « bonjour, je m'appelle… » reste sous le nombre d'abonné·es).
+ * Détection volontairement étroite : un bonjour, un nom annoncé, une bienvenue
+ * ou l'annonce du sujet en tout début de phrase.
+ */
+export function reelHookIsPresentation(text: unknown): boolean {
+  if (typeof text !== "string") return false;
+  const t = text.trim().toLocaleLowerCase("fr").replace(/[’ʼ]/g, "'").replace(/^[\s"«“'(¡¿-]+/, "");
+  return /^(bonjour|bonsoir|hello|coucou|salut|hey)\b/.test(t)
+    || /^(je m'appelle|moi,? c'est|je me pr[ée]sente|bienvenue)\b/.test(t)
+    || /^aujourd'hui,? (je vais|on va|je vous|je te|j'aimerais|je voulais) .{0,20}parl/.test(t);
+}
+
 /** Fuites de gabarit connues (mesurées 8/8 à l'audit) — détection déterministe. */
 export function reelTemplateLeaks(parsed: any): string[] {
   const leaks: string[] = [];
