@@ -658,7 +658,7 @@ export const SOCLE_CHEMINS: readonly SocleChemin[] = [
     regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "en_partie") },
   { id: "carrousel_recit_continu", format: "carrousel_photo", fichiers: ["carousel-ai/continuous-narrative.ts", "_shared/socle.ts"], fonction: "récit continu (photo et mixte sans plan validé)",
     regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "oui"),
-    note: "Chemin par défaut des carrousels photo et mixtes. Depuis l'étape 2 du socle : tu/vous en tête, LIVED_CASE_FIRST ou NEWS_FEELING_FIRST, VOIX_ORALE (VOIX_ORALE_LINKEDIN sur LinkedIn), consigne d'actu, COVER_WRITING et mot clé, 10 slides au plus en Auto, adaptation à la famille d'angle (recitContinu*), et depuis le 26/11/2026 les phrases du fil du carrousel texte (RECIT_CONTINU_FIL, writing-contract.ts). La recherche de profondeur ne lui est pas transmise." },
+    note: "Chemin par défaut des carrousels photo et mixtes. Depuis l'étape 2 du socle : tu/vous en tête, LIVED_CASE_FIRST ou NEWS_FEELING_FIRST, VOIX_ORALE (VOIX_ORALE_LINKEDIN sur LinkedIn), consigne d'actu, COVER_WRITING et mot clé, 10 slides au plus en Auto, adaptation à la famille d'angle (recitContinu*). La recherche de profondeur ne lui est pas transmise." },
   { id: "carrousel_mixte_redaction", format: "carrousel_mixte", fichiers: ["carousel-ai/variant-writing.ts", "_shared/mix-layout-formatting.ts"], fonction: "mixWritingPrompt",
     regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "en_partie") },
   { id: "carrousel_linkedin", format: "carrousel_linkedin", fichiers: ["carousel-ai/prompts.ts", "carousel-ai/variant-writing.ts"], fonction: "textWritingPrompt (isLinkedIn)",
