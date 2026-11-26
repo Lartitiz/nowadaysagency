@@ -115,3 +115,14 @@ it('montre la slide 1 des contenus qui en ont une, une page texte sinon, rien po
   expect(screen.getByTestId('ideas-todo-list').querySelector('[data-testid="idea-cover"]')).toBeNull();
   expect(state.selects.some((c) => c.includes('cover'))).toBe(true);
 });
+
+it('un brouillon de Créer pas encore écrit porte « Pas terminé » et son sujet, pas la phrase technique', async () => {
+  state.read.mockReset().mockImplementation((table: string) => ({ data: table === 'saved_ideas' ? [
+    row('brouillon', 'Visite de chantier', { has_content: true, created_at: '2026-10-18T10:00:00Z', draft_head: "Brouillon commencé (choix du format) : reprends-le là où tu t'étais arrêtée." }),
+  ] : [], error: null }));
+  render(<MemoryRouter initialEntries={['/idees?vue=contenus']}><IdeasPage /></MemoryRouter>);
+  const list = await screen.findByTestId('ideas-list');
+  expect(list.querySelector('[data-testid="content-badge"]')).toHaveTextContent('Pas terminé');
+  expect(list.querySelector('[data-testid="idea-cover"]')).toHaveTextContent('Visite de chantier');
+  expect(list.querySelector('[data-testid="idea-cover"]')).not.toHaveTextContent('Brouillon commencé');
+});
