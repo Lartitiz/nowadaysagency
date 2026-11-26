@@ -1616,6 +1616,7 @@ function CreerWorkspace() {
             {step === "format" && !isLoadingLibraryPhotos && (
               <CreerStepFormat
                 idea={ideaText} directStart={autoFlow}
+                carouselExtraOptions={<CarouselAdvancedOptions qualityMax={qualityMax} onQualityMaxChange={setQualityMax} qualityMaxLocked={qualityMaxLocked} coverIllustration={coverIllustration} onCoverIllustrationChange={setCoverIllustration} coverIllustrationLocked={coverIllustrationLocked} />}
                 objective={objective || undefined}
                 forcedChannel={forcedChannel}
                 onChannelChange={(channel) => {
@@ -1675,17 +1676,6 @@ function CreerWorkspace() {
               />
             )}
 
-            {/* Réglages secondaires : APRÈS le bloc principal, repliés par défaut. */}
-            {step === "questions" && selectedFormat === "carousel" && (
-              <CarouselAdvancedOptions
-                qualityMax={qualityMax}
-                onQualityMaxChange={setQualityMax}
-                qualityMaxLocked={qualityMaxLocked}
-                coverIllustration={coverIllustration}
-                onCoverIllustrationChange={setCoverIllustration}
-                coverIllustrationLocked={coverIllustrationLocked}
-              />
-            )}
 
 
 
@@ -1776,7 +1766,7 @@ function CreerWorkspace() {
             )}
 
             {step === "result" && structureLoading && (
-              <CarouselStructureLoader hasPhotos={uploadedPhotos.length > 0} />
+              <CarouselStructureLoader hasPhotos={uploadedPhotos.length > 0} photos={uploadedPhotos} answers={Object.values(answers)} />
             )}
 
             {step === "result" && autoGeneratePendingRef.current && !result && !generating && !structureLoading && (

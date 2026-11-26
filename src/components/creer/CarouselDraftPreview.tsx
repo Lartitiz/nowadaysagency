@@ -29,6 +29,11 @@ const STAGE_STEP: Record<string, number> = { writing: 0, correcting: 1, checking
  * décidée (plan validé), elle apparaît en fond de la carte. Sinon texte seul :
  * le choix des photos se fait après l'écriture.
  */
+/**
+ * Cartes lisibles (26/11/2026, test filmé de Laetitia) : les slides sans photo
+ * étaient de grands blocs presque vides au texte gris clair. Fond blanc, texte
+ * foncé, et « slide 4 sur 7 » quand le plan dit combien il y en aura.
+ */
 export function CarouselDraftPreview({ slides, outline, stage, photos }: { slides: DraftSlide[]; outline?: string[]; stage?: string | null; photos?: { preview?: string }[] }) {
   // L'étape ne recule jamais : une correction APRÈS la vérification du fil
   // est une reprise de l'enchaînement, pas un retour à la relecture.
@@ -37,11 +42,13 @@ export function CarouselDraftPreview({ slides, outline, stage, photos }: { slide
   useEffect(() => { reached.current = current; }, [current]);
   const fixingThread = current === 2 && stage === "correcting";
   const planOnly = slides.length === 0 && (outline?.length ?? 0) > 0;
+  // Nombre de slides prévu par le plan, quand on le connaît (« slide 4 sur 7 »).
+  const total = outline?.length ?? 0;
 
   const message = planOnly
     ? "Je réfléchis à ton carrousel… voici le plan envisagé"
     : current === 0
-    ? `J'écris ton carrousel… ${slides.length} slide${slides.length > 1 ? "s" : ""} écrite${slides.length > 1 ? "s" : ""}`
+    ? `${total > slides.length ? `J'écris la slide ${slides.length + 1} sur ${total}` : "J'écris ton carrousel…"} · ${slides.length} slide${slides.length > 1 ? "s" : ""} écrite${slides.length > 1 ? "s" : ""}`
     : current === 1
       ? "Je relis ton texte pour gommer les tournures d'IA…"
       : fixingThread
@@ -95,12 +102,12 @@ export function CarouselDraftPreview({ slides, outline, stage, photos }: { slide
             <li
               key={s.n}
               className={`aspect-[4/5] rounded-lg p-2.5 overflow-hidden animate-fade-in ${i === 0
-                ? "bg-primary/85 text-primary-foreground flex flex-col justify-end"
-                : "border border-dashed border-border bg-background/60 text-muted-foreground"}`}
+                ? "bg-primary text-primary-foreground flex flex-col justify-end"
+                : "border border-border bg-card text-foreground/80"}`}
             >
               {i > 0 && <span className="block text-2xs text-muted-foreground/70 mb-1">{s.n}</span>}
-              {s.title && <p className={`font-medium leading-snug line-clamp-4 ${i === 0 ? "text-sm" : "text-xs text-foreground/70"}`}>{s.title}</p>}
-              {s.text && i > 0 && <p className="mt-1 text-2xs leading-snug line-clamp-5">{s.text}</p>}
+              {s.title && <p className={`font-medium leading-snug line-clamp-4 ${i === 0 ? "text-sm" : "text-xs text-foreground"}`}>{s.title}</p>}
+              {s.text && i > 0 && <p className="mt-1 text-xs leading-snug line-clamp-6">{s.text}</p>}
             </li>
           );
         })}

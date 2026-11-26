@@ -19,7 +19,7 @@ import PinterestVisualResult from "@/components/creer/formatRenderers/PinterestV
 import PinterestPhotoBriefResult from "@/components/creer/formatRenderers/PinterestPhotoBriefResult";
 import Confetti from "@/components/Confetti";
 import { ReelDraftPreview, type ReelDraft } from "./ReelDraftPreview";
-import { CarouselDraftPreview, type DraftSlide } from "@/components/creer/CarouselDraftPreview";
+import { CarouselDraftPreview, type DraftSlide } from "@/components/creer/CarouselDraftPreview"; import { useCarouselReadyGate } from "@/components/creer/CarouselReadyGate";
 
 import ResultActions from "@/components/creer/ResultActions";
 import GenerationTimeHint from "@/components/creer/GenerationTimeHint";
@@ -476,6 +476,7 @@ export default function CreerStepResult({
     return () => clearTimeout(t);
   }, [generating, result, pinterestVisualMissing]);
 
+  const readyGate = useCarouselReadyGate({ format, generating: !!generating, raw: result?.raw || result, visualCount: visualSlides?.length ?? 0, visualLoading: !!visualLoading, visualsError: visualsAutoError, photos });
   if (generating) {
     // Mode streaming : le contenu texte arrive progressivement
     if (streamingContent) {
@@ -561,6 +562,7 @@ export default function CreerStepResult({
   }
 
   if (!result) return null;
+  if (readyGate) return readyGate; // mise en page en cours, puis « Ton carrousel est prêt » et son bouton (26/11/2026)
 
   const renderResult = () => {
     if (format === "carousel" && visualSlides?.length && onCarouselDocumentChange) {
