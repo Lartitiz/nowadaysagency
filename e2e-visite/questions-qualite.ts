@@ -8,13 +8,12 @@
  * serveur (_shared/questions-form.ts, fichier sans dépendance).
  * Ne voit PAS une question simplement trop générale : ça se lit à l'œil.
  */
-import { aUnInterrogatif, hasVouvoiement } from "../supabase/functions/_shared/questions-form";
+import { aUnInterrogatif, hasVouvoiement, questionFermee } from "../supabase/functions/_shared/questions-form";
+
+// Même lecture du oui/non que le serveur (une seule liste à tenir).
+export { questionFermee };
 
 export const QUESTION_MAX_MOTS_SONDE = 32;
-
-// Début de proposition fermée : « Tu as… ? », « As-tu… ? », « Est-ce que… ? », « Y a-t-il… ? »
-// (même liste que questionFermee de _shared/questions-form.ts ; « Peux-tu raconter… » = invitation, pas un oui/non)
-const FERMEE = /^(tu (as|connais|fais|utilises|te souviens|aurais)|as-tu|aurais-tu|connais-tu|est-ce qu|y a-t-il|il y a|existe-t-il)\b/i;
 
 export function texteQuestion(q: unknown): string {
   if (typeof q === "string") return q;
@@ -27,14 +26,6 @@ export function texteQuestion(q: unknown): string {
 
 export function mots(s: string): number {
   return s.trim().split(/\s+/).filter(Boolean).length;
-}
-
-/** Fermée si la proposition qui porte le « ? » commence comme une question oui/non. */
-export function questionFermee(s: string): boolean {
-  const avantPoint = s.split("?")[0] ?? s;
-  const morceaux = avantPoint.split(/[,:;.]/);
-  const derniere = (morceaux[morceaux.length - 1] ?? "").trim();
-  return FERMEE.test(derniere);
 }
 
 /** Phrase finie par « ? » sans mot ni tournure qui interroge. */

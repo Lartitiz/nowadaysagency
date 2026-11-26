@@ -26,6 +26,13 @@ describe("sonde ❓ : phrase qui n'interroge pas, question qui vouvoie", () => {
     expect(lu.orange).toBe(true);
   });
 
+  it("une question oui/non par inversion (« met-elle… ? ») passe au 🟠 par la ligne « oui/non »", () => {
+    const vue = "Cette visite pièce par pièce met-elle en avant une rénovation que tu as menée toi-même ?";
+    const lu = lireQualite([vue]);
+    expect(lu.fermees).toEqual([vue]);
+    expect(lu.orange).toBe(true);
+  });
+
   it("des questions saines restent ✅ ; une invitation sans « ? » n'est pas signalée", () => {
     const lu = lireQualite([SAINE, "Pense à ta dernière opération bloquée par un lot : qu'est-ce qui a fini par débloquer la revente ?", "Raconte ta dernière visite de chantier."]);
     expect(lu.orange).toBe(false);
