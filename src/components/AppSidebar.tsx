@@ -16,6 +16,8 @@ import NotificationBell from "@/components/NotificationBell";
 import { WorkspaceSwitcher } from "@/components/AppHeader";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
+import { useCarouselEditorShown } from "@/lib/carousel-editor-shown";
+import { appHeaderSlotRef } from "@/lib/app-header-slot";
 
 interface NavItem {
   label: string;
@@ -67,6 +69,10 @@ export default function AppSidebar() {
   const { pending: brandReviewPending } = usePendingBrandReview();
   const { isActive: sessionActive } = useSession();
   const { open, setOpen } = useMobileNav();
+  // Slide en grand (26/11/2026) : pendant la retouche d'un carrousel, le menu devient une barre
+  // fine (48 px au lieu de 80) qui accueille les étapes et « Créer un autre contenu ».
+  // Accueil et Calendrier restent à un clic : le logo, et « Mon espace ».
+  const editing = useCarouselEditorShown();
   // Modules désactivés (feature-flags) : mêmes règles que ProtectedRoute, sinon la
   // sidebar affiche des liens morts (clic → redirection dashboard) aux non-admins.
   const visibleSections = NAV_SECTIONS
@@ -113,20 +119,22 @@ export default function AppSidebar() {
   return (
     <>
       {!sessionActive && (
-        <header className="sticky top-0 z-40 hidden lg:block border-b border-border bg-card">
-          <div className="mx-auto flex min-h-20 max-w-6xl items-center justify-between gap-4 px-6">
+        <header data-compact={editing || undefined} className="sticky top-0 z-40 hidden lg:block border-b border-border bg-card">
+          <div className={`mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 ${editing ? "min-h-12" : "min-h-20"}`}>
             <div className="flex min-w-0 items-center gap-3">
-              <Link to="/dashboard" aria-label="Accueil"><BrandLogo className="h-8" /></Link>
+              <Link to="/dashboard" aria-label="Accueil" className="shrink-0"><BrandLogo className={editing ? "h-6" : "h-8"} /></Link>
               {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} switchingWorkspaceId={switchingWorkspaceId} navigate={navigate} />}
+              {editing && <div ref={appHeaderSlotRef.steps} data-app-header-slot="steps" className="min-w-0" />}
             </div>
             <nav aria-label="Navigation principale" className="flex shrink-0 items-center gap-2">
-              {quickNav.map(item => (
+              {!editing && quickNav.map(item => (
                 <Link key={item.to} to={item.to} aria-current={isQuickNavActive(item) ? "page" : undefined}
                   className={`rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${isQuickNavActive(item) ? "bg-[hsl(var(--bento-dark))] text-white" : "text-bordeaux hover:bg-rose-pale"}`}>
                   {item.label}
                 </Link>
               ))}
-              <button ref={menuTrigger} type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold text-bordeaux hover:bg-rose-pale">
+              {editing && <div ref={appHeaderSlotRef.actions} data-app-header-slot="actions" className="shrink-0" />}
+              <button ref={menuTrigger} type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)} className={`flex items-center gap-2 rounded-xl border border-border text-sm font-semibold text-bordeaux hover:bg-rose-pale ${editing ? "px-3 py-1.5" : "px-4 py-3"}`}>
                 Mon espace <ChevronDown size={16} />
               </button>
             </nav>
@@ -140,7 +148,7 @@ export default function AppSidebar() {
       )}
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" aria-describedby={undefined} className="flex w-[min(390px,100vw)] flex-col overflow-y-auto p-0 gap-0 lg:top-[88px] lg:bottom-auto lg:right-6 lg:h-auto lg:max-h-[calc(100dvh-112px)] lg:w-[660px] lg:max-w-[660px] lg:rounded-2xl lg:border xl:right-[max(24px,calc((100vw-1152px)/2))]"
+        <SheetContent side="right" aria-describedby={undefined} className="flex w-[min(390px,100vw)] flex-col overflow-y-auto p-0 gap-0 lg:top-[calc(var(--app-header-h,80px)+8px)] lg:bottom-auto lg:right-6 lg:h-auto lg:max-h-[calc(100dvh-112px)] lg:w-[660px] lg:max-w-[660px] lg:rounded-2xl lg:border xl:right-[max(24px,calc((100vw-1152px)/2))]"
           onOpenAutoFocus={() => { previousFocus.current = document.activeElement as HTMLElement; }}
           onCloseAutoFocus={(event) => {
             // Plusieurs déclencheurs (en-tête, mobile) partagent le tiroir.
