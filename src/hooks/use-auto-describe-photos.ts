@@ -44,7 +44,7 @@ export function useAutoDescribePhotos<T extends AutoPhoto>({
     for (const photo of photos) {
       if (!needsAutoDescription(photo) || requested.current.has(photo.id!)) continue;
       requested.current.add(photo.id!);
-      void describeImportedPhotoOnce(photo, workspaceId).then((text) => {
+      void describeImportedPhotoOnce(photo, workspaceId).catch(() => "").then((text) => {
         if (!text) return;
         setPhotos((prev) => {
           let changed = false;
