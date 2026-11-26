@@ -218,3 +218,24 @@ Deno.test("mix : couverture (socle, règle 7) → mot clé de l'accroche en ital
   const none = composeMixSlide({ slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "Un post viral ne remplace pas la confiance", cover_accent: "la fidélité" }, CH, { ...mid, isFirst: true })!;
   assert(!none.html.includes("font-style:italic"));
 });
+
+// ── 26/11/2026 : slides texte du mixte sur l'aplat quand la couleur principale est sombre ──
+Deno.test("mix : couleur principale sombre → chaque slide texte passe sur l'aplat, même entre deux photos", () => {
+  const nuit: MixCharter = { color_primary: "#131953", color_secondary: "#717594", color_accent: "#454C79", color_background: "#FFFFFF", color_text: "#101750", font_title: "Space Grotesk", font_body: "Inter" };
+  const texte = { slide_number: 5, slide_type: "text_only", title: "Ce que la découpe a changé", body: "Deux lots se vendent à deux profils d'acheteurs différents." };
+  const out = composeMixSlide(texte, nuit, { isFirst: false, previous: "photo_aplat", photoCount: 3 })!;
+  if (out.layout !== "respiration") throw new Error("respiration attendue : " + out.layout);
+  if (!/background:#131953/i.test(out.html)) throw new Error("aplat bleu nuit attendu");
+  if (!/color:#FFFFFF/i.test(out.html)) throw new Error("texte blanc attendu");
+});
+
+Deno.test("mix : couleur principale claire → la slide texte isolée garde le fond de charte ; titre dans la couleur principale si la secondaire ne se lit pas", () => {
+  const rose: MixCharter = { color_primary: "#FB3D80", color_secondary: "#91014B", color_background: "#FFF4F8", color_text: "#1A1A1A" };
+  const texte = { slide_number: 4, slide_type: "text_only", title: "Un titre", body: "Un texte court." };
+  const out = composeMixSlide(texte, rose, { isFirst: false, previous: "photo_aplat", photoCount: 3 })!;
+  if (!/background:#FFF4F8/i.test(out.html)) throw new Error("fond de charte attendu");
+  // Fond déjà sombre : pas d'aplat fort (il ne se détacherait pas).
+  const sombre: MixCharter = { color_primary: "#131953", color_background: "#1C1C20" };
+  const out2 = composeMixSlide(texte, sombre, { isFirst: false, previous: "photo_aplat", photoCount: 3 })!;
+  if (!/background:#1C1C20/i.test(out2.html)) throw new Error("fond sombre de charte attendu");
+});

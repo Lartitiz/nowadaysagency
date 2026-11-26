@@ -142,14 +142,24 @@ function readable(preferred: string, bg: string): string {
 function tokens(ch: MixCharter) {
   const background = hex(ch.color_background, "#FFFFFF");
   const ink = readable(hex(ch.color_text, "#1A1A1A"), background);
-  const heading = readable(hex(ch.color_secondary, hex(ch.color_primary, ink)), background);
+  // Titres : la secondaire si elle se lit sur le fond ; sinon la principale si
+  // ELLE se lit (charte bleu nuit du 25/11/2026 : secondaire gris-bleu à 4,4:1
+  // sur blanc, les titres sortaient en noir) ; sinon noir ou blanc.
+  const wanted = hex(ch.color_secondary, hex(ch.color_primary, ink)), primary = hex(ch.color_primary, "");
+  const heading = contrast(wanted, background) >= 4.5 || !primary || contrast(primary, background) < 4.5 ? readable(wanted, background) : primary;
   const candidates = [hex(ch.color_primary, ""), hex(ch.color_secondary, ""), hex(ch.color_accent, "")].filter(Boolean);
   const flat = candidates.find(c => contrast(c, background) >= 1.6) || (hexLuminance(background.slice(1)) > .5 ? "#1A1A1A" : "#F4F1EC");
   const onFlat = readable(background, flat);
+  // Aplat « fort » (même règle que la couverture du carrousel texte, piste A du
+  // 25/11/2026) : la couleur principale porte un texte blanc (4,5:1) et se
+  // détache du fond (3:1). Les slides texte du mixte vont alors TOUTES sur cet
+  // aplat : entre deux photos, une slide blanche au texte nu paraissait vide
+  // (répétition du 25/11/2026, slides 5 et 7 d'un mixte de 8).
+  const strongFlat = !!primary && flat === primary && contrast("#FFFFFF", primary) >= 4.5 && contrast(primary, background) >= 3;
   const radiusRaw = String(ch.border_radius ?? "").trim().toLowerCase();
   const named: Record<string, number> = { none: 0, square: 0, sharp: 0, rounded: 20, soft: 20, pill: 24, organic: 24 };
   const radius = named[radiusRaw] ?? (/^\d+(?:\.\d+)?(?:px)?$/.test(radiusRaw) ? Math.min(24, Number.parseFloat(radiusRaw)) : 16);
-  return { background, ink, heading, flat, onFlat, radius,
+  return { background, ink, heading, flat, onFlat, strongFlat, radius,
     titleFont: fontName(ch.font_title, "Libre Baskerville"), bodyFont: fontName(ch.font_body, "IBM Plex Sans") };
 }
 type Tokens = ReturnType<typeof tokens>;
@@ -483,11 +493,12 @@ export function composeMixSlide(
     if (s.visual_schema) {
       const html = !opts.isFirst ? pause(p, t, s.visual_schema) : null;
       if (html) return done(html, "pause");
-      const plain = done(respiration(p, t, opts.previous === "respiration" && !opts.isFirst || opts.isFirst), "respiration");
+      const plain = done(respiration(p, t, t.strongFlat || opts.previous === "respiration" && !opts.isFirst || opts.isFirst), "respiration");
       return plain ? { ...plain, schema_dropped: true } : null;
     }
     // Deux slides texte d'affilée : la seconde passe sur l'aplat de charte.
-    return done(respiration(p, t, opts.previous === "respiration" && !opts.isFirst || opts.isFirst), "respiration");
+    // Aplat fort (couleur principale sombre) : toutes y passent.
+    return done(respiration(p, t, t.strongFlat || opts.previous === "respiration" && !opts.isFirst || opts.isFirst), "respiration");
   }
   if (!hasText) {
     // Photo seule : plein cadre, sans voile.
