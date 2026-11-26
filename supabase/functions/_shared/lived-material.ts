@@ -46,6 +46,8 @@ export const MAX_PASSAGES = 2;
 const PASSAGE_MAX_CHARS = 450;
 const MIN_WORDS = 8;
 const PAST_BRIEFS = 40;
+/** Mots de sens communs exigés entre le sujet et un passage. */
+const MIN_SHARED = 3;
 
 const clean = (s: unknown): string => typeof s === "string" ? s.replace(/\s+/g, " ").trim() : "";
 const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
@@ -109,30 +111,37 @@ export function buildMaterialCandidates(ctx: any, briefs: any[] = []): MaterialC
 }
 
 /**
- * Le tri. Un passage est retenu s'il partage avec le sujet au moins 2 mots de
- * sens (et au moins un quart des mots du plus court des deux, plafonné à 4).
- * Un mot présent dans plus de la moitié des passages de la personne ne
- * distingue rien (son métier, son produit) : il ne compte pas.
+ * Le tri. Un passage est retenu s'il partage avec le sujet au moins 3 mots de
+ * sens, dont 2 dans le passage lui-même (pas seulement dans le sujet de
+ * l'ancien brief), ou si l'ancien brief portait le même sujet. Un mot présent
+ * dans plus de la moitié des passages de la personne ne distingue rien (son
+ * métier, son produit) : il ne compte pas.
+ * Seuil relevé de 2 à 3 après mesure sur un compte réel (26/11/2026) : à 2,
+ * « Les 3 erreurs d'une première opération » ramenait « Une erreur fréquente
+ * dans mon domaine » ; à 3, seuls les sujets vraiment voisins passent.
  */
 export function selectLivedMaterial(subjectText: string, candidates: MaterialCandidate[], alreadyGiven = ""): SelectedMaterial[] {
   const subject = significantStems(subjectText);
-  if (subject.size < 2 || !candidates.length) return [];
+  if (subject.size < MIN_SHARED || !candidates.length) return [];
   const given = clean(alreadyGiven).toLowerCase();
   const seen = new Set<string>();
   const pool = candidates
     // Déjà donné pour CE contenu (réponses du jour) : inutile de le resservir.
     .filter((c) => { const k = c.text.toLowerCase(); if (seen.has(k) || (given && given.includes(k.replace(/…$/, "")))) return false; seen.add(k); return true; })
-    .map((c) => ({ c, stems: significantStems(`${c.text} ${c.matchExtra || ""}`) }));
+    .map((c) => ({ c, own: significantStems(c.text), extra: significantStems(c.matchExtra || "") }));
 
   const frequency = new Map<string, number>();
-  for (const p of pool) for (const s of p.stems) frequency.set(s, (frequency.get(s) || 0) + 1);
+  for (const p of pool) for (const s of new Set([...p.own, ...p.extra])) frequency.set(s, (frequency.get(s) || 0) + 1);
   const common = (s: string) => pool.length >= 6 && (frequency.get(s) || 0) > pool.length / 2;
 
   const scored: SelectedMaterial[] = [];
   for (const p of pool) {
-    const shared = sharedStems(subject, p.stems).filter((s) => !common(s));
-    const need = Math.min(4, Math.max(2, Math.ceil(Math.min(subject.size, p.stems.size) / 4)));
-    if (shared.length >= need) scored.push({ ...p.c, shared });
+    const inText = sharedStems(subject, p.own).filter((s) => !common(s));
+    const inSubject = sharedStems(subject, p.extra);
+    const shared = [...new Set([...inText, ...inSubject.filter((s) => !common(s))])];
+    // Même sujet qu'un ancien brief : sa réponse d'alors est la matière la plus sûre.
+    const sameSubject = inSubject.length >= MIN_SHARED && inSubject.length >= subject.size * 0.8;
+    if (sameSubject || (shared.length >= MIN_SHARED && inText.length >= 2)) scored.push({ ...p.c, shared: sameSubject ? inSubject : shared });
   }
   return scored.sort((a, b) => b.shared.length - a.shared.length).slice(0, MAX_PASSAGES);
 }
