@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { cleanPhotoIds, parsePlans, proposePhotos } from "./proposals.ts";
+import { cleanPhotoIds, parsePlans, parseRetryQueries, proposePhotos } from "./proposals.ts";
 
 const slides = [1, 2, 3, 4].map((n) => ({ slide: n, text: `Passage ${n}` }));
 const pexelsPhoto = (id: number, alt: string) => ({
@@ -36,6 +36,7 @@ Deno.test("photo-proposals : bibliothèque d'abord, photo libre de droit vérifi
   const prompts: any[] = [];
   const call = (async (opts: any) => {
     prompts.push(opts);
+    if (opts.tool.name === "requetes_de_secours") return JSON.stringify({ queries: [{ slide: 4, query: "bright staircase" }] });
     if (opts.tool.name === "plan_images") {
       return JSON.stringify({ plans: [
         { slide: 1, ideal: "Une façade d'immeuble ancien vue de la rue", library_photo: null, query: "old building facade" },
@@ -103,4 +104,57 @@ Deno.test("photo-proposals : sans clé Pexels ou vérification en échec, la bib
   // Cible inconnue du carrousel : rien n'est demandé.
   const none = await proposePhotos({ slides, targets: [9] }, { usage: {}, call: (async () => { throw new Error("jamais appelé"); }) as any, apiKey: "k", logger: () => {} });
   assertEquals(none.receipt.reason, "no-targets");
+});
+
+Deno.test("photo-proposals : deuxième essai pour les slides restées sans photo, avec une requête différente", async () => {
+  const calls: string[] = [];
+  const prompts: any[] = [];
+  const call = (async (opts: any) => {
+    prompts.push(opts);
+    if (opts.tool.name === "plan_images") {
+      return JSON.stringify({ plans: [
+        { slide: 1, ideal: "Des pains de savon sur une grille de séchage", library_photo: null, query: "wooden drying rack" },
+        { slide: 2, ideal: "Une étagère en bois vide dans une pièce calme", library_photo: null, query: "empty wooden shelf" },
+        { slide: 3, ideal: "De la lavande séchée sur du lin", library_photo: null, query: "dried lavender linen" },
+      ] });
+    }
+    if (opts.tool.name === "requetes_de_secours") {
+      return JSON.stringify({ queries: [{ slide: 1, query: "morning light wood" }, { slide: 2, query: "dried lavender linen" }] });
+    }
+    const ids: string[] = opts.tool.input_schema.properties.checks.items.properties.photo.enum;
+    const slides: number[] = opts.tool.input_schema.properties.choices.items.properties.slide.enum;
+    // Premier essai : seule la slide 3 trouve ; deuxième essai : la slide 1 trouve.
+    const want: Record<number, string> = { 3: "31", 1: "41" };
+    return JSON.stringify({
+      choices: slides.map((slide) => ({ slide, photo: ids.includes(want[slide]) ? want[slide] : null, reason: "x" })),
+      checks: ids.map((photo) => ({ photo, people: false, products_or_text: false })),
+    });
+  }) as any;
+  const { proposals, receipt } = await proposePhotos({ subject: "Savons à froid", brand: "Savonnerie", slides, targets: [1, 2, 3] }, {
+    usage: {}, call, apiKey: "k", logger: () => {},
+    fetchImpl: fakeFetch({
+      "wooden drying rack": [pexelsPhoto(21, "Wooden rack")],
+      "dried lavender linen": [pexelsPhoto(31, "Dried lavender")],
+      "morning light wood": [pexelsPhoto(31, "Dried lavender"), pexelsPhoto(41, "Morning light on wood")],
+    }, calls),
+  });
+  // « shelf » est un mot interdit : pas de recherche au premier essai, puis une requête de secours
+  // déjà essayée (écartée) : la slide 2 reste à choisir. La slide 1 est servie au deuxième essai.
+  assertEquals(calls.sort(), ["dried lavender linen", "morning light wood", "wooden drying rack"]);
+  const by = new Map(proposals.map((p) => [p.slide, p]));
+  assertEquals(by.get(3)!.stock!.id, "31");
+  assertEquals(by.get(1)!.stock!.id, "41");
+  assertEquals(by.get(2)!.stock, null);
+  assertEquals(receipt.retried, [1]);
+  assertEquals(receipt.retry_queries, { "1": "morning light wood" });
+  assertEquals(receipt.status, "partial");
+  // La photo déjà posée sur la slide 3 n'est jamais reproposée au deuxième essai.
+  const retryVerify = prompts[prompts.length - 1].messages[0].content.filter((c: any) => c.type === "image").map((c: any) => c.source.url);
+  assert(!retryVerify.some((u: string) => u.includes("/31/")));
+  // Le modèle sait quelle requête a échoué.
+  const retryPrompt = prompts.find((p) => p.tool.name === "requetes_de_secours").messages[0].content;
+  assert(retryPrompt.includes("wooden drying rack") && retryPrompt.includes('"failed_query":null'));
+  assertEquals([...parseRetryQueries(JSON.stringify({ queries: [
+    { slide: 1, query: "Wooden Drying Rack" }, { slide: 2, query: "woman at market" }, { slide: 2, query: "soft linen fold" }, { slide: 9, query: "empty room" },
+  ] }), [1, 2], new Set(["wooden drying rack"]))], [[2, "soft linen fold"]]);
 });
