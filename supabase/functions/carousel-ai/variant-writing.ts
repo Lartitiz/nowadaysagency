@@ -1,5 +1,5 @@
 import { isPhotoOverlay, PHOTO_NARRATIVE_CONTRACT, PHOTO_OVERLAY_LENGTH } from "./photo-narrative.ts";
-import { carouselLengthPrompt } from "../_shared/carousel-length.ts";
+import { carouselLengthPrompt, LONG_SLIDE_WORDS, TEXT_SLIDE_TARGET_WORDS } from "../_shared/carousel-length.ts";
 import { photoReadingContract, carouselContinuity, CAROUSEL_FACTS, CAROUSEL_TITLES, carouselStructureGuide, carouselSubstance } from "./writing-contract.ts";
 import { livedCaseFromCarouselBody, LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../_shared/lived-case.ts";
 
@@ -110,6 +110,9 @@ export const LINKEDIN_MIX_LONG_WORDS = LINKEDIN_MIX_SLIDE_WORDS + 10;
 export const isLinkedInMix = (body: any) => body?.channel === "linkedin" && /mix/i.test(String(body?.carousel_type || ""));
 export const LINKEDIN_MIX_LENGTH = `LINKEDIN, CARROUSEL MIXTE : chaque slide se lit en quelques secondes. ${LINKEDIN_MIX_SLIDE_WORDS} mots au plus par slide (title et body ensemble, ou overlay_text), en phrases courtes ; une idée par slide, pas un article découpé. Ce qui ne tient pas passe dans caption.body, sans perdre d'idée.`;
 export const LINKEDIN_MIX_RECIT_LENGTH = `LINKEDIN, CARROUSEL MIXTE : chaque paragraphe tient en ${LINKEDIN_MIX_SLIDE_WORDS} mots au plus (il se lit en quelques secondes sur sa slide), en phrases courtes ; une idée par paragraphe, pas un article découpé. Les détails secondaires passent dans caption.body, sans perdre d'idée.`;
+/** Récit continu du mixte hors LinkedIn (essai en ligne du 26/11/2026 : huit slides de 50 mots, aucune courte) : le repère du carrousel texte. */
+export const isInstagramMix = (body: any) => /mix/i.test(String(body?.carousel_type || "")) && !isLinkedInMix(body);
+export const MIX_RECIT_LENGTH = `CARROUSEL MIXTE : vise environ ${TEXT_SLIDE_TARGET_WORDS.min} à ${TEXT_SLIDE_TARGET_WORDS.max} mots par paragraphe, ${LONG_SLIDE_WORDS} au plus (il se lit d'un coup d'œil sur sa slide) ; c'est un repère, pas un quota à remplir : un paragraphe d'une seule phrase courte est bienvenu. Les détails secondaires passent dans caption.body, sans perdre d'idée.`;
 const wordCount = (text: unknown) => typeof text === "string" ? text.trim().split(/\s+/).filter(Boolean).length : 0;
 /** Numéros (depuis 1) des passages du mixte LinkedIn trop longs ; [] hors mixte LinkedIn. Mesure seulement. */
 export function linkedinMixLongPassages(passages: unknown[], body: any): number[] {

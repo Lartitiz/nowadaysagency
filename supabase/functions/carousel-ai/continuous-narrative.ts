@@ -11,7 +11,7 @@ import {
   progressionReceipt,
   type ProgressionSource,
 } from "../_shared/carousel-progression.ts";
-import { isLinkedInMix, LINKEDIN_MIX_RECIT_LENGTH, LINKEDIN_MIX_SLIDE_WORDS, linkedinMixLongPassages } from "./variant-writing.ts";
+import { isInstagramMix, MIX_RECIT_LENGTH, isLinkedInMix, LINKEDIN_MIX_RECIT_LENGTH, LINKEDIN_MIX_SLIDE_WORDS, linkedinMixLongPassages } from "./variant-writing.ts";
 import { isPhotoOverlay, PHOTO_OVERLAY_RECIT_LENGTH, PHOTO_OVERLAY_SLIDE_WORDS, photoNarratorCheck, photoNarratorFix, photoNarratorRule, photoOverlayLongPassages } from "./photo-narrative.ts";
 import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
 import { narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount, closingAside, RECIT_RELECTURE_CARROUSEL, briefExamples, briefExamplesPrompt, narrativeCaptionDefects, narrativeCaptionFix, captionDefectCount, type ThreadRewriteReceipt } from "./narrative-thread.ts";
@@ -355,6 +355,7 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     RECIT_CONTINU_SOLUTION_FIN,
     recitContinuLongueur(exact),
     isLinkedInMix(body) ? LINKEDIN_MIX_RECIT_LENGTH : "",
+    isInstagramMix(body) ? MIX_RECIT_LENGTH : "",
     isPhotoOverlay(body) ? PHOTO_OVERLAY_RECIT_LENGTH : "",
     photoNarratorRule(body, options.brandVoiceText),
     carouselLengthPrompt(body),
