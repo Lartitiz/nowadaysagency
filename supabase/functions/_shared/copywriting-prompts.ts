@@ -58,14 +58,11 @@ ERREURS À ÉVITER ABSOLUMENT :
 ═══════════════════════════════════════════════════
 CE QU'INSTAGRAM RÉCOMPENSE (faits vérifiés le 28/10/2026, à revérifier avant mai 2027)
 ═══════════════════════════════════════════════════
-
 Trois signaux principaux, rapportés aux personnes touchées :
 1. TEMPS DE VISIONNAGE : le temps passé sur le contenu.
 2. LIKES : ils pèsent un peu plus auprès des abonné·es.
 3. ENVOIS EN MESSAGE PRIVÉ : ils pèsent un peu plus auprès des non-abonné·es. Un contenu qui veut faire grandir un compte donne envie d'être envoyé à quelqu'un de précis.
-
-Le carrousel fait plus d'engagement, le reel plus de portée. Les enregistrements disent qu'un contenu sert : une slide ou un passage dont on se resservira.
-Hashtags : 5 au plus par légende ; ils n'augmentent plus la portée.
+Le carrousel fait plus d'engagement, le reel plus de portée. Les enregistrements disent qu'un contenu sert : une slide ou un passage dont on se resservira. Hashtags : 5 au plus par légende ; ils n'augmentent plus la portée.
 
 Règle 80/20 : 80% contenu valeur, 20% contenu promotionnel.
 
@@ -310,10 +307,9 @@ CTA ÉTHIQUES (à adapter au contexte)
 ═══════════════════════════════════════════════════
 
 Dialogue : "Qu'est-ce que tu en penses ?", "Ça te parle ? Raconte-moi en DM."
-Save/partage : "Enregistre pour y revenir.", "Envoie ça à la personne qui a besoin de lire ça."
+Save/partage : "Enregistre pour y revenir.", "Envoie ça à la personne qui a besoin de lire ça." Un appel à enregistrer ou à envoyer dit pourquoi (ce qu'on garde, à qui ça parle). À éviter : les appels vides qui gonflent les chiffres sans conversation ("tag une amie", "commente [MOT] pour recevoir", "team A ou team B", "note de 1 à 5").
 Transition vers l'offre : "Si ça te parle, on en discute en DM. Zéro pression.", "Envie d'aller plus loin ? Le lien est en bio.", "C'est exactement ce qu'on travaille dans [offre]."
 Communauté : "On en parle ?", "Tu veux que je développe ce sujet ?", "C'est le genre de contenu que tu veux voir plus souvent ?"
-Un appel à enregistrer ou à envoyer dit pourquoi (ce qu'on garde, à qui ça parle). À éviter : les appels vides qui gonflent les chiffres sans conversation ("tag une amie", "commente [MOT] pour recevoir", "team A ou team B", "note de 1 à 5").
 
 ═══════════════════════════════════════════════════
 INSTRUCTIONS DE RÉDACTION FINALE
