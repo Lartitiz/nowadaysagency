@@ -153,7 +153,7 @@ export function livedMaterialPrompt(body: any): string {
   if (!material) return "";
   return `MATIÈRE VÉCUE DÉJÀ DONNÉE PAR LA PERSONNE, PROCHE DE CE SUJET (ses mots, écrits à une autre occasion) :
 ${material}
-C'est du vrai, donné par elle : tu peux t'y appuyer (une phrase, un exemple, en première personne pour ce qu'elle a vécu, à la troisième pour une cliente) SEULEMENT si cela sert le propos de CE contenu. Sa présence n'est pas une demande : si elle ne sert pas le propos, écris sans, comme si elle n'était pas là. N'y ajoute aucun fait, date, lieu, chiffre ni détail ; ne la date pas (« hier », « la semaine dernière ») ; une parole de cliente ne se cite que si elle figure ci-dessus, avec ses mots. Tout autre vécu ou témoignage reste interdit.`;
+C'est du vrai, donné par elle : tu peux t'y appuyer (une phrase, un exemple, en première personne pour ce qu'elle a vécu, à la troisième pour une cliente) SEULEMENT si cela sert le propos de CE contenu. Sa présence n'est pas une demande : si elle ne sert pas le propos, écris sans, comme si elle n'était pas là. N'y ajoute aucun fait, date, lieu, chiffre ni détail ; ne la date pas (« hier », « la semaine dernière ») ; une parole de cliente ne se rapporte que si elle figure ci-dessus, sans lui prêter d'autres mots (un court extrait entre guillemets ou son idée reformulée, jamais la fiche recopiée en entier). Tout autre vécu ou témoignage reste interdit.`;
 }
 
 /** Lecture best-effort des anciens briefs (sujet + réponses). Toute erreur renvoie []. */
