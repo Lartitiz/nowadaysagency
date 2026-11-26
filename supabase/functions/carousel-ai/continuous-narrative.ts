@@ -14,6 +14,7 @@ import {
 import { isLinkedInMix, LINKEDIN_MIX_RECIT_LENGTH, LINKEDIN_MIX_SLIDE_WORDS, linkedinMixLongPassages } from "./variant-writing.ts";
 import { isPhotoOverlay, PHOTO_OVERLAY_RECIT_LENGTH, PHOTO_OVERLAY_SLIDE_WORDS, photoNarratorCheck, photoNarratorFix, photoNarratorRule, photoOverlayLongPassages } from "./photo-narrative.ts";
 import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
+import { livedMaterialOf, livedMaterialPrompt } from "../_shared/lived-material.ts";
 import { narrativeNewsWriting, narrativeThreadDefects, narrativeThreadFix, RECIT_FIL_A_VOIX_HAUTE, threadDefectCount, closingAside, RECIT_RELECTURE_CARROUSEL, briefExamples, briefExamplesPrompt, narrativeCaptionDefects, narrativeCaptionFix, captionDefectCount, type ThreadRewriteReceipt } from "./narrative-thread.ts";
 import { findRecentEchoes, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { angleFamily, type AngleFamily } from "../_shared/angle-families.ts";
@@ -307,6 +308,7 @@ export async function createContinuousNarrative(options: {
       ].filter(Boolean).join("\n"),
     },
     { id: "brand", provenance: "brand_context", text: options.brandingContext },
+    { id: "lived_material", provenance: "user_written_earlier", text: livedMaterialOf(body) },
     {
       id: "photo_context",
       provenance: "user_context_and_separate_library_inferences",
@@ -361,6 +363,7 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     recitContinuFamille(narrativeAngleFamily(body)),
     photoReadingContract(body),
     recentPassagesPrompt(options.recentTexts),
+    livedMaterialPrompt(body),
     briefExamplesPrompt(briefExamples(body)),
   ].filter((part) => part.trim()).join("\n");
   const draft = async (feedback?: string, prior?: Narrative, final?: { exact: number; sink: UsageSink; timeout: number }) => {

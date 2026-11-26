@@ -103,6 +103,7 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
       body.selected_hook ? JSON.stringify(body.selected_hook) : "",
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
+      typeof body.lived_material === "string" ? body.lived_material : "",
     ], researchSource);
     // 🔑 L'écho d'accroche n'est mesuré QUE si le hook n'est pas verrouillé.
     // Quand l'utilisatrice a choisi son hook à l'étape hook_selection, la passe

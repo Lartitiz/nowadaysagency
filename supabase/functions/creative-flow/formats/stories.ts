@@ -54,6 +54,7 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
       body.answers ? JSON.stringify(body.answers) : "",
       (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
       fullContext || "",
+      typeof body.lived_material === "string" ? body.lived_material : "",
     ], researchSource);
     const echo = { previousHooks, subject: echoSubject };
     // Un retournement écrit PAR l'utilisatrice (message clé, réponses) n'est pas un tic.

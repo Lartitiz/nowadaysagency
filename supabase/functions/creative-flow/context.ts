@@ -14,6 +14,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback, buildBrandGuardText, type getUserContext } from "../_shared/user-context.ts";
 import { parseAudienceAddress } from "../_shared/audience-address.ts";
 import { livedCaseFromCreativeBody } from "../_shared/lived-case.ts";
+import { livedMaterialPrompt } from "../_shared/lived-material.ts";
 import { SYSTEM_CACHE_BREAK } from "../_shared/system-cache.ts";
 import { investmentSolicitationBlock } from "../_shared/investment-solicitation.ts";
 
@@ -106,6 +107,10 @@ export function buildRequestContext(params: {
     // ou une publication (vu à l'audit rédactionnel du 10/07).
     preGenBlock = `\nL'utilisatrice n'a pas fourni d'éléments personnels.\nGénère le contenu normalement. INTERDIT d'écrire un conseil, une note de coaching ou une mention de l'IA DANS le contenu lui-même.\nRenvoie À LA PLACE, dans le champ JSON "personal_tip" prévu par le format de réponse, exactement : "💡 Ajoute une anecdote perso pour que ça sonne vraiment toi. L'IA structure, toi tu incarnes."\n`;
   }
+
+  // Matière vécue retrouvée par le tri (index.ts) : vide quand rien ne parle du sujet.
+  const livedMaterialBlock = step === "generate" ? livedMaterialPrompt(body) : "";
+  if (livedMaterialBlock) preGenBlock += `\n${livedMaterialBlock}\n`;
 
   const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "") + voiceBlock;
 

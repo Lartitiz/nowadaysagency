@@ -15,6 +15,8 @@ import { runWithHeartbeatSSE, clientStillThere, type StatusEmitter } from "../_s
 import { relancerQuestionsSiBesoin } from "../_shared/questions-form.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { livedCaseFromCreativeBody } from "../_shared/lived-case.ts";
+import { attachLivedMaterial } from "../_shared/lived-material.ts";
+import { authoredContentSource } from "../_shared/editorial-voice.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { hookEchoesBefore } from "../_shared/redac-gate.ts";
@@ -172,6 +174,12 @@ serve(async (req) => {
     if (!recentBriefsContext && (step === "questions" || step === "follow-up")) {
       recentBriefsContext = await getRecentBriefsContext(supabase, userId, workspace_id, 3);
     }
+
+    // Matière vécue retrouvée (26/11/2026) : post, reel et stories Instagram, sans cas donné pour ce contenu.
+    await attachLivedMaterial({ body, ctx, supabase, userId, workspaceId: workspace_id, tag: "creative-flow",
+      enabled: step === "generate" && (isCaption || isReel || isStories) && !isPhotoMode && livedCaseFromCreativeBody(body).mode === "none",
+      subjectText: [context, angle?.title].filter((v) => typeof v === "string").join("\n"),
+      alreadyGiven: authoredContentSource(body) });
 
     // Contexte de marque, COMMON_PREFIX, calendrier, objectif : context.ts (fiche 3, lot D).
     const { newsContextBlock, brandingContext, brandGuardText, audienceAddress, brandVocabBlock, preGenBlock, fullContext, activity, COMMON_PREFIX, QUESTIONS_PREFIX, calendarBlock, effectiveObjective, objectiveBlock } = buildRequestContext({ body, ctx, step });

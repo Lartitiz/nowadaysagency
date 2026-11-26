@@ -1,3 +1,4 @@
+import { RETRIEVED_MATERIAL_MARK } from "./redac-gate/material-match.ts";
 /** Shared by generation and editing; qualitative guidance, never an AI detector. */
 export const EDITORIAL_VOICE_RULES = `
 ══ VOIX PERSONNELLE ET FIDÉLITÉ ÉDITORIALE ══
@@ -23,7 +24,10 @@ export function authoredContentSource(body: Record<string, unknown>): string {
 
 /** Ce qui peut fournir une parole rapportée ou une rencontre : brief, réponses, actu (jamais le branding ni la recherche). */
 export function testimonySourceText(body: Record<string, unknown>): string {
-  return [authoredContentSource(body), typeof body.news_context === "string" ? body.news_context : ""].filter(Boolean).join("\n");
+  const written = [authoredContentSource(body), typeof body.news_context === "string" ? body.news_context : ""].filter(Boolean).join("\n");
+  // Matière vécue retrouvée par le tri (lived-material.ts) : après la ligne de séparation, jamais mêlée au brief.
+  const retrieved = typeof body.lived_material === "string" ? body.lived_material.trim() : "";
+  return retrieved ? `${written}${RETRIEVED_MATERIAL_MARK}${retrieved}` : written;
 }
 
 /** Final reminder near the current task, after generic framework instructions. */

@@ -13,6 +13,7 @@ import { countCarouselSlides } from "../../_shared/photo-slide-structure.ts";
 import { type ProgressionSource, progressionJudgeCallMs, type ProgressionResult, progressionReceipt, PROGRESSION_FORMAT_RETRY_MS, progressionWarnings } from "../../_shared/carousel-progression.ts";
 import { localRepairPlan, expectedLocalRepairMs, localRepairInstruction, mergeLocalRepair } from "../thread-local-repair.ts";
 import { REPAIR } from "../../_shared/carousel-editorial-contract.ts";
+import { livedMaterialOf } from "../../_shared/lived-material.ts";
 import { analyzeCarouselRedac, numbersIn, runRedacGate } from "../../_shared/redac-gate.ts";
 import { carouselEditorialFields } from "../../_shared/carousel-editorial-review.ts";
 import { preservesCarouselScenario } from "../../_shared/carousel-thread.ts";
@@ -133,6 +134,8 @@ export async function finalizeCarousel(
       ].filter(Boolean).join("\n"),
     },
     { id: "brand", provenance: "brand_context", text: ctx.brandingContext },
+    // Matière vécue retrouvée par le tri : écrite par la personne à une autre occasion.
+    ...(livedMaterialOf(body) ? [{ id: "lived_material", provenance: "user_written_earlier", text: livedMaterialOf(body) }] : []),
     {
       id: "photo_context",
       provenance: "user_context_and_separate_library_inferences",
