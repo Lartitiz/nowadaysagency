@@ -1065,6 +1065,11 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
         a_reparer: 0,
         carrousels: 0,
         controle_non_abouti: 0,
+        mineures: {
+          gardees: 0,
+          tentees: 0,
+        },
+        refus: {},
         reparations: {
           completes: 0,
           completes_gardees: 0,
@@ -1079,6 +1084,11 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
         a_reparer: 0,
         carrousels: 0,
         controle_non_abouti: 0,
+        mineures: {
+          gardees: 0,
+          tentees: 0,
+        },
+        refus: {},
         reparations: {
           completes: 0,
           completes_gardees: 0,
@@ -1093,6 +1103,11 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
         a_reparer: 0,
         carrousels: 0,
         controle_non_abouti: 0,
+        mineures: {
+          gardees: 0,
+          tentees: 0,
+        },
+        refus: {},
         reparations: {
           completes: 0,
           completes_gardees: 0,
@@ -1431,6 +1446,11 @@ snapshot[`weekly qualité : colonne content_preview absente → relecture sans e
         a_reparer: 0,
         carrousels: 0,
         controle_non_abouti: 0,
+        mineures: {
+          gardees: 0,
+          tentees: 0,
+        },
+        refus: {},
         reparations: {
           completes: 0,
           completes_gardees: 0,
@@ -1445,6 +1465,11 @@ snapshot[`weekly qualité : colonne content_preview absente → relecture sans e
         a_reparer: 0,
         carrousels: 0,
         controle_non_abouti: 0,
+        mineures: {
+          gardees: 0,
+          tentees: 0,
+        },
+        refus: {},
         reparations: {
           completes: 0,
           completes_gardees: 0,
@@ -1459,6 +1484,11 @@ snapshot[`weekly qualité : colonne content_preview absente → relecture sans e
         a_reparer: 0,
         carrousels: 0,
         controle_non_abouti: 0,
+        mineures: {
+          gardees: 0,
+          tentees: 0,
+        },
+        refus: {},
         reparations: {
           completes: 0,
           completes_gardees: 0,
@@ -1834,6 +1864,11 @@ snapshot[`weekly qualité : table complète sans aucun événement 1`] = `
         a_reparer: 0,
         carrousels: 0,
         controle_non_abouti: 0,
+        mineures: {
+          gardees: 0,
+          tentees: 0,
+        },
+        refus: {},
         reparations: {
           completes: 0,
           completes_gardees: 0,
@@ -1848,6 +1883,11 @@ snapshot[`weekly qualité : table complète sans aucun événement 1`] = `
         a_reparer: 0,
         carrousels: 0,
         controle_non_abouti: 0,
+        mineures: {
+          gardees: 0,
+          tentees: 0,
+        },
+        refus: {},
         reparations: {
           completes: 0,
           completes_gardees: 0,
@@ -1862,6 +1902,11 @@ snapshot[`weekly qualité : table complète sans aucun événement 1`] = `
         a_reparer: 0,
         carrousels: 0,
         controle_non_abouti: 0,
+        mineures: {
+          gardees: 0,
+          tentees: 0,
+        },
+        refus: {},
         reparations: {
           completes: 0,
           completes_gardees: 0,
