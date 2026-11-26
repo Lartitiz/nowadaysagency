@@ -1,5 +1,6 @@
+import { acceptableAlt } from "../_shared/stock-photo-verified.ts";
 import { assert, assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { cleanPhotoIds, parsePlans, parseRetryQueries, proposePhotos } from "./proposals.ts";
+import { cleanPhotoIds, NEUTRAL_QUERIES, neutralQueries, parsePlans, parseRetryQueries, proposePhotos } from "./proposals.ts";
 
 const slides = [1, 2, 3, 4].map((n) => ({ slide: n, text: `Passage ${n}` }));
 const pexelsPhoto = (id: number, alt: string) => ({
@@ -26,7 +27,7 @@ Deno.test("photo-proposals : lecture stricte du plan (bibliothèque jamais deux 
   // Photo 2 déjà donnée à la slide 1 : la slide 2 passe aux photos libres de droit.
   assertEquals(plans.get(2), { ideal: "Une façade d'immeuble ancien", library: null, query: "old building facade" });
   // Numéro hors catalogue, description trop courte, requête qui nomme une personne.
-  assertEquals(plans.get(3), { ideal: null, library: null, query: null });
+  assertEquals(plans.get(3), { ideal: null, library: null, query: null, refused: "woman visiting flat" });
   assert(!plans.has(8));
   assertEquals([...cleanPhotoIds(JSON.stringify({ checks: [ok("1"), ok("2"), { photo: "2", people: true, products_or_text: false }] }))], ["1"]);
 });
@@ -63,7 +64,8 @@ Deno.test("photo-proposals : bibliothèque d'abord, photo libre de droit vérifi
   });
   // Le catalogue part au modèle, et la slide avec photo de bibliothèque ne cherche rien sur Pexels.
   assert(prompts[0].messages[0].content.includes("Plateau vide avant travaux"));
-  assertEquals(calls.sort(), ["bright staircase", "old building facade"]);
+  // Slide 4 : requête de secours identique à la première (écartée), puis requête neutre sans résultat.
+  assertEquals(calls.sort(), ["bright staircase", "old building facade", "stone surface texture"]);
   const by = new Map(proposals.map((p) => [p.slide, p]));
   // La couverture reçoit elle aussi une photo libre de droit.
   assertEquals(by.get(1)!.stock!.id, "11");
@@ -124,7 +126,7 @@ Deno.test("photo-proposals : deuxième essai pour les slides restées sans photo
     const ids: string[] = opts.tool.input_schema.properties.checks.items.properties.photo.enum;
     const slides: number[] = opts.tool.input_schema.properties.choices.items.properties.slide.enum;
     // Premier essai : seule la slide 3 trouve ; deuxième essai : la slide 1 trouve.
-    const want: Record<number, string> = { 3: "31", 1: "41" };
+    const want: Record<number, string> = { 3: "31", 1: "41", 2: "51" };
     return JSON.stringify({
       choices: slides.map((slide) => ({ slide, photo: ids.includes(want[slide]) ? want[slide] : null, reason: "x" })),
       checks: ids.map((photo) => ({ photo, people: false, products_or_text: false })),
@@ -136,18 +138,22 @@ Deno.test("photo-proposals : deuxième essai pour les slides restées sans photo
       "wooden drying rack": [pexelsPhoto(21, "Wooden rack")],
       "dried lavender linen": [pexelsPhoto(31, "Dried lavender")],
       "morning light wood": [pexelsPhoto(31, "Dried lavender"), pexelsPhoto(41, "Morning light on wood")],
+      "plaster wall soft light": [pexelsPhoto(51, "Plaster wall")],
     }, calls),
   });
   // « shelf » est un mot interdit : pas de recherche au premier essai, puis une requête de secours
-  // déjà essayée (écartée) : la slide 2 reste à choisir. La slide 1 est servie au deuxième essai.
-  assertEquals(calls.sort(), ["dried lavender linen", "morning light wood", "wooden drying rack"]);
+  // déjà essayée (écartée) : la slide 2 part avec une requête neutre au lieu de rester à choisir
+  // (vu en ligne le 26/11/2026). La slide 1 est servie au deuxième essai.
+  assertEquals(calls.sort(), ["dried lavender linen", "morning light wood", "plaster wall soft light", "wooden drying rack"]);
   const by = new Map(proposals.map((p) => [p.slide, p]));
   assertEquals(by.get(3)!.stock!.id, "31");
   assertEquals(by.get(1)!.stock!.id, "41");
-  assertEquals(by.get(2)!.stock, null);
-  assertEquals(receipt.retried, [1]);
-  assertEquals(receipt.retry_queries, { "1": "morning light wood" });
-  assertEquals(receipt.status, "partial");
+  assertEquals(by.get(2)!.stock!.id, "51");
+  assertEquals(receipt.retried, [1, 2]);
+  assertEquals(receipt.retry_queries, { "1": "morning light wood", "2": "plaster wall soft light" });
+  assertEquals(receipt.neutral, [2]);
+  assertEquals(receipt.refused_queries, { "2": "empty wooden shelf" });
+  assertEquals(receipt.status, "completed");
   // La photo déjà posée sur la slide 3 n'est jamais reproposée au deuxième essai.
   const retryVerify = prompts[prompts.length - 1].messages[0].content.filter((c: any) => c.type === "image").map((c: any) => c.source.url);
   assert(!retryVerify.some((u: string) => u.includes("/31/")));
@@ -157,4 +163,30 @@ Deno.test("photo-proposals : deuxième essai pour les slides restées sans photo
   assertEquals([...parseRetryQueries(JSON.stringify({ queries: [
     { slide: 1, query: "Wooden Drying Rack" }, { slide: 2, query: "woman at market" }, { slide: 2, query: "soft linen fold" }, { slide: 9, query: "empty room" },
   ] }), [1, 2], new Set(["wooden drying rack"]))], [[2, "soft linen fold"]]);
+});
+
+Deno.test("photo-proposals : requêtes neutres de dernier recours (acceptées, distinctes, jamais déjà essayées)", async () => {
+  for (const q of NEUTRAL_QUERIES) assert(acceptableAlt(q) && q.length <= 60, q);
+  assertEquals(new Set(NEUTRAL_QUERIES).size, NEUTRAL_QUERIES.length);
+  const picked = neutralQueries([1, 2, 11], ["Empty Wooden Table"]);
+  assertEquals([...picked.keys()], [1, 2, 11]);
+  assertEquals(new Set(picked.values()).size, 3);
+  assert(![...picked.values()].includes("empty wooden table"));
+  assertEquals(neutralQueries([1], NEUTRAL_QUERIES).size, 0);
+
+  // La demande de requêtes de secours échoue (délai dépassé) : les slides repartent quand même en neutre.
+  const call = (async (opts: any) => {
+    if (opts.tool.name === "plan_images") return JSON.stringify({ plans: [{ slide: 1, ideal: "Un savon posé sur du lin", library_photo: null, query: "handmade soap bar" }] });
+    if (opts.tool.name === "requetes_de_secours") throw new Error("timeout");
+    const ids: string[] = opts.tool.input_schema.properties.checks.items.properties.photo.enum;
+    return JSON.stringify({ choices: [{ slide: 1, photo: ids[0], reason: "x" }], checks: ids.map(ok) });
+  }) as any;
+  const neutral = neutralQueries([1], []).get(1)!;
+  const { proposals, receipt } = await proposePhotos({ subject: "Savons", brand: "Savonnerie", slides, targets: [1] }, {
+    usage: {}, call, apiKey: "k", logger: () => {}, fetchImpl: fakeFetch({ [neutral]: [pexelsPhoto(61, "Linen")] }),
+  });
+  assertEquals(proposals[0].stock!.id, "61");
+  assertEquals(receipt.status, "completed");
+  assertEquals(receipt.neutral, [1]);
+  assertEquals(receipt.refused_queries, { "1": "handmade soap bar" });
 });

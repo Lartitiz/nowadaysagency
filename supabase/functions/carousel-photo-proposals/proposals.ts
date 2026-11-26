@@ -15,14 +15,15 @@ import {
  *    sur ses pixels par les mêmes règles que les photos d'ambiance
  *    (carousel-ai/stock-ambient.ts) ;
  *    Une slide restée sans photo a droit à UN deuxième essai, avec une requête
- *    différente et plus simple ;
+ *    différente et plus simple ; si cette requête de secours manque ou est
+ *    refusée elle aussi, une requête neutre toute faite prend sa place ;
  * 3. sinon rien : la slide reste « Image à choisir », avec une vraie description
  *    de l'image idéale (`ideal`) à la place du texte de la slide recopié.
  *
  * Le serveur ne fait que proposer : l'écran télécharge et pose les photos.
  * Tout échec laisse le carrousel tel quel.
  */
-export const PHOTO_PROPOSALS_VERSION = "photo-proposals-v2";
+export const PHOTO_PROPOSALS_VERSION = "photo-proposals-v3";
 export const MAX_TARGETS = 10;
 const PLAN_CALL_MS = 20_000;
 const VERIFY_CALL_MS = 30_000;
@@ -111,7 +112,33 @@ export function parseRetryQueries(raw: string, slides: number[], alreadyTried: S
   return out;
 }
 
-export interface Plan { ideal: string | null; library: number | null; query: string | null }
+export interface Plan { ideal: string | null; library: number | null; query: string | null; refused?: string }
+
+/**
+ * Requêtes neutres, sans IA (26/11/2026). Sur un essai réel, une slide est restée
+ * « Image à choisir » sans aucune recherche : sa requête avait été écartée au
+ * premier essai, puis de nouveau au deuxième, et rien ne prenait le relais.
+ * Aucune ne nomme une personne, un produit ou un commerce (testé).
+ */
+export const NEUTRAL_QUERIES = [
+  "soft morning light linen", "empty wooden table", "plaster wall soft light", "sunlight through curtain",
+  "stone surface texture", "calm water surface", "green leaves soft light", "paper texture warm light",
+  "dried flowers neutral background", "sand texture natural light",
+];
+
+/** Une requête neutre par slide, jamais une requête déjà essayée, jamais deux fois la même. */
+export function neutralQueries(slides: number[], alreadyTried: Iterable<string>): Map<number, string> {
+  const tried = new Set([...alreadyTried].map((q) => q.toLowerCase()));
+  const out = new Map<number, string>();
+  for (const slide of slides) {
+    const start = Math.abs(slide) % NEUTRAL_QUERIES.length;
+    const pick = NEUTRAL_QUERIES.map((_, i) => NEUTRAL_QUERIES[(start + i) % NEUTRAL_QUERIES.length]).find((q) => !tried.has(q));
+    if (!pick) continue;
+    out.set(slide, pick);
+    tried.add(pick);
+  }
+  return out;
+}
 
 /** Lecture stricte : slide hors liste ou en double ignorée, photo de bibliothèque jamais donnée deux fois. */
 export function parsePlans(raw: string, targets: number[], libraryIds: number[]): Map<number, Plan> {
@@ -128,11 +155,13 @@ export function parsePlans(raw: string, targets: number[], libraryIds: number[])
       library = p.library_photo;
       usedLibrary.add(p.library_photo);
     }
+    // Une requête qui nomme une personne ou un produit trahit la consigne : pas de recherche.
+    const accepted = query.length >= 3 && query.length <= 60 && acceptableAlt(query);
     out.set(p.slide, {
       ideal: ideal.length >= 8 ? ideal : null,
       library,
-      // Une requête qui nomme une personne ou un produit trahit la consigne : pas de recherche.
-      query: query.length >= 3 && query.length <= 60 && acceptableAlt(query) ? query : null,
+      query: accepted ? query : null,
+      ...(!accepted && query ? { refused: query.slice(0, 80) } : {}),
     });
   }
   return out;
@@ -238,6 +267,13 @@ export async function proposePhotos(input: ProposalInput, deps: Deps): Promise<{
   };
   const first = new Map(needStock.filter((t) => plans.get(t)?.query).map((t) => [t, plans.get(t)!.query!]));
   const second = new Map<number, string>();
+  const neutral: number[] = [];
+  // Ce que le reçu garde pour comprendre une slide restée vide : requêtes écartées, requêtes neutres.
+  const trace = () => ({
+    queries: Object.fromEntries(first), retry_queries: Object.fromEntries(second),
+    refused_queries: Object.fromEntries(needStock.filter((t) => plans.get(t)?.refused).map((t) => [t, plans.get(t)!.refused])),
+    neutral,
+  });
   try {
     await round(first);
     // Deuxième essai (26/11/2026) : les slides restées sans photo (requête refusée, aucun
@@ -246,27 +282,33 @@ export async function proposePhotos(input: ProposalInput, deps: Deps): Promise<{
     const missing = Date.now() - t0 > RETRY_LATEST_START_MS ? [] : needStock.filter((t) => !byslide.get(t)!.stock);
     if (missing.length) {
       const rSink: UsageSink = {};
-      const rawRetry = await call({
-        model: HAIKU_MODEL, system: RETRY_RULES, max_tokens: 800, maxRetries: 0, abortTimeoutMs: PLAN_CALL_MS,
-        tool: retryTool(missing),
-        messages: [{ role: "user", content: JSON.stringify({
-          subject: String(input.subject || "").slice(0, 400), brand, carousel: input.slides,
-          slides_to_illustrate: missing.map((t) => ({ slide: t, failed_query: first.get(t) ?? null })),
-        }) }],
-      }, rSink);
+      try {
+        const rawRetry = await call({
+          model: HAIKU_MODEL, system: RETRY_RULES, max_tokens: 800, maxRetries: 0, abortTimeoutMs: PLAN_CALL_MS,
+          tool: retryTool(missing),
+          messages: [{ role: "user", content: JSON.stringify({
+            subject: String(input.subject || "").slice(0, 400), brand, carousel: input.slides,
+            slides_to_illustrate: missing.map((t) => ({ slide: t, failed_query: first.get(t) ?? null })),
+          }) }],
+        }, rSink);
+        for (const [slide, query] of parseRetryQueries(rawRetry, missing, new Set(first.values()))) second.set(slide, query);
+      } catch (e) { log(`[photo-proposals] retry queries: ${(e as Error).message}`); }
       addUsage(deps.usage, rSink);
-      for (const [slide, query] of parseRetryQueries(rawRetry, missing, new Set(first.values()))) second.set(slide, query);
+      // Requête de secours absente ou refusée elle aussi : une requête neutre, plutôt que rien.
+      for (const [slide, query] of neutralQueries(missing.filter((t) => !second.has(t)), [...first.values(), ...second.values()])) {
+        second.set(slide, query);
+        neutral.push(slide);
+      }
       await round(second);
     }
   } catch (e) {
     return finish("partial", proposals, {
-      reason: "error", error: String((e as Error)?.message || e).slice(0, 160),
-      queries: Object.fromEntries(first), retry_queries: Object.fromEntries(second),
+      reason: "error", error: String((e as Error)?.message || e).slice(0, 160), ...trace(),
     });
   }
   const served = needStock.filter((t) => byslide.get(t)!.stock).length;
   return finish(served === needStock.length ? "completed" : "partial", proposals, {
-    queries: Object.fromEntries(first), retry_queries: Object.fromEntries(second),
+    ...trace(),
     retried: [...second.keys()].filter((t) => byslide.get(t)!.stock),
   });
 }
