@@ -31,7 +31,7 @@ vi.mock("@/components/creer/PhotoSwapDialog", () => ({
 beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
 beforeEach(() => {
   window.localStorage.setItem("carousel-panel:Calques", "1");
-  window.localStorage.setItem("carousel-editor:mode", "complet"); // panneau complet (« Plus d'outils »), chantier D
+  window.localStorage.setItem("carousel-editor:onglet", "calques"); // panneau complet (« Plus d'outils »), chantier D
 });
 afterEach(() => {
   cleanup();
@@ -163,12 +163,13 @@ describe("aller-retour complet dans l'éditeur, branché comme /creer", () => {
     await settle();
     expect(log.length).toBe(2);
 
-    fireEvent.click(screen.getByRole("button", { name: "Centré" }));
+    fireEvent.click(screen.getByRole("button", { name: "Centre" }));
     await settle();
     expect(log.length).toBe(3);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Slide" }));
-    fireEvent.click(screen.getByText("Ajouter / changer la photo"));
+    // Panneau à onglets (26/11/2026) : la photo a son onglet.
+    fireEvent.click(screen.getByRole("tab", { name: "Photo" }));
+    fireEvent.click(screen.getByRole("button", { name: /^(Changer la|Ajouter une) photo$/ }));
     fireEvent.click(screen.getByText("Choisir la nouvelle photo"));
     await settle();
     expect(log.length).toBe(4);

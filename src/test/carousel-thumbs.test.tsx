@@ -61,7 +61,7 @@ describe("slide thumbnails", () => {
 describe("preview zoom and full screen", () => {
   it("zooms the preview and opens it full screen", () => {
     // Éditeur facile (20/11/2026) : zoom et « En grand » sont dans « Plus d'outils ».
-    window.localStorage.setItem("carousel-editor:mode", "complet");
+    window.localStorage.setItem("carousel-editor:onglet", "calques");
     render(<Harness />);
     // Slide en grand (26/11/2026) : ils sont rangés dans le bouton « ⋯ » de la ligne d'outils.
     fireEvent.click(screen.getByTestId("editor-view-menu"));

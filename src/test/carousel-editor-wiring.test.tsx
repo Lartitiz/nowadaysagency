@@ -21,7 +21,7 @@ vi.mock("@/components/creer/PhotoSwapDialog", () => ({ default: () => null }));
 beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
 beforeEach(() => {
   vi.clearAllMocks();
-  window.localStorage.setItem("carousel-editor:mode", "complet"); // panneau complet (« Plus d'outils »), chantier D
+  window.localStorage.setItem("carousel-editor:onglet", "calques"); // panneau complet (« Plus d'outils »), chantier D
   window.localStorage.setItem("carousel-panel:Calques", "1");
 });
 afterEach(() => {
@@ -335,6 +335,7 @@ describe("onglet Slide et réglages de la photo", () => {
   it("« Fond de la slide » change le fond de la slide ouverte seulement", () => {
     render(<Harness />);
     const before = saved();
+    fireEvent.click(screen.getByRole("tab", { name: "Couleurs" }));
     fireEvent.change(screen.getByLabelText("Fond de la slide"), { target: { value: "#ffe561" } });
     expect(slideDoc(0).body.firstElementChild!.getAttribute("style")).toMatch(/background-color:\s*(#ffe561|rgb\(255, 229, 97\))/);
     expect(saved().v[1].html).toBe(before.v[1].html);
@@ -342,7 +343,8 @@ describe("onglet Slide et réglages de la photo", () => {
   it("« Texte sur la photo » place le texte en haut de la slide photo", () => {
     render(<Harness />);
     fireEvent.click(screen.getByLabelText("Sélectionner la slide 3"));
-    fireEvent.change(screen.getByLabelText("Texte sur la photo"), { target: { value: "top_left" } });
+    fireEvent.click(screen.getByRole("tab", { name: "Mise en page" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Texte sur la photo" })).getByRole("button", { name: "En haut" }));
     const layout = slideDoc(2).querySelector<HTMLElement>("[data-photo-text-layout]")!;
     expect(layout.dataset.photoTextLayout).toBe("top_left");
     expect(layout.style.justifyContent).toBe("flex-start");

@@ -10,7 +10,7 @@ beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect(
 // Les calques sont repliés par défaut : ces tests les ouvrent.
 beforeEach(() => {
   window.localStorage.setItem("carousel-panel:Calques", "1");
-  window.localStorage.setItem("carousel-editor:mode", "complet"); // panneau complet (« Plus d'outils »), chantier D
+  window.localStorage.setItem("carousel-editor:onglet", "calques"); // panneau complet (« Plus d'outils »), chantier D
 });
 afterEach(cleanup);
 

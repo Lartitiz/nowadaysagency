@@ -9,7 +9,7 @@ beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect(
 // Les calques sont repliés par défaut : ces tests les ouvrent.
 beforeEach(() => {
   window.localStorage.setItem("carousel-panel:Calques", "1");
-  window.localStorage.setItem("carousel-editor:mode", "complet"); // panneau complet (« Plus d'outils »), chantier D
+  window.localStorage.setItem("carousel-editor:onglet", "calques"); // panneau complet (« Plus d'outils »), chantier D
 });
 afterEach(() => {
   cleanup();
@@ -26,7 +26,8 @@ describe("settings panel sections", () => {
   it("opens only the essentials, the rest on demand, and remembers it", () => {
     render(<CarouselEditor result={raw} visualSlides={visuals} onChange={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /Choisir le calque Titre/ }));
-    expect(section("Texte").getAttribute("aria-expanded")).toBe("true");
+    // Panneau à onglets (26/11/2026) : le texte, sa police et sa couleur sont toujours visibles (plus de section « Texte »).
+    expect(screen.getByLabelText("Texte sélectionné")).toBeTruthy();
     expect(section("Typographie avancée").getAttribute("aria-expanded")).toBe("false");
     expect(section("Position et taille").getAttribute("aria-expanded")).toBe("false");
     // Les réglages repliés restent dans la page, simplement masqués.

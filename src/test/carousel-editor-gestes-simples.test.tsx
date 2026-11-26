@@ -28,14 +28,16 @@ function Harness({ brandColors }: { brandColors?: string[] }) {
     <CarouselEditor result={r} visualSlides={v} brandColors={brandColors} onChange={(a, b) => { setR(a); setV(b); }} /></>);
 }
 const saved = () => JSON.parse(screen.getByTestId("saved").textContent!);
-const panel = () => screen.getByLabelText("Réglages simples");
+const panel = () => screen.getByTestId("editor-panel");
+// Panneau à onglets (26/11/2026) : chaque geste a son onglet.
+const tab = (name: string) => fireEvent.click(screen.getByRole("tab", { name }));
 const undo = () => fireEvent.click(screen.getByLabelText("Annuler la modification"));
 
 describe("gestes de base en mode simple (chantier AB)", () => {
   it("« Mise en page » ouvre la galerie de la slide ; un choix, une étape d'Annuler", () => {
     render(<Harness />);
     const before = saved().v[0].html, other = saved().v[1].html;
-    fireEvent.click(within(panel()).getByRole("button", { name: /^Mise en page/ }));
+    tab("Mise en page");
     fireEvent.click(screen.getByRole("button", { name: "Mise en page Grand titre" }));
     const after = saved();
     expect(after.v[0].html).not.toBe(before);
@@ -48,7 +50,7 @@ describe("gestes de base en mode simple (chantier AB)", () => {
   it("« Thème du carrousel » change toutes les slides en une étape d'Annuler", () => {
     render(<Harness />);
     const before = saved().v.map((s: { html: string }) => s.html);
-    fireEvent.click(within(panel()).getByRole("button", { name: /^Thème du carrousel/ }));
+    tab("Couleurs");
     const themes = screen.getAllByRole("button", { name: /^Appliquer le thème/ });
     expect(themes.map((b) => b.getAttribute("aria-label"))).toEqual(expect.arrayContaining(["Appliquer le thème Sombre"]));
     fireEvent.click(screen.getByRole("button", { name: "Appliquer le thème Sombre" }));
@@ -61,6 +63,7 @@ describe("gestes de base en mode simple (chantier AB)", () => {
 
   it("« Ajouter une icône » : recherche en français, icône posée au centre en couleur de marque, couleur changeable", () => {
     render(<Harness brandColors={["#91014b"]} />);
+    tab("Ajouter");
     fireEvent.click(within(panel()).getByRole("button", { name: /Ajouter une icône/ }));
     fireEvent.change(screen.getByLabelText("Chercher une icône"), { target: { value: "coeur" } });
     const icons = within(screen.getByRole("group", { name: "Icônes" })).getAllByRole("button");

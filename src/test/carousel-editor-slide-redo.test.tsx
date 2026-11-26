@@ -5,8 +5,8 @@
 // refait pas, une erreur ne touche à rien. La slide refaite garde ses zones
 // PowerPoint (data-pptx-editable) et sa photo d'origine.
 import { useState } from "react";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import CarouselEditor from "@/components/creer/CarouselEditor";
 import { buildSlideRedoBody, collectSlidePhotos, slideFromRedo, type SlideRedoApi } from "@/components/creer/CarouselEditorParts/slide-redo";
 import { getEditorElements, readCarouselDocument } from "@/lib/carousel-editor";
@@ -49,32 +49,21 @@ function Harness({ api, rawIn = raw }: { api: SlideRedoApi; rawIn?: any }) {
 }
 const saved = () => JSON.parse(screen.getByTestId("saved").textContent!);
 
-async function askRedo(instruction: string) {
-  fireEvent.click(screen.getByRole("button", { name: "Sélectionner la slide 3" }));
-  fireEvent.click(screen.getByTestId("slide-redo-button"));
-  const dialog = await screen.findByTestId("slide-redo-dialog");
-  expect(within(dialog).getByText("Refaire la slide 3")).toBeTruthy();
-  expect(within(dialog).getByText("Les autres slides restent telles quelles.")).toBeTruthy();
-  expect(within(dialog).getByText("Il te reste 22 crédits ce mois-ci.")).toBeTruthy();
-  // QA du 12/11/2026 : le nom du modèle (« Dis à Claude… ») ne s'affiche plus.
-  expect(dialog.outerHTML).not.toMatch(/Claude/);
-  fireEvent.change(within(dialog).getByLabelText("Dis ce que tu veux changer sur cette slide"), { target: { value: instruction } });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Refaire cette slide · 1 crédit" }));
-}
-
+// Panneau à onglets (26/11/2026) : la demande s'écrit toujours dans le panneau (collée en bas sur
+// ordinateur). Le bouton « Refaire cette slide » de la ligne d'outils et sa fenêtre n'existent plus.
 describe("Refaire cette slide dans l'éditeur", () => {
-  // Bouton et fenêtre : le mode « Plus d'outils » (en mode simple, la demande est dans le panneau, plus bas).
-  beforeEach(() => window.localStorage.setItem("carousel-editor:mode", "complet"));
   it("refait la slide 3 : les 13 autres inchangées, une étape d'Annuler revient à l'avant", async () => {
     const api = fakeApi();
     render(<Harness api={api} />);
     const before = saved();
-    await askRedo("fais-en une frise en 3 étapes");
-    const dialog = await screen.findByText("Voici la nouvelle version");
-    expect(dialog).toBeTruthy();
-    expect(screen.getByText("Consigne : « fais-en une frise en 3 étapes »")).toBeTruthy();
-    expect(screen.getByText("Ta version")).toBeTruthy();
-    expect(screen.getByText("Nouvelle version")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Sélectionner la slide 3" }));
+    const ask = await screen.findByTestId("slide-ask");
+    fireEvent.change(within(ask).getByLabelText("Dis ce que tu veux changer sur cette slide"), { target: { value: "fais-en une frise en 3 étapes" } });
+    fireEvent.click(within(ask).getByRole("button", { name: "Refaire cette slide · 1 crédit" }));
+    expect(await within(ask).findByText("Slide 3 : voici la nouvelle version")).toBeTruthy();
+    expect(within(ask).getByText("Ta demande : « fais-en une frise en 3 étapes »")).toBeTruthy();
+    expect(within(ask).getByText("Ta version")).toBeTruthy();
+    expect(within(ask).getByText("Nouvelle version")).toBeTruthy();
     // Demande envoyée : la slide 3, la consigne, tout le carrousel pour le fil.
     expect(api.calls[0]).toMatchObject({ type: "slide_redo", redo_slide_number: 3, instruction: "fais-en une frise en 3 étapes", carousel_type: "text" });
     expect(api.calls[0].slides).toHaveLength(14);
@@ -110,48 +99,7 @@ describe("Refaire cette slide dans l'éditeur", () => {
     expect(saved().r.slides[2].title).toBe("Titre 3");
   }, 20_000);
 
-  it("« Garder la mienne » ne change rien", async () => {
-    render(<Harness api={fakeApi()} />);
-    const before = saved();
-    await askRedo("plus court");
-    await screen.findByText("Voici la nouvelle version");
-    fireEvent.click(screen.getByRole("button", { name: "Garder la mienne" }));
-    expect(saved()).toEqual(before);
-  });
-
-  it("fenêtre fermée pendant l'attente : la proposition rouvre la fenêtre", async () => {
-    let release: () => void = () => {};
-    const api = fakeApi();
-    const answer = api.request;
-    api.request = (body) => new Promise((resolve) => { release = () => resolve(answer(body)); });
-    render(<Harness api={api} />);
-    await askRedo("plus court");
-    expect(await screen.findByText("L'Assistant Com' refait ta slide…")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Fermer" }));
-    await waitFor(() => expect(screen.queryByTestId("slide-redo-dialog")).toBeNull());
-    release();
-    expect(await screen.findByText("Voici la nouvelle version")).toBeTruthy();
-  });
-
-  it("une erreur s'affiche et ne touche à rien", async () => {
-    render(<Harness api={fakeApi({ request: async () => ({ data: null, error: "L'Assistant Com' n'a pas réussi à refaire cette slide sans inventer de chiffre ou d'histoire. Rien n'a été débité : reformule ta consigne." }) })} />);
-    const before = saved();
-    await askRedo("ajoute une statistique frappante");
-    expect((await screen.findByRole("alert")).textContent).toMatch(/Rien n'a été débité/);
-    expect(saved()).toEqual(before);
-  });
-
-  it("slide verrouillée : bouton grisé, avec la phrase pour la déverrouiller", () => {
-    const locked = { ...raw, slides: raw.slides.map((s) => (s.slide_number === 3 ? { ...s, editor_locked: true } : s)) };
-    render(<Harness api={fakeApi()} rawIn={locked} />);
-    fireEvent.click(screen.getByRole("button", { name: "Sélectionner la slide 3" }));
-    const button = screen.getByTestId("slide-redo-button") as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-    expect(button.getAttribute("aria-label")).toMatch(/déverrouille la slide pour la refaire/);
-    expect(button.parentElement?.getAttribute("title")).toBe("Déverrouille la slide pour la refaire");
-  });
-
-  it("photo seule sans texte (« Photos brutes ») : bouton grisé, avec la raison", () => {
+  it("photo seule sans texte (« Photos brutes ») : la raison à la place du bouton", async () => {
     const PHOTO = "https://exemple.supabase.co/storage/v1/object/public/calendar-visuals/u/carousel-media/brute.jpg";
     const pure = { carousel_type: "photo", slides: [{ slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: null }, { slide_number: 2, slide_type: "photo_full", photo_index: 2, overlay_text: null }] };
     function Pure() {
@@ -159,31 +107,20 @@ describe("Refaire cette slide dans l'éditeur", () => {
       return <CarouselEditor result={r} visualSlides={v} onChange={(a, b) => { setR(a); setV(b); }} slideRedo={fakeApi()} />;
     }
     render(<Pure />);
-    const button = screen.getByTestId("slide-redo-button") as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-    expect(button.parentElement?.getAttribute("title")).toMatch(/photo seule, sans texte/);
+    const ask = await screen.findByTestId("slide-ask");
+    expect(ask.textContent).toMatch(/photo seule, sans texte/);
+    expect(within(ask).queryByRole("button", { name: "Refaire cette slide · 1 crédit" })).toBeNull();
   });
 
-  it("sans l'appli (pas de slideRedo) : pas de bouton", () => {
-    function Bare() {
-      const [r, setR] = useState<any>(raw), [v, setV] = useState(visuals);
-      return <CarouselEditor result={r} visualSlides={v} onChange={(a, b) => { setR(a); setV(b); }} />;
-    }
-    render(<Bare />);
-    expect(screen.queryByTestId("slide-redo-button")).toBeNull();
-  });
 });
 
-// Éditeur facile (20/11/2026) : en mode simple (par défaut), la demande à l'IA s'écrit
-// dans le panneau, sous les textes de la slide. Ni bouton sans nom, ni fenêtre.
-describe("Demander un changement à l'IA dans le panneau (mode simple)", () => {
+describe("Demander un changement à l'IA dans le panneau", () => {
   it("idées à toucher, crédit annoncé, les deux versions au même endroit, sans fenêtre", async () => {
     const api = fakeApi();
     render(<Harness api={api} />);
     const before = saved();
     fireEvent.click(screen.getByRole("button", { name: "Sélectionner la slide 3" }));
     const ask = await screen.findByTestId("slide-ask");
-    expect(screen.queryByTestId("slide-redo-button")).toBeNull();
     expect(within(ask).getByText("Demander un changement à l'IA")).toBeTruthy();
     expect(ask.textContent).toContain("Les autres slides ne bougent pas. Il te reste 22 crédits ce mois-ci.");
     expect(ask.outerHTML).not.toMatch(/Claude/);
@@ -196,7 +133,6 @@ describe("Demander un changement à l'IA dans le panneau (mode simple)", () => {
     expect((within(ask).getByLabelText("Dis ce que tu veux changer sur cette slide") as HTMLTextAreaElement).value).toBe("Plus court");
     fireEvent.click(within(ask).getByRole("button", { name: "Refaire cette slide · 1 crédit" }));
     expect(await within(ask).findByText("Slide 3 : voici la nouvelle version")).toBeTruthy();
-    expect(screen.queryByTestId("slide-redo-dialog")).toBeNull();
     expect(api.calls[0]).toMatchObject({ type: "slide_redo", redo_slide_number: 3, instruction: "Plus court" });
     expect(saved()).toEqual(before);
     fireEvent.click(within(ask).getByRole("button", { name: "Garder la nouvelle" }));

@@ -14,7 +14,7 @@ vi.mock("@/components/creer/PhotoSwapDialog", () => ({ default: () => null }));
 beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
 beforeEach(() => {
   vi.clearAllMocks();
-  window.localStorage.setItem("carousel-editor:mode", "complet"); // panneau complet (« Plus d'outils »), chantier D
+  window.localStorage.setItem("carousel-editor:onglet", "calques"); // panneau complet (« Plus d'outils »), chantier D
   for (const title of ["Calques", "Toutes les slides"]) window.localStorage.setItem(`carousel-panel:${title}`, "1");
 });
 afterEach(() => {
@@ -80,6 +80,7 @@ describe("annuler / rétablir après une opération lourde", () => {
   it("changement de mise en page (composeLayout)", () => {
     render(<Harness />);
     const before = state();
+    tab("Mise en page");
     fireEvent.click(screen.getByLabelText("Mise en page Citation"));
     expect(saved().slides[0].layout_variant).toBe("citation");
     // La slide garde son identité (même slide, nouvelle disposition).
@@ -91,6 +92,7 @@ describe("annuler / rétablir après une opération lourde", () => {
   it("deux mises en page de suite : deux annulations, pas une", () => {
     render(<Harness />);
     const before = state();
+    tab("Mise en page");
     fireEvent.click(screen.getByLabelText("Mise en page Citation"));
     const middle = state();
     fireEvent.click(screen.getByLabelText("Mise en page Grand titre"));
@@ -103,7 +105,7 @@ describe("annuler / rétablir après une opération lourde", () => {
   it("thème du carrousel (applyTheme) : toutes les slides reviennent d'un coup", () => {
     render(<Harness />);
     const before = state();
-    tab("Carrousel");
+    tab("Couleurs");
     fireEvent.click(screen.getByLabelText("Appliquer le thème Sombre"));
     expect(slideDoc(0).body.innerHTML).not.toBe(new DOMParser().parseFromString(JSON.parse(before).v[0].html, "text/html").body.innerHTML);
     expect(slideDoc(1).body.innerHTML).not.toBe(new DOMParser().parseFromString(JSON.parse(before).v[1].html, "text/html").body.innerHTML);
@@ -114,10 +116,10 @@ describe("annuler / rétablir après une opération lourde", () => {
   it("thème puis mise en page : on remonte pas à pas", () => {
     render(<Harness />);
     const before = state();
-    tab("Carrousel");
+    tab("Couleurs");
     fireEvent.click(screen.getByLabelText("Appliquer le thème Sombre"));
     const themed = state();
-    tab("Slide");
+    tab("Mise en page");
     fireEvent.click(screen.getByLabelText("Mise en page Citation"));
     undo();
     expect(state()).toBe(themed);
@@ -146,10 +148,11 @@ describe("annuler / rétablir après une opération lourde", () => {
   });
   it("une retouche après une annulation efface « Rétablir »", () => {
     render(<Harness />);
+    tab("Mise en page");
     fireEvent.click(screen.getByLabelText("Mise en page Citation"));
     undo();
     expect(redoButton().disabled).toBe(false);
-    tab("Carrousel");
+    tab("Couleurs");
     fireEvent.click(screen.getByLabelText("Appliquer le thème Sombre"));
     expect(redoButton().disabled).toBe(true);
   });
@@ -166,10 +169,12 @@ describe("annuler / rétablir après une opération lourde", () => {
       title.getBoundingClientRect = () => ({ left: 80, top: 100, width: 400, height: 90, right: 480, bottom: 190, x: 80, y: 100, toJSON() {} }) as DOMRect;
       act(() => { title.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true, clientX: 100, clientY: 120, button: 0 })); });
       act(() => { title.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, cancelable: true, clientX: 100, clientY: 120, button: 0 })); });
-      fireEvent.click(screen.getByLabelText("Copier l’élément"));
+      fireEvent.click(screen.getByLabelText("Plus d’actions sur l’élément"));
+      fireEvent.click(screen.getByText("Copier (pour coller ailleurs)"));
       expect(toast.success).toHaveBeenCalledWith("Élément copié", expect.anything());
       fireEvent.click(screen.getByLabelText("Sélectionner la slide 2"));
       const before = state();
+      tab("Ajouter");
       fireEvent.click(screen.getByText("Coller l’élément copié"));
       const pasted = Array.from(slideDoc(1).querySelectorAll("h1")).map((h) => h.textContent);
       expect(pasted).toEqual(["Deux", "Un"]);

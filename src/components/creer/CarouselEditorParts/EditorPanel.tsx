@@ -4,8 +4,10 @@
 // changeait toute la logique. Maintenant : un seul panneau, une colonne d'icônes, un sujet
 // affiché à la fois (Texte, Photo, Mise en page, Couleurs, Ajouter, Calques).
 // - Le panneau suit ce qu'on touche sur la slide : un texte ouvre « Texte », une photo
-//   « Photo », une forme ou une icône « Couleurs » (sauf depuis « Calques », où l'on choisit
-//   justement des éléments).
+//   « Photo », une forme ou une icône « Couleurs ».
+// - « Calques » est l'onglet de celles qui retouchent en détail : la liste des éléments, et
+//   dessous les réglages de celui qu'on choisit (comme l'ancien « Plus d'outils »). Le panneau
+//   n'en sort pas tout seul, et l'éditeur s'en souvient d'une fois sur l'autre.
 // - Les réglages pointus de l'ancien « Plus d'outils » sont sous la partie simple de
 //   l'onglet de l'élément choisi, dans leurs sections repliables d'origine.
 // - « Demander un changement à l'IA » reste collé en bas sur ordinateur (SlideRedoDialog.tsx
@@ -57,13 +59,33 @@ type Props =
     ungroupSelection: () => void;
   };
 
+/** L'éditeur se souvient de l'onglet « Calques » (comme il se souvenait de « Plus d'outils ») ; sinon il s'ouvre sur « Texte ». */
+export const PANEL_TAB_KEY = "carousel-editor:onglet";
+
 /** Onglet de l'élément choisi : c'est là que ses réglages pointus s'affichent. */
 const tabOf = (element: EditorElement | undefined): PanelTab | null =>
   !element || element.role === "background" ? null : element.kind === "text" ? "texte" : element.kind === "photo" ? "photo" : "couleurs";
 
 export function EditorPanel(p: Props) {
   const { element, slide, group, selectOne, elements } = p;
-  const [tab, setTab] = useState<PanelTab>("texte");
+  const [tab, setTabState] = useState<PanelTab>(() => {
+    try {
+      return window.localStorage.getItem(PANEL_TAB_KEY) === "calques" ? "calques" : "texte";
+    } catch {
+      return "texte";
+    }
+  });
+  const setTab = (next: PanelTab | ((t: PanelTab) => PanelTab)) =>
+    setTabState((t) => {
+      const value = typeof next === "function" ? next(t) : next;
+      try {
+        if (value === "calques") window.localStorage.setItem(PANEL_TAB_KEY, "calques");
+        else window.localStorage.removeItem(PANEL_TAB_KEY);
+      } catch {
+        // Stockage indisponible : le choix reste pour la session.
+      }
+      return value;
+    });
   const [fontOpen, setFontOpen] = useState(false);
   // Le panneau suit ce qu'on touche sur la slide.
   const follows = tabOf(element);
@@ -101,7 +123,7 @@ export function EditorPanel(p: Props) {
   );
 
   // Réglages pointus de l'élément choisi (l'ancien onglet « Élément » de « Plus d'outils »), dans leurs sections d'origine.
-  const advanced: ReactNode = element && follows === shown && !slide.locked && (
+  const advanced: ReactNode = element && (follows === shown || (shown === "calques" && follows)) && !slide.locked && (
     <fieldset disabled={elementLocked} className="min-w-0 space-y-3 disabled:opacity-50" data-testid="panel-advanced">
       <p className="border-t pt-3 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Réglages avancés</p>
       {element.kind === "text" && (
@@ -149,7 +171,7 @@ export function EditorPanel(p: Props) {
           {slide.locked && (
             <div role="status" className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">
               <span className="flex items-center gap-1.5"><LockKeyhole size={13} /> Slide verrouillée : déverrouille-la pour la modifier.</span>
-              <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={() => p.changeSlide({ ...slide, locked: false })}>Déverrouiller</Button>
+              <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={() => p.changeSlide({ ...slide, locked: false })}>Déverrouiller la slide</Button>
             </div>
           )}
           {group.length > 1 && !slide.locked && (
@@ -166,10 +188,12 @@ export function EditorPanel(p: Props) {
               Dégrouper
             </Button>
           )}
-          {shown === "calques" ? (
+          {shown === "calques" && (
             <LayersPanel changeSlide={p.changeSlide} group={group} layers={p.layers} lockElement={p.lockElement} remove={p.remove} removedLayers={p.removedLayers} selectAdd={p.selectAdd} selectOne={selectOne} selected={p.selected} setSelected={p.setSelected} slide={slide} />
-          ) : (
+          )}
             <fieldset disabled={slide.locked} className="min-w-0 space-y-3 disabled:opacity-50">
+              {/* « Calques » : sous la liste, les réglages de l'élément choisi. */}
+              {shown === "calques" && follows && simple(follows as "texte" | "photo" | "couleurs")}
               {shown === "texte" && simple("texte")}
               {shown === "photo" && simple("photo")}
               {shown === "page" && <LayoutSettings changeLayout={p.changeLayout} changeSlide={p.changeSlide} layoutPreviews={p.layoutPreviews} slide={slide} />}
@@ -193,7 +217,6 @@ export function EditorPanel(p: Props) {
               )}
               {advanced}
             </fieldset>
-          )}
         </div>
         {/* « Demander un changement à l'IA » s'affiche ici (SlideRedoDialog.tsx) : collé en bas sur ordinateur, onglet « IA » sur téléphone. */}
         <div id={SLIDE_ASK_SLOT} className={`empty:hidden md:max-h-[60%] md:shrink-0 md:overflow-y-auto md:border-t md:border-primary/25 md:bg-primary/[0.03] md:p-2.5 ${tab === "ia" ? "max-md:pt-3" : "max-md:hidden"}`} />
