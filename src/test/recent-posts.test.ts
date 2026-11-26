@@ -31,6 +31,8 @@ describe("carte « Tes posts récents » : mise en mots", () => {
     expect(tropTotLabel("2026-11-25T10:00:00Z", now)).toBe("Publié hier. Verdict à 7 jours.");
     expect(tropTotLabel("2026-11-26T10:00:00Z", now)).toBe("Publié aujourd'hui. Verdict à 7 jours.");
     expect(tropTotLabel(undefined, now)).toBe("Verdict à 7 jours.");
+    // Relevé ancien : le post a dépassé ses 7 jours depuis, on ne promet plus un verdict « à 7 jours ».
+    expect(tropTotLabel("2026-11-14T10:00:00Z", now)).toBe("Publié il y a 12 jours. Actualise tes stats pour voir son verdict.");
   });
 
   it("propose de recycler les posts sortis du lot, sinon les meilleurs à l'engagement", () => {

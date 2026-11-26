@@ -65,11 +65,16 @@ export function habituelLabel(p: Pick<LivePosts, "medianLikes" | "medianSample">
   return `Un post habituel chez toi fait ${compte(p.medianLikes, "like")} (le milieu de tes ${p.medianSample} derniers posts).`;
 }
 
-/** « Publié il y a 3 jours. Verdict à 7 jours. » */
+/**
+ * « Publié il y a 3 jours. Verdict à 7 jours. » Le verdict est figé au moment du
+ * relevé : passé 7 jours, on invite à actualiser plutôt que d'annoncer un verdict
+ * « à 7 jours » pour un post qui en a 12.
+ */
 export function tropTotLabel(timestamp: string | undefined, now: Date = new Date()): string {
   const t = timestamp ? new Date(timestamp).getTime() : NaN;
   if (!Number.isFinite(t)) return "Verdict à 7 jours.";
   const jours = Math.floor((now.getTime() - t) / 86400000);
+  if (jours >= 7) return `Publié il y a ${jours} jours. Actualise tes stats pour voir son verdict.`;
   const quand = jours <= 0 ? "aujourd'hui" : jours === 1 ? "hier" : `il y a ${jours} jours`;
   return `Publié ${quand}. Verdict à 7 jours.`;
 }
