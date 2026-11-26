@@ -25,6 +25,23 @@ export function slideBody(s: any): string {
   return [s?.body, s?.overlay_text].filter(Boolean).join(" ");
 }
 
+/**
+ * Légende qui recopie les slides (étude Instagram du 26/11/2026 : « si plus de
+ * la moitié des phrases sont déjà sur les slides, réécrire »). Une phrase de
+ * hook ou de body compte comme recopiée quand au moins 5 de ses mots de plus de
+ * 3 lettres existent et que 80 % d'entre eux sont sur UNE même slide. Rien n'est
+ * signalé tant que ces phrases ne font pas plus de la moitié (et au moins 2).
+ */
+export function findCaptionCopiedSentences(caption: any, slides: any[]): string[] {
+  if (!caption || typeof caption === "string") return [];
+  const texts = slides.map(slideTexts).filter((t) => t.trim());
+  if (!texts.length) return [];
+  const big = (s: string) => (s.toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) || []).length;
+  const sentences = sentencesOf([caption.hook, caption.body].filter(Boolean).join("\n")).filter((s) => big(s) >= 5);
+  const copied = sentences.filter((s) => texts.some((t) => tokenSimilarity(s, t) >= 0.8 && big(t) >= big(s)));
+  return copied.length >= 2 && copied.length > sentences.length / 2 ? copied : [];
+}
+
 /** `testimonySource` : brief + réponses + actu ; absent = témoignages et vécus non mesurés. */
 export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext, research?: ResearchNumbers, testimonySource?: string): RedacAnalysis {
   const doc = parsed?.carousel?.slides ? parsed.carousel : parsed;
@@ -53,6 +70,8 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, 
   const ctaDuplicated = Boolean(
     caption?.cta && lastSlide && tokenSimilarity(caption.cta, slideTexts(lastSlide)) >= 0.7,
   );
+
+  const captionCopiedSentences = findCaptionCopiedSentences(caption, slides);
 
   const moulded = MOULDED_VERBATIMS.map((re) => allText.match(re)?.[0]).filter(Boolean) as string[];
 
@@ -84,7 +103,7 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, 
   const inventedExperiences = findInventedExperiences(allText, testimonySource);
 
   return {
-    reversals, overlongSlides, overlongOverlays, ctaDuplicated, moulded,
+    reversals, overlongSlides, overlongOverlays, ctaDuplicated, captionCopiedSentences, moulded,
     hashtagsCount, fabricatedNumbers, unsourcedResearchNumbers, researchNumbersUsed, durationConflicts, brandCopyOverlap, hookEchoes,
     recentEchoes, inventedTestimonials, inventedExperiences,
   };
@@ -127,6 +146,7 @@ export function buildQualityCheck(a: RedacAnalysis, repassed: boolean, researchC
     slides_over_50_words: a.overlongSlides,
     overlays_over_28_words: a.overlongOverlays,
     caption_cta_duplicates_slide: a.ctaDuplicated,
+    caption_sentences_copied_from_slides: a.captionCopiedSentences?.length ?? 0,
     moulded_verbatims: a.moulded,
     fabricated_numbers: a.fabricatedNumbers.length,
     unsourced_research_numbers: a.unsourcedResearchNumbers?.length ?? 0,

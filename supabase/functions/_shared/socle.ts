@@ -43,7 +43,9 @@ export const TEXT_AUTO_MAX_SLIDES = 20;
 /** Rythme du carrousel TEXTE en longueur automatique (04/10/2026, carrousel de
  * référence de Laetitia : 16 slides, environ 25 mots par slide, de 4 à 48, une
  * idée par slide). Le texte n'est jamais raccourci : il est découpé. */
-export const TEXT_SLIDE_TARGET_WORDS = { min: 15, max: 35 };
+/** 26/11/2026 : repère monté de 15-35 à 20-45 (étude Instagram : les slides de
+ * lecture trop courtes laissent sans contexte) ; le plafond reste 50. */
+export const TEXT_SLIDE_TARGET_WORDS = { min: 20, max: 45 };
 /** Au-delà, la slide est signalée dans les journaux (jamais coupée par le code). */
 export const LONG_SLIDE_WORDS = 50;
 /** Couverture : accroche de 4 à 10 mots, sous-titre facultatif de 12 mots au plus. */
@@ -178,8 +180,8 @@ export const LISIBLE_TAILLE_CORPS = "Taille : 46-52px (jusqu'à 40px seulement s
 export const COVER_WRITING = `COUVERTURE (SLIDE 1) ET SLIDE 2
 La première slide est une couverture : une ACCROCHE en titre, de 4 à ${COVER_HOOK_MAX_WORDS} mots (idéalement 5 à 8), et au plus un sous-titre de ${COVER_SUBTITLE_MAX_WORDS} mots, seulement s'il apporte une information utile (pour qui, ce qu'on y gagne, le cadre). Rien d'autre sur cette slide : ni petit titre au-dessus, ni paragraphe, ni annonce du plan.
 Une accroche crée une tension ou un manque qui donne envie de glisser. Formes qui marchent : une prise de position (« Publier tous les jours ne sert à rien. »), une erreur courante (« L'erreur qui rend une page de vente invisible »), une question dont on a envie de connaître la réponse et à laquelle le contenu répond (ni un simple oui/non, ni une question posée au public sur ses goûts), une promesse concrète, une liste chiffrée (« 5 mots à bannir d'une bio »), « Ce que personne ne dit sur… », une actualité détournée, une histoire entamée en plein milieu. Varie la forme selon le sujet. Ces exemples sont neutres : l'accroche s'adresse au public en tu ou en vous comme le reste du carrousel.
-Interdits sur la couverture : le titre-étiquette qui nomme seulement le sujet (« Les tarifs dans l'artisanat », « 5 conseils pour une bonne com »), l'annonce (« Dans ce carrousel… »), le jargon, la promesse que la suite ne tient pas, un chiffre, un nom ou un vécu absents des sources.
-La slide 2 est une deuxième accroche : Instagram peut ouvrir le carrousel directement sur elle. Elle pose la thèse ou la première révélation dans une formulation qui se comprend sans la slide 1, sans « dans ce carrousel », « on commence » ni « voici pourquoi ».`;
+Interdits sur la couverture : le titre-étiquette qui nomme seulement le sujet (« Les tarifs dans l'artisanat », « 5 conseils pour une bonne com »), l'annonce (« Dans ce carrousel… »), le jargon, la promesse que la suite ne tient pas, un chiffre, un nom ou un vécu absents des sources. Avant de garder l'accroche, vérifie en silence deux choses : la suite ne se devine pas (si la réponse est évidente, on ne glisse pas), et une personne qui ne connaît pas le compte comprend de quoi on parle, sans nom de marque, d'offre ni formule maison.
+La slide 2 est une deuxième accroche : Instagram peut ouvrir le carrousel directement sur elle. Elle pose la thèse ou la première révélation dans une formulation qui se comprend sans la slide 1, sans « dans ce carrousel », « on commence » ni « voici pourquoi ». Quand la couverture ne dit pas qui parle ni pourquoi maintenant, la slide 2 le dit en une ou deux phrases courtes, avec ce que les sources donnent : un carrousel envoyé arrive chez des personnes qui ne connaissent pas le compte.`;
 
 // ═══ Récit continu photo et mixte : consignes (branchement plus bas) ═══════
 

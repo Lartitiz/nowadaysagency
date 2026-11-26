@@ -11,6 +11,8 @@ export interface RedacAnalysis {
   /** Overlays photo > 28 mots (règle : 5-25, un overlay est une phrase posée SUR la photo). */
   overlongOverlays: Array<{ slide: number; words: number }>;
   ctaDuplicated: boolean;
+  /** Phrases de la légende recopiées d'une slide, quand elles en font plus de la moitié (étude du 26/11/2026). */
+  captionCopiedSentences?: string[];
   moulded: string[];
   hashtagsCount: number;
   fabricatedNumbers: string[];
@@ -37,6 +39,7 @@ export function redacViolations(a: RedacAnalysis): number {
   return (
     a.reversals.length + // Dès la première formule ajoutée par le modèle.
     (a.ctaDuplicated ? 1 : 0) +
+    (a.captionCopiedSentences?.length ? 1 : 0) +
     a.moulded.length +
     Math.min(3, a.fabricatedNumbers.length) +
     Math.min(3, a.unsourcedResearchNumbers?.length ?? 0) +
