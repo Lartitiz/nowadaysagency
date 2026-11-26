@@ -6,6 +6,9 @@
 
 import { type RedacAnalysis, type TextRedacAnalysis } from "./scoring.ts";
 
+/** Question de légende absente ou fermée (carrousel texte : chute imposée ; récit continu photo et mixte). */
+export const CAPTION_QUESTION_OUVERTE_FIX = `La caption ne contient aucune question, ou une question qui se répond par oui ou non : réécris le champ "cta" de la CAPTION en question OUVERTE spécifique au sujet, qui porte sur la vie de la personne qui lit (« Qu'est-ce qui… ? », « Comment… ? »).`;
+
 export const UNSOURCED_RESEARCH_FIX = (items: string[]) =>
   `CHIFFRES DE LA RECHERCHE REPRIS SANS LEUR SOURCE : ces chiffres ne viennent que de la matière de recherche, et la phrase qui les reprend ne cite pas leur source :\n${items.map((n) => `- ${n}`).join("\n")}\nPour CHACUN : si la matière de recherche donne la source de ce chiffre, ajoute-la DANS LA MÊME PHRASE (ou dans la phrase juste avant, si elle introduit l'étude), de façon discrète (« (Nom, année) » ou « selon Nom ») ; sinon, remplace le chiffre par une formulation qualitative honnête (« une petite partie de ton réseau », « les premiers jours »). N'invente JAMAIS de source, de nom ou d'année. Ne touche pas au reste du texte.`;
 
