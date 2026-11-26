@@ -44,8 +44,8 @@ const FROZEN: Record<string, string> = {
   NEWS_FEELING_FIRST: "8f993be7ed971582d68c324586c2003e4cbc9e5f28363aa9cd1beea5a6a09bca",
   "audienceAddressRule(tu)": "1e455edbb8af8fa3962645c81697c776f87c907827cd9b6f62eaa464e731050a",
   "audienceAddressRule(vous)": "e40008f61d5fa6f67625514695ec922b115e886a9d0e07386c733ec6c65bd386",
-  ONE_IDEA_RULE: "4d21394cc74aacced74db7c2762c9a1a1828c1aa6d6e3ac5a4556a3020abcaf4",
-  COVER_WRITING: "057b1dd9badd51f218a9c5c6dbb322cb29cb9a1ef50c5073e700d7c543456f9d",
+  ONE_IDEA_RULE: "2f63a9d5879e5c0d82f64973f7f495fda90b6fa3b376bce3910cb263cb4f33da",
+  COVER_WRITING: "b12ab6e2b838100fa365d3e76c0d88a164c7d56b3715dddf3af1b07856bc991a",
   TEXT_SENSE_RULES: "e527fc955637f7d9955356298cf47a52dd0862afbcbccd8ca4affae990ed9d11",
   // Règle 4 réécrite le 05/10/2026 (consigne positive commune, PR voix orale) :
   // avant, VOIX_ORALE_STORIES = 15fd7cd6…5c67, VOIX_ORALE_LEGENDE_PHOTO = 269e744f…ddd2.
@@ -160,7 +160,7 @@ Deno.test("textes de consigne identiques à ceux d'avant le déplacement", async
   for (const [name, text] of Object.entries(current)) assertEquals(await sha256(text), FROZEN[name], `${name} a changé`);
   assertEquals(socle.audienceAddressRule(null), "");
   assertEquals(socle.audienceAddressRule(undefined), "");
-  assertEquals([socle.TEXT_SLIDE_TARGET_WORDS, socle.LONG_SLIDE_WORDS, socle.TEXT_AUTO_MAX_SLIDES], [{ min: 15, max: 35 }, 50, 20]);
+  assertEquals([socle.TEXT_SLIDE_TARGET_WORDS, socle.LONG_SLIDE_WORDS, socle.TEXT_AUTO_MAX_SLIDES], [{ min: 20, max: 45 }, 50, 20]);
   assertEquals([socle.COVER_HOOK_MAX_WORDS, socle.COVER_SUBTITLE_MAX_WORDS], [10, 12]);
 });
 

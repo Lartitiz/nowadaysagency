@@ -71,6 +71,7 @@ snapshot[`golden runRedacGate : carrousel corrigé, quality_check calculé par l
 {
   after: {
     brandCopyOverlap: [],
+    captionCopiedSentences: [],
     ctaDuplicated: false,
     durationConflicts: [],
     fabricatedNumbers: [],
@@ -88,6 +89,7 @@ snapshot[`golden runRedacGate : carrousel corrigé, quality_check calculé par l
   },
   before: {
     brandCopyOverlap: [],
+    captionCopiedSentences: [],
     ctaDuplicated: true,
     durationConflicts: [],
     fabricatedNumbers: [
@@ -122,6 +124,7 @@ snapshot[`golden runRedacGate : carrousel corrigé, quality_check calculé par l
     quality_check: {
       brand_copy_overlap: 0,
       caption_cta_duplicates_slide: false,
+      caption_sentences_copied_from_slides: 0,
       corrected_by_repass: true,
       duration_conflicts: [],
       fabricated_numbers: 0,
@@ -188,6 +191,7 @@ snapshot[`golden runRedacGate : LinkedIn, correction refusée (chiffre inventé 
     quality_check: {
       brand_copy_overlap: 0,
       caption_cta_duplicates_slide: false,
+      caption_sentences_copied_from_slides: 0,
       corrected_by_repass: false,
       duration_conflicts: [],
       fabricated_numbers: 1,

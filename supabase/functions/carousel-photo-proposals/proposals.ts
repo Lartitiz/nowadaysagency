@@ -14,16 +14,19 @@ import {
  * 2. sinon une photo libre de droit (Pexels) sans personne ni produit, vérifiée
  *    sur ses pixels par les mêmes règles que les photos d'ambiance
  *    (carousel-ai/stock-ambient.ts) ;
+ *    Une slide restée sans photo a droit à UN deuxième essai, avec une requête
+ *    différente et plus simple ;
  * 3. sinon rien : la slide reste « Image à choisir », avec une vraie description
  *    de l'image idéale (`ideal`) à la place du texte de la slide recopié.
  *
  * Le serveur ne fait que proposer : l'écran télécharge et pose les photos.
  * Tout échec laisse le carrousel tel quel.
  */
-export const PHOTO_PROPOSALS_VERSION = "photo-proposals-v1";
+export const PHOTO_PROPOSALS_VERSION = "photo-proposals-v2";
 export const MAX_TARGETS = 10;
 const PLAN_CALL_MS = 20_000;
 const VERIFY_CALL_MS = 30_000;
+const RETRY_LATEST_START_MS = 35_000;
 
 export interface ProposalInput {
   subject?: string;
@@ -74,6 +77,39 @@ const planTool = (slides: number[], libraryIds: number[]) => ({
     } },
   },
 });
+
+const RETRY_RULES = `${QUERY_RULES}
+
+Ces slides n'ont trouvé AUCUNE photo acceptable au premier essai (failed_query = la requête qui n'a rien donné, null si elle a été refusée parce qu'elle nommait un produit, un commerce ou une personne). Écris pour chacune une requête DIFFÉRENTE, plus simple et plus générale : 2 ou 3 mots, une matière, une lumière, un lieu vide ou un objet neutre du quotidien, toujours accordée au passage. Ne reprends aucun mot de la requête qui a échoué.`;
+
+const retryTool = (slides: number[]) => ({
+  name: "requetes_de_secours",
+  description: "Une nouvelle requête Pexels par slide restée sans photo.",
+  input_schema: {
+    type: "object", required: ["queries"], properties: { queries: {
+      type: "array", minItems: slides.length, maxItems: slides.length, items: {
+        type: "object", required: ["slide", "query"], properties: {
+          slide: { type: "integer", enum: slides }, query: { type: "string", maxLength: 60 },
+        },
+      },
+    } },
+  },
+});
+
+/** Lecture stricte : slide hors liste ou en double ignorée, requête déjà essayée ou interdite écartée. */
+export function parseRetryQueries(raw: string, slides: number[], alreadyTried: Set<string>): Map<number, string> {
+  const out = new Map<number, string>();
+  const list = JSON.parse(raw)?.queries;
+  if (!Array.isArray(list)) return out;
+  const tried = new Set([...alreadyTried].map((q) => q.toLowerCase()));
+  for (const q of list) {
+    const query = typeof q?.query === "string" ? q.query.trim().replace(/\s+/g, " ") : "";
+    if (!slides.includes(q?.slide) || out.has(q.slide)) continue;
+    if (query.length < 3 || query.length > 60 || !acceptableAlt(query) || tried.has(query.toLowerCase())) continue;
+    out.set(q.slide, query);
+  }
+  return out;
+}
 
 export interface Plan { ideal: string | null; library: number | null; query: string | null }
 
@@ -159,18 +195,24 @@ export async function proposePhotos(input: ProposalInput, deps: Deps): Promise<{
     slide, ideal: plans.get(slide)?.ideal ?? null, library_index: plans.get(slide)?.library ?? null, stock: null, alternates: [],
   }));
 
-  const stockTargets = targets.filter((t) => plans.get(t)?.library == null && plans.get(t)?.query);
-  if (!stockTargets.length) return finish("completed", proposals);
+  // Slides sans photo de bibliothèque : une photo libre de droit, en deux essais au plus.
+  const needStock = targets.filter((t) => plans.get(t)?.library == null);
+  if (!needStock.length) return finish("completed", proposals);
   if (!apiKey) return finish("partial", proposals, { reason: "no-pexels-key" });
-  try {
-    const queries = new Map(stockTargets.map((t) => [t, plans.get(t)!.query!]));
+  const taken = new Set<string>();
+  const byslide = new Map(proposals.map((p) => [p.slide, p]));
+  /** Un essai : recherche Pexels, vérification sur les pixels, pose sur les slides servies. */
+  const round = async (queries: Map<number, string>) => {
+    const asked = [...queries.keys()];
+    if (!asked.length) return;
     const results = new Map<string, StockAmbientPhoto[]>();
     await Promise.all([...new Set(queries.values())].map(async (q) => {
-      try { results.set(q, await searchPexels(q, apiKey, fetchImpl)); } catch (e) { log(`[photo-proposals] pexels ${q}: ${(e as Error).message}`); }
+      try {
+        results.set(q, (await searchPexels(q, apiKey, fetchImpl)).filter((p) => !taken.has(p.id)));
+      } catch (e) { log(`[photo-proposals] pexels ${q}: ${(e as Error).message}`); }
     }));
-    const candidates = distributeCandidates(stockTargets, queries, results);
-    if (!candidates.size) return finish("partial", proposals, { reason: "no-candidates", queries: Object.fromEntries(queries) });
-
+    const candidates = distributeCandidates(asked, queries, results);
+    if (!candidates.size) return;
     const slides = [...candidates.keys()];
     const ids = [...candidates.values()].flat().map((p) => p.id);
     const content: any[] = [{ type: "text", text: JSON.stringify({ brand, carousel: input.slides, slides_to_check: slides }) }];
@@ -186,15 +228,45 @@ export async function proposePhotos(input: ProposalInput, deps: Deps): Promise<{
     addUsage(deps.usage, vSink);
     const chosen = parseChoices(rawChoices, candidates);
     const clean = cleanPhotoIds(rawChoices);
-    const taken = new Set([...chosen.values()].map((p) => p.id));
-    for (const p of proposals) {
-      const pick = chosen.get(p.slide);
-      if (!pick) continue;
+    for (const pick of chosen.values()) taken.add(pick.id);
+    for (const [slide, pick] of chosen) {
+      const p = byslide.get(slide)!;
       p.stock = pick;
-      p.alternates = (candidates.get(p.slide) || []).filter((c) => c.id !== pick.id && clean.has(c.id) && !taken.has(c.id));
+      p.alternates = (candidates.get(slide) || []).filter((c) => c.id !== pick.id && clean.has(c.id) && !taken.has(c.id));
+      for (const alt of p.alternates) taken.add(alt.id);
     }
-    return finish(chosen.size === stockTargets.length ? "completed" : "partial", proposals, { queries: Object.fromEntries(queries) });
+  };
+  const first = new Map(needStock.filter((t) => plans.get(t)?.query).map((t) => [t, plans.get(t)!.query!]));
+  const second = new Map<number, string>();
+  try {
+    await round(first);
+    // Deuxième essai (26/11/2026) : les slides restées sans photo (requête refusée, aucun
+    // candidat, rien d'accepté) repartent avec une requête différente, plus simple.
+    // Pas de deuxième essai si le premier a déjà traîné : l'écran n'attend que 90 s.
+    const missing = Date.now() - t0 > RETRY_LATEST_START_MS ? [] : needStock.filter((t) => !byslide.get(t)!.stock);
+    if (missing.length) {
+      const rSink: UsageSink = {};
+      const rawRetry = await call({
+        model: HAIKU_MODEL, system: RETRY_RULES, max_tokens: 800, maxRetries: 0, abortTimeoutMs: PLAN_CALL_MS,
+        tool: retryTool(missing),
+        messages: [{ role: "user", content: JSON.stringify({
+          subject: String(input.subject || "").slice(0, 400), brand, carousel: input.slides,
+          slides_to_illustrate: missing.map((t) => ({ slide: t, failed_query: first.get(t) ?? null })),
+        }) }],
+      }, rSink);
+      addUsage(deps.usage, rSink);
+      for (const [slide, query] of parseRetryQueries(rawRetry, missing, new Set(first.values()))) second.set(slide, query);
+      await round(second);
+    }
   } catch (e) {
-    return finish("partial", proposals, { reason: "error", error: String((e as Error)?.message || e).slice(0, 160) });
+    return finish("partial", proposals, {
+      reason: "error", error: String((e as Error)?.message || e).slice(0, 160),
+      queries: Object.fromEntries(first), retry_queries: Object.fromEntries(second),
+    });
   }
+  const served = needStock.filter((t) => byslide.get(t)!.stock).length;
+  return finish(served === needStock.length ? "completed" : "partial", proposals, {
+    queries: Object.fromEntries(first), retry_queries: Object.fromEntries(second),
+    retried: [...second.keys()].filter((t) => byslide.get(t)!.stock),
+  });
 }

@@ -49,6 +49,7 @@ ACCROCHE (les 125 premiers caractères) :
 
 CORPS :
 - Développe UNE idée en profondeur. Pas 3 idées survolées.
+- Mise en forme : une phrase, puis une ligne vide.
 - Un exemple ou un détail fourni quand il est utile ; sinon, une explication précise, sans anecdote ni chiffre à inventer.
 - Apartés entre parenthèses *(comme ça)* ou en italique pour la respiration humaine.
 - Bucket brigades naturelles, variées d'une caption à l'autre : ne réutilise pas systématiquement la même cheville
