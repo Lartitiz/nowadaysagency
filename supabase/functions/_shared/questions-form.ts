@@ -146,6 +146,22 @@ export function couperSecondeQuestion(q: string): string {
   return `${avant.replace(/[\s,;]+$/, "")} ?`;
 }
 
+/**
+ * Coupe la phrase ajoutée après la question (26/11/2026, troisième rejeu à l'écran) : « Quel
+ * objectif veux-tu donner à ce post : montrer ta méthode, ou présenter le résultat ? Décris-moi
+ * le cas précis que tu as en tête. » → tout ce qui suit le « ? » est une seconde demande. Sans IA.
+ * La phrase de contexte placée AVANT la question reste.
+ */
+export function couperApresQuestion(q: string): string {
+  const text = String(q || "");
+  if ((text.match(/\?/g) || []).length !== 1) return q;
+  const fin = text.indexOf("?");
+  if (!text.slice(fin + 1).trim()) return q;
+  const avant = text.slice(0, fin).trimEnd();
+  if (avant.split(/\s+/).length < 6) return q;
+  return `${avant} ?`;
+}
+
 /** Défaut qu'on ne montre jamais : la question vouvoie (donc mélange « tu » et « vous ») ou porte deux « ? ». */
 function questionFautive(q: any): boolean {
   return hasVouvoiement(`${q?.question || ""}\n${q?.placeholder || ""}`) || (String(q?.question || "").match(/\?/g) || []).length > 1;
@@ -208,7 +224,7 @@ export function couperListesDesQuestions(content: string): string {
   let change = false;
   parsed[cle] = parsed[cle].map((q: any) => {
     if (!q || typeof q.question !== "string") return q;
-    const coupee = couperSecondeQuestion(couperListeOptions(q.question));
+    const coupee = couperSecondeQuestion(couperListeOptions(couperApresQuestion(q.question)));
     if (coupee === q.question) return q;
     change = true;
     return { ...q, question: coupee };
