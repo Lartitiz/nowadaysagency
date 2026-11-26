@@ -239,6 +239,30 @@ export async function waitZoneImages(locator: Locator, timeoutMs = 20_000): Prom
   }, timeoutMs);
 }
 
+/** Pose un repère sur le document de chaque cadre de la zone ; faux si l'un n'est pas encore chargé. */
+async function markZoneFrames(locator: Locator, jeton: string): Promise<boolean> {
+  return locator.evaluate((el, t) => {
+    const frames = [...(el instanceof HTMLIFrameElement ? [el] : []), ...el.querySelectorAll("iframe")] as HTMLIFrameElement[];
+    return frames.every((f) => {
+      const doc = f.contentDocument as (Document & { __photo?: string }) | null;
+      if (!doc || doc.readyState !== "complete" || !doc.body?.childElementCount) return false;
+      doc.__photo = t;
+      return true;
+    });
+  }, jeton);
+}
+
+/** Vrai si chaque cadre porte encore le repère : aucun document n'a été remplacé depuis. */
+async function zoneFramesKept(locator: Locator, jeton: string): Promise<boolean> {
+  return locator.evaluate((el, t) => {
+    const frames = [...(el instanceof HTMLIFrameElement ? [el] : []), ...el.querySelectorAll("iframe")] as HTMLIFrameElement[];
+    return frames.every((f) => {
+      const doc = f.contentDocument as (Document & { __photo?: string }) | null;
+      return !!doc && doc.__photo === t && doc.readyState === "complete" && !!doc.body?.childElementCount;
+    });
+  }, jeton);
+}
+
 export async function expectZoneMatches(page: Page, locator: Locator, name: string, message: string) {
   // Bandeau de fête « Ton brouillon de carrousel est généré » (4,5 s à l'apparition du résultat) : il flotte
   // sous le menu depuis le 20/11/2026 (avant, il poussait l'éditeur et la slide changeait de taille). On
@@ -288,7 +312,22 @@ export async function expectZoneMatches(page: Page, locator: Locator, name: stri
     const pos = getComputedStyle(h).position;
     if (pos === "sticky" || pos === "fixed") h.setAttribute("data-fige-hide", "");
   }));
-  const shot = await page.screenshot({ clip, fullPage: true, animations: "disabled", mask: [page.locator("canvas")] });
+  // Le cadre d'une slide peut se recharger tout seul juste après l'ouverture (0,1 à 0,2 s
+  // de blanc) : la photo tombait parfois pile dedans, slide 1 toute blanche, 1 rejeu du
+  // carrousel photo sur 7 le 26/11/2026. On marque donc le document de chaque cadre, on
+  // vérifie qu'il n'a pas été remplacé pendant la photo, et sinon on la reprend.
+  let shot: Buffer = Buffer.alloc(0);
+  for (let essai = 0; essai < 6; essai++) {
+    const jeton = `photo-${Date.now()}-${essai}`;
+    const pret = await markZoneFrames(locator, jeton);
+    if (pret) await page.waitForTimeout(400);
+    if (!pret || !(await zoneFramesKept(locator, jeton))) { await page.waitForTimeout(400); continue; }
+    shot = await page.screenshot({ clip, fullPage: true, animations: "disabled", mask: [page.locator("canvas")] });
+    if (await zoneFramesKept(locator, jeton)) break;
+    console.log(`🔁 ${name} : le cadre s'est rechargé pendant la photo, reprise (essai ${essai + 2})`);
+    await page.waitForTimeout(400);
+  }
+  if (!shot.length) shot = await page.screenshot({ clip, fullPage: true, animations: "disabled", mask: [page.locator("canvas")] });
   await page.evaluate(() => document.querySelectorAll("[data-fige-hide]").forEach((h) => h.removeAttribute("data-fige-hide")));
   await hide.evaluate((el) => el.remove());
   expect(shot, message).toMatchSnapshot(name, { maxDiffPixelRatio: 0.01 });
