@@ -15,6 +15,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { skipPhotoContextStep } from "./photo-context-step";
 import { installFigeReplay } from "./fige-replay";
 import { traceurDeCreations, supprimeLignesCreees } from "./nettoyage-camille";
+import { autoOpenReadyCarousel } from "./carousel-ready";
 
 const SUJET = "Trois gestes simples pour faire durer un savon artisanal";
 const MOT = "SONDEMOT";
@@ -70,6 +71,7 @@ test("🔁 carrousel « Tes photos en fond » rechargé : l'éditeur revient", a
     await expect(direct.or(generer).first()).toBeVisible({ timeout: 120_000 });
     if (await direct.isVisible().catch(() => false)) await direct.click(); else await generer.click();
     await skipPhotoContextStep(page);
+    autoOpenReadyCarousel(page);
     await expect(page.getByText(/Personnaliser mon carrousel/i).first()).toBeVisible({ timeout: 180_000 });
     await expect.poll(() => vignettes(page).count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
     const nonEnregistrees = fige.stats().missing.filter((fn) => !["social-status", "check-subscription"].includes(fn));

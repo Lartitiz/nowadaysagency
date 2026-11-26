@@ -21,6 +21,7 @@ import { fileURLToPath } from "url";
 import { exportAndCheckPptx } from "./pptx-export-check";
 import { tapCarouselSse, watchWaitingScreen } from "./carousel-wait-probe";
 import { fillPhotoContextStep } from "./photo-context-step";
+import { autoOpenReadyCarousel } from "./carousel-ready";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/carousel-mix");
@@ -126,6 +127,7 @@ test("carrousel mixte réel : upload → génération → export PPTX composé v
 
   // Résultat OU erreur de validation : on course les deux. Signal « fini » =
   // « Publier ou programmer » (data-testid, écran résultat #608).
+  autoOpenReadyCarousel(page);
   const result = page.getByTestId("publish-or-schedule").first();
   const validationError = page.getByText(/Données invalides/i).first();
   // 3e issue possible : la garde de cohérence photo/idée de `carousel-ai` refuse

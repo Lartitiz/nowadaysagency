@@ -22,6 +22,7 @@ import { sondeGestesStories } from "./gestes-stories-sonde";
 import { sondeApercuStoryTelephone } from "./apercu-story-telephone-sonde";
 import { sondeHauteurEditeur } from "./hauteur-editeur-sonde";
 import { skipPhotoContextStep } from "./photo-context-step";
+import { autoOpenReadyCarousel } from "./carousel-ready";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PHOTOS = [path.join(__dirname, "fixtures-portrait-test.jpg"), path.join(__dirname, "fixtures-cover-test.jpg")];
@@ -61,6 +62,7 @@ async function generate(page: Page) {
 }
 
 async function waitResult(page: Page) {
+  autoOpenReadyCarousel(page);
   await expect(page.getByTestId("publish-or-schedule").first()).toBeVisible({ timeout: 780000 });
   await page.waitForTimeout(2500); // fin des fondus d'entrée
 }
