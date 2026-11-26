@@ -19,6 +19,7 @@ import { Check, Film } from "lucide-react";
 import { useBrandCharter } from "@/hooks/use-branding";
 import type { VoiceClip } from "@/lib/reel-voice";
 import { MontageModeFork, MontageModeSummary } from "@/features/reel-montage/MontageModeChoice";
+import { storedReelFaceCam } from "@/lib/reel-film-preference";
 import { MontageVoiceChoice } from "@/features/reel-montage/MontageVoiceChoice";
 import { StudioClipDialog } from "@/features/reel-montage/StudioClipDialog";
 import { montageRenderKey, savedMontageProject, withTweaksKey } from "@/features/reel-montage/montage-project";
@@ -60,12 +61,18 @@ interface Props {
   startPhoto?: string | null;
 }
 
+/** Choix déjà fait sur l'écran des accroches : on ne repose pas la question au montage (« Changer » reste là). */
+function montageModeFromPreference(): MontageMode | null {
+  const stored = storedReelFaceCam();
+  return stored === "oui" ? "filme" : stored === "non" ? "cache" : null;
+}
+
 export default function ReelMontage({ sections, subject, workspaceId, initialProject, onProjectChange, onPhaseChange, onMp4Ready, startPhoto, initialMp4Url }: Props) {
   const spoken = sections.filter((s) => typeof s.texte_parle === "string" && s.texte_parle.trim());
   const sectionTexts = spoken.map(s => s.texte_parle || "");
   const { data: charter, isLoading: charterLoading } = useBrandCharter();
 
-  const [montageMode, setMontageMode] = useState<MontageMode | null>(initialProject?.montageMode || null);
+  const [montageMode, setMontageMode] = useState<MontageMode | null>(initialProject?.montageMode || montageModeFromPreference());
 
   const [clips, setClips] = useState<(SelectedClip | null)[]>(() => initialProject?.clips?.length === spoken.length ? initialProject.clips : spoken.map(() => null));
   const [cutaways, setCutaways] = useState<(StudioCutaway | null)[]>(() => initialProject?.cutaways?.length === spoken.length ? initialProject.cutaways : spoken.map(() => null));

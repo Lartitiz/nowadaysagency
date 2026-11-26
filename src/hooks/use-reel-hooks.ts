@@ -9,6 +9,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import type { ReelHook } from "@/components/creer/HookSelectionStep";
 import { reelPhotosForScript } from "@/features/creer/generator/bodies/reel";
 import { ownPhotos } from "@/lib/stock-ambient-photos";
+import { reelFaceCam, saveReelFaceCam, type ReelFaceCam } from "@/lib/reel-film-preference";
 
 type FetchContext = {
   questions: { id: string; question: string }[];
@@ -37,6 +38,15 @@ export function useReelHooks() {
   const [hooksError, setHooksError] = useState<string | null>(null);
   const [selectedReelHook, setSelectedReelHook] = useState<ReelHook | null>(null);
   const pendingReelAnswersRef = useRef<Record<string, string>>({});
+  // « Je me filme » / « Je ne me montre pas » : retenu d'un reel à l'autre. La
+  // référence sert à l'appel lancé dans la foulée du clic (l'état arrive après).
+  const [faceCam, setFaceCamState] = useState<ReelFaceCam>(() => reelFaceCam());
+  const faceCamRef = useRef<ReelFaceCam>(faceCam);
+  const setFaceCam = (value: ReelFaceCam) => {
+    faceCamRef.current = value;
+    setFaceCamState(value);
+    saveReelFaceCam(value);
+  };
 
   // ─── Lot 7 reels : étape de choix du hook ───
   // Appel GRATUIT (step "hooks" hors BILLED_STEPS côté edge). Jamais bloquant :
@@ -63,7 +73,7 @@ export function useReelHooks() {
           contentType: "reel",
           context: ideaText,
           objective: objective || null,
-          face_cam: "oui",
+          face_cam: faceCamRef.current,
           answers: answersArray.length > 0 ? answersArray : null,
           workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null,
           ...(excludeHooks?.length ? { exclude_hooks: excludeHooks.slice(0, 12) } : {}),
@@ -114,6 +124,9 @@ export function useReelHooks() {
   return {
     reelHooks, hooksLoading, hooksRefreshing, hooksError,
     selectedReelHook, setSelectedReelHook, pendingReelAnswersRef,
+    faceCam, setFaceCam,
+    /** Ce que l'écran des accroches affiche (HookSelectionStep). */
+    screenProps: { hooks: reelHooks, loading: hooksLoading, refreshing: hooksRefreshing, error: hooksError, faceCam },
     fetchReelHooks, handleHookSelect, handleHookSkip,
   };
 }

@@ -18,6 +18,7 @@ import { generatePinterestVisual, generatePinterestPhotoBrief } from "@/features
 import { resetPostGenerationState } from "@/features/creer/post-generation-reset";
 import type { UserPhotoRow } from "@/lib/photo-storage";
 import type { ReelHook } from "@/components/creer/HookSelectionStep";
+import { reelFaceCam } from "@/lib/reel-film-preference";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 import type { Question } from "@/hooks/use-content-generator";
 import { withStoryAnswers, type TakenStory } from "@/features/creer/story/story-answers";
@@ -692,6 +693,7 @@ export function useDoGenerate({
       channel: isLinkedInCarousel ? "linkedin" : undefined,
       slideCount: slideCountChoice,
       ...(selectedFormat === "reel" && reelHook ? { selectedHook: reelHook } : {}),
+      ...(selectedFormat === "reel" ? { faceCam: reelFaceCam() } : {}),
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "mix"
         ? (isTextFirstMix
