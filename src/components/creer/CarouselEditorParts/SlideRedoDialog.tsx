@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, Sparkles, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { SlideThumb } from "@/components/creer/CarouselEditorParts/PanelBits";
 import type { CarouselDocument, EditorSlide } from "@/lib/carousel-editor";
 import { isPhotoOnlySlide, PHOTO_ONLY_REASON, type SlideRedoApi } from "@/components/creer/CarouselEditorParts/slide-redo";
@@ -37,6 +38,8 @@ export function SlideRedo({ api, raw, slide, getDocument, onKeep, inline = false
   const { state } = redo;
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [hint, setHint] = useState(false);
+  // Sur ordinateur le champ tient sur une ligne : l'exemple long y était coupé au bord.
+  const isMobile = useIsMobile();
   useEffect(() => {
     setSlot(inline ? window.document.getElementById(SLIDE_ASK_SLOT) : null);
     if (!inline) redo.setOpen(false);
@@ -110,7 +113,7 @@ export function SlideRedo({ api, raw, slide, getDocument, onKeep, inline = false
               maxLength={500}
               rows={2}
               aria-label="Dis ce que tu veux changer sur cette slide"
-              placeholder="Ou écris ta demande : « ajoute l'exemple du café »"
+              placeholder={isMobile ? "Ou écris ta demande : « ajoute l'exemple du café »" : "Ex. « ajoute l'exemple du café »"}
               className="w-full rounded-xl border bg-background p-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary md:h-10 md:resize-none md:overflow-hidden md:whitespace-nowrap md:py-2 md:focus:h-20 md:focus:overflow-auto md:focus:whitespace-normal"
               onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) ask(); }}
             />
