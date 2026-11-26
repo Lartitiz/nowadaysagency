@@ -22,7 +22,7 @@ const GESTES: { nom: string; role: "button" | "group"; name: string; menu?: stri
   { nom: "Ajouter", role: "button", name: "Ajouter une story après la story 1", menu: "Ajouter une story après" },
   { nom: "Taille", role: "group", name: "Taille du texte" },
   { nom: "Grand", role: "button", name: "Grand" },
-  { nom: "Refaire", role: "button", name: "Refaire cette story (story 1)", menu: "Refaire cette story" },
+  { nom: "Refaire", role: "button", name: "Refaire cette story · 1 crédit (story 1)", menu: "Refaire cette story" },
 ];
 
 export async function sondeGestesStories(page: Page) {

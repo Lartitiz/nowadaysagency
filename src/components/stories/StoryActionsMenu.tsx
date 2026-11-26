@@ -40,7 +40,7 @@ export function StoryActionsMenu({ index, count, redo, onDelete, onMove, onDupli
             Supprimer la story
           </Button>
         )}
-        <StoryRedo {...redo} />
+        <StoryRedo {...redo} inline />
       </>
     );
   }

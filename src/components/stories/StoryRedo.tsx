@@ -30,7 +30,7 @@ const FAILED = "La nouvelle version n'est pas arrivée. Rien n'a été débité 
 /** Ce qu'il faut pour dessiner son propre bouton (menu « … » sur téléphone). */
 export type StoryRedoTrigger = { label: string; loading: boolean; disabled: boolean; open: () => void };
 
-export default function StoryRedo({ number, total, role, text, previous, next, listNote, onKeep, renderTrigger }: {
+export default function StoryRedo({ number, total, role, text, previous, next, listNote, onKeep, renderTrigger, inline = false }: {
   number: number;
   total: number;
   role?: string | null;
@@ -42,6 +42,8 @@ export default function StoryRedo({ number, total, role, text, previous, next, l
   onKeep: (text: string) => void;
   /** Remplace le bouton « Refaire cette story » ; la fenêtre reste ici, hors du menu. */
   renderTrigger?: (trigger: StoryRedoTrigger) => ReactNode;
+  /** Ordinateur (26/11/2026) : le champ et le bouton sont écrits dans le panneau, comme « Demander un changement à l'IA » du carrousel ; la fenêtre ne s'ouvre plus que pour comparer les deux versions. */
+  inline?: boolean;
 }) {
   const workspaceId = useRef("");
   const [opened, setOpened] = useState(false);
@@ -66,6 +68,8 @@ export default function StoryRedo({ number, total, role, text, previous, next, l
 
   const submit = async () => {
     if (empty || state.status === "loading") return;
+    // Dans le panneau, rien n'a « ouvert » la fenêtre : on lit l'espace de travail maintenant.
+    if (!opened) { setOpened(true); await new Promise((r) => setTimeout(r, 0)); }
     const id = ++run.current;
     const before = text;
     setState({ status: "loading" });
@@ -81,14 +85,16 @@ export default function StoryRedo({ number, total, role, text, previous, next, l
       const proposal = cleanStoryRedo(data?.result);
       if (error || !proposal) {
         setState({ status: "error", message: error?.message || FAILED });
+        if (!inline) setOpen(true);
       } else {
         setState({ status: "result", before, next: proposal });
+        setOpen(true);
       }
     } catch {
       if (id !== run.current) return;
       setState({ status: "error", message: FAILED });
+      if (!inline) setOpen(true);
     }
-    setOpen(true);
   };
 
   const close = () => {
@@ -103,7 +109,32 @@ export default function StoryRedo({ number, total, role, text, previous, next, l
   return (
     <>
       {opened && <WorkspaceIdReader target={workspaceId} />}
-      {renderTrigger ? renderTrigger({ label, loading: state.status === "loading", disabled: empty && !pending, open: () => setOpen(true) }) : (
+      {inline && !renderTrigger ? (
+        <div className="space-y-1.5" data-testid="story-ask" onFocus={() => setOpened(true)}>
+          {state.status === "loading" ? (
+            <p role="status" className="flex items-center gap-2 text-xs"><Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" /> L'Assistant Com' réécrit ta story…</p>
+          ) : (
+            <>
+              <input
+                value={instruction}
+                onChange={(e) => setInstruction(e.target.value)}
+                maxLength={300}
+                disabled={empty}
+                aria-label="Dis ce que tu veux changer sur cette story (facultatif)"
+                placeholder="Facultatif. Ex. « plus court »"
+                className="h-9 w-full rounded-xl border bg-background px-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+              />
+              {state.status === "error" && <p role="alert" className="text-xs text-error">{state.message}</p>}
+              <span className="block" title={empty ? "Écris d'abord un texte dans cette story" : undefined}>
+                <Button type="button" size="sm" className="w-full gap-1.5" disabled={empty} aria-label={`Refaire cette story · 1 crédit (story ${number})`} onClick={state.status === "result" ? () => setOpen(true) : submit}>
+                  <Wand2 className="h-3.5 w-3.5" /> Refaire cette story · 1 crédit
+                </Button>
+              </span>
+            </>
+          )}
+        </div>
+      ) : renderTrigger ? renderTrigger({ label, loading: state.status === "loading", disabled: empty && !pending, open: () => setOpen(true) }) : (
       <span title={empty && !pending ? "Écris d'abord un texte dans cette story" : undefined}>
         <Button
           type="button"
