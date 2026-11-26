@@ -29,6 +29,10 @@
  *   écriture du cache le bumperait → régénération infinie). `regenerate`
  *   force un nouveau lot en évitant les titres précédents.
  *
+ * - mode "describe_image" (26/11/2026) : légende courte d'une image envoyée telle
+ *   quelle (photo importée dans l'écran de création, hors bibliothèque). Rien
+ *   n'est écrit en base. Voir describe-image.ts.
+ *
  * skipQuota : micro-appels d'assistance (comme stock-photo-keywords), pas de
  * débit crédit. Sortie structurée en `tool` forcé (jamais de parse texte).
  */
@@ -39,8 +43,10 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { callAnthropic, AnthropicError, HAIKU_MODEL } from "../_shared/anthropic.ts";
 import { getUserContext } from "../_shared/user-context.ts";
 import { mergePhotoTags } from "../_shared/photo-tags.ts";
+import { captionFromToolOutput, DESCRIBE_IMAGE_SYSTEM, DESCRIBE_IMAGE_TEXT, DESCRIBE_IMAGE_TOOL, DescribeImageSchema, splitImage } from "./describe-image.ts";
 
 const BodySchema = z.discriminatedUnion("mode", [
+  DescribeImageSchema,
   z.object({
     mode: z.literal("describe"),
     photo_id: z.string().uuid(),
@@ -264,6 +270,28 @@ serve(async (req) => {
   }
 
   try {
+    // Photo importée dans l'écran de création, hors « Mes photos » (describe-image.ts) :
+    // une légende courte, rien d'écrit en base.
+    if (body.mode === "describe_image") {
+      const image = splitImage(body.image);
+      if (!image) return json({ description: "" });
+      const raw = await callAnthropic({
+        model: HAIKU_MODEL,
+        system: DESCRIBE_IMAGE_SYSTEM,
+        messages: [{ role: "user", content: [
+          { type: "image", source: { type: "base64", media_type: image.media_type, data: image.data } },
+          { type: "text", text: DESCRIBE_IMAGE_TEXT },
+        ] }],
+        tool: DESCRIBE_IMAGE_TOOL,
+        temperature: 0.2,
+        max_tokens: 200,
+        abortTimeoutMs: 25_000,
+      });
+      const description = captionFromToolOutput(raw);
+      console.log(JSON.stringify({ event: "photo_image_described", ok: !!description }));
+      return json({ description });
+    }
+
     if (body.mode === "describe") {
       // 1. Ligne photo (client user-scoped : la RLS garantit l'accès workspace)
       const { data: photo, error: fetchErr } = await supabase

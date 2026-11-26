@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => {
     generatePinterestVisual: vi.fn(),
     generatePinterestPhotoBrief: vi.fn(),
     resetPostGenerationState: vi.fn(),
+    describeImported: vi.fn(),
   };
 });
 
@@ -50,6 +51,9 @@ vi.mock("@/features/creer/photo-source", () => ({
 vi.mock("@/features/creer/pinterest-generation", () => ({
   generatePinterestVisual: mocks.generatePinterestVisual,
   generatePinterestPhotoBrief: mocks.generatePinterestPhotoBrief,
+}));
+vi.mock("@/features/creer/describe-imported-photo", () => ({
+  describeImportedPhoto: (...a: unknown[]) => mocks.describeImported(...a),
 }));
 vi.mock("@/features/creer/post-generation-reset", () => ({
   resetPostGenerationState: mocks.resetPostGenerationState,
@@ -628,7 +632,7 @@ describe("saved photo recovery before paid generation", () => {
 // gratuitement (nom du fichier, photothèque), et la paire avant / après écrite
 // dans le contexte (« AVANT — … » / « APRÈS — … ») qui va jusqu'au prompt.
 describe("étape « Que montre chaque photo ? »", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); mocks.describeImported.mockResolvedValue(""); });
   const start = [
     { id: "a", base64: "p1", name: "cuisine-avant.jpg", preview: "blob:a", mimeType: "image/jpeg" },
     { id: "b", base64: "p2", name: "IMG_2041.jpg", preview: "blob:b", mimeType: "image/jpeg" },
@@ -692,6 +696,55 @@ describe("étape « Que montre chaque photo ? »", () => {
     const body = mocks.invokeWithTimeout.mock.calls[0][1].body;
     expect(body.type).toBe("structure_proposal");
     expect(body.photos.map((p: any) => p.context)).toEqual(["AVANT — Cuisine", undefined, "APRÈS — Cuisine"]);
+  });
+
+  // 26/11/2026 (demande de Laetitia) : une photo importée, sans nom lisible ni fiche dans
+  // « Mes photos », reçoit une légende proposée toute seule.
+  it("photo importée sans légende : la ligne vide est remplie toute seule, marquée « à vérifier »", async () => {
+    let rendre: (t: string) => void = () => {};
+    mocks.describeImported.mockImplementation(() => new Promise<string>((r) => { rendre = r; }));
+    const box = mount({ workspaceId: "ws-1" });
+    await act(async () => { await box.gen!({}); });
+    // Seule la photo sans suggestion gratuite (IMG_2041.jpg) est envoyée, une fois.
+    expect(mocks.describeImported).toHaveBeenCalledTimes(1);
+    expect(mocks.describeImported.mock.calls[0][0]).toMatchObject({ id: "b", base64: "p2" });
+    const champ = () => screen.getAllByRole("textbox")[1] as HTMLInputElement;
+    expect(champ().placeholder).toBe("Je regarde la photo…");
+    expect(champ().value).toBe("");
+    await act(async () => { rendre("La façade côté rue"); });
+    expect(champ().value).toBe("La façade côté rue");
+    expect(champ().placeholder).toBe("Ex. : la façade côté rue");
+    expect(screen.getAllByText("Suggestion à vérifier : corrige-la si besoin.").length).toBe(3);
+    // Les deux autres lignes gardent leur suggestion gratuite ; rien n'est lancé.
+    expect((screen.getAllByRole("textbox") as HTMLInputElement[]).map((f) => f.value)).toEqual(["Cuisine", "La façade côté rue", "Cuisine"]);
+    expect(box.p.generate).not.toHaveBeenCalled();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Créer mon carrousel" })); });
+    expect(box.p.generate.mock.calls[0][0].photos.map((p: any) => p.context)).toEqual(["AVANT — Cuisine", "La façade côté rue", "APRÈS — Cuisine"]);
+  });
+
+  it("légende automatique : jamais par-dessus ce que la personne a écrit, ni après fermeture ; un échec laisse la ligne vide", async () => {
+    let rendre: (t: string) => void = () => {};
+    mocks.describeImported.mockImplementation(() => new Promise<string>((r) => { rendre = r; }));
+    let box = mount();
+    await act(async () => { await box.gen!({}); });
+    fireEvent.change(screen.getAllByRole("textbox")[1], { target: { value: "Mon texte" } });
+    await act(async () => { rendre("La façade côté rue"); });
+    expect((screen.getAllByRole("textbox")[1] as HTMLInputElement).value).toBe("Mon texte");
+    cleanup();
+    // « Passer » avant l'arrivée de la légende : la création part sans elle.
+    box = mount();
+    await act(async () => { await box.gen!({}); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Passer" })); });
+    await act(async () => { rendre("La façade côté rue"); });
+    expect(box.p.generate.mock.calls[0][0].photos.map((p: any) => p.context)).toEqual([undefined, undefined, undefined]);
+    cleanup();
+    // Échec : la ligne reste vide, l'exemple revient, rien ne bloque.
+    mocks.describeImported.mockRejectedValue(new Error("réseau"));
+    box = mount();
+    await act(async () => { await box.gen!({}); });
+    const champ = screen.getAllByRole("textbox")[1] as HTMLInputElement;
+    expect(champ.value).toBe("");
+    expect(champ.placeholder).toBe("Ex. : la façade côté rue");
   });
 
   // Rejeu à l'écran du 25/11/2026 : fermée par la croix, la fenêtre laissait l'écran de
