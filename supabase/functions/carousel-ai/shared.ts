@@ -5,6 +5,7 @@
 // tests peuvent toujours remplacer `_deps.callAnthropic`.
 // Ce fichier n'importe aucun mode ni aucune étape (boundaries_test.ts).
 
+import { noterRefusValidation } from "../_shared/refus-validation.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
@@ -36,6 +37,7 @@ import { redesignSlide } from "./layout.ts";
 // appels réseau (Supabase, Anthropic) sans toucher à la logique métier.
 export const _deps = {
   runPipeline,
+  noterRefusValidation,
   checkQuota,
   logUsage,
   callAnthropic,

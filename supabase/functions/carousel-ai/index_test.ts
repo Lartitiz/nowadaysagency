@@ -306,6 +306,8 @@ function makeFakeSupabase(ownerId: string = TEST_USER_ID) {
 
 /** Réinitialise TOUS les champs de `_deps` avant chaque test (état de module partagé). */
 function resetDeps() {
+  // Trace des refus de validation : muette par défaut (aucun réseau).
+  _deps.noterRefusValidation = async () => {};
   _deps.matchPhotos = async (doc) => doc;
   // Photos libres de droit coupées par défaut (aucun réseau).
   _deps.stockAmbient = async (doc: any) => doc;
@@ -2194,5 +2196,31 @@ Deno.test("garde anti-redite : une relecture en panne ne bloque pas la générat
     assertEquals(res.status, 200);
     assertEquals(lectures, 2);
     assertEquals(JSON.parse((await res.json()).content).quality_check.hook_echoes_before, null);
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
+});
+
+// ── Sonde « 🚫 Générations refusées » (26/11/2026) ──
+Deno.test("refus de validation : la demande refusée laisse une trace (fonction, message, compte), la demande valide n'en laisse pas", async () => {
+  resetDeps();
+  const traces: any[] = [];
+  _deps.noterRefusValidation = (async (userId: any, fonction: string, message: string, body: any) => { traces.push({ userId, fonction, message, type: body?.type }); }) as any;
+  // Plan renvoyé avec un champ que la validation refuse (ici un numéro de slide en texte).
+  const refusee = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: "photo", confirmed_structure: [{ slide_number: "un", role: "hook", title_suggestion: "T", strategic_note: "N" }] }));
+  assertEquals(refusee.status, 400);
+  assert((await refusee.text()).includes("Données invalides"));
+  assertEquals(traces.length, 1);
+  assertEquals(traces[0].fonction, "carousel-ai");
+  assertEquals(traces[0].type, "express_full");
+  assert(traces[0].message.startsWith("Données invalides: confirmed_structure.0.slide_number"), traces[0].message);
+  assert(typeof traces[0].userId === "string" && traces[0].userId.length > 0, "compte connu au moment du refus");
+  // Le cas du 25/11 (position abîmée) ne refuse plus depuis #2053 : aucune trace.
+  traces.length = 0;
+  _deps.callCarouselWriter = (async (_o: any, sink: any) => { Object.assign(sink, { total_tokens: 1, model: "claude-opus-5-5" }); return JSON.stringify({ slides: [{ slide_number: 1, role: "hook", photo_index: 1, slide_type: "photo_full", overlay_text: "Passage" }], caption: {} }); }) as any;
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  try {
+    const ok = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: "photo", slide_count: 1, photos: [{ base64: "aGVsbG8=" }], confirmed_structure: [{ slide_number: 1, role: "hook", title_suggestion: "T", strategic_note: "N", photo_index: 1, slide_type: "photo_full", overlay_position: 'bottom_right".replace("bottom_right' }] }));
+    await ok.text();
+    assertEquals(traces.length, 0);
   } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });

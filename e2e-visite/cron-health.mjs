@@ -350,6 +350,15 @@ try {
     else console.log(fc.coincees
       ? `   ⚠️ 🪪 Fiches coincées « à relire » (≥ 6/7 cartes relues, > 24 h) : ${fc.coincees} cliente(s), la plus ancienne du ${fc.plus_ancienne} → la page Créer leur dit « Ta fiche de marque t'attend » (rattrapage SQL comme le 26/10)`
       : `   ✅ 🪪 Fiches coincées « à relire » : 0 (${fc.a_relire} fiche(s) simplement pas encore relue(s))`);
+    // generations_refusees : edge ≥ 26/11/2026. Seuil : 0 attendu sur 7 jours. ≥ 1 = un champ écrit par
+    // l'IA à une étape est refusé quand l'écran le renvoie (« Données invalides », Réessayer compris : #2053,
+    // carrousel photo bloqué le 25/11/2026). Le message du dernier refus nomme le champ à assouplir.
+    const gr = d.generations_refusees;
+    if (!gr) console.log("   🚫 Générations refusées : non mesuré (edge cron-health pas redéployée)");
+    else if (gr.erreur) console.log(`   🚫 Générations refusées : lecture impossible (${gr.erreur})`);
+    else console.log(gr.refus > 0
+      ? `   ⚠️ 🚫 Générations refusées (« Données invalides », 7 j) : ${gr.refus} refus sur ${gr.comptes} compte(s), dont ${gr.clientes} cliente(s) · dernier le ${gr.dernier?.date} dans ${gr.dernier?.fonction} : « ${gr.dernier?.message} » → assouplir le garde de ce champ (voir normalizeGeneratedPlanFields, #2053)`
+      : "   ✅ 🚫 Générations refusées (« Données invalides », 7 j) : 0");
     // connexions_figees : edge ≥ 09/11/2026 (#1829). Seuil : 0 attendu. Google / Canva / Pinterest dont le jeton
     // est expiré depuis > 30 j = connexion plus renouvelée (morte, inutilisée, ou app Google repassée en mode test).
     const cf = d.connexions_figees;

@@ -57,6 +57,7 @@ export async function handleRequest(req: Request): Promise<Response> {
 
   const handle = async (emitStatus: StatusEmitter = () => {}): Promise<Response> => {
   const startedAt = Date.now();
+  let refusUserId: string | null = null;
 
   try {
 
@@ -67,6 +68,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     });
     if (!r.ok) return r.response;
     const { userId, supabase } = r;
+    refusUserId = userId;
     // Banc d'essai du rédacteur (retour à Opus 5) : réservé au compte QA Camille.
     if (!isQaTestAccount(userId)) delete body.writer_bench;
     // Relance du plan avancée pour l'observer en réel (structure-hedge.ts) : compte QA seulement.
@@ -444,6 +446,8 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
     }
   } catch (e) {
     if (e instanceof ValidationError) {
+      // Trace pour le bilan du lundi (« 🚫 Générations refusées »), jamais bloquante.
+      await _deps.noterRefusValidation(refusUserId, "carousel-ai", e.message, body);
       return new Response(JSON.stringify({ error: e.message }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
