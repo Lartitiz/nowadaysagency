@@ -283,8 +283,11 @@ test("contenus figés — reel", async ({ page }) => {
   const direct = page.getByRole("button", { name: /Générer directement/i }).first();
   await Promise.race([passer.waitFor({ state: "visible", timeout: 120000 }), direct.waitFor({ state: "visible", timeout: 120000 })]);
   if (await passer.isVisible().catch(() => false)) await passer.click(); else await direct.click();
-  await page.getByRole("radio").first().waitFor({ state: "visible", timeout: 180000 });
-  await page.getByRole("radio").first().click();
+  // Les accroches, pas les pastilles « Je me filme » / « Je ne me montre pas » posées au-dessus
+  // le 26/11/2026 : elles sont aussi des boutons radio, et le rejeu cliquait la première.
+  const accroche = page.getByRole("radiogroup", { name: "Angles d'attaque proposés" }).getByRole("radio").first();
+  await accroche.waitFor({ state: "visible", timeout: 180000 });
+  await accroche.click();
   await page.getByRole("button", { name: /Écrire le script complet/i }).first().click();
   const scriptTab = page.getByRole("tab", { name: /^Script$/ });
   const legendeTab = page.getByRole("tab", { name: /^Légende$/ });
