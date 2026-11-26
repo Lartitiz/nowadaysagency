@@ -45,7 +45,7 @@ FIN :
 
 FORMAT :
 - 400-800 caractères. La photo fait la moitié du travail.
-- 5-10 hashtags niche en fin
+- 5 hashtags au plus, précis, en fin
 
 INTERDITS :
 - Décrire inutilement toute l'image ; nommer le sujet et expliquer son usage restent nécessaires

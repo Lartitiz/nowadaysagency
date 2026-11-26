@@ -45,7 +45,7 @@ const FROZEN: Record<string, string> = {
   "audienceAddressRule(tu)": "1e455edbb8af8fa3962645c81697c776f87c907827cd9b6f62eaa464e731050a",
   "audienceAddressRule(vous)": "e40008f61d5fa6f67625514695ec922b115e886a9d0e07386c733ec6c65bd386",
   ONE_IDEA_RULE: "4d21394cc74aacced74db7c2762c9a1a1828c1aa6d6e3ac5a4556a3020abcaf4",
-  COVER_WRITING: "62d69ab65b61817f44bbdac4b057f1c909d15296675c0eb657c224ad1855495d",
+  COVER_WRITING: "057b1dd9badd51f218a9c5c6dbb322cb29cb9a1ef50c5073e700d7c543456f9d",
   TEXT_SENSE_RULES: "e527fc955637f7d9955356298cf47a52dd0862afbcbccd8ca4affae990ed9d11",
   // Règle 4 réécrite le 05/10/2026 (consigne positive commune, PR voix orale) :
   // avant, VOIX_ORALE_STORIES = 15fd7cd6…5c67, VOIX_ORALE_LEGENDE_PHOTO = 269e744f…ddd2.
