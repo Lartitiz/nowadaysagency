@@ -423,8 +423,17 @@ try {
         const f = fil.cette_semaine, r = f.reparations, fp = fil.semaine_precedente;
         console.log(`   fil des carrousels : ${f.carrousels} contrôlé(s), ${f.a_reparer} à réparer, ${f.controle_non_abouti} contrôle(s) non abouti(s)`);
         console.log(`      réparations GARDÉES : ${r.gardees}/${r.tentees} (${pct(r.gardees, r.tentees)}) — locales ${r.locales_gardees}/${r.locales}, complètes ${r.completes_gardees}/${r.completes} ; sautées faute de temps : ${f.sautees_faute_de_temps}  (S-1 : ${fp.reparations.gardees}/${fp.reparations.tentees})`);
+        // Pourquoi les refus (26/11/2026) : une réparation « jetée sans être jugée » (2e contrôle coupé)
+        // comptait comme « pas meilleure ». undefined = edge cron-health pas encore redéployée.
+        const detailRefus = (x) => {
+          if (!x?.refus) return "";
+          const sansJugement = Object.entries(x.refus).reduce((n, [k, c]) => n + (/^review-|^repair-failed$/.test(k) ? c : 0), 0);
+          const liste = Object.entries(x.refus).map(([k, c]) => `${k} ${c}`).join(", ") || "aucun";
+          return `refus : ${liste}${sansJugement ? ` 🟠 ${sansJugement} jetée(s) sans avoir été jugée(s)` : ""} ; remarque mineure seule : ${x.mineures.gardees}/${x.mineures.tentees} gardée(s)`;
+        };
+        if (detailRefus(f)) console.log(`      ${detailRefus(f)}`);
         const fi = fil.comptes_internes_7j;
-        if (fi?.carrousels) console.log(`      comptes internes : ${fi.carrousels} contrôlé(s), réparations gardées ${fi.reparations.gardees}/${fi.reparations.tentees} (locales ${fi.reparations.locales_gardees}/${fi.reparations.locales}), sautées ${fi.sautees_faute_de_temps}, non aboutis ${fi.controle_non_abouti}`);
+        if (fi?.carrousels) console.log(`      comptes internes : ${fi.carrousels} contrôlé(s), réparations gardées ${fi.reparations.gardees}/${fi.reparations.tentees} (locales ${fi.reparations.locales_gardees}/${fi.reparations.locales}), sautées ${fi.sautees_faute_de_temps}, non aboutis ${fi.controle_non_abouti}${detailRefus(fi) ? ` ; ${detailRefus(fi)}` : ""}`);
       }
       // Durées des carrousels (09/10/2026, PR #1428) : budget photo/mixte
       // (rédaction, juge, réparation, association des photos, borne 270 s).

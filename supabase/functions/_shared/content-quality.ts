@@ -223,7 +223,8 @@ export function threadOutcome(content: unknown): Record<string, unknown> | null 
     status: r.execution_status ?? null,
     verdict: r.verdict ?? null,
     defauts: Array.isArray(r.report?.defects) ? r.report.defects.length : 0,
-    reparation: repair ? { scope: repair.scope ?? "full", acceptee: !!repair.accepted, raison: repair.reason ?? null } : null,
+    // declencheur (26/11/2026) : « minor_continuity » = texte déjà jugé bon, une remarque mineure ; « needs_repair » = vrai défaut.
+    reparation: repair ? { scope: repair.scope ?? "full", acceptee: !!repair.accepted, raison: repair.reason ?? null, declencheur: repair.trigger ?? null } : null,
     sautee: r.repair_skipped ?? null,
   };
 }

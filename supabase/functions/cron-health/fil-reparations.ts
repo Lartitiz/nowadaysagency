@@ -18,7 +18,16 @@ export interface FilStats {
   reparations: { tentees: number; gardees: number; locales: number; locales_gardees: number; completes: number; completes_gardees: number };
   /** Réparations voulues mais sautées : pas le temps de les finir. */
   sautees_faute_de_temps: number;
+  /** Réparations lancées pour une remarque mineure sur un texte déjà jugé bon (26/11/2026). */
+  mineures: { tentees: number; gardees: number };
+  /** Réparations refusées, par raison. « review-invalid » / « review-unavailable » = 2e contrôle
+   * coupé ou illisible : la réparation est jetée sans avoir été jugée (26/11/2026 : trois sur trois). */
+  refus: Record<string, number>;
 }
+
+/** Réparations jetées sans avoir été jugées (2e contrôle coupé, illisible ou réparation en échec). */
+export const refusSansJugement = (s: FilStats): number =>
+  Object.entries(s.refus).reduce((n, [raison, c]) => n + (/^review-|^repair-failed$/.test(raison) ? c : 0), 0);
 
 export function filStats(
   events: { created_at: string | null; content_preview?: any }[],
@@ -27,7 +36,7 @@ export function filStats(
   const s: FilStats = {
     carrousels: 0, controle_non_abouti: 0, a_reparer: 0,
     reparations: { tentees: 0, gardees: 0, locales: 0, locales_gardees: 0, completes: 0, completes_gardees: 0 },
-    sautees_faute_de_temps: 0,
+    sautees_faute_de_temps: 0, mineures: { tentees: 0, gardees: 0 }, refus: {},
   };
   for (const e of events) {
     if (!inWindow(e.created_at)) continue;
@@ -43,6 +52,8 @@ export function filStats(
       if (r.acceptee) s.reparations.gardees++;
       if (r.scope === "local") { s.reparations.locales++; if (r.acceptee) s.reparations.locales_gardees++; }
       else { s.reparations.completes++; if (r.acceptee) s.reparations.completes_gardees++; }
+      if (r.declencheur === "minor_continuity") { s.mineures.tentees++; if (r.acceptee) s.mineures.gardees++; }
+      if (!r.acceptee) { const raison = typeof r.raison === "string" && r.raison ? r.raison : "inconnue"; s.refus[raison] = (s.refus[raison] || 0) + 1; }
     }
   }
   return s;
