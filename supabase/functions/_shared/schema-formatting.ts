@@ -44,6 +44,7 @@ export const SCHEMA_FORMAT_RULES = `Tu fais la MISE EN FORME d'un carrousel dont
 - Ses libellés reprennent les mots de la slide (2 à 6 mots) ; ses descriptions restent courtes (12 mots au plus). Aucun chiffre, aucune date, aucun nom ni aucune donnée absents du texte de la slide. quote_big : citation EXACTE tirée du texte de la slide.
 - Pas d'émoji, sauf si le type l'exige (icon_grid, matrix_2x2), et alors un seul par élément.
 - Un objet typé {type,...données}, jamais une chaîne descriptive. Types et formes : ${SCHEMA_SHAPES}.
+- Un schéma fait VOIR une relation (un ordre, un écart, un avant et un après) : s'il ne ferait que recopier la phrase en cartes, ou si ses éléments portent la même description, ne propose rien pour cette slide.
 - Explique en une phrase ce que le schéma fait comprendre.`;
 
 /** Relations repérées dans le texte avant de choisir les schémas. */
@@ -124,6 +125,9 @@ export function validateSchemaPlan(raw: unknown, slides: Slide[], eligible: (s: 
     // Un numéro d'ordre en tête (« 1. », « Étape 2 : ») n'est pas une donnée.
     const ordinalFree = (t: string) => t.replace(/^\s*(?:étape\s*|etape\s*)?\d{1,2}\s*[.)·:–-]\s*/i, "");
     if (all.some(t => (ordinalFree(t).match(NUMBER) || []).some(x => !textNumbers.has(x.replace(",", "."))))) { rejected.push(`${type}@${n}:chiffre`); continue; }
+    // Schéma qui redit : deux éléments avec la même description ne font rien voir (test en ligne du 26/11/2026).
+    const descs = (JSON.stringify(schema).match(/"desc":"((?:[^"\\]|\\.)*)"/g) || []).map(norm).filter(t => t.length >= 18);
+    if (new Set(descs).size < descs.length) { rejected.push(`${type}@${n}:redite`); continue; }
     if (schema.type === "quote_big" && !norm(text).includes(norm(String(schema.quote)))) { rejected.push(`${type}@${n}:citation`); continue; }
     // Mixte : le texte entier doit tenir avec CE schéma, sinon il ne serait pas dessiné.
     const reason = String(item?.reason || "").slice(0, 300);

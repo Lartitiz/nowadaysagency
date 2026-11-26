@@ -29,6 +29,11 @@ export function buildFixInstructions(a: RedacAnalysis): string {
       `CTA DUPLIQUÉ : le "cta" de la caption répète la dernière slide. Réécris le cta de la CAPTION pour qu'il soit COMPLÉMENTAIRE (autre formulation, autre angle d'invitation), pas une copie.`,
     );
   }
+  if (a.exampleDurations?.length) {
+    lines.push(
+      `DURÉE D'EXEMPLE NON ANNONCÉE : ces phrases donnent une durée que les sources ne fournissent pas, comme si c'était un fait :\n${a.exampleDurations.map((t) => `- « ${t} »`).join("\n")}\nSoit la phrase dit clairement que c'est un exemple (« par exemple », « imaginons »), soit elle dit la même chose sans durée précise (« si l'opération dure plus longtemps que prévu »). N'invente aucune autre donnée.`,
+    );
+  }
   if (a.captionCopiedSentences?.length) {
     lines.push(
       `LÉGENDE QUI RECOPIE LES SLIDES : ces phrases de la caption sont déjà sur les slides :\n${a.captionCopiedSentences.map((t) => `- « ${t} »`).join("\n")}\nRéécris hook et body de la CAPTION pour qu'ils apportent ce que les slides ne disent pas (pourquoi ce contenu, une précision ou une prise de position présentes dans les sources) ou résument le propos avec d'autres mots. N'invente rien pour la différencier : une légende plus courte vaut mieux qu'une copie. Ne touche pas aux slides.`,
