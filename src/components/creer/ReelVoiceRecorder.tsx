@@ -28,6 +28,12 @@ interface Props {
   /** Takes retained by the montage while this recorder is hidden/unmounted. */
   initialClips?: (VoiceClip | null)[];
   onVoicesChange: (clips: (VoiceClip | null)[]) => void;
+  /**
+   * Atelier du reel (26/11/2026) : la phrase à enregistrer est celle du passage affiché.
+   * Le texte et la liste des phrases sont alors portés par l'écran de montage.
+   */
+  index?: number;
+  onIndexChange?: (index: number) => void;
 }
 
 type SectionState = "todo" | "recording" | "uploading" | "done";
@@ -35,8 +41,10 @@ type SectionState = "todo" | "recording" | "uploading" | "done";
 /** Nombre de barres du vu-mètre. Purement visuel. */
 const METER_BARS = 12;
 
-export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange }: Props) {
-  const [current, setCurrent] = useState(0);
+export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange, index, onIndexChange }: Props) {
+  const piloted = index !== undefined;
+  const [current, setCurrentState] = useState(index ?? 0);
+  const setCurrent = (i: number) => { setCurrentState(i); onIndexChange?.(i); };
   const [states, setStates] = useState<SectionState[]>(() => texts.map((_, i) => initialClips?.[i] ? "done" : "todo"));
   const [clips, setClips] = useState<(VoiceClip | null)[]>(() => texts.map((_, i) => initialClips?.[i] ?? null));
   const [previews, setPreviews] = useState<(string | null)[]>(() => texts.map((_, i) => initialClips?.[i]?.url ?? null));
@@ -121,7 +129,7 @@ export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange 
       rec.ondataavailable = (e) => chunksRef.current.push(e.data);
       rec.onstop = () => void handleStopped(i, stream);
       rec.start();
-      setCurrent(i);
+      setCurrentState(i);
       setStates((s) => setAt(s, i, "recording"));
       setElapsed(0);
       timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
@@ -192,19 +200,30 @@ export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange 
 
   const recording = states[current] === "recording";
   const uploading = states[current] === "uploading";
+  // On suit le passage affiché, sauf pendant une prise ou son envoi : la prise en cours
+  // reste à l'écran jusqu'au bout, même si elle change de passage.
+  const busy = recording || uploading;
+  useEffect(() => {
+    if (index === undefined || busy || index === current) return;
+    stopPlayback();
+    setCurrentState(Math.min(Math.max(index, 0), texts.length - 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, busy]);
   const currentClip = clips[current];
   const doneCount = clips.filter(Boolean).length;
   const nextTodo = texts.findIndex((_, j) => j > current && !clips[j]);
   const litBars = Math.round(level * METER_BARS);
 
   return (
-    <div className="rounded-lg border border-border bg-background p-3 space-y-3">
+    <div className={piloted ? "space-y-2" : "rounded-lg border border-border bg-background p-3 space-y-3"}>
+      {(!piloted || (busy && current !== index)) && <>
       <p className="text-2xs text-muted-foreground uppercase tracking-wide font-medium">
         Phrase {current + 1} sur {texts.length} · je lis à voix haute
       </p>
       <div className="rounded-md bg-primary/10 px-4 py-3">
         <p className="text-sm leading-relaxed text-foreground">« {texts[current]} »</p>
       </div>
+      </>}
 
       {recording ? (
         <div className="space-y-2">
@@ -264,7 +283,7 @@ export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange 
           </div>
         </div>
       ) : (
-        <div className="flex justify-center">
+        <div className={piloted ? "flex" : "flex justify-center"}>
           <Button size="sm" onClick={() => startRecording(current)} disabled={uploading}>
             {uploading ? (
               <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
@@ -276,7 +295,7 @@ export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange 
         </div>
       )}
 
-      <div className="space-y-1">
+      {!piloted && <div className="space-y-1">
         {texts.map((t, i) => (
           <div
             key={i}
@@ -316,11 +335,13 @@ export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange 
             )}
           </div>
         ))}
-      </div>
+      </div>}
 
       <p className="text-2xs text-muted-foreground">
         {doneCount}/{texts.length} phrase{doneCount > 1 ? "s" : ""} enregistrée{doneCount > 1 ? "s" : ""}
-        {doneCount < texts.length && " : enregistre les phrases manquantes, ou choisis « Sans voix » pour un montage muet."}
+        {doneCount < texts.length && (piloted
+          ? " : passe d'un passage à l'autre pour enregistrer les suivantes."
+          : " : enregistre les phrases manquantes, ou choisis « Sans voix » pour un montage muet.")}
       </p>
     </div>
   );

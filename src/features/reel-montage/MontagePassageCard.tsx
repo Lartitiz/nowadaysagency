@@ -4,12 +4,12 @@
 // ReelMontage.tsx à l'identique (fiche 16 de docs/robustesse/gros-fichiers.md,
 // lot 5). L'id `studio-reel-passage-<i>` reste sur la carte (défilement au
 // retour du Studio).
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Image as ImageIcon, Loader2, Search, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Image as ImageIcon, Loader2, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { sectionDuration, voiceSectionDuration } from "@/lib/reel-render";
 import type { StockVideo } from "@/lib/stock-videos";
@@ -45,14 +45,18 @@ interface MontagePassageCardProps {
   placingStartPhoto?: number | null;
   placeStartPhoto?: (i: number) => void;
   highlightedPassage: number | null;
+  /** « Ta voix » : l'enregistreur de la phrase de ce passage (mode « Ma voix »). */
+  voiceSlot?: ReactNode;
+  onPrevious?: () => void;
+  onNext?: () => void;
 }
 
-export function MontagePassageCard({ s, i, total = 1, montageMode, clips, setClips, cutaways, setCutaways, voiceClips, keywords, setKeywords, results, loading, runSearch, uploadingSection, openFilePicker, myVideos, pickFromLibrary, workspaceId, pendingCutaway, setPendingCutaway, setStudioTarget, highlightedPassage, canUseStartPhoto, placingStartPhoto, placeStartPhoto }: MontagePassageCardProps) {
+export function MontagePassageCard({ s, i, total = 1, montageMode, clips, setClips, cutaways, setCutaways, voiceClips, keywords, setKeywords, results, loading, runSearch, uploadingSection, openFilePicker, myVideos, pickFromLibrary, workspaceId, pendingCutaway, setPendingCutaway, setStudioTarget, highlightedPassage, voiceSlot, onPrevious, onNext, canUseStartPhoto, placingStartPhoto, placeStartPhoto }: MontagePassageCardProps) {
   return (
   <Card key={i} id={`studio-reel-passage-${i}`} className={i === highlightedPassage ? "border-primary ring-2 ring-primary/20" : "border-border"}>
-    <CardContent className="p-3 space-y-2">
+    <CardContent className="p-3 sm:p-4 space-y-2.5">
       <div className="flex items-center gap-2 flex-wrap">
-        {total > 1 && <span className="text-xs font-semibold">Passage {i + 1} sur {total}</span>}
+        {total > 1 && <span className="text-sm font-semibold">Passage {i + 1} sur {total}</span>}
         <span className="text-2xs text-muted-foreground">
           {montageMode === "filme"
             ? clips[i]?.duration != null
@@ -60,10 +64,24 @@ export function MontagePassageCard({ s, i, total = 1, montageMode, clips, setCli
               : "durée : celle de ta prise, une fois choisie"
             : `environ ${sectionDuration(s)} s`}
         </span>
+        {total > 1 && (
+          <span className="ml-auto flex gap-1">
+            {onPrevious ? <Button type="button" variant="outline" size="sm" className="h-7 w-7 p-0" onClick={onPrevious} aria-label="Passage précédent"><ChevronLeft className="h-4 w-4" /></Button> : <span className="w-7" />}
+            {onNext ? <Button type="button" variant="outline" size="sm" className="h-7 w-7 p-0" onClick={onNext} aria-label="Passage suivant"><ChevronRight className="h-4 w-4" /></Button> : <span className="w-7" />}
+          </span>
+        )}
       </div>
       {s.texte_parle && (
-        <p className="text-xs text-foreground leading-snug line-clamp-3">{s.texte_parle}</p>
+        <p className="rounded-md bg-muted/60 px-3 py-2 text-sm leading-relaxed text-foreground">{s.texte_parle}</p>
       )}
+
+      {voiceSlot && (
+        <div className="space-y-1.5">
+          <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Ta voix</p>
+          {voiceSlot}
+        </div>
+      )}
+      <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{montageMode === "filme" ? "Ta vidéo" : "L’image"}</p>
 
       {montageMode === "cache" && (
         <>
@@ -160,7 +178,7 @@ export function MontagePassageCard({ s, i, total = 1, montageMode, clips, setCli
         {clips[i]?.source === "studio" && <Badge variant="secondary" className="text-2xs">Clip du Studio · {clips[i]?.label}</Badge>}
       </div>
 
-      {workspaceId && <details open={pendingCutaway?.index === i || !!cutaways[i] || i === highlightedPassage || undefined}
+      {workspaceId && <details key={i} open={pendingCutaway?.index === i || !!cutaways[i] || i === highlightedPassage || undefined}
         className="rounded-md border border-primary/15 bg-primary/5 p-2 space-y-2">
         <summary className="cursor-pointer text-2xs font-medium">Ajouter une image animée sur ce passage (facultatif){cutaways[i] ? " · 1 ajoutée" : ""}</summary>
         <div className="mt-2 flex gap-2 flex-wrap">

@@ -14,8 +14,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Check, Film } from "lucide-react";
+import { Film } from "lucide-react";
 import { useBrandCharter } from "@/hooks/use-branding";
 import type { VoiceClip } from "@/lib/reel-voice";
 import { MontageModeFork, MontageModeSummary } from "@/features/reel-montage/MontageModeChoice";
@@ -23,7 +22,9 @@ import { storedReelFaceCam } from "@/lib/reel-film-preference";
 import { MontageVoiceChoice } from "@/features/reel-montage/MontageVoiceChoice";
 import { StudioClipDialog } from "@/features/reel-montage/StudioClipDialog";
 import { montageRenderKey, savedMontageProject, withTweaksKey } from "@/features/reel-montage/montage-project";
-import { ReelPreview } from "@/features/reel-montage/ReelPreview";
+import { HyperframesPlayer, ReelPreview } from "@/features/reel-montage/ReelPreview";
+import { ReelStage } from "@/features/reel-montage/ReelStage";
+import ReelVoiceRecorder from "@/components/creer/ReelVoiceRecorder";
 import { DEFAULT_TWEAKS, hasInstantPreview, maxDurationsFor, previewComposition, sanitizeTweaks, tweakedPlan, type ReelTweaks } from "@/features/reel-montage/reel-preview";
 import { useReelStockSearch } from "@/features/reel-montage/use-reel-stock-search";
 import { useReelMyVideos } from "@/features/reel-montage/use-reel-my-videos";
@@ -145,75 +146,62 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
   useEffect(() => { if (pendingCutaway) setCurrent(pendingCutaway.index); }, [pendingCutaway]);
   const goTo = (index: number) => {
     setCurrent(index);
-    requestAnimationFrame(() => document.getElementById(`studio-reel-passage-${index}`)?.scrollIntoView?.({ block: "nearest" }));
+    if (index !== current) requestAnimationFrame(() => document.getElementById(`studio-reel-passage-${index}`)?.scrollIntoView?.({ block: "nearest" }));
   };
 
+  const voiceSlot = montageMode === "cache" && voiceMode === "recorded" ? (
+    <ReelVoiceRecorder texts={spoken.map((s) => s.texte_parle as string)} initialClips={voiceClips} onVoicesChange={setVoiceClips}
+      index={page} onIndexChange={goTo} />
+  ) : undefined;
+
   return (
-    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
-      <div className="space-y-0.5">
-        <span className="text-xs font-bold text-primary uppercase tracking-wide">
-          <Film className="inline h-3.5 w-3.5 mr-1" /> Monter la vidéo
-        </span>
-        <p className="text-2xs text-muted-foreground">Le montage automatique est tout neuf : regarde ta vidéo avant de la publier.</p>
-      </div>
-
+    <div data-testid="reel-atelier" className="space-y-3">
       {!montageMode ? (
-        <MontageModeFork setMontageMode={setMontageMode} />
+        <div className="mx-auto max-w-2xl rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+          <span className="text-xs font-bold text-primary uppercase tracking-wide">
+            <Film className="inline h-3.5 w-3.5 mr-1" /> Monter la vidéo
+          </span>
+          <MontageModeFork setMontageMode={setMontageMode} />
+        </div>
       ) : (
-        <>
-          <MontageModeSummary montageMode={montageMode} voiceMode={voiceMode} setMontageMode={setMontageMode} />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-6">
+          <ReelStage spoken={spoken} clips={clips} page={page} goTo={goTo} focus={previewFocus}
+            player={preview ? <HyperframesPlayer html={preview.html} /> : undefined}
+            mp4Url={phase !== "rendering" ? mp4Url : null} />
 
-          {montageMode === "cache" && (
-            <MontageVoiceChoice voiceMode={voiceMode} setVoiceMode={setVoiceMode} spoken={spoken} voiceClips={voiceClips} setVoiceClips={setVoiceClips} />
-          )}
+          <div className="min-w-0 space-y-3 rounded-lg border border-border bg-card p-3 sm:p-4">
+            <MontageModeSummary montageMode={montageMode} voiceMode={voiceMode} setMontageMode={setMontageMode} />
 
-          {montageMode === "filme" && (
-            <p className="text-2xs text-muted-foreground">
-              Filme en 1080p (pas 4K) : une prise de 40 s en 4K peut dépasser les 150 Mo autorisés par
-              vidéo. La durée de chaque scène sera celle de ta prise, pas celle du script.
-            </p>
-          )}
+            {montageMode === "cache" && <MontageVoiceChoice voiceMode={voiceMode} setVoiceMode={setVoiceMode} />}
 
-          {spoken.length > 1 && (
-            <nav aria-label="Passages du reel" className="flex items-center gap-1.5 flex-wrap">
-              {spoken.map((_, i) => (
-                <button key={i} type="button" onClick={() => goTo(i)} aria-current={i === page ? "step" : undefined}
-                  aria-label={`Passage ${i + 1}${clips[i] ? ", prêt" : ""}`}
-                  className={`inline-flex h-8 min-w-8 items-center justify-center gap-0.5 rounded-md border px-2 text-xs font-medium ${
-                    i === page ? "border-primary ring-2 ring-primary/20 bg-background" : clips[i] ? "border-transparent bg-success/15 text-foreground" : "border-border bg-background"}`}>
-                  {i + 1}{clips[i] && <Check className="h-3 w-3" aria-hidden />}
-                </button>
-              ))}
-            </nav>
-          )}
-
-          <div className="space-y-2">
-            {spoken.map((s, i) => i !== page ? null : (
-              <MontagePassageCard key={i} s={s} i={i} total={spoken.length} montageMode={montageMode} clips={clips} setClips={setClips} cutaways={cutaways} setCutaways={setCutaways} voiceClips={voiceClips} keywords={keywords} setKeywords={setKeywords} results={results} loading={loading} runSearch={runSearch} uploadingSection={uploadingSection} openFilePicker={openFilePicker} myVideos={myVideos} pickFromLibrary={pickFromLibrary} workspaceId={workspaceId} pendingCutaway={pendingCutaway} setPendingCutaway={setPendingCutaway} setStudioTarget={setStudioTarget} highlightedPassage={highlightedPassage} {...startPhotoTools} />
-            ))}
-            {spoken.length > 1 && (
-              <div className="flex items-center justify-between gap-2">
-                {page > 0 ? <Button type="button" variant="ghost" size="sm" onClick={() => goTo(page - 1)}>Passage précédent</Button> : <span />}
-                {page < spoken.length - 1 && <Button type="button" variant="outline" size="sm" onClick={() => goTo(page + 1)}>Passage suivant</Button>}
-              </div>
+            {montageMode === "filme" && (
+              <p className="text-2xs text-muted-foreground">
+                Filme en 1080p (pas 4K) : une prise de 40 s en 4K peut dépasser les 150 Mo autorisés par
+                vidéo. La durée de chaque scène sera celle de ta prise, pas celle du script.
+              </p>
             )}
+
+            {spoken[page] && (
+              <MontagePassageCard key="passage" s={spoken[page]} i={page} total={spoken.length} montageMode={montageMode} clips={clips} setClips={setClips} cutaways={cutaways} setCutaways={setCutaways} voiceClips={voiceClips} keywords={keywords} setKeywords={setKeywords} results={results} loading={loading} runSearch={runSearch} uploadingSection={uploadingSection} openFilePicker={openFilePicker} myVideos={myVideos} pickFromLibrary={pickFromLibrary} workspaceId={workspaceId} pendingCutaway={pendingCutaway} setPendingCutaway={setPendingCutaway} setStudioTarget={setStudioTarget} highlightedPassage={highlightedPassage} voiceSlot={voiceSlot}
+                onPrevious={page > 0 ? () => goTo(page - 1) : undefined} onNext={page < spoken.length - 1 ? () => goTo(page + 1) : undefined} {...startPhotoTools} />
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(e) => handleFileChosen(e.target.files)}
+            />
+
+            {preview && (
+              <ReelPreview duration={preview.duration} tweaks={tweaks} setTweaks={setTweaks} passages={previewPassages}
+                workspaceId={workspaceId} busy={phase === "rendering"}
+                onDownload={() => void renderMp4({ download: true })} onSave={() => void renderMp4()} />
+            )}
+            <MontageResult previewOpen={!!preview} preparingPreview={preparingPreview} canReopenPreview={instantPreview && hasPreview && !preview} reopenPreview={reopenPreview} spoken={spoken} ready={ready} phase={phase} archiving={archiving} needsReview={needsReview} handleAssemble={handleAssemble} setAssociationTexts={setAssociationTexts} sectionTexts={sectionTexts} setNeedsReview={setNeedsReview} montageMode={montageMode} voiceMode={voiceMode} clips={clips} tick={tick} errorMsg={errorMsg} mp4Url={mp4Url} downloading={downloading} handleDownload={handleDownload} downloadFailed={downloadFailed} archived={archived} archiveRetryAvailable={archiveRetryAvailable} handleArchiveRetry={handleArchiveRetry} />
           </div>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/*"
-            className="hidden"
-            onChange={(e) => handleFileChosen(e.target.files)}
-          />
-
-          {preview && (
-            <ReelPreview html={preview.html} duration={preview.duration} tweaks={tweaks} setTweaks={setTweaks} passages={previewPassages}
-              workspaceId={workspaceId} busy={phase === "rendering"} focus={previewFocus}
-              onDownload={() => void renderMp4({ download: true })} onSave={() => void renderMp4()} />
-          )}
-          <MontageResult previewOpen={!!preview} preparingPreview={preparingPreview} canReopenPreview={instantPreview && hasPreview && !preview} reopenPreview={reopenPreview} spoken={spoken} ready={ready} phase={phase} archiving={archiving} needsReview={needsReview} handleAssemble={handleAssemble} setAssociationTexts={setAssociationTexts} sectionTexts={sectionTexts} setNeedsReview={setNeedsReview} montageMode={montageMode} voiceMode={voiceMode} clips={clips} tick={tick} errorMsg={errorMsg} mp4Url={mp4Url} downloading={downloading} handleDownload={handleDownload} downloadFailed={downloadFailed} archived={archived} archiveRetryAvailable={archiveRetryAvailable} handleArchiveRetry={handleArchiveRetry} />
-        </>
+        </div>
       )}
       <StudioClipDialog studioTarget={studioTarget} setStudioTarget={setStudioTarget} spoken={spoken} workspaceId={workspaceId}
         subject={subject} sectionTexts={sectionTexts} setPendingCutaway={setPendingCutaway} />

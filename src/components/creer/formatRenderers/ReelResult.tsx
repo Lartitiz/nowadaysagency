@@ -29,12 +29,14 @@ import { readableReelFormat, readableShotPurpose, readableVisualCue, shotTypeLab
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Copy, Loader2 } from "lucide-react";
+import { ArrowRight, Copy, Loader2, Pencil } from "lucide-react";
+import { useMarkCarouselEditorShown } from "@/lib/carousel-editor-shown";
+import { useHideAppBreadcrumb } from "@/lib/app-breadcrumb";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import ReelMontage, { type ReelMontageProject } from "@/components/creer/ReelMontage";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 export type ReelStepKey = "script" | "tournage" | "montage" | "caption";
@@ -64,6 +66,10 @@ interface Props {
   onResultChange?: (result: any) => void;
   /** Reel créé à partir d'une photo : elle est proposée au montage. */
   startPhoto?: string | null;
+  /** « Tout est enregistré » et l'historique des versions : sur la ligne des onglets (atelier du 26/11/2026). */
+  saveStatus?: ReactNode;
+  /** « Éditer le texte » : rangé dans l'onglet Script. */
+  onEdit?: () => void;
 }
 
 function correctedSection(section: any) {
@@ -75,7 +81,11 @@ function correctedSection(section: any) {
   };
 }
 
-export default function ReelResult({ result, workspaceId, initialMp4Url, onStepChange, onMp4Change, onResultChange, startPhoto }: Props) {
+export default function ReelResult({ result, workspaceId, initialMp4Url, onStepChange, onMp4Change, onResultChange, startPhoto, saveStatus, onEdit }: Props) {
+  // Atelier du reel (26/11/2026) : comme le carrousel, le haut de la page se replie dans
+  // la barre fine du menu pour que la vidéo et le passage soient visibles dès l'arrivée.
+  useMarkCarouselEditorShown();
+  useHideAppBreadcrumb();
   // `format_label` est le libellé LISIBLE produit par la génération (« Face cam
   // confession ») ; `format_type` est la clé technique (`face_cam_confession`).
   // On affichait la clé — même bug que #688 ailleurs dans l'app.
@@ -214,19 +224,10 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center gap-2 flex-wrap">
-        {formatType && (
-          <Badge className="bg-primary/10 text-primary border-primary/20">{formatType}</Badge>
-        )}
-        {dureeCible && (
-          <Badge variant="secondary" className="font-mono">{dureeCible}</Badge>
-        )}
-      </div>
-
-      {/* Onglets nommés — surtout PAS un second stepper à pastilles
+      {/* Une seule ligne : les onglets, le format du reel, la sauvegarde.
+          Onglets nommés — surtout PAS un second stepper à pastilles
           numérotées : voir l'en-tête du fichier. */}
-      <div className="space-y-1.5">
-        <p className="text-2xs text-muted-foreground">Ton reel, dans l'ordre</p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div role="tablist" aria-label="Étapes de ton reel" className="flex flex-wrap gap-1.5">
           {steps.map((s, i) => (
             <button
@@ -262,11 +263,23 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
             </button>
           ))}
         </div>
+        {(formatType || dureeCible) && (
+          <span className="flex items-center gap-1.5">
+            {formatType && <Badge className="bg-primary/10 text-primary border-primary/20 font-normal">{formatType}</Badge>}
+            {dureeCible && <Badge variant="secondary" className="font-mono font-normal">{dureeCible}</Badge>}
+          </span>
+        )}
+        {saveStatus && (
+          <div data-testid="reel-save-status" className="md:ml-auto min-w-0 text-muted-foreground [&>div]:border-0 [&>div]:px-0 [&>div]:py-0 md:[&>div]:text-right md:[&>div>div]:justify-end">
+            {saveStatus}
+          </div>
+        )}
       </div>
 
       <div id="reel-step-panel" role="tabpanel" aria-labelledby={`reel-tab-${stepKey}`} className="space-y-4">
       {stepKey === "script" && (
         <ScriptStep
+          onEdit={onEdit}
           lectureTest={lectureTest}
           sections={sections}
           checkedText={checkedText}
@@ -275,7 +288,7 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
       )}
 
       {stepKey === "tournage" && (
-        <TournageStep planTournage={planTournage} personalTip={personalTip} />
+        <div className={READING}><TournageStep planTournage={planTournage} personalTip={personalTip} /></div>
       )}
 
       {/* Monté à la première visite, jamais démonté ensuite. */}
@@ -296,7 +309,7 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
       )}
 
       {stepKey === "caption" && (
-        <CaptionStep
+        <div className={READING}><CaptionStep
           caption={caption}
           hashtags={hashtags}
           coverText={coverText}
@@ -306,12 +319,12 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
           montageDone={montageDone}
           mp4Url={mp4Url}
           onCopyCaption={handleCopyCaption}
-        />
+        /></div>
       )}
       </div>
 
       {!isLast && (
-        <div className="space-y-2">
+        <div className={cn("space-y-2", READING)}>
           <Button onClick={goNext} className="w-full gap-2 h-11 text-sm font-semibold">
             {nextLabel} <ArrowRight className="h-4 w-4" />
           </Button>
@@ -336,19 +349,31 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
 
 /* ── Étape 1 — Mon script ─────────────────────────────────────────────── */
 
+/** Les onglets de lecture gardent une colonne lisible ; seul le montage prend toute la largeur. */
+const READING = "mx-auto w-full max-w-2xl";
+
 function ScriptStep({
   lectureTest,
   sections,
   checkedText,
   onCheckedTextChange,
+  onEdit,
 }: {
+  onEdit?: () => void;
   lectureTest?: string;
   sections: any[];
   checkedText: string;
   onCheckedTextChange: (t: string) => void;
 }) {
   return (
-    <div className="space-y-4">
+    <div className={cn("space-y-4", READING)}>
+      {onEdit && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={onEdit} className="gap-2">
+            <Pencil className="h-4 w-4" /> Éditer le texte
+          </Button>
+        </div>
+      )}
       {lectureTest && (
         <div className="rounded-lg bg-accent/30 border border-accent p-4 space-y-2">
           <div className="flex items-center gap-2">

@@ -60,7 +60,7 @@ export function MontageResult({ previewOpen = false, preparingPreview = false, c
     <>
   {/* Toujours en vue : collée en bas de l'écran, au-dessus du menu du téléphone
       et de la barre d'actions du résultat (hauteur publiée par ResultActions). */}
-  <div data-testid="montage-assemble-bar" className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom)+var(--result-actions-h,0px))] md:bottom-[var(--result-actions-h,0px)] z-20 -mx-4 flex items-center justify-between gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur">
+  <div data-testid="montage-assemble-bar" className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom)+var(--result-actions-h,0px))] md:bottom-[var(--result-actions-h,0px)] z-20 -mx-3 sm:-mx-4 flex items-center justify-between gap-2 border-t border-border bg-card/95 px-3 sm:px-4 py-3 backdrop-blur">
     <span className="text-2xs text-muted-foreground">
       {ready} clip{ready > 1 ? "s" : ""} sur {spoken.length} prêt{ready > 1 ? "s" : ""}
     </span>
@@ -87,7 +87,7 @@ export function MontageResult({ previewOpen = false, preparingPreview = false, c
 
   {mp4Url && phase !== "rendering" && !previewOpen && (
     <div className="space-y-2">
-      <video src={mp4Url} controls playsInline className="w-full max-h-[420px] rounded-lg bg-black" />
+      {phase === "done" && <p className="text-sm font-medium">Ta vidéo est prête</p>}
       <div className="flex items-center gap-2 flex-wrap">
         <a href={mp4Url} download target="_blank" rel="noopener noreferrer" className="inline-flex" onClick={(event) => { event.preventDefault(); void handleDownload(); }}>
           <Button variant="outline" size="sm">

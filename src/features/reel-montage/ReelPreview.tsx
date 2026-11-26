@@ -26,7 +26,7 @@ function loadPlayer(): Promise<void> {
 }
 
 /** Le lecteur, créé à la main (élément web, hors de React) et nourri par `srcdoc`. */
-function HyperframesPlayer({ html }: { html: string }) {
+export function HyperframesPlayer({ html }: { html: string }) {
   const host = useRef<HTMLDivElement>(null);
   const player = useRef<HTMLElement | null>(null);
   const [failed, setFailed] = useState(false);
@@ -67,7 +67,7 @@ function HyperframesPlayer({ html }: { html: string }) {
   useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
   if (failed) return <p className="text-xs text-destructive p-3">L’aperçu ne s’affiche pas sur ce navigateur. Tu peux quand même télécharger ta vidéo.</p>;
   return (
-    <div className="relative mx-auto aspect-[9/16] w-full max-w-[240px] sm:max-w-[260px] overflow-hidden rounded-lg bg-black">
+    <div className="relative h-full w-full overflow-hidden bg-black">
       <div ref={host} data-testid="reel-preview-player" className="h-full w-full" />
       {!loaded && (
         <div role="status" className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80 px-4 text-center text-xs text-white">
@@ -80,27 +80,22 @@ function HyperframesPlayer({ html }: { html: string }) {
 }
 
 interface ReelPreviewProps {
-  html: string;
   duration: number;
   tweaks: ReelTweaks;
   setTweaks: (t: ReelTweaks) => void;
   passages: { duration: number; text: string }[];
   workspaceId?: string;
   busy: boolean;
-  /** Augmente à chaque nouveau clic sur le bouton du bas : on ramène l'aperçu à l'écran. */
-  focus?: number;
   onDownload: () => void;
   onSave: () => void;
 }
 
-export function ReelPreview({ html, duration, tweaks, setTweaks, passages, workspaceId, busy, focus = 0, onDownload, onSave }: ReelPreviewProps) {
+export function ReelPreview({ duration, tweaks, setTweaks, passages, workspaceId, busy, onDownload, onSave }: ReelPreviewProps) {
   const [request, setRequest] = useState("");
   const [asking, setAsking] = useState(false);
   const [answer, setAnswer] = useState("");
   // L'aperçu s'ouvre sous la barre « Assembler » : on l'amène à l'écran (essai réel du 14/11/2026,
   // il restait caché sous la barre collante et la cliente ne voyait rien se passer).
-  const sectionRef = useRef<HTMLElement>(null);
-  useEffect(() => { sectionRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" }); }, [focus]);
   const elapsed = useElapsedSeconds(busy);
   const n = passages.length;
   const apply = (next: ReelTweaks, said = "") => { setTweaks(sanitizeTweaks(next, n)); setAnswer(said); };
@@ -124,12 +119,11 @@ export function ReelPreview({ html, duration, tweaks, setTweaks, passages, works
 
   const locked = busy || asking;
   return (
-    <section ref={sectionRef} aria-label="Aperçu de ton reel" className="scroll-mt-20 space-y-3 rounded-lg border border-border bg-background p-3">
+    <section aria-label="Aperçu de ton reel" className="space-y-3 rounded-lg border border-border bg-background p-3">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-sm font-medium">Aperçu de ton reel</p>
+        <p className="text-sm font-medium">Retoucher l’aperçu</p>
         <span className="text-2xs text-muted-foreground">{Math.round(duration)} s</span>
       </div>
-      <HyperframesPlayer html={html} />
 
       <div className="flex flex-wrap gap-1.5">
         <Button type="button" variant="outline" size="sm" disabled={locked || tweaks.durationScale <= 0.5} onClick={() => apply(shorter(tweaks))}>Plus court</Button>
