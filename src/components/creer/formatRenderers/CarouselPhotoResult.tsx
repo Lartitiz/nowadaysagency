@@ -29,7 +29,7 @@ import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
-import { overlayPositionLabel, targetLine, usefulDirective } from "@/features/creer/carousel-photo/labels"; import { allImagesReadyMessage } from "@/lib/carousel-photo-proposals";
+import { overlayPositionLabel, targetLine, usefulDirective, visibleNote } from "@/features/creer/carousel-photo/labels"; import { allImagesReadyMessage } from "@/lib/carousel-photo-proposals";
 import { AnotherProposalButton, CastingNotice, useAnotherProposal } from "@/features/creer/carousel-photo/proposals-ui";
 import { photoResultSignature, needsPhotoResultResync } from "@/features/creer/carousel-photo/resync";
 import { type SlideGenEntry, type SlideGenState, swapGenEntries, withoutGenEntry, removeGenEntryAt, patchGenEntry } from "@/features/creer/carousel-photo/gen-state";
@@ -1040,8 +1040,8 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                 </div>
               )}
 
-              {slide.note && (
-                <p className="text-xs text-muted-foreground">💡 {sanitizeInternalLabels(slide.note)}</p>
+              {visibleNote(slide) && (
+                <p className="text-xs text-muted-foreground">💡 {sanitizeInternalLabels(visibleNote(slide))}</p>
               )}
               </div>
               </div>

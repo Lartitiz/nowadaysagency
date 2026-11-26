@@ -35,3 +35,18 @@ export function targetLine(slide: { photo_directive?: unknown; cast_source?: unk
   if (slide?.cast_source === "library_auto" || slide?.cast_source === "stock_ambient") return "";
   return usefulDirective(slide?.photo_directive);
 }
+
+const PROPOSED_SOURCES = new Set(["library_auto", "stock_ambient"]);
+
+/**
+ * Note 💡 d'une slide. Écrite avec le texte, elle parle parfois de la photo que
+ * l'app imaginait : sous une photo proposée (bibliothèque ou libre de droit), on
+ * lisait « La photo accompagne l'idée d'un savon complet » sous une texture de
+ * marbre (26/11/2026). Dans ce cas seulement, on ne l'affiche pas ; une note qui
+ * ne parle pas de l'image (« Accroche seule, sous-titre discret. ») reste.
+ */
+export function visibleNote(slide: { note?: unknown; cast_source?: unknown } | null | undefined): string {
+  const note = typeof slide?.note === "string" ? slide.note.trim() : "";
+  if (PROPOSED_SOURCES.has(slide?.cast_source as string) && /\b(?:photos?|images?|visuels?|clichés?)\b/i.test(note)) return "";
+  return note;
+}

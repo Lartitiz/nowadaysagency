@@ -8,7 +8,7 @@ vi.mock("@/lib/photo-storage", () => ({ userPhotoToBase64: mocks.toBase64 }));
 vi.mock("@/lib/stock-photos", () => ({ stockPhotoToPhotoItem: mocks.stockItem }));
 
 import { allImagesReadyMessage, applyPhotoProposals, proposalTargets, sameCarousel, slidePassage, visualsWaitForClick } from "@/lib/carousel-photo-proposals";
-import { overlayPositionLabel, targetLine, usefulDirective } from "@/features/creer/carousel-photo/labels";
+import { overlayPositionLabel, targetLine, usefulDirective, visibleNote } from "@/features/creer/carousel-photo/labels";
 import { usePhotoProposals } from "@/hooks/use-photo-proposals";
 
 const waiting = (text: string, extra: Record<string, unknown> = {}) => ({
@@ -104,6 +104,16 @@ describe("libellés de l'écran carrousel photo", () => {
     expect(targetLine({ photo_directive: directive, cast_source: "generated" })).toBe(directive);
     expect(targetLine({ photo_directive: directive })).toBe(directive);
     expect(targetLine(undefined)).toBe("");
+  });
+
+  it("la note 💡 qui parle de la photo visée ne s'affiche pas sous une photo proposée", () => {
+    const aboutPhoto = "La photo accompagne l'idée d'un savon complet ; elle ne prouve aucune composition.";
+    expect(visibleNote({ note: aboutPhoto, cast_source: "stock_ambient" })).toBe("");
+    expect(visibleNote({ note: "L'image montre le geste de départ.", cast_source: "library_auto" })).toBe("");
+    expect(visibleNote({ note: "Accroche seule, sous-titre discret.", cast_source: "stock_ambient" })).toBe("Accroche seule, sous-titre discret.");
+    expect(visibleNote({ note: aboutPhoto, cast_source: "generated" })).toBe(aboutPhoto);
+    expect(visibleNote({ note: aboutPhoto })).toBe(aboutPhoto);
+    expect(visibleNote({})).toBe("");
   });
 });
 
