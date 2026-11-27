@@ -191,6 +191,41 @@ function resume(lignes: LigneCreee[]): string {
   return [...parTable].map(([t, n]) => `${t}×${n}`).join(", ");
 }
 
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Jeton gardé 20 min par processus : une visite fait une trentaine de ménages,
+// inutile de reconnecter Camille à chaque fois.
+let jetonGarde: { token: string; a: number } | null = null;
+
+/**
+ * Jeton de Camille, avec trois essais espacés. Le 27/11/2026, pendant une visite
+ * où le serveur ramait, sept ménages ont échoué sur « login impossible (délai) »
+ * au premier et unique essai : sept fiches laissées pour une lenteur passagère.
+ */
+async function jetonAvecEssais(): Promise<{ token: string | null; motif: string }> {
+  if (jetonGarde && Date.now() - jetonGarde.a < 20 * 60_000) return { token: jetonGarde.token, motif: "" };
+  let dernier = "login refusé";
+  for (const attente of [0, 4_000, 10_000]) {
+    if (attente) await pause(attente);
+    try {
+      const token = await tokenCamille();
+      if (token) {
+        jetonGarde = { token, a: Date.now() };
+        return { token, motif: "" };
+      }
+      dernier = "login refusé";
+    } catch (e) {
+      dernier = `login impossible (${motif(e)})`;
+    }
+  }
+  return { token: null, motif: dernier };
+}
+
+/** `saved_ideas 1a2b…, 3c4d…` : de quoi retirer plus tard exactement ces lignes-là. */
+function identifiants(lignes: LigneCreee[]): string {
+  return lignes.map((l) => `${l.table} ${l.id}`).join(", ");
+}
+
 /**
  * Supprime les lignes tracées et renvoie une PHRASE à logguer (ne jette
  * jamais : un nettoyage raté ne doit pas rougir un test vert, il doit se LIRE).
@@ -199,35 +234,45 @@ function resume(lignes: LigneCreee[]): string {
  * ça retire le post calendrier avant les lignes créées plus tôt qui le
  * référencent (les FK sont en SET NULL / CASCADE, mais l'ordre reste le bon
  * réflexe).
+ *
+ * Chaque suppression a droit à un second essai. Ce qui reste malgré tout est
+ * NOMMÉ par son identifiant dans la phrase, pour pouvoir le retirer à la main
+ * sans jamais chercher par titre.
  */
 export async function supprimeLignesCreees(lignes: LigneCreee[]): Promise<string> {
   if (lignes.length === 0) return "rien à supprimer (aucune ligne créée par ce run)";
   const { url, anon } = configSupabase();
-  if (!url || !anon) return `KO config Supabase absente (${resume(lignes)} laissées en base)`;
+  if (!url || !anon) return `KO config Supabase absente — laissées en base : ${identifiants(lignes)}`;
 
-  let token: string | null = null;
-  try {
-    token = await tokenCamille();
-  } catch (e) {
-    return `KO login impossible (${motif(e)}) — ${resume(lignes)} laissées en base`;
-  }
-  if (!token) return `KO login refusé — ${resume(lignes)} laissées en base`;
+  const { token, motif: pourquoi } = await jetonAvecEssais();
+  if (!token) return `KO ${pourquoi} — laissées en base : ${identifiants(lignes)}`;
 
   const echecs: string[] = [];
+  const restees: LigneCreee[] = [];
   for (const l of [...lignes].reverse()) {
-    try {
-      const res = await fetch(`${url}/rest/v1/${l.table}?id=eq.${l.id}`, {
-        method: "DELETE",
-        headers: { apikey: anon, Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(15_000),
-      });
-      if (!res.ok) echecs.push(`${l.table} ${res.status}`);
-    } catch (e) {
-      echecs.push(`${l.table} ${motif(e)}`);
+    let erreur = "";
+    for (const attente of [0, 4_000]) {
+      if (attente) await pause(attente);
+      try {
+        const res = await fetch(`${url}/rest/v1/${l.table}?id=eq.${l.id}`, {
+          method: "DELETE",
+          headers: { apikey: anon, Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(20_000),
+        });
+        erreur = res.ok ? "" : `${l.table} ${res.status}`;
+        if (res.status === 401) jetonGarde = null; // jeton périmé : le prochain ménage se reconnecte
+      } catch (e) {
+        erreur = `${l.table} ${motif(e)}`;
+      }
+      if (!erreur) break;
+    }
+    if (erreur) {
+      echecs.push(erreur);
+      restees.push(l);
     }
   }
 
   return echecs.length === 0
     ? `OK (${lignes.length} ligne(s) : ${resume(lignes)})`
-    : `KO ${echecs.length}/${lignes.length} échec(s) : ${echecs.slice(0, 4).join(" | ")}`;
+    : `KO ${echecs.length}/${lignes.length} échec(s) : ${echecs.slice(0, 4).join(" | ")} — laissées en base : ${identifiants(restees)}`;
 }

@@ -34,6 +34,8 @@ export const test = base.extend<{ menageCamille: void }>({
       const res = await supprimeLignesCreees(lignes);
       console.log(`🧹 ménage après « ${testInfo.title.slice(0, 60)} » : ${res}`);
     },
-    { auto: true },
+    // Son propre délai : le ménage ne doit pas être coupé parce que le test a
+    // mangé tout son temps (c'est justement là qu'il reste des lignes).
+    { auto: true, timeout: 120_000 },
   ],
 });
