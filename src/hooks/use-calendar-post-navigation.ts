@@ -48,6 +48,13 @@ export function useCalendarPostNavigation({ theme, format, postCanal, objectif, 
     if (fmt === "post_carrousel" || fmt === "carousel" || fmt === "reel" || fmt === "story_serie" || postCanal === "linkedin") {
       handleNavigateToGenerator("generate"); return;
     }
+    // 27/11/2026 (décision de Laetitia) : post, story unique et newsletter passent
+    // aussi par /creer (questions, garde-fous, Mes idées). Le brouillon rapide sur
+    // place ne reste que pour ce que /creer ne sait pas écrire (live, autres canaux).
+    const instagram = (postCanal || "instagram") === "instagram";
+    if (postCanal === "newsletter" || fmt === "newsletter_standard" || (instagram && (fmt === "post_photo" || fmt === "post_texte" || fmt === "story"))) {
+      handleNavigateToGenerator("generate"); return;
+    }
     handleQuickGenerate();
   };
 
