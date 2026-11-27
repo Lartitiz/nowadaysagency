@@ -6,11 +6,13 @@
 // (`onSelectVersion`). Chantier P2 (18/10/2026) : chaque image prête dit si
 // elle est rangée dans « Mes photos » et propose « Télécharger » et « Créer un
 // contenu avec cette image » ; un lien expiré est renouvelé (`onImageExpired`).
+import { useRef } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { useCarouselStudioReturn } from "@/features/carousel-studio/useCarouselStudioReturn";
 import type { StudioState, StudioVersion } from "@/features/visual-studio/api";
 import { cleanStudioSummary } from "@/features/visual-studio/summary";
+import { StudioImageWaiting, StudioWaitingLabel } from "@/features/visual-studio/StudioImageWaiting";
 
 export function StudioImageStream({
   current,
@@ -28,6 +30,7 @@ export function StudioImageStream({
   writable,
   busy,
   generating,
+  sourcePhoto,
 }: {
   current: StudioState;
   galleryLimit: number;
@@ -44,13 +47,32 @@ export function StudioImageStream({
   writable: boolean;
   busy: string;
   generating: boolean | undefined;
+  /** Photo de départ de la discussion, montrée floue pendant la création. */
+  sourcePhoto?: string;
 }) {
+  // Images vues « en cours » à l'écran : seules elles apparaissent en fondu une
+  // fois prêtes (pas celles déjà prêtes à l'ouverture de la page).
+  const seenWaiting = useRef(new Set<string>());
+  const startPhotoFor = (item: StudioVersion): string | undefined => {
+    const fromVersion = item.proposal.viewed_version_id
+      ? current.versions.find((v) => v.id === item.proposal.viewed_version_id)?.url
+      : undefined;
+    if (fromVersion) return fromVersion;
+    const fromReference = item.proposal.viewed_reference_id
+      ? current.session.references?.find((r) => r.id === item.proposal.viewed_reference_id)?.url
+      : undefined;
+    if (fromReference) return fromReference;
+    return item.proposal.operation === "create" ? undefined : sourcePhoto;
+  };
   return (
     <div className="studio-image-stream">
       {current.versions.length > galleryLimit && <Button variant="outline" onClick={onShowOlder}>Voir les images plus anciennes</Button>}
       {current.versions.slice(-galleryLimit).map((item) => {
         const number = current.versions.findIndex((entry) => entry.id === item.id) + 1;
         const selected = selectedId === item.id;
+        const waiting = item.status === "processing" && !item.url;
+        if (waiting) seenWaiting.current.add(item.id);
+        const reveal = !!item.url && seenWaiting.current.has(item.id);
         return <article
           key={item.id}
           className={`studio-image-card${selected ? " selected" : ""}`}
@@ -66,12 +88,14 @@ export function StudioImageStream({
         >
           <div className="studio-image-card-head">
             <strong>Image {number}{item.proposal.series_size ? ` · série ${(item.proposal.series_index || 0) + 1}/${item.proposal.series_size}` : ""}</strong>
-            <span>{item.status === "processing" ? "Création en cours" : item.status === "ready" ? "Prête" : item.status === "failed" ? "Échec" : "À vérifier"}</span>
+            <span>{item.status === "processing" ? <StudioWaitingLabel createdAt={item.created_at} /> : item.status === "ready" ? "Prête" : item.status === "failed" ? "Échec" : "À vérifier"}</span>
           </div>
           {item.url ? <div className={selected && compare && comparisonSource ? "studio-comparison" : "studio-image-single"}>
             {selected && compare && comparisonSource && <figure><img src={comparisonSource} alt="Source de comparaison" /><figcaption>Source</figcaption></figure>}
-            <figure><img src={item.url} alt={`Image ${number} créée dans cette discussion`} loading="lazy" onError={() => onImageExpired(item.url!)} /><figcaption>{cleanStudioSummary(item.proposal.summary)}</figcaption></figure>
-          </div> : <p className="p-5 text-sm">{item.error_message || "Le résultat apparaîtra ici dès qu’il sera prêt."}</p>}
+            <figure><img className={reveal ? "studio-image-reveal" : undefined} src={item.url} alt={`Image ${number} créée dans cette discussion`} loading="lazy" onError={() => onImageExpired(item.url!)} /><figcaption>{cleanStudioSummary(item.proposal.summary)}</figcaption></figure>
+          </div> : waiting && !item.error_message
+            ? <StudioImageWaiting createdAt={item.created_at} startPhoto={startPhotoFor(item)} format={item.proposal.format} />
+            : <p className="p-5 text-sm">{item.error_message || "Le résultat apparaîtra ici dès qu’il sera prêt."}</p>}
           {item.status === "ready" && <div className="studio-image-card-actions" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
             {carouselReturn.ticket && <Button size="sm" disabled={!writable || !!busy || carouselReturn.busy || !!generating} onClick={() => void carouselReturn.returnToCarousel(item)}>{carouselReturn.busy ? "Enregistrement…" : "Utiliser dans cette slide"}</Button>}
             <Button size="sm" variant={carouselReturn.ticket ? "outline" : "default"} disabled={!!actionBusy || (!item.library_photo_id && !writable)} onClick={() => onCreateContent(item)}>
