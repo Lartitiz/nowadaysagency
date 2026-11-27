@@ -11,6 +11,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Loader2, ArrowRight, ArrowLeft, Check, Lightbulb, X, Sparkles, RotateCcw, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
+import ErrorWithRetry from "@/components/ErrorWithRetry";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import { parseAiJson } from "@/lib/parse-ai-json";
 
@@ -76,6 +77,7 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<string[]>(["", "", "", ""]);
   const [loading, setLoading] = useState(false);
+  const [failure, setFailure] = useState<{ error: unknown; step: "questions" | "diagnostic" | "adjust" } | null>(null);
   const [diagnostic, setDiagnostic] = useState<DiagnosticResult | null>(null);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
@@ -95,6 +97,7 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
   }, []);
 
   const loadQuestions = async () => {
+    setFailure(null);
     setLoading(true);
     try {
       const { data, error } = await invokeWithTimeout("coaching-module", {
@@ -107,7 +110,7 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
       setAnswers(new Array(data.questions?.length || 4).fill(""));
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu. Réessaie." : friendlyError(e));
+      setFailure({ error: e, step: "questions" });
     } finally {
       setLoading(false);
     }
@@ -122,6 +125,7 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
   };
 
   const generateDiagnostic = async () => {
+    setFailure(null);
     setPhase("diagnostic");
     setLoading(true);
     streamReset();
@@ -152,7 +156,7 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
           setEditedProposals(edited);
           setSelectedVariants({});
         } catch {
-          toast.error("Erreur de format dans la réponse IA. Réessaie.");
+          setFailure({ error: new Error("Réponse IA illisible"), step: "diagnostic" });
           setPhase("questions");
         }
       } else {
@@ -160,7 +164,7 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
       }
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast.error(friendlyError(e));
+      setFailure({ error: e, step: "diagnostic" });
       setPhase("questions");
     } finally {
       setLoading(false);
@@ -169,6 +173,7 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
 
   const handleAdjust = async () => {
     if (!adjustmentFeedback.trim() || !diagnostic) return;
+    setFailure(null);
     setLoading(true);
     setPhase("diagnostic");
     streamReset();
@@ -216,12 +221,12 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
           setEditedProposals(edited);
           setSelectedVariants({});
         } catch {
-          toast.error("Erreur de format dans la réponse IA. Réessaie.");
+          setFailure({ error: new Error("Réponse IA illisible"), step: "adjust" });
         }
       }
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast.error(friendlyError(e));
+      setFailure({ error: e, step: "adjust" });
     } finally {
       setLoading(false);
     }
@@ -384,6 +389,15 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
           <X className="h-4 w-4" />
         </button>
       </div>
+
+      {/* Erreur : bloc commun avec « Réessayer » */}
+      {failure && !loading && (
+        <ErrorWithRetry
+          error={failure.error}
+          where="coaching-flow"
+          onRetry={failure.step === "questions" ? loadQuestions : failure.step === "diagnostic" ? generateDiagnostic : handleAdjust}
+        />
+      )}
 
       {/* Intro */}
       {phase === "intro" && questions.length > 0 && (

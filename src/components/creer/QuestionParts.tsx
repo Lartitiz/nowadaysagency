@@ -13,10 +13,12 @@ const QUESTIONS_NOTES: WaitingNote[] = [
   { afterSeconds: 30, text: "C'est un peu plus long que d'habitude : ça arrive. Encore un instant…" },
 ];
 
-export function QuestionsWaiting({ messages, className = "py-10 max-w-md mx-auto text-center animate-fade-in space-y-5", testId }: {
+export function QuestionsWaiting({ messages, className = "py-10 max-w-md mx-auto text-center animate-fade-in space-y-5", testId, notes = QUESTIONS_NOTES }: {
   messages: string[];
   className?: string;
   testId?: string;
+  /** Réassurance à 15 s et 30 s ; par défaut celle des questions. */
+  notes?: WaitingNote[];
 }) {
   return (
     <div role="status" data-testid={testId}>
@@ -25,7 +27,7 @@ export function QuestionsWaiting({ messages, className = "py-10 max-w-md mx-auto
         rotation={{ messages, everyMs: 3500 }}
         tauSeconds={25}
         ceiling={90}
-        notes={QUESTIONS_NOTES}
+        notes={notes}
       />
     </div>
   );
@@ -52,8 +54,10 @@ export function QuestionCounter({ index, total, suffix = "", showBars = false, t
 }
 
 /** La question (label), son exemple lisible pendant la saisie, et la zone de texte avec micro. */
-export function QuestionField({ id, question, example, value, onChange, placeholder, labelClassName, children, testId, autoFocus, textareaClassName = "resize-none", fieldKey }: {
+export function QuestionField({ id, fieldKey, question, example, value, onChange, placeholder, labelClassName, children, testId, autoFocus, textareaClassName = "resize-none" }: {
   id: string;
+  /** Change à chaque question : la case repart à neuf (curseur dedans, dictée arrêtée). Absent : la même case sert à toutes les questions (/creer, comme avant). */
+  fieldKey?: string | number;
   question: string;
   example?: string;
   value: string;
@@ -65,8 +69,6 @@ export function QuestionField({ id, question, example, value, onChange, placehol
   testId?: string;
   autoFocus?: boolean;
   textareaClassName?: string;
-  /** Change à chaque question pour repartir d'une zone neuve (curseur reposé, dictée arrêtée). Absent : la même zone sert à toutes les questions. */
-  fieldKey?: string | number;
 }) {
   return (
     <>

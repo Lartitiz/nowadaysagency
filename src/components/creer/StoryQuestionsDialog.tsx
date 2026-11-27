@@ -15,6 +15,10 @@ import {
 
 const LOADING_MESSAGES = ["Je prépare tes questions…", "Je pars de ta fiche pour les adapter à toi…"];
 const THINKING_MESSAGES = ["Je tire une idée de ton histoire…", "Je cherche l'angle qui te ressemble…"];
+const THINKING_NOTES = [
+  { afterSeconds: 15, text: "Je relis tes réponses pour en tirer une idée qui te ressemble, ça arrive…" },
+  { afterSeconds: 30, text: "C'est un peu plus long que d'habitude : ça arrive. Encore un instant…" },
+];
 
 type Phase = "loading" | "questions" | "thinking" | "idea";
 
@@ -71,8 +75,8 @@ export default function StoryQuestionsDialog({ open, onOpenChange, workspaceId, 
           <DialogDescription>Raconte un moment vécu : on en tire un post qui le raconte.</DialogDescription>
         </DialogHeader>
 
-        {phase === "loading" && <QuestionsWaiting messages={LOADING_MESSAGES} />}
-        {phase === "thinking" && <QuestionsWaiting messages={THINKING_MESSAGES} />}
+        {phase === "loading" && <QuestionsWaiting messages={LOADING_MESSAGES} className="py-8 text-center animate-fade-in space-y-5" />}
+        {phase === "thinking" && <QuestionsWaiting messages={THINKING_MESSAGES} notes={THINKING_NOTES} className="py-8 text-center animate-fade-in space-y-5" />}
 
         {phase === "questions" && q && (
           <div className="space-y-4">

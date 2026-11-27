@@ -2309,3 +2309,13 @@ Deno.test("fil : réécriture automatique coupée → un seul appel d'écriture,
     assert(doc.structure_warnings.length > 0);
   } finally { resetDeps(); }
 });
+
+// 27/11/2026 : un appel bloqué aux questions est relancé vite (15 s sans photo, 20 s avec),
+// au lieu de 30 et 60 s ; un essai normal prend 3 à 5 s.
+for (const [withPixels, attendu] of [[false, 15000], [true, 20000]] as const) Deno.test(`questions carrousel : délai d'un essai ${attendu} ms (photos=${withPixels})`, async () => {
+  resetDeps(); const delais: number[] = [];
+  _deps.callAnthropic = (async (o: any) => { delais.push(o.abortTimeoutMs); return JSON.stringify({ questions: [] }); }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type: withPixels ? "photo" : "storytelling", subject: "Rénovation", ...(withPixels ? { photos: [{ base64: "aGVsbG8=" }] } : {}) }));
+  assertEquals(res.status, 200);
+  assertEquals(delais, [attendu]);
+});
