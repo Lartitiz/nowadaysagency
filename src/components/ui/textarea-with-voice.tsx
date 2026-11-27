@@ -47,7 +47,10 @@ const TextareaWithVoice = React.forwardRef<HTMLTextAreaElement, TextareaWithVoic
 
     return (
       <div className="relative w-full">
-        <Textarea ref={ref} value={value} onChange={onChange} className={cn("pr-10", className)} {...props} />
+        {/* La place du micro (34 px + 8 px du bord + 6 px d'air) passe APRÈS les classes de
+            l'appelant et en `!` : un `px-1` ou un `sm:px-6` reçu annulait l'ancien `pr-10`,
+            et le texte passait sous le micro (écran Créer à 390 px, visite du 27/11/2026). */}
+        <Textarea ref={ref} value={value} onChange={onChange} className={cn(className, "!pr-12")} {...props} />
         {isSupported && (
           <div className="absolute right-2 top-2">
             <MicButton isListening={isListening} isSupported={isSupported} onClick={toggle} size="sm" error={error} />
