@@ -19,7 +19,7 @@ export function callOptionsForStep(params: {
   contentType?: string;
 }) {
   const { step, isLinkedIn, isPhotoMode, context } = params;
-  // 8192 pour la génération de contenu : le JSON reel (script + duplicata `sections`
+  // 8192 pour la génération de contenu : le JSON reel (script + légende
   // + `lecture_test` + shot list) dépasse le défaut de 4096 de callAnthropicSimple
   // → stop_reason "max_tokens" → échec systématique en ~40 s. Un plafond haut ne
   // coûte rien tant qu'il n'est pas consommé.
