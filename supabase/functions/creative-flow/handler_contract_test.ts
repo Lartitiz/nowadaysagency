@@ -191,6 +191,14 @@ const CASES: { name: string; body: Record<string, unknown>; text: string; stream
       { section: "hook", timing: "0-3 sec", texte_parle: "J'ai arrêté les remises.", texte_overlay: "REMISES" },
       { section: "developpement", timing: "3-20 sec", texte_parle: "La cliente a signé quand même.", texte_overlay: "ELLE A SIGNÉ" },
     ], caption: { text: "Le prix juste.", hashtags: ["ceramique"] } }), stream: true, userId: "test-user-reel-flux" },
+  // 27/11/2026 : les stories partent en flux — une story finie = un `draft`, puis relecture, puis la séquence finale ; 1 crédit.
+  { name: "streaming — stories (brouillon puis relecture)", body: { step: "generate", contentType: "stories", context: CONTEXT, answers: ANSWERS, objective: "confiance" },
+    text: JSON.stringify({ stories: [
+      { number: 1, role: "Hook", text: "J'ai arrêté les remises.", sticker: null, title_pill: null, photo_directive: "Mes mains sur le tour", face_cam: false },
+      { number: 2, role: "Engagement", text: "Et toi, tu en fais ?", sticker: { type: "sondage", label: "Tu fais des remises ?", options: ["Oui", "Non"] }, title_pill: null, photo_directive: "Atelier", face_cam: false },
+    ] }), stream: true, userId: "test-user-stories-flux" },
+  // Stories en mode photo : chemin d'avant, réponse d'un bloc même si le front demande un flux.
+  { name: "streaming demandé — stories en mode photo (réponse d'un bloc)", body: { step: "generate", contentType: "stories", context: CONTEXT, answers: ANSWERS, photo_mode: true, photos: [{ base64: PHOTO }] }, text: "", stream: true, userId: "test-user-stories-photo" },
   { name: "streaming — carrousel retiré (410)", body: { step: "generate", contentType: "carrousel", context: CONTEXT }, text: "", stream: true },
 ];
 

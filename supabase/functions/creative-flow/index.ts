@@ -53,7 +53,7 @@ import { buildRequestContext } from "./context.ts";
 import { finishGenerated } from "./postprocess.ts";
 
 import { buildGeneratePrompt, generateUsesStoriesBrief } from "./prompts/generate.ts";
-import { loadStoriesGenerateData } from "./formats/stories.ts";
+import { loadStoriesGenerateData, storiesDraftPreview, storiesDraftTracker } from "./formats/stories.ts";
 export { buildGeneratePrompt } from "./prompts/generate.ts";
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -408,8 +408,11 @@ serve(async (req) => {
       const reelPhotos = (step === "generate" || step === "hooks") && isReel ? reelPhotosOf(body) : [];
       const userContent = reelPhotos.length ? reelPhotoUserContent(reelPhotos, userPrompt!) : userPrompt!;
       // Reel en flux : le script s'affiche pendant qu'il s'écrit (formats/reel.ts, 27/11/2026).
+      // Stories en flux (27/11/2026) : chaque story finie part à l'écran (formats/stories.ts).
       const liveDraft = emitStatus && isReel && step === "generate"
-        ? { onText: reelDraftTracker((reel) => emitStatus("draft", { reel })) } : {};
+        ? { onText: reelDraftTracker((reel) => emitStatus("draft", { reel })) }
+        : emitStatus && isStories && step === "generate"
+        ? { onText: storiesDraftTracker((story) => emitStatus("draft", { story })) } : {};
       const firstCall = () => structuredTool || reelPhotos.length || liveDraft.onText
         ? callAnthropic({
             model: modelForCall,
@@ -490,6 +493,11 @@ serve(async (req) => {
       if (draft) emitStatus("draft", { reel: draft });
       emitStatus("correcting");
     }
+    if (emitStatus && isStories && step === "generate") {
+      const draft = storiesDraftPreview(parsed);
+      if (draft) emitStatus("draft", { story: draft });
+      emitStatus("correcting");
+    }
 
     // Chaîne de finition par format : postprocess.ts (fiche 3, lot E).
     const { earlyExit, storiesGate, textEchoesBefore } = await finishGenerated(parsed, { step, isLinkedIn, isPhotoMode, isNewsletter, isReel, isPinterest, isStories, context, contentType, body, rawContent, corsHeaders, audienceAddress, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, newsContext, effectiveObjective, storiesPhotoCatalog });
@@ -503,7 +511,7 @@ serve(async (req) => {
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
     if (isBilledStep) {
       // En flux : pas de débit si la cliente est partie avant de recevoir le reel.
-      if (clientStillThere(emitStatus, "creative-flow:reel")) await logUsage(userId, "content", "creative_flow", finalUsage.total_tokens, finalUsage.model, workspace_id);
+      if (clientStillThere(emitStatus, isStories ? "creative-flow:stories" : "creative-flow:reel")) await logUsage(userId, "content", "creative_flow", finalUsage.total_tokens, finalUsage.model, workspace_id);
     } else {
       // Étape gratuite : aucun crédit, mais comptée (plafond quotidien + bilan du lundi).
       await logUsageHorsCredit({
@@ -514,7 +522,7 @@ serve(async (req) => {
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     };
 
-    if (wantsStream && isReel && step === "generate" && !deepResearch) {
+    if (wantsStream && (isReel || (isStories && !body.photo_mode)) && step === "generate" && !deepResearch) {
       return runWithHeartbeatSSE(corsHeaders, (emitStatus) => produce(emitStatus).catch(errorResponse));
     }
     return await produce();

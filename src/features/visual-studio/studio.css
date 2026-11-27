@@ -545,16 +545,18 @@
 /* Attente d'une image (27/11/2026) : photo de départ floue + reflet qui passe. */
 .studio-image-waiting {
   position: relative;
-  width: calc(100% - 32px);
+  /* Largeur bornée pour garder la forme de l'image : sans elle, sur grand
+     écran, le cadre s'étirait en paysage et la photo, recadrée, devenait
+     méconnaissable (vu en ligne le 27/11/2026). */
+  width: min(calc(100% - 32px), 448px);
   margin: 0 auto 16px;
   aspect-ratio: 4 / 5;
-  max-height: 560px;
   overflow: hidden;
   border-radius: 12px;
   background: hsl(var(--primary) / 0.06);
 }
-.studio-image-waiting-square { aspect-ratio: 1 / 1; }
-.studio-image-waiting-landscape { aspect-ratio: 3 / 2; }
+.studio-image-waiting-square { aspect-ratio: 1 / 1; width: min(calc(100% - 32px), 540px); }
+.studio-image-waiting-landscape { aspect-ratio: 3 / 2; width: min(calc(100% - 32px), 720px); }
 .studio-image-waiting-photo {
   position: absolute;
   inset: -24px;

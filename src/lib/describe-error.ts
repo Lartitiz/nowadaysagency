@@ -34,13 +34,15 @@ export function describeError(e: unknown, opts: { fallback?: string } = {}): Des
   if (quotaLimitMessage(quota)) {
     return { kind: "quota", message: readableError(e, fallback), retryable: false };
   }
-  if (anyE?.isTimeout || anyE?.code === "TIMEOUT") {
-    return { kind: "timeout", message: "Ça prend plus longtemps que prévu. Réessaie dans un instant.", retryable: true };
-  }
   const raw = rawOf(e).trim();
+  if (anyE?.isTimeout || anyE?.code === "TIMEOUT") {
+    // Le message de invokeWithTimeout dit de vérifier le résultat avant de relancer
+    // (le traitement peut s'être terminé et avoir débité) : on le garde tel quel.
+    return { kind: "timeout", message: raw ? readableError(e, fallback) : "Ça prend plus longtemps que prévu. Vérifie si le résultat est arrivé avant de relancer.", retryable: true };
+  }
   if (!raw) return { kind: "empty", message: fallback, retryable: true };
   const message = readableError(e, fallback);
-  if (/401|non.?authentifi|not.?authenticated|\bjwt\b|session a expiré/i.test(raw) || /session a expiré/i.test(message)) {
+  if (/\b401\b|non.?authentifi|not.?authenticated|\bjwt\b|session a expiré/i.test(raw) || /session a expiré/i.test(message)) {
     return { kind: "auth", message, retryable: false };
   }
   return { kind: "generic", message, retryable: true };

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
+import { mergeStoryDraft, type StoryDraft } from "@/components/creer/StoryDraftPreview";
 import { chosenHookText, mergeReelDraft, type ReelDraft } from "@/components/creer/ReelDraftPreview";
 import { posthog } from "@/lib/posthog-lazy";
 import { handleQuotaError } from "@/lib/quota-error-handler";
@@ -68,6 +69,8 @@ export function useContentGenerator() {
   // Reel en brouillon (13/11/2026) : accroche choisie tout de suite, puis le
   // script écrit (évènement SSE `draft` de creative-flow) pendant la relecture.
   const [reelDraft, setReelDraft] = useState<ReelDraft | null>(null);
+  // Stories en brouillon (27/11/2026) : chaque story écrite s'affiche pendant l'écriture (évènement SSE `draft`).
+  const [storyDraft, setStoryDraft] = useState<StoryDraft | null>(null);
 
   // Internal streaming wrapper — proxied to consumers via the hook's return.
   // Kept inside the hook so all callers share the same SSE state.
@@ -99,7 +102,7 @@ export function useContentGenerator() {
     setGenerationStage(null);
     setDraftSlides([]);
     setOutlineTitles([]);
-    setReelDraft(null);
+    setReelDraft(null); setStoryDraft(null);
     setGenerating(false);
     setResult(null);
     setError(null);
@@ -148,7 +151,7 @@ export function useContentGenerator() {
     setGenerationStage(null);
     setDraftSlides([]);
     setOutlineTitles([]);
-    setReelDraft(null);
+    setReelDraft(null); setStoryDraft(null);
     const generationStartedAt = performance.now();
 
     // Defensive: bail early on non-canonical formats (e.g. "auto") so the user
@@ -220,8 +223,15 @@ export function useContentGenerator() {
         }
 
         case "story": {
-          const res = await invokeWithTimeout("creative-flow", {
+          const res = await invokeWithHeartbeat("creative-flow", {
+            signal: cancel.signal,
             body: await buildStoryGenerateBody(params, { effectiveSubject, existingContent, structurePrompt, structureId, effectiveWorkspaceId }),
+            onStatus: (stage, event) => {
+              if (epoch !== generationEpoch.current) return;
+              const draft = event?.story as StoryDraft | undefined;
+              if (stage === "draft") { if (Array.isArray(draft?.stories)) setStoryDraft((prev) => mergeStoryDraft(prev, draft as StoryDraft)); }
+              else setGenerationStage(stage);
+            },
           }, STORY_GENERATE_TIMEOUT_MS);
           data = res.data;
           invokeError = res.error;
@@ -314,7 +324,7 @@ export function useContentGenerator() {
         setGenerationStage(null);
     setDraftSlides([]);
     setOutlineTitles([]);
-    setReelDraft(null);
+    setReelDraft(null); setStoryDraft(null);
       }
     }
   }, [defaultWorkspaceId]);
@@ -448,6 +458,7 @@ export function useContentGenerator() {
     draftSlides,
     outlineTitles,
     reelDraft,
+    storyDraft,
     result,
     setResult,
     error,

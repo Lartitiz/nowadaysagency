@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import ErrorWithRetry from "@/components/ErrorWithRetry";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -216,7 +217,7 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
       </details>
       {selection?.needs_activity && <div className="space-y-3"><p className="text-sm">Pour te proposer des idées adaptées, décris simplement ton activité et à qui tu t'adresses.</p><label className="block text-sm">Ton activité<Textarea value={preferences.activity} onChange={e => setPreferences(p => ({ ...p, activity: e.target.value }))} maxLength={500} rows={3} /></label><Button disabled={loading || !preferences.activity.trim()} onClick={() => generate()}>Trouver mes idées</Button></div>}
       {!live && status}
-      {error && <div role="alert" className="rounded-xl border border-destructive/30 p-4 space-y-2"><p className="text-sm">{error}</p><Button variant="outline" disabled={loading} onClick={() => generate()}>Réessayer</Button></div>}
+      {error && <ErrorWithRetry error={error} where="dashboard.content-coaching" onRetry={() => generate()} className="rounded-xl border border-destructive/30 p-4 space-y-3" />}
       {!!cards.length && <>
         {!live && <p className="text-sm text-muted-foreground">{cards.length > 1 && cards.every(c => "idea" in c && ideaSpring(c.idea.spring)) ? `${cards.length} idées, ${cards.length} façons de toucher.` : `${cards.length} idées pour commencer.`} Le format se choisit ensuite.</p>}
         {!live && selection?.incomplete && <p className="text-xs text-muted-foreground">{selection.incomplete}</p>}
