@@ -448,5 +448,12 @@ export async function applyGuardrails(ctx: TurnContext, input: GuardrailsInput) 
       ? " Je prépare d’abord la scène : personnes et objets à remplacer sont provisoires. Tu pourras voir et corriger cet aperçu avant d’y intégrer tes références originales."
       : " Je prépare cette nouvelle scène photographique.";
   }
+  // 27/11/2026 : la reformulation affichée est devenue courte (2-3 phrases).
+  // Le moteur d'image reçoit summary + image_prompt + preserve + change ; pour
+  // une retouche ou une mise en situation, une liste change vide laisserait les
+  // décisions confirmées dans le seul résumé court. On y reporte alors le résumé.
+  if (["edit", "product"].includes(intent.operation) && !(intent.change || []).some((c) => c.trim()) && intent.summary.trim()) {
+    intent.change = [intent.summary.trim().slice(0, 200)];
+  }
   return { intent, rawOperation, dialogueOnly, person, addedMemoryReferences, resolvedReferences, explicitSource, effectiveReference, finalInputPath, memoryToSelect, newPhoto, phase, inputs };
 }

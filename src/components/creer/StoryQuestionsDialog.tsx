@@ -6,13 +6,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { Spinner } from "@/components/ui/spinner";
+import { QuestionsWaiting, QuestionCounter, QuestionField } from "@/components/creer/QuestionParts";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import {
   fetchStoryIdea, fetchStoryQuestions, storyIdeaText,
   type StoryAnswer, type StoryIdea, type StoryQuestion,
 } from "@/features/creer/story/story-answers";
+
+const LOADING_MESSAGES = ["Je prépare tes questions…", "Je pars de ta fiche pour les adapter à toi…"];
+const THINKING_MESSAGES = ["Je tire une idée de ton histoire…", "Je cherche l'angle qui te ressemble…"];
 
 type Phase = "loading" | "questions" | "thinking" | "idea";
 
@@ -69,28 +71,23 @@ export default function StoryQuestionsDialog({ open, onOpenChange, workspaceId, 
           <DialogDescription>Raconte un moment vécu : on en tire un post qui le raconte.</DialogDescription>
         </DialogHeader>
 
-        {(phase === "loading" || phase === "thinking") && (
-          <div className="flex flex-col items-center gap-3 py-10 text-sm text-muted-foreground" role="status">
-            <Spinner className="h-7 w-7" />
-            {phase === "loading" ? "Je prépare tes questions…" : "Je tire une idée de ton histoire…"}
-          </div>
-        )}
+        {phase === "loading" && <QuestionsWaiting messages={LOADING_MESSAGES} className="py-8 text-center animate-fade-in space-y-5" />}
+        {phase === "thinking" && <QuestionsWaiting messages={THINKING_MESSAGES} className="py-8 text-center animate-fade-in space-y-5" />}
 
         {phase === "questions" && q && (
           <div className="space-y-4">
             {notice && index === 0 && <p className="rounded-xl bg-rose-pale/60 p-3 text-xs text-muted-foreground">{notice}</p>}
-            <p className="text-xs text-muted-foreground">Question {index + 1} sur {questions.length}</p>
-            <label htmlFor="story-answer" className="block font-display text-lg leading-snug text-foreground">{q.question}</label>
-            <Textarea
-              key={index}
+            <QuestionCounter index={index} total={questions.length} />
+            <QuestionField
               id="story-answer"
-              data-testid="story-answer"
+              testId="story-answer"
               autoFocus
+              question={q.question}
               value={current}
-              onChange={(e) => setAnswers((all) => all.map((a, i) => (i === index ? e.target.value : a)))}
+              onChange={(value) => setAnswers((all) => all.map((a, i) => (i === index ? value : a)))}
               placeholder={q.placeholder}
-              rows={4}
-              className="resize-y text-base"
+              labelClassName="block font-display text-lg leading-snug text-foreground"
+              textareaClassName="resize-y text-base"
             />
             <div className="flex items-center justify-between gap-3">
               {index > 0 ? (

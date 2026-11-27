@@ -507,7 +507,9 @@ studio_reserve_interpretation : [{"p_actor":"id(11)","p_session":"id(3)","p_requ
   "image_prompt": "Poster of the plate lying flat. Text: Marché de Noël.",
   "format": "square",
   "preserve": [],
-  "change": [],
+  "change": [
+   "Affiche de l'assiette, titre Marché de Noël."
+  ],
   "brief": "",
   "suggestions": [],
   "suggested_memory_ids": [],

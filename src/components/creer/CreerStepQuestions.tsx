@@ -1,84 +1,20 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ArrowRight, Sparkles, Loader2 } from "lucide-react";
 import type { Question } from "@/hooks/use-content-generator";
 import StickyStepBar from "./StickyStepBar";
+import { QuestionsWaiting, QuestionCounter, QuestionField } from "./QuestionParts";
 
-// ─── Loader honnête pour la préparation des questions ───
-// La latence de l'edge qui génère les questions varie fortement (cold-start
-// d'isolate + backoff de retry IA) : de ~4s à parfois plus d'une minute. Un
-// loader qui promet « quelques secondes » devient mensonger et casse la confiance
-// sur le chemin critique d'activation. On affiche donc une progression honnête
-// avec messages qui tournent + barre + réassurance progressive (modèle calqué
-// sur DiagnosticLoading), sans jamais mentir sur la durée.
+// Attente des questions : brique commune (QuestionParts → WaitingScreen). La latence de
+// l'edge varie de ~4 s à plus d'une minute : barre honnête, phrases qui tournent,
+// réassurance progressive, sans jamais promettre une durée.
 const QUESTIONS_LOADING_MESSAGES = [
   "Je prépare des questions sur-mesure pour ton sujet…",
   "Je m'imprègne de ton univers de marque…",
   "Je cherche les angles qui rendront ton contenu unique…",
   "J'affine pour ne te poser que l'essentiel…",
 ];
-
-function QuestionsLoading() {
-  const [elapsed, setElapsed] = useState(0);
-  const [msgIdx, setMsgIdx] = useState(0);
-  const [progress, setProgress] = useState(8);
-
-  // Compteur de secondes écoulées (pour la réassurance à 15s / 30s).
-  useEffect(() => {
-    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  // Rotation des messages de patience.
-  useEffect(() => {
-    const t = setInterval(
-      () => setMsgIdx((i) => (i + 1) % QUESTIONS_LOADING_MESSAGES.length),
-      3500
-    );
-    return () => clearInterval(t);
-  }, []);
-
-  // Barre de progression « honnête » : elle avance mais ralentit et plafonne
-  // vers 90% pour ne jamais prétendre que c'est fini tant que les questions
-  // ne sont pas là (le parent retire ce loader dès qu'elles arrivent).
-  useEffect(() => {
-    const t = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 90) return 90;
-        const step = p < 40 ? 3 : p < 70 ? 1.5 : 0.6;
-        return Math.min(90, p + step);
-      });
-    }, 600);
-    return () => clearInterval(t);
-  }, []);
-
-  return (
-    <div className="py-10 text-center animate-fade-in space-y-5">
-      <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-
-      <div className="max-w-xs mx-auto space-y-2">
-        <Progress value={progress} className="h-1.5" />
-      </div>
-
-      <p
-        key={msgIdx}
-        className="text-sm font-medium text-foreground animate-fade-in min-h-[20px]"
-      >
-        {QUESTIONS_LOADING_MESSAGES[msgIdx]}
-      </p>
-
-      {elapsed >= 15 && (
-        <p className="text-xs text-muted-foreground animate-fade-in">
-          {elapsed >= 30
-            ? "C'est un peu plus long que d'habitude : ça arrive. Encore un instant…"
-            : "Je creuse pour des questions vraiment pertinentes, ça arrive…"}
-        </p>
-      )}
-    </div>
-  );
-}
 
 /** « Ex. : la lumière… » → « la lumière… » (l'écran écrit lui-même « Par exemple : »). */
 export function questionExample(placeholder?: string): string {
@@ -237,7 +173,7 @@ export default function CreerStepQuestions({
   }
 
   if (loadingQuestions) {
-    return <QuestionsLoading />;
+    return <QuestionsWaiting messages={QUESTIONS_LOADING_MESSAGES} />;
   }
 
   if (questions.length === 0) {
@@ -296,35 +232,18 @@ export default function CreerStepQuestions({
   // peut passer.
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground" data-testid="creer-questions-counter">
-          {questions.length > 1 ? `Question ${currentIndex + 1} sur ${questions.length}` : "Une question"} · facultatif
-        </p>
-        {questions.length > 1 && (
-          <div className="flex gap-1.5" aria-hidden="true">
-            {questions.map((item, index) => (
-              <span
-                key={item.id}
-                className={`h-1.5 w-6 rounded-full ${index <= currentIndex ? "bg-primary" : "bg-primary/15"}`}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <QuestionCounter index={currentIndex} total={questions.length} suffix=" · facultatif" showBars testId="creer-questions-counter" />
 
       {/* Question */}
       <div className="space-y-3">
-        <label htmlFor={`creation-question-${q.id}`} className="block text-lg sm:text-xl font-semibold leading-snug text-foreground">{q.question}</label>
-        {/* L'exemple reste lisible pendant qu'on écrit (avant : dans la case, il disparaissait au premier mot). */}
-        {example && <p id={`creation-question-example-${q.id}`} className="text-sm text-muted-foreground" data-testid="creer-question-example">Par exemple : {example}</p>}
-        <Textarea
+        <QuestionField
           id={`creation-question-${q.id}`}
+          question={q.question}
+          example={example}
           value={answers[q.id] || ""}
-          onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+          onChange={(value) => setAnswers((prev) => ({ ...prev, [q.id]: value }))}
           placeholder="Ta réponse…"
-          aria-describedby={example ? `creation-question-example-${q.id}` : undefined}
-          rows={4}
-          className="resize-none"
+          labelClassName="block text-lg sm:text-xl font-semibold leading-snug text-foreground"
         />
       </div>
 
