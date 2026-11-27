@@ -3370,19 +3370,6 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
       "sticker_options": null
     }
   ],
-  "checklist": [
-    { "item": "Hook dans les 1,5 premières secondes", "auto": true },
-    { "item": "Format vertical 9:16", "auto": false },
-    { "item": "Sous-titres ajoutés", "auto": false },
-    { "item": "Qualité vidéo (lumière, stabilité, son)", "auto": false },
-    { "item": "Pas de watermark", "auto": false },
-    { "item": "Pattern interrupts (cuts toutes les 3-5 sec)", "auto": true },
-    { "item": "CTA clair", "auto": true },
-    { "item": "Caption avec hook + mots-clés + CTA", "auto": true },
-    { "item": "Cover custom lisible", "auto": false },
-    { "item": "Alt text ajouté", "auto": false },
-    { "item": "Repartagé en story dans l'heure", "auto": false }
-  ],
   "plan_tournage": [
     { "plan": "Toi face caméra, assise à ton poste de travail habituel, lumière de la fenêtre sur le visage", "type": "face_cam", "sert_pour": "l'accroche et la fin", "duree": "1 prise de 60 sec (tout le monologue)", "conseil": "Téléphone calé à hauteur des yeux, pas en contre-plongée" },
     { "plan": "Gros plan sur tes mains en train de [geste précis du métier]", "type": "b_roll", "sert_pour": "illustrer le 1er passage du développement", "duree": "10 sec de rush", "conseil": null },

@@ -59,10 +59,29 @@ export interface ReelBriefParams {
   inspiration_context?: string | null;
 }
 
+// Checklist de publication du reel : toujours la même liste. Le modèle la
+// recopiait mot pour mot à chaque reel (~1 s d'écriture) ; depuis le 27/11/2026
+// le serveur l'ajoute après la rédaction (applyReelQualityPass). Aucun écran ne
+// l'affiche aujourd'hui : elle est gardée pour que les reels enregistrés gardent la même forme.
+export const REEL_CHECKLIST: ReadonlyArray<{ item: string; auto: boolean }> = [
+  { item: "Hook dans les 1,5 premières secondes", auto: true },
+  { item: "Format vertical 9:16", auto: false },
+  { item: "Sous-titres ajoutés", auto: false },
+  { item: "Qualité vidéo (lumière, stabilité, son)", auto: false },
+  { item: "Pas de watermark", auto: false },
+  { item: "Pattern interrupts (cuts toutes les 3-5 sec)", auto: true },
+  { item: "CTA clair", auto: true },
+  { item: "Caption avec hook + mots-clés + CTA", auto: true },
+  { item: "Cover custom lisible", auto: false },
+  { item: "Alt text ajouté", auto: false },
+  { item: "Repartagé en story dans l'heure", auto: false },
+];
+
 /**
  * reelBrief, accepte SOIT une string (legacy: objectif seul), SOIT un objet ReelBriefParams complet.
  * Quand des params reels-spécifiques sont fournis (subject, selected_hook, pre_gen_answers, etc.),
- * impose le JSON de sortie complet (caption, hashtags, cover_text, alt_text, amplification_stories, checklist).
+ * impose le JSON de sortie complet (caption, hashtags, cover_text, alt_text, amplification_stories).
+ * La checklist de publication (toujours la même) est ajoutée par le serveur : REEL_CHECKLIST.
  */
 export function reelBrief(arg: string | null | ReelBriefParams = null): string {
   // Backward-compat: accept (effectiveObjective: string | null) signature
@@ -526,19 +545,6 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
       "sticker_type": "question_ouverte",
       "sticker_options": null
     }
-  ],
-  "checklist": [
-    { "item": "Hook dans les 1,5 premières secondes", "auto": true },
-    { "item": "Format vertical 9:16", "auto": false },
-    { "item": "Sous-titres ajoutés", "auto": false },
-    { "item": "Qualité vidéo (lumière, stabilité, son)", "auto": false },
-    { "item": "Pas de watermark", "auto": false },
-    { "item": "Pattern interrupts (cuts toutes les 3-5 sec)", "auto": true },
-    { "item": "CTA clair", "auto": true },
-    { "item": "Caption avec hook + mots-clés + CTA", "auto": true },
-    { "item": "Cover custom lisible", "auto": false },
-    { "item": "Alt text ajouté", "auto": false },
-    { "item": "Repartagé en story dans l'heure", "auto": false }
   ],
   "plan_tournage": [
     ${params.face_cam === "non"

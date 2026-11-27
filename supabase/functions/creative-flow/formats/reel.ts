@@ -14,7 +14,7 @@ import { applyCorrectionPassReel } from "../../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, enforceNoAddedLegalRules, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, hookEchoesBefore, textRedacRawCount } from "../../_shared/redac-gate.ts";
 import { countReelSpokenWords, enforceReelNoFaceCam, enforceSelectedReelHook, finalizeReelScript, reelAuditableText, extractReelTexts, reinjectReelTexts, reelTemplateLeaks, reelOverlaysNotFromScript, reelHookIsPresentation, reelHookIsChoppy, reelHookTrimFragments, reelOverlayInText, reelChoppyPassages } from "../../_shared/reel-postprocess.ts";
 import { recapHooksLine } from "../../_shared/multi-subject.ts";
-import { REEL_PREMIERE_PHRASE } from "../../_shared/format-briefs/reel.ts";
+import { REEL_PREMIERE_PHRASE, REEL_CHECKLIST } from "../../_shared/format-briefs/reel.ts";
 import { CORRECTION_ABORT_MS, addrOpts, extractImagePayload, gateNumbers } from "../shared.ts";
 
 // ═══ NORMALISATION HOOKS (lot 7) ═══
@@ -300,6 +300,8 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
   await enforceReelAudienceAddress(parsed, params.audienceAddress);
   applyReelCreuxTip(parsed);
   finalizeReelScript(parsed, body.selected_hook);
+  // Checklist fixe ajoutée ici, plus écrite par le modèle (27/11/2026).
+  if (!Array.isArray(parsed.checklist)) parsed.checklist = REEL_CHECKLIST.map((c) => ({ ...c }));
   const hacheRestant = reelChoppyPassages(parsed);
   if (hacheRestant.length) console.warn(JSON.stringify({ event: "reel_hache_restant", sections: hacheRestant.map((p) => p.section) }));
   // Encore trop long après les deux coupes : trace lisible dans les journaux
