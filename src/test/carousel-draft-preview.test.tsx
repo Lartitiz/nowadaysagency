@@ -25,6 +25,9 @@ describe("CarouselDraftPreview — slides en brouillon pendant l'écriture", () 
     expect(screen.getByRole("status")).toHaveTextContent("Je vérifie que les slides s'enchaînent");
     rerender(<CarouselDraftPreview slides={slides} stage="correcting" />);
     expect(screen.getByRole("status")).toHaveTextContent("J'ajuste l'enchaînement");
+    // Carrousel avec photos : ce moment est le choix des photos (27/11/2026), on le dit.
+    rerender(<CarouselDraftPreview slides={slides} stage="correcting" photos={[{ preview: "blob:p1" }]} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Je place tes photos sur les slides");
   });
 });
 
