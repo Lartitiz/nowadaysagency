@@ -221,6 +221,23 @@ test("angles du reel : parcours réel jusqu'au script (lundi, ~1-2 crédits)", a
     }
   });
 
+  // Essai de la ligne ✍️ contre l'écran d'avant #2144 : `SONDE_SANS_FLUX=1`
+  // retient tout le flux de l'écriture jusqu'à la fin (le brouillon arrive
+  // alors d'un bloc, comme avant). La ligne doit passer au 🟠.
+  if (process.env.SONDE_SANS_FLUX) {
+    await page.route(CREATIVE_FLOW, async (route) => {
+      const req = route.request();
+      let step = "";
+      try { step = (req.postDataJSON() ?? {}).step ?? ""; } catch { /* corps non JSON */ }
+      if (req.method() !== "POST" || step !== "generate") return route.continue();
+      const res = await route.fetch({ timeout: 300_000 });
+      const headers = { ...res.headers() };
+      delete headers["content-encoding"];
+      delete headers["content-length"];
+      return route.fulfill({ status: res.status(), headers, body: await res.body() });
+    });
+  }
+
   await allerJusquAuxAngles(page);
   const a = angles(page);
 
@@ -242,9 +259,21 @@ test("angles du reel : parcours réel jusqu'au script (lundi, ~1-2 crédits)", a
   await expect(a.ecrire).toBeEnabled();
   await a.ecrire.click();
   console.log("🚀 Angle choisi, script lancé");
+  const depart = Date.now();
 
   // Fin de génération = les onglets du parcours reel. « Script » et « Légende »
   // sont les deux seuls toujours présents (Tournage/Montage dépendent du script).
+  // ✍️ Premier mot du script (27/11/2026, #2144) : le texte parlé puis les
+  // scènes s'affichent PENDANT l'écriture. Avant, rien pendant ~38 s (le
+  // brouillon ne partait qu'à la fin de l'écriture). L'accroche choisie, posée
+  // d'office dans le téléphone, ne compte pas : seul le texte du script compte.
+  // Seuil : 20 s (en ligne le 27/11 : 12 s ; ancienne version : 38 s).
+  const premierMot = page.locator('[data-testid="reel-draft-monologue"], [data-testid="reel-draft-scenes"] li').first();
+  const vuA = await premierMot.waitFor({ state: "visible", timeout: 120_000 })
+    .then(() => (Date.now() - depart) / 1000).catch(() => null);
+  console.log(vuA === null
+    ? "✍️ Reel, premier mot du script : 🟠 jamais vu pendant l'écriture (le script n'apparaît qu'à la fin)"
+    : `✍️ Reel, premier mot du script : ${vuA <= 20 ? "✅" : "🟠"} à ${vuA.toFixed(1)} s (seuil 20 s)`);
   await expect(page.getByRole("tab", { name: /^Script$/ })).toBeVisible({ timeout: 780_000 });
   await expect(page.getByRole("tab", { name: /^Légende$/ })).toBeVisible();
   await page.screenshot({ path: path.join(SHOTS, "reel-2-script.png"), fullPage: true });
