@@ -39,6 +39,22 @@ async function scenario(contentType: string, leaveEarly: boolean) {
     if (url.split("?")[0] === `${TEST_SUPABASE_URL}/auth/v1/user`) {
       return new Response(JSON.stringify({ id: userId, email: "x@example.com", aud: "authenticated", role: "authenticated" }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
+    // Rédaction LinkedIn en flux (27/11/2026) : réponse au format SSE d'Anthropic, retenue comme les autres.
+    if (url.startsWith("https://api.anthropic.com/v1/messages")) {
+      const req = init?.body ? JSON.parse(init.body as string) : null;
+      if (req?.stream) {
+        await gate;
+        const events = [
+          { type: "message_start", message: { id: "msg_test", usage: { input_tokens: 100, output_tokens: 0 } } },
+          { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },
+          { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: TEXTS[contentType] } },
+          { type: "content_block_stop", index: 0 },
+          { type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 50 } },
+          { type: "message_stop" },
+        ];
+        return new Response(events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join(""), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+      }
+    }
     return harnessFetch(input, init);
   }) as typeof fetch;
   const warns: string[] = [];

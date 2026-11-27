@@ -79,6 +79,7 @@ export function useContentGenerator() {
     streaming,
     done: streamDone,
     stage: streamStage,
+    isDraft: streamIsDraft,
     error: streamError,
     invoke: streamInvoke,
     reset: streamReset,
@@ -477,6 +478,7 @@ export function useContentGenerator() {
     streaming,
     streamDone,
     streamStage,
+    streamIsDraft,
     streamError,
     streamReset,
   };

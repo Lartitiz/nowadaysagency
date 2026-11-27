@@ -80,7 +80,7 @@ export const FORMAT_SHEETS: Record<SupportedFormat, FormatSheet> = {
     nom: "Post LinkedIn",
     questions: { fonction: "creative-flow" },
     ecriture: { fonction: "creative-flow", appel: "texte" },
-    filDeLeau: { etat: "non", raison: "Écrit en deux passes (rédaction puis relecture) : seules les étapes s'affichent, le texte arrive relu." },
+    filDeLeau: { etat: "oui", detail: "Le texte écrit s'affiche par paliers, en brouillon, puis le post relu le remplace (brouillon jamais gardé au rechargement)." },
     enregistreSeul: { etat: "oui", detail: "Sauvegarde continue, sauf post avec photos." },
     socle: { formats: ["post_linkedin"] },
   },
