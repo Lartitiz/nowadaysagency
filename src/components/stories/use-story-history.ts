@@ -3,29 +3,25 @@
 // dans le même champ (moins de 800 ms d'écart) comptent pour une seule
 // modification, comme une phrase.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { emptyHistory, recordStep, travelHistory } from "@/lib/edit-history";
 
-const GROUP_MS = 800;
 const MAX_STEPS = 60;
 
 /**
+ * Pile commune : src/lib/edit-history.ts (la même que le texte).
  * `automatic` : mis à true juste avant un changement fait par l'app seule (photo
  * posée d'office) ; ce changement devient le nouveau point de départ, sans étape.
  */
 export function useStoryHistory<T>(value: T, apply: (next: T) => void, resetKey: string, kindOf: (prev: T, next: T) => string = () => "", automatic?: { current: boolean }) {
-  const lastKind = useRef("");
-  const past = useRef<T[]>([]);
-  const future = useRef<T[]>([]);
+  const stack = useRef(emptyHistory<T>());
   const last = useRef(value);
-  const lastAt = useRef(0);
   const restoring = useRef(false);
   const [, bump] = useState(0);
 
   // Nouvelle séquence venue du parent (régénération, autre contenu) : on repart de zéro.
   useEffect(() => {
-    past.current = [];
-    future.current = [];
+    stack.current = emptyHistory<T>();
     last.current = value;
-    lastAt.current = 0;
     bump((n) => n + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
@@ -38,41 +34,23 @@ export function useStoryHistory<T>(value: T, apply: (next: T) => void, resetKey:
       last.current = value;
       return;
     }
-    const now = Date.now();
     // Seules les frappes dans le même champ se regroupent : un autre réglage est une nouvelle étape.
-    const kind = kindOf(last.current, value);
-    if (now - lastAt.current > GROUP_MS || kind !== lastKind.current || past.current.length === 0) {
-      past.current = [...past.current, last.current].slice(-MAX_STEPS);
-    }
-    lastAt.current = now;
-    lastKind.current = kind;
-    future.current = [];
+    recordStep(stack.current, last.current, kindOf(last.current, value), MAX_STEPS);
     last.current = value;
     bump((n) => n + 1);
   }, [value]);
 
-  const undo = useCallback(() => {
-    const previous = past.current.pop();
-    if (previous === undefined) return;
-    future.current = [last.current, ...future.current];
-    restoring.current = true;
-    lastAt.current = 0;
-    apply(previous);
-    bump((n) => n + 1);
-  }, [apply]);
-
-  const redo = useCallback(() => {
-    const [next, ...rest] = future.current;
+  const travel = useCallback((redo: boolean) => {
+    const next = travelHistory(stack.current, last.current, redo);
     if (next === undefined) return;
-    future.current = rest;
-    past.current = [...past.current, last.current];
     restoring.current = true;
-    lastAt.current = 0;
     apply(next);
     bump((n) => n + 1);
   }, [apply]);
+  const undo = useCallback(() => travel(false), [travel]);
+  const redo = useCallback(() => travel(true), [travel]);
 
-  return { undo, redo, canUndo: past.current.length > 0, canRedo: future.current.length > 0 };
+  return { undo, redo, canUndo: stack.current.past.length > 0, canRedo: stack.current.future.length > 0 };
 }
 
 /** Ce qui a changé entre deux séquences : la story et ses champs (pour regrouper les frappes). */
