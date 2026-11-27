@@ -19,6 +19,8 @@ export const GENERATION_FUNCTIONS = new Set([
   "generate-content", "linkedin-ai", "pinterest-ai", "pinterest-visual", "pinterest-photo-brief",
   "pinterest-inspiration", "storytelling-ai", "inspire-ai", "ai-text-action",
   "newsjacking-ai", "newsjacking-angles", "newsjacking-from-url", "content-coaching",
+  // Coachings et audits (chantier 4, 27/11/2026) : leurs échecs arrivent aussi dans Sentry.
+  "instagram-profile-coaching", "linkedin-coaching", "coaching-module",
 ]);
 
 const IGNORED_CODES = new Set(["AUTH", "RATE_LIMIT", "FORBIDDEN", "SESSION_UNAVAILABLE"]);

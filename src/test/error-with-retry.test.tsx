@@ -1,0 +1,50 @@
+import { describe, expect, it, vi, afterEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import ErrorWithRetry from "@/components/ErrorWithRetry";
+import { describeError } from "@/lib/describe-error";
+
+afterEach(() => { vi.restoreAllMocks(); });
+
+describe("describeError", () => {
+  it("délai dépassé", () => {
+    expect(describeError({ isTimeout: true, message: "x" })).toMatchObject({ kind: "timeout", retryable: true });
+  });
+  it("hors ligne", () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    expect(describeError(new Error("Failed to fetch"))).toMatchObject({ kind: "offline", retryable: true });
+  });
+  it("quota : pas de Réessayer", () => {
+    const e = { data: { quota: { reason: "total", plan: "free", usage: {} } }, message: "limit_reached" };
+    expect(describeError(e)).toMatchObject({ kind: "quota", retryable: false });
+  });
+  it("technique traduit, jamais de jargon", () => {
+    const d = describeError(new Error("Edge Function returned a non-2xx status code"));
+    expect(d.message).toMatch(/indisponible/);
+  });
+  it("vide : phrase de secours", () => {
+    expect(describeError(null, { fallback: "Rien reçu." })).toMatchObject({ kind: "empty", message: "Rien reçu." });
+  });
+  it("message déjà en français gardé tel quel", () => {
+    expect(describeError(new Error("Ton profil est incomplet.")).message).toBe("Ton profil est incomplet.");
+  });
+});
+
+describe("ErrorWithRetry (rendu réel)", () => {
+  it("montre la phrase et un bouton Réessayer qui rappelle", () => {
+    const onRetry = vi.fn();
+    render(<ErrorWithRetry error={new Error("Failed to fetch")} where="test.bloc" onRetry={onRetry} />);
+    expect(screen.getByRole("alert")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Réessayer/ }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+  it("quota : aucun bouton Réessayer", () => {
+    render(<ErrorWithRetry error={{ data: { quota: { reason: "total", plan: "free", usage: {} } } }} where="test.bloc" onRetry={() => {}} />);
+    expect(screen.queryByRole("button", { name: /Réessayer/ })).toBeNull();
+  });
+  it("deuxième bouton", () => {
+    const back = vi.fn();
+    render(<ErrorWithRetry error="boom" where="test.bloc" onRetry={() => {}} secondary={{ label: "Revenir à mes réponses", onClick: back }} />);
+    fireEvent.click(screen.getByText("Revenir à mes réponses"));
+    expect(back).toHaveBeenCalled();
+  });
+});

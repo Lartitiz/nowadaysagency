@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
+import ErrorWithRetry from "@/components/ErrorWithRetry";
 import { friendlyError } from "@/lib/error-messages";
 
 interface AuditCoachingPanelProps {
@@ -51,7 +52,7 @@ interface DiagnosticResult {
   proposals: Proposal[];
 }
 
-type Phase = "loading" | "intro" | "questions" | "generating" | "diagnostic" | "saving" | "done";
+type Phase = "loading" | "intro" | "questions" | "generating" | "diagnostic" | "saving" | "done" | "error";
 
 const MODULE_SKIP_ROUTES: Record<string, string> = {
   persona: "/branding#cible",
@@ -101,6 +102,7 @@ function AuditCoachingPanelInner({
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("loading");
+  const [failure, setFailure] = useState<{ error: unknown; step: "questions" | "diagnostic" } | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [intro, setIntro] = useState("");
   const [currentQ, setCurrentQ] = useState(0);
@@ -124,6 +126,7 @@ function AuditCoachingPanelInner({
   }, [open, module]);
 
   const loadQuestions = async () => {
+    setFailure(null);
     try {
       const { data, error } = await invokeWithTimeout("coaching-module", {
         body: { phase: "questions", module, rec_id: recId, offer_id: offerId, persona_id: personaId, workspace_id: column === "workspace_id" ? workspaceId : undefined },
@@ -135,8 +138,8 @@ function AuditCoachingPanelInner({
       setAnswers(new Array(data.questions?.length || 4).fill(""));
       setPhase("intro");
     } catch (e: any) {
-      toast.error(friendlyError(e));
-      setPhase("intro");
+      setFailure({ error: e, step: "questions" });
+      setPhase("error");
     }
   };
 
@@ -149,6 +152,7 @@ function AuditCoachingPanelInner({
   };
 
   const generateDiagnostic = async () => {
+    setFailure(null);
     setPhase("generating");
     try {
       const answersPayload = questions.map((q, i) => ({
@@ -167,8 +171,8 @@ function AuditCoachingPanelInner({
       setSelectedVariants({});
       setPhase("diagnostic");
     } catch (e: any) {
-      toast.error(friendlyError(e));
-      setPhase("questions");
+      setFailure({ error: e, step: "diagnostic" });
+      setPhase("error");
     }
   };
 
@@ -283,6 +287,16 @@ function AuditCoachingPanelInner({
           )}
 
           {/* Intro */}
+          {/* Erreur : bloc commun avec « Réessayer » */}
+          {phase === "error" && failure && (
+            <ErrorWithRetry
+              error={failure.error}
+              where="audit.coaching"
+              onRetry={failure.step === "diagnostic" ? generateDiagnostic : () => { setPhase("loading"); loadQuestions(); }}
+              secondary={failure.step === "diagnostic" && questions.length > 0 ? { label: "Revenir à mes réponses", onClick: () => setPhase("questions") } : undefined}
+            />
+          )}
+
           {phase === "intro" && (
             <div className="space-y-5 animate-fade-in">
               <p className="text-sm text-muted-foreground leading-relaxed">

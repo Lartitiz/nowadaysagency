@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
-import { friendlyError } from "@/lib/error-messages";
+import ErrorWithRetry from "@/components/ErrorWithRetry";
 
 type ModuleKey = "profil" | "resume" | "strategie";
 
@@ -45,7 +45,7 @@ interface DiagnosticResult {
   proposals: Proposal[];
 }
 
-type Phase = "loading" | "intro" | "questions" | "generating" | "diagnostic" | "done";
+type Phase = "loading" | "intro" | "questions" | "generating" | "diagnostic" | "done" | "error";
 
 interface Props {
   open: boolean;
@@ -62,6 +62,7 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
   const navigate = useNavigate();
   const [activeModule, setActiveModule] = useState<ModuleKey>(initialModule || "profil");
   const [phase, setPhase] = useState<Phase>("loading");
+  const [failure, setFailure] = useState<{ error: unknown; step: "questions" | "diagnostic" } | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [intro, setIntro] = useState("");
   const [currentQ, setCurrentQ] = useState(0);
@@ -91,12 +92,17 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
   };
 
   const loadQuestions = async (mod: ModuleKey) => {
+    setFailure(null);
     try {
       const { data, error } = await invokeWithTimeout("linkedin-coaching", {
         body: { phase: "questions", module: mod, workspace_id: wsId },
       }, 60000);
       if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
-        if (handleQuotaError({ message: error?.message || data?.message, data })) return;
+        if (handleQuotaError({ message: error?.message || data?.message, data })) {
+          setFailure({ error: { data }, step: "questions" });
+          setPhase("error");
+          return;
+        }
       }
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
@@ -105,8 +111,8 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
       setAnswers(new Array(data.questions?.length || 3).fill(""));
       setPhase("intro");
     } catch (e: any) {
-      toast.error(friendlyError(e));
-      setPhase("intro");
+      setFailure({ error: e, step: "questions" });
+      setPhase("error");
     }
   };
 
@@ -119,6 +125,7 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
   };
 
   const generateDiagnostic = async () => {
+    setFailure(null);
     setPhase("generating");
     try {
       const answersPayload = questions.map((q, i) => ({
@@ -142,8 +149,8 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
       setEditedProposals(edited);
       setPhase("diagnostic");
     } catch (e: any) {
-      toast.error(friendlyError(e));
-      setPhase("questions");
+      setFailure({ error: e, step: "diagnostic" });
+      setPhase("error");
     }
   };
 
@@ -248,6 +255,16 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
           )}
 
           {/* Intro */}
+          {/* Erreur : bloc commun avec « Réessayer » */}
+          {phase === "error" && failure && (
+            <ErrorWithRetry
+              error={failure.error}
+              where="linkedin.coaching"
+              onRetry={failure.step === "diagnostic" ? generateDiagnostic : () => { setPhase("loading"); loadQuestions(activeModule); }}
+              secondary={failure.step === "diagnostic" && questions.length > 0 ? { label: "Revenir à mes réponses", onClick: () => setPhase("questions") } : undefined}
+            />
+          )}
+
           {phase === "intro" && (
             <div className="space-y-5 animate-fade-in">
               <div className="rounded-xl border border-primary/20 bg-[hsl(var(--rose-pale))] p-4">
