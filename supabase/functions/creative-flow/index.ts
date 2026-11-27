@@ -4,7 +4,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField, adjustContentField } from "../_shared/input-validators.ts";
-import { checkQuota, getServiceClient, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { checkQuota, getServiceClient, isQaTestAccount, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { logUsageHorsCredit } from "../_shared/usage-hors-credit.ts";
 import { BILLED_STEPS, freeStepsCapReached, freeStepsCapResponse } from "./free-steps-cap.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
@@ -181,7 +181,8 @@ serve(async (req) => {
     // Recherche « creuser le sujet » lancée dès que la marque est lue : elle
     // tourne pendant les autres lectures, son bloc est ajouté au prompt plus bas,
     // à la même place qu'avant.
-    const depthPlan = planDepthResearch({ step, deepResearch, isPhotoMode, isCaption, isLinkedIn, isReel, isStories, body });
+    const depthPlan = planDepthResearch({ step, deepResearch, isPhotoMode, isCaption, isLinkedIn, isReel, isStories, body,
+      skipForTest: body?.essai_sans_recherche === true && isQaTestAccount(userId) });
     let rechercheMs: number | null = null;
     const depthPromise = depthPlan.run
       ? creativeDepthBlock({ context, newsContext, activity: ctx?.profile?.activite || profile?.activite || "", livedCase: depthPlan.livedCase })
