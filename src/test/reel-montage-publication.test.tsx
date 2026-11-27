@@ -96,7 +96,7 @@ it('offers a separate tab if CORS blocks download and keeps the montage visible'
  const {onMp4Ready}=await setup();fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
  await waitFor(()=>expect(onMp4Ready).toHaveBeenLastCalledWith(video));
  vi.stubGlobal('fetch',vi.fn().mockRejectedValue(new TypeError('CORS')));
- fireEvent.click(screen.getByRole('link',{name:'Télécharger le MP4'}));
+ fireEvent.click(screen.getByRole('button',{name:'Télécharger ma vidéo'}));
  const fallback=await screen.findByRole('link',{name:'Ouvrir le MP4 dans un nouvel onglet'});
  expect(fallback).toHaveAttribute('target','_blank');expect(fallback).toHaveAttribute('rel','noopener noreferrer');
  expect(screen.getByText(/Ma vidéo · Ma prise/)).toBeTruthy();
