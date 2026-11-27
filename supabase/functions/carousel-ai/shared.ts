@@ -53,6 +53,12 @@ export const _deps = {
   logPlan: logCarouselPlan,
   // « Refaire cette slide » : dessin par carousel-visual (appel réseau).
   redesignSlide,
+  // RÉÉCRITURE AUTOMATIQUE DU FIL COUPÉE (27/11/2026, décision de Laetitia sur chiffres) :
+  // sur 7 jours, 6 réécritures lancées, 2 gardées ; les 4 autres ont coûté ~70 s
+  // d'attente (réécriture 15-40 s + second juge 35-45 s) pour rendre le texte d'avant.
+  // Le premier juge reste : ses remarques s'affichent dans « Pistes de relecture ».
+  // Retour arrière : remettre `true` et redéployer carousel-ai.
+  autoThreadRepair: false,
 };
 
 /** Durées par étape (ms) des carrousels photo et mixte, comme le carrousel texte. */

@@ -234,7 +234,7 @@ export async function finalizeCarousel(
     receipt.report?.defects?.some((d: any) => d.severity === "minor" &&
       ["unclear_idea", "promise", "juxtaposition", "repetition", "rupture", "ending"].includes(d.type));
   const initialDefectCount = receipt.report?.defects?.length ?? 0;
-  const wantsRepair = !ownsText && !opts.repaired && !!opts.regenerate &&
+  const wantsRepair = _deps.autoThreadRepair && !ownsText && !opts.repaired && !!opts.regenerate &&
     receipt.execution_status === "completed" &&
     (receipt.verdict === "needs_repair" || minorContinuity);
   // RÉPARATION PERDUE D'AVANCE (06/10/2026) : 13 slides, rédaction 82 s, il
