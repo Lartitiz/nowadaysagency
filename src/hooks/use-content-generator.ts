@@ -210,7 +210,7 @@ export function useContentGenerator() {
             onStatus: (stage, event) => {
               if (epoch !== generationEpoch.current) return;
               const draft = event?.reel as ReelDraft | undefined;
-              if (stage === "draft") { if (Array.isArray(draft?.sections)) setReelDraft({ hook: hook || draft.hook || "", sections: draft.sections }); }
+              if (stage === "draft") { if (Array.isArray(draft?.sections)) setReelDraft({ hook: hook || draft.hook || "", sections: draft.sections, monologue: typeof draft.monologue === "string" ? draft.monologue : "" }); }
               else setGenerationStage(stage);
             },
           }, REEL_GENERATE_TIMEOUT_MS);

@@ -1,5 +1,6 @@
 // Shared Anthropic API helper for edge functions
 import { stripCacheBreakFromMessages, systemBlocks } from "./system-cache.ts";
+import { readStreamedResponse } from "./anthropic-text-stream.ts";
 import { HAIKU_MODEL, OPUS_MODEL, alwaysThinks, forcesDisabledThinking, maxTokensFor, modelRequestFields, supportsTemperature, toolInstruction } from "./model-capabilities.ts";
 
 /**
@@ -245,6 +246,7 @@ export interface AnthropicOptions {
    * Les textes GÉNÉRÉS restent assainis par défaut (comportement historique).
    */
   keepDashes?: boolean;
+  onText?: (text: string) => void; // texte reçu jusqu'ici (`callAnthropic` sans outil) : réponse en flux, mêmes contrôles (anthropic-text-stream.ts)
   /**
    * Sortie structurée : force le modèle à répondre via ce tool (`tool_choice`).
    * L'API garantit alors un `input` conforme au schéma — ça élimine toute la
@@ -628,6 +630,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
   if (options.temperature !== undefined && supportsTemperature(options.model)) {
     body.temperature = options.temperature;
   }
+  if (options.onText && !options.tool) body.stream = true;
 
   let lastError: Error | null = null;
 
@@ -699,11 +702,17 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
         isAbort ? 504 : 503
       );
     }
+    const streamed = body.stream && response.ok ? await readStreamedResponse(response, options.onText!, options.model, attempt) : null; // délai compris
     if (abortTimer) clearTimeout(abortTimer);
     callerSignal?.removeEventListener("abort", onCallerAbort);
+    if (streamed?.failed) {
+      if (callerSignal?.aborted) throw cancelled();
+      if (attempt < maxRetries) { lastError = new AnthropicError("Connexion à l'IA interrompue, réessai en cours...", 503); continue; }
+      throw new AnthropicError("Connexion à l'IA perdue. Réessaie dans un instant.", 503);
+    }
 
     if (response.ok) {
-      const data = await response.json();
+      const data = streamed?.data ?? await response.json();
       if (missingExpectedTool(data, options.model, options.tool) && attempt < maxRetries) {
         console.log(JSON.stringify({ type: "ai_tool_missing_retry", model: options.model }));
         continue;
@@ -738,7 +747,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
     // Fallback: if Opus is overloaded (500/529) after all retries, try Sonnet
     if ((response.status === 529 || response.status === 500) && hasSonnetFallback(options.model)) {
       console.log("Opus overloaded after retries — falling back to Sonnet...");
-      const fallbackBody = sonnetFallbackBody(body, options.tool);
+      const fallbackBody = { ...sonnetFallbackBody(body, options.tool), stream: undefined }; // repli lu d'un bloc
       const fallbackRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {

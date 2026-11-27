@@ -44,7 +44,7 @@ const WRITING = new Set([
 /** Neutres : infrastructure commune (appels IA, quota, sécurité, JSON, images, structure du récit). */
 const NEUTRAL = new Set([
   "sale-listing", // annonce de vente : décide seulement si la recherche tourne
-  "anthropic", "anthropic-stream", "auth", "cors", "guard-demo", "image-utils", "input-validators", "internal-grant",
+  "anthropic", "anthropic-stream", "anthropic-text-stream", "auth", "cors", "guard-demo", "image-utils", "input-validators", "internal-grant",
   "parse-ai-json", "photo-slide-structure", "plan-limiter", "rate-limiter", "refus-validation", "request-pipeline", "safe-fetch", "scraping",
   "workspace-guard",
   // Audit de coût du 20/10/2026 : limite du cache du prompt système, et appels
