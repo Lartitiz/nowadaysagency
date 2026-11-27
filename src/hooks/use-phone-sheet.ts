@@ -19,9 +19,6 @@ export const STORY_SHEET_GRID = " max-md:flex max-md:flex-col max-md:h-[calc(100
 
 /** Cadre du panneau quand le volet est ouvert : il prend la place qui reste sous l'aperçu. */
 export const SHEET_PANEL = "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col";
-/** Zone des réglages quand le volet est ouvert : elle défile seule. */
-export const SHEET_SCROLL = "max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:overscroll-contain max-md:pb-6";
-
 /** Volet de réglages du téléphone : ouvert ou non, et de quoi l'ouvrir ou le fermer. Toujours fermé sur ordinateur. */
 export function usePhoneSheet(grid: RefObject<HTMLElement>, off = false): PhoneSheet {
   const phone = useIsMobile();

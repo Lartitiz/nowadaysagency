@@ -82,6 +82,8 @@ export const FRONT_FILES = [
   [/^src\/pages\/CreerUnifie\.tsx$|^src\/components\/creer\/(LowCreditsBanner|PhotoMissingDialog|ConfirmResetDialog|LaunchSequenceResults)\.tsx$|^src\/hooks\/use-(launch-sequence|reel-hooks|reel-artifact|creer-publish|creer-photos|creer-flow-persistence|creer-entry-init)\.ts$|^src\/features\/creer\/(creer-step|draft-conflict|pending-stream|edit-text-from-result|content-brief|calendar-entry-context)\.ts$|^src\/hooks\/use-creer-exports\.ts$/, "Parcours /creer (tous formats)"],
   [/^src\/components\/creer\/formatRenderers\/Carousel/, "Carrousels : écran de résultat"],
   [/^src\/components\/creer\/CarouselEditor|^src\/lib\/carousel-editor\.ts$/, "Carrousels : éditeur visuel"],
+  // Pièces communes aux deux éditeurs (27/11/2026) : y toucher touche le carrousel ET les stories.
+  [/^src\/components\/creer\/EditorPanelShell\.tsx$|^src\/hooks\/use-phone-sheet\.ts$/, "Éditeurs carrousel et stories : cadre commun (panneau, volet téléphone)"],
   [/^src\/lib\/export-carousel-/, "Carrousels : exports"],
   [/^src\/hooks\/use-generate-visuals\.ts$/, "Carrousels : lancement de la mise en forme visuelle"],
   [/^src\/hooks\/use-user-slides-generate\.ts$/, "Carrousels : slides écrites par l'utilisatrice"],
