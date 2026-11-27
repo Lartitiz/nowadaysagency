@@ -126,3 +126,56 @@ describe("La fiche par format dit la vérité sur le code", () => {
     }
   });
 });
+
+/* UNE SEULE RÈGLE POUR LES QUESTIONS DE TOUS LES FORMATS (décision de Laetitia du
+   27/11/2026). La forme d'une bonne question (longueur, une seule question, pas de
+   oui/non, tutoiement), la relance et le dernier filet vivent dans UN fichier :
+   supabase/functions/_shared/questions-form.ts. Ce test échoue si un chemin de
+   questions cesse de s'en servir, ou si quelqu'un écrit une seconde règle à côté. */
+describe("Questions : une seule règle pour tous les formats", () => {
+  const regle = read("supabase/functions/_shared/questions-form.ts");
+  const chemins: Record<string, { fichier: string; consigne: boolean; relance: boolean }> = {
+    "carrousel (consigne)": { fichier: "supabase/functions/carousel-ai/questions-address.ts", consigne: true, relance: false },
+    "carrousel avec photos (relance)": { fichier: "supabase/functions/carousel-ai/steps/questions.ts", consigne: false, relance: true },
+    "carrousel texte (relance)": { fichier: "supabase/functions/carousel-ai/steps/generate.ts", consigne: false, relance: true },
+    "autres formats (consigne)": { fichier: "supabase/functions/creative-flow/prompts/assist.ts", consigne: true, relance: false },
+    "autres formats (relance)": { fichier: "supabase/functions/creative-flow/index.ts", consigne: false, relance: true },
+    "autres formats avec photos": { fichier: "supabase/functions/creative-flow/formats/photo.ts", consigne: true, relance: true },
+  };
+
+  it("la règle commune existe : consigne, relance, dernier filet", () => {
+    expect(regle).toContain("export const QUESTIONS_FORM_RULES");
+    expect(regle).toContain("export async function relancerQuestionsSiBesoin");
+    expect(regle).toContain("export function garderQuestionsSaines");
+  });
+
+  for (const [nom, c] of Object.entries(chemins)) {
+    it(`${nom} : passe par la règle commune`, () => {
+      const src = read(c.fichier);
+      if (c.consigne) expect(src, "consigne de forme").toMatch(/\+ QUESTIONS_FORM_RULES|\$\{QUESTIONS_FORM_RULES\}/);
+      if (c.relance) expect(src, "relance commune").toContain("relancerQuestionsSiBesoin(");
+      // Pas de seconde règle écrite à côté : ni autre plafond de mots, ni autre consigne de forme.
+      expect(src).not.toMatch(/FORME DES QUESTIONS/);
+      expect(src).not.toMatch(/const \w*QUESTION\w*_MAX_(MOTS|WORDS)/);
+    });
+  }
+
+  it("le carrousel reçoit bien la consigne de forme dans sa consigne d'adresse", () => {
+    const src = read("supabase/functions/carousel-ai/questions-address.ts");
+    const debut = src.indexOf("export const QUESTIONS_ADDRESS_OVERRIDE");
+    expect(debut).toBeGreaterThan(-1);
+    expect(src.slice(debut, src.indexOf(";", debut))).toContain("QUESTIONS_FORM_RULES");
+  });
+
+  it("seule exception, voulue : « Je te pose des questions » (questions d'histoire, plus courtes)", () => {
+    // Décision du 14/11/2026 après essai réel : avec la forme commune, questions de 28 à
+    // 35 mots et deux demandes en une. Une histoire se raconte mieux avec une question simple.
+    const story = read("supabase/functions/content-coaching/story.ts");
+    expect(story).toContain("export const STORY_QUESTION_MAX_WORDS");
+    expect(story).toMatch(/import \{ hasVouvoiement \} from "\.\.\/_shared\/questions-form\.ts"/);
+    // Aucune autre fonction serveur ne définit sa propre forme de questions de création.
+    for (const f of ["supabase/functions/carousel-ai/steps/questions.ts", "supabase/functions/creative-flow/prompts/assist.ts"]) {
+      expect(read(f)).not.toContain("STORY_QUESTION_MAX_WORDS");
+    }
+  });
+});
