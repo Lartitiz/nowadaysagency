@@ -33,6 +33,10 @@ export function skipDepthResearch(isStories: boolean, lived: { mode: string }): 
  * sorties du handler pour que la recherche parte dès la marque lue (en
  * parallèle des autres lectures) au lieu d'attendre la fin de la préparation.
  */
+/** Réponses assez longues pour porter le reel sans recherche (même seuil que la matière vécue). */
+const REEL_ANSWER_MIN_WORDS = 8;
+const answeredWords = (answers: string[]) => answers.join(" ").split(/\s+/).filter(Boolean).length;
+
 export function planDepthResearch(p: {
   step: string; deepResearch?: unknown; isPhotoMode: boolean;
   isCaption: boolean; isLinkedIn: boolean; isReel: boolean; isStories: boolean; body: any;
@@ -47,11 +51,14 @@ export function planDepthResearch(p: {
     console.log(`[creative-flow] stories sur son propre cas (${lived.reasons.join(", ")}) — aucune recherche, aucun chiffre de recherche`);
     return { run: false };
   }
-  // Reel sur son propre cas (décision de Laetitia du 27/11/2026) : plus de
-  // recherche « en appui ». Mesurée sur 5 reels : 3 à 5 s d'attente avant le
-  // premier mot, une source gardée sur 5, aucune reprise dans le script.
-  if (lived.provided && p.isReel) {
-    console.log(`[creative-flow] reel sur son propre cas (${lived.reasons.join(", ")}) — pas de recherche en appui`);
+  // Reel où elle a répondu aux questions (décisions de Laetitia du 27/11/2026) :
+  // aucune recherche. « En appui » (son cas reconnu), mesurée sur 5 reels : 3 à
+  // 5 s d'attente, aucune source reprise. « En profondeur », comparée à
+  // l'aveugle sur 5 sujets : 8 à 11 s d'attente en plus, les scripts sans
+  // recherche gagnent 3 fois sur 5 et toutes les affirmations douteuses venaient
+  // de la recherche. Gardée : reel sans réponse (non testé) et actu + ressenti.
+  if (p.isReel && lived.mode !== "news_feeling" && answeredWords(lived.answers) >= REEL_ANSWER_MIN_WORDS) {
+    console.log(`[creative-flow] reel avec ses réponses (${lived.provided ? "son cas" : "réponses"}) — pas de recherche`);
     return { run: false };
   }
   // Essai de comparaison (comptes de test seulement, posé par index.ts) : même demande sans recherche.
