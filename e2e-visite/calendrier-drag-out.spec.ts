@@ -103,7 +103,7 @@ test.describe("Drag & drop calendrier ↔ panneau idées", () => {
     // « Glisser une idée sur le calendrier » n'est plus qu'un title/aria-label
     // du bouton replié. Le conteneur, lui, n'a pas bougé (CalendarIdeasSidebar).
     const panelHeading = page
-      .getByRole("heading", { name: /(mes idées à placer|tes idées à développer)/i })
+      .getByRole("heading", { name: /(mes idées à placer|tes idées à développer|tes idées et contenus à placer)/i })
       .first();
     await expect(panelHeading).toBeVisible({ timeout: 10_000 });
     const panel = page.locator("div.flex.flex-col.h-full", { has: panelHeading }).first();
