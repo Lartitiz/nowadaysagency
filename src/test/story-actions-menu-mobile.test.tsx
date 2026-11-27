@@ -1,7 +1,9 @@
-// Téléphone (12/11/2026) : les actions d'une story (Refaire, Avant, Après,
-// Dupliquer, Ajouter, Supprimer) sont regroupées dans un menu « … » pour que
+// Téléphone (12/11/2026) : les actions d'une story (Avant, Après, Dupliquer,
+// Ajouter, Supprimer) sont regroupées dans un menu « … » pour que
 // l'aperçu reste sur le premier écran. Sur ordi, les boutons restent visibles
 // (couvert par story-result-sequence-gestures et story-result-editing).
+// « Refaire cette story » n'est plus dans ce menu depuis le 27/11/2026 : sur
+// téléphone, c'est l'onglet « Demander à l'IA » du panneau (story-phone-sheet).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import StoryResult from "@/components/creer/formatRenderers/StoryResult";
@@ -51,13 +53,12 @@ describe("Stories sur téléphone : menu « … »", () => {
   it("cache les boutons d'action et les regroupe dans le menu", () => {
     render(<StoryResult result={three()} />);
     expect(screen.queryByRole("button", { name: "Dupliquer la story 1" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Refaire cette story \(story 1\)/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Supprimer la story" })).not.toBeInTheDocument();
     const menu = openMenu(1);
     const items = Array.from(menu.querySelectorAll('[role="menuitem"]')).map((el) => el.textContent?.trim());
-    expect(items).toEqual([
-      "Refaire cette story", "Placer avant", "Placer après", "Dupliquer", "Ajouter une story après", "Supprimer la story",
-    ]);
+    expect(items).toEqual(["Placer avant", "Placer après", "Dupliquer", "Ajouter une story après", "Supprimer la story"]);
+    // Une seule entrée pour refaire : l'onglet « Demander à l'IA » du panneau.
+    expect(screen.getAllByRole("tab", { name: "Demander à l’IA" }).length).toBeGreaterThan(0);
     expect(screen.getByRole("menuitem", { name: "Placer avant" })).toHaveAttribute("data-disabled");
   });
 
@@ -75,13 +76,8 @@ describe("Stories sur téléphone : menu « … »", () => {
     expect(texts(onStoriesUpdate.mock.lastCall![0])).toEqual(["Deuxième", "Première", "Première", "", "Troisième"]);
   });
 
-  it("ouvre la fenêtre Refaire et la confirmation de suppression hors du menu", () => {
+  it("ouvre la confirmation de suppression hors du menu", () => {
     render(<StoryResult result={three()} />);
-    openMenu(1);
-    fireEvent.click(screen.getByRole("menuitem", { name: "Refaire cette story" }));
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-    expect(screen.getByTestId("story-redo-dialog")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
     openMenu(1);
     fireEvent.click(screen.getByRole("menuitem", { name: "Supprimer la story" }));
     expect(screen.getByText("Supprimer la story 1 ?")).toBeInTheDocument();
