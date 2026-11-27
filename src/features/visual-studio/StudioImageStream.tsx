@@ -6,7 +6,7 @@
 // (`onSelectVersion`). Chantier P2 (18/10/2026) : chaque image prête dit si
 // elle est rangée dans « Mes photos » et propose « Télécharger » et « Créer un
 // contenu avec cette image » ; un lien expiré est renouvelé (`onImageExpired`).
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { useCarouselStudioReturn } from "@/features/carousel-studio/useCarouselStudioReturn";
@@ -53,6 +53,21 @@ export function StudioImageStream({
   // Images vues « en cours » à l'écran : seules elles apparaissent en fondu une
   // fois prêtes (pas celles déjà prêtes à l'ouverture de la page).
   const seenWaiting = useRef(new Set<string>());
+  // Essai du 27/11/2026 : après « Générer », l'écran restait sur la photo
+  // d'origine et la nouvelle image arrivait hors de vue, tout en bas. Quand
+  // une image s'ajoute à la discussion ouverte (pas à l'ouverture), on amène
+  // sa carte à l'écran : on la voit se créer, puis apparaître.
+  const lastVersionId = current.versions.at(-1)?.id || null;
+  const shown = useRef<{ session: string; last: string | null } | null>(null);
+  useEffect(() => {
+    const previous = shown.current;
+    shown.current = { session: current.session.id, last: lastVersionId };
+    if (!previous || previous.session !== current.session.id || !lastVersionId || previous.last === lastVersionId) return;
+    const card = document.querySelector(`[data-version-id="${lastVersionId}"]`);
+    if (card && typeof card.scrollIntoView === "function") {
+      card.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [current.session.id, lastVersionId]);
   const startPhotoFor = (item: StudioVersion): string | undefined => {
     const fromVersion = item.proposal.viewed_version_id
       ? current.versions.find((v) => v.id === item.proposal.viewed_version_id)?.url
@@ -75,6 +90,7 @@ export function StudioImageStream({
         const reveal = !!item.url && seenWaiting.current.has(item.id);
         return <article
           key={item.id}
+          data-version-id={item.id}
           className={`studio-image-card${selected ? " selected" : ""}`}
           role={item.status === "ready" ? "option" : undefined}
           aria-selected={item.status === "ready" ? selected : undefined}

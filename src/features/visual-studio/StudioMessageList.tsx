@@ -104,7 +104,14 @@ export function StudioMessageList({
             })}
           </div>}
           <p className="whitespace-pre-wrap">{m.role === "assistant" ? cleanStudioSummary(m.text) : m.text}</p>
-          {!!m.suggestions?.length && m.role === "assistant" && <ul className="list-disc pl-5 mt-2 text-sm">{m.suggestions.map((suggestion, index) => <li key={index}>{suggestion}</li>)}</ul>}
+          {!!m.suggestions?.length && m.role === "assistant" && <div className="flex flex-wrap gap-2 mt-2" aria-label="Idées pour la suite">
+            {/* Essai du 27/11/2026 : ces idées étaient une simple liste, on ne
+                pouvait pas cliquer dessus. Un clic envoie l'idée comme demande. */}
+            {m.suggestions.map((suggestion, index) => <Button key={index} type="button" variant="outline" size="sm"
+              className="h-auto max-w-full whitespace-normal break-words py-1.5 text-left font-normal"
+              disabled={!writable || !!busy || !!generating}
+              onClick={() => { editDraft(suggestion); setAutoSend(suggestion); }}>{suggestion}</Button>)}
+          </div>}
           {m.suggested_memory_ids?.map((id) => {
             const item = current.memory?.find((entry) => entry.id === id);
             return item ? <Button key={id} variant="outline" className="my-2 max-w-full h-auto whitespace-normal break-words py-2" disabled={!writable || !!busy || !!generating || references.some((r) => r.memory_id === id)} onClick={() => void mutate("memory_apply", {memory_id:id,revision:current.session.revision})}>{item.kind === "casting" ? "Utiliser ce mannequin" : "Utiliser cette direction"} · {item.name}</Button> : null;
