@@ -6,6 +6,8 @@
 // colonne d'icônes (Texte, Photo), un sujet affiché à la fois, et sur ordinateur « Demander
 // un changement à l'IA » collé en bas. Les deux onglets restent montés : le choix des photos
 // (StoryPhotoSuggestions) pose la photo d'office même quand on regarde « Texte ».
+// Téléphone (27/11/2026) : ouvrir un onglet ou toucher une case ouvre le même « volet » que le
+// carrousel (use-phone-sheet.ts) : la story passe en petit en haut, « Terminé » lui rend sa taille.
 import { useState, type ReactNode } from "react";
 import { ImageIcon, RotateCcw, Sparkles, Type } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import StoryTextSizeControl from "@/components/stories/StoryTextSizeControl";
 import { resolveStoryViewport, type StoryTextSize } from "@/lib/story-visual";
+import { openSheetOnFieldFocus, SHEET_PANEL, SHEET_SCROLL, type PhoneSheet } from "@/hooks/use-phone-sheet";
 
 type Pill = "title_pill" | "body_pill" | "quote";
+type Tab = "texte" | "photo" | "ia";
 
 export interface StoryEditorPanelProps {
   story: any;
@@ -35,8 +39,10 @@ export interface StoryEditorPanelProps {
   resetViewport: (mode: "text" | "photo") => void;
   /** Crédit de la photo et choix des photos (StoryPhotoSuggestions). */
   photoTools: ReactNode;
-  /** Ordinateur : le bouton « Refaire cette story », collé en bas du panneau. */
+  /** « Refaire cette story » : collé en bas du panneau sur ordinateur ; sur téléphone, c'est l'onglet « Demander à l'IA » (comme le carrousel). */
   ask?: ReactNode;
+  /** Volet de réglages du téléphone (use-phone-sheet.ts). Absent : le panneau reste sous la story. */
+  sheet?: PhoneSheet;
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -55,22 +61,31 @@ export default function StoryEditorPanel(p: StoryEditorPanelProps) {
   const visual = story.visual;
   const position = !Number.isFinite(visual?.text_position_y) ? (visual?.text_position || "middle") : null;
   const zoom = resolveStoryViewport(visual).photoZoom;
-  const [tab, setTab] = useState<"texte" | "photo">("texte");
-  const shown = visual ? tab : "texte";
-  const tabButton = (id: "texte" | "photo", label: string, Icon: typeof Type) => (
-    <button key={id} type="button" role="tab" id={`story-${i}-tab-${id}`} aria-selected={shown === id} aria-controls={`story-${i}-pane-${id}`} onClick={() => setTab(id)}
-      className="flex min-w-[3.6rem] shrink-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-center text-[10.5px] font-medium leading-tight text-muted-foreground hover:text-foreground aria-selected:bg-background aria-selected:text-primary aria-selected:shadow-sm aria-selected:ring-1 aria-selected:ring-primary/25">
+  const [tab, setTab] = useState<Tab>("texte");
+  const askTab = !!p.sheet?.phone && !!p.ask;
+  const shown: Tab = tab === "ia" ? (askTab ? "ia" : "texte") : visual ? tab : "texte";
+  const open = !!p.sheet?.open;
+  const tabButton = (id: Tab, label: string, Icon: typeof Type, tone = "") => (
+    <button key={id} type="button" role="tab" id={`story-${i}-tab-${id}`} aria-selected={shown === id} aria-controls={`story-${i}-pane-${id}`} onClick={() => { setTab(id); if (p.sheet?.phone) p.sheet.set(true); }}
+      className={`flex min-w-[3.6rem] shrink-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-center text-[10.5px] font-medium leading-tight text-muted-foreground hover:text-foreground aria-selected:bg-background aria-selected:text-primary aria-selected:shadow-sm aria-selected:ring-1 aria-selected:ring-primary/25 ${tone}`}>
       <Icon size={19} aria-hidden="true" />
       {label}
     </button>
   );
   return (
-    <div className="min-w-0 md:grid md:grid-cols-[4.5rem_minmax(0,1fr)] md:overflow-hidden md:rounded-xl md:border md:bg-card" data-story-panel={i + 1}>
+    <div className={`min-w-0 md:grid md:grid-cols-[4.5rem_minmax(0,1fr)] md:overflow-hidden md:rounded-xl md:border md:bg-card ${open ? SHEET_PANEL : ""}`} data-story-panel={i + 1}>
+      {open && (
+        <div className="mb-1.5 flex items-center justify-between gap-2 md:hidden">
+          <p className="text-xs text-muted-foreground">Story {i + 1} : tes réglages s’appliquent en direct.</p>
+          <Button size="sm" variant="outline" className="h-8 shrink-0 rounded-full px-4" onClick={() => p.sheet?.set(false)}>Terminé</Button>
+        </div>
+      )}
       <div role="tablist" aria-label={`Réglages de la story ${i + 1}`} className="flex gap-1 rounded-xl bg-muted/60 p-1 md:flex-col md:rounded-none md:border-r md:p-1.5">
         {tabButton("texte", "Texte", Type)}
         {visual && tabButton("photo", "Photo", ImageIcon)}
+        {askTab && tabButton("ia", "Demander à l’IA", Sparkles, "text-primary")}
       </div>
-      <div className="flex min-w-0 flex-col">
+      <div className={`flex min-w-0 flex-col ${open ? SHEET_SCROLL : ""}`} onFocusCapture={(e) => openSheetOnFieldFocus(p.sheet, e.target)}>
       <div id={`story-${i}-pane-texte`} role="tabpanel" aria-labelledby={`story-${i}-tab-texte`} hidden={shown !== "texte"} className={shown === "texte" ? "min-w-0 space-y-4 pt-3 md:p-3" : "hidden"}>
       <p className="text-xs text-muted-foreground">Touche un texte sur la story pour l'écrire directement dessus.</p>
       {visual && (
@@ -181,7 +196,13 @@ export default function StoryEditorPanel(p: StoryEditorPanelProps) {
         </Section>
         </div>
       )}
-      {p.ask && (
+      {askTab && (
+        <div id={`story-${i}-pane-ia`} role="tabpanel" aria-labelledby={`story-${i}-tab-ia`} hidden={shown !== "ia"} className={shown === "ia" ? "min-w-0 space-y-1.5 pt-3" : "hidden"}>
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-primary"><Sparkles size={14} aria-hidden="true" /> Demander un changement à l'IA</p>
+          {p.ask}
+        </div>
+      )}
+      {p.ask && !askTab && (
         <div className="mt-auto space-y-1.5 border-t border-primary/25 bg-primary/[0.03] p-2.5 max-md:hidden">
           <p className="flex items-center gap-1.5 text-xs font-semibold text-primary"><Sparkles size={14} aria-hidden="true" /> Demander un changement à l'IA</p>
           {p.ask}

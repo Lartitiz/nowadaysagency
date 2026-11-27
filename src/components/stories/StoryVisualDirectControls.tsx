@@ -24,6 +24,8 @@ interface Props {
   onTextTouched?: (box: StoryTextBox) => void;
   /** Placement dans la mise en page de l'atelier (grille de StoryResult). */
   className?: string;
+  /** Volet de réglages ouvert sur téléphone : aperçu en petit, sans la ligne d'aide. */
+  compact?: boolean;
   /** Story pas affichée (une seule l'est à la fois) : sa taille se mesure quand elle le devient. */
   hidden?: boolean;
 }
@@ -39,6 +41,8 @@ interface Props {
  * petite sur un grand écran).
  */
 const PREVIEW_WIDTH = { desktop: 300, mobile: 200, min: 240, max: 360 } as const;
+/** Volet de réglages ouvert sur téléphone : la story reste lisible et laisse plus de la moitié de l'écran aux réglages. */
+const SHEET_WIDTH = 124;
 /** Sous la story : la ligne d'aide et un peu d'air au-dessus de la barre du bas. */
 const UNDER_STORY = 44;
 
@@ -85,9 +89,11 @@ export default function StoryVisualDirectControls({
   onTextTouched,
   className = "",
   hidden = false,
+  compact = false,
 }: Props) {
   const frame = useRef<HTMLDivElement>(null);
-  const width = useStoryWidth(frame, useIsMobile(), hidden);
+  const measured = useStoryWidth(frame, useIsMobile(), hidden);
+  const width = compact ? SHEET_WIDTH : measured;
   const scale = width / STORY_W;
   const [editing, setEditing] = useState<StoryTextBox | null>(null);
   const [hover, setHover] = useState<"text" | "photo" | null>(null);
@@ -222,7 +228,7 @@ export default function StoryVisualDirectControls({
           />
         )}
       </div>
-      <p className="text-center text-2xs text-muted-foreground">
+      <p className={`text-center text-2xs text-muted-foreground${compact ? " hidden" : ""}`}>
         Touche un texte pour l'écrire, glisse-le pour le déplacer{photoEnabled ? ", glisse la photo pour la recadrer" : ""}.
       </p>
     </div>

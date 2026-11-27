@@ -1,8 +1,10 @@
 // Actions sur une story (12/11/2026). Ordi : boutons visibles, comme avant.
-// Téléphone : un seul bouton « … » qui regroupe Refaire, Avant, Après,
-// Dupliquer, Ajouter et Supprimer, pour que l'aperçu de la story reste sur le
-// premier écran. Les fenêtres (Refaire, Supprimer) vivent hors du menu.
-import { ArrowLeft, ArrowRight, Copy, Loader2, MoreHorizontal, Plus, Trash2, Wand2 } from "lucide-react";
+// Téléphone : un seul bouton « … » qui regroupe Avant, Après, Dupliquer,
+// Ajouter et Supprimer, pour que l'aperçu de la story reste sur le premier
+// écran. « Refaire cette story » n'y est plus depuis le 27/11/2026 (choix de
+// Laetitia) : sur téléphone, c'est l'onglet « Demander à l'IA » du panneau
+// (StoryEditorPanel.tsx), une seule entrée au lieu de deux.
+import { ArrowLeft, ArrowRight, Copy, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +19,7 @@ type RedoProps = Omit<ComponentProps<typeof StoryRedo>, "renderTrigger">;
 export function StoryActionsMenu({ index, count, redo, onDelete, onMove, onDuplicate, onAdd, hideDelete }: {
   index: number;
   count: number;
+  /** Ordinateur seulement : « Refaire cette story », écrit en bas du panneau. */
   redo: RedoProps;
   onDelete: () => void;
   onMove: (to: number) => void;
@@ -47,22 +50,13 @@ export function StoryActionsMenu({ index, count, redo, onDelete, onMove, onDupli
   const full = count >= MAX_STORIES;
   const n = index + 1;
   return (
-    <StoryRedo
-      {...redo}
-      renderTrigger={(t) => (
-        // modal={false} : sinon la fenêtre ouverte depuis le menu laisse la page non cliquable.
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button type="button" variant="outline" size="sm" className="h-7 w-9 px-0 ml-auto" aria-label={`Actions sur la story ${n}`}>
-              {t.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+              <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem disabled={t.disabled} onSelect={t.open} className="text-primary focus:text-primary">
-              {t.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-              {t.label}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             {count > 1 && (
               <>
                 <DropdownMenuItem disabled={index === 0} onSelect={() => onMove(index - 1)}>
@@ -90,7 +84,5 @@ export function StoryActionsMenu({ index, count, redo, onDelete, onMove, onDupli
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-      )}
-    />
   );
 }

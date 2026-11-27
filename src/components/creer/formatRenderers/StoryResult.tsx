@@ -39,9 +39,9 @@ import StoryUndoButtons from "@/components/stories/StoryUndoButtons";
 import { storyInlineField } from "@/components/stories/story-inline-fields";
 import { storyChangeKind, useStoryHistory } from "@/components/stories/use-story-history";
 import StoryPersonalAnchor from "@/components/stories/StoryPersonalAnchor";
-import { StoryActionsMenu } from "@/components/stories/StoryActionsMenu";
+import { StoryActionsMenu } from "@/components/stories/StoryActionsMenu"; import StoryRedo from "@/components/stories/StoryRedo";
 import { useStoryStructure } from "@/components/stories/use-story-structure";
-import { attachedPhotoSlots, attachedPhotoUrl, pinAttachedPhotos, type AttachedPhotoLike } from "@/lib/story-attached-photos"; import { useBakeAttachedPhotos } from "@/components/stories/use-bake-attached-photos"; import { useIsMobile } from "@/hooks/use-mobile"; import { useMarkCarouselEditorShown } from "@/lib/carousel-editor-shown";
+import { attachedPhotoSlots, attachedPhotoUrl, pinAttachedPhotos, type AttachedPhotoLike } from "@/lib/story-attached-photos"; import { useBakeAttachedPhotos } from "@/components/stories/use-bake-attached-photos"; import { useIsMobile } from "@/hooks/use-mobile"; import { useMarkCarouselEditorShown } from "@/lib/carousel-editor-shown"; import { STORY_SHEET_GRID, SHEET_PANEL, usePhoneSheet } from "@/hooks/use-phone-sheet";
 
 /** Photos signées d'avance, dans lesquelles chaque story pioche. */
 const LIBRARY_POOL = 12;
@@ -112,7 +112,7 @@ function publicationTimeLabel(value: unknown): string | null {
 
 export default function StoryResult({ result, onStoriesUpdate, photos, onExportActionsChange }: Props) {
   const rawStories: any[] = result?.stories || result?.sequences || result?.slides || [];
-  const storyCardsRef = useScrollIntoViewOnPhone<HTMLDivElement>(), isMobile = useIsMobile(); useMarkCarouselEditorShown(); // téléphone : défile seul jusqu'à la story affichée ; haut de page replié comme pour le carrousel
+  const storyCardsRef = useScrollIntoViewOnPhone<HTMLDivElement>(), isMobile = useIsMobile(), sheet = usePhoneSheet(storyCardsRef); useMarkCarouselEditorShown(); // téléphone : défile seul jusqu'à la story affichée ; haut de page replié comme pour le carrousel
   // Une story sans plan visuel (ni face cam) reçoit le plan de repli
   // photo + texte complet : aperçu, choix de photo et exports existent.
   const [stories, setStories] = useState(() => rawStories.map(withStoryVisualFallback));
@@ -661,10 +661,10 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
   });
 
   // Refaire (et le menu « … » du téléphone) : ligne du haut sur téléphone, bas du panneau sur ordinateur (26/11/2026).
+  const redoOf = (i: number, story: (typeof stories)[number]) => ({ number: i + 1, total: stories.length, role: story.role ? formatSlideRole(story.role) : null, text: getStoryText(story), previous: i > 0 ? getStoryText(stories[i - 1]) : null, next: i < stories.length - 1 ? getStoryText(stories[i + 1]) : null,
+    listNote: story.visual?.gabarit === "liste", onKeep: ((key) => (text: string) => { const at = structure.indexOfKey(key); if (at < 0) toast.error("Cette story n'existe plus : rien n'a été changé."); else updateStoryText(at, text); })(structure.keys[i]) });
   const storyActions = (i: number, story: (typeof stories)[number]) => (
-    <StoryActionsMenu index={i} count={stories.length} onDelete={() => setDeleteTarget(i)} onMove={(to) => structure.move(i, to)} onDuplicate={() => structure.duplicate(i)} onAdd={() => structure.add(i)} hideDelete
-      redo={{ number: i + 1, total: stories.length, role: story.role ? formatSlideRole(story.role) : null, text: getStoryText(story), previous: i > 0 ? getStoryText(stories[i - 1]) : null, next: i < stories.length - 1 ? getStoryText(stories[i + 1]) : null,
-      listNote: story.visual?.gabarit === "liste", onKeep: ((key) => (text: string) => { const at = structure.indexOfKey(key); if (at < 0) toast.error("Cette story n'existe plus : rien n'a été changé."); else updateStoryText(at, text); })(structure.keys[i]) }} />
+    <StoryActionsMenu index={i} count={stories.length} onDelete={() => setDeleteTarget(i)} onMove={(to) => structure.move(i, to)} onDuplicate={() => structure.duplicate(i)} onAdd={() => structure.add(i)} hideDelete redo={redoOf(i, story)} />
   );
   return (
     <div className="space-y-4 animate-fade-in">
@@ -709,15 +709,15 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
         </div>
       </div>
 
-      {/* Stories comme le carrousel (12/11/2026) : vignettes à gauche, story au centre, réglages à droite. */}
-      <div ref={storyCardsRef} className="grid gap-3 scroll-mt-16 lg:grid-cols-[88px_minmax(0,1fr)] lg:items-start" data-story-editor>
-        <StoryStrip frames={frames} current={shownStory} onChange={setCurrentStory} onMove={structure.move}
-          onDuplicate={structure.duplicate} onAdd={structure.add} onDelete={setDeleteTarget} />
-        <div className="min-w-0" data-selection-enabled="true">
+      {/* Stories comme le carrousel (12/11/2026) : vignettes à gauche, story au centre, réglages à droite. Téléphone (27/11/2026) : volet de réglages comme le carrousel (use-phone-sheet.ts), la story en petit en haut, les réglages défilent dessous. */}
+      <div ref={storyCardsRef} className={"grid gap-3 scroll-mt-16 lg:grid-cols-[88px_minmax(0,1fr)] lg:items-start" + (sheet.open ? STORY_SHEET_GRID : "")} data-story-editor>
+        {!sheet.open && <StoryStrip frames={frames} current={shownStory} onChange={setCurrentStory} onMove={structure.move}
+          onDuplicate={structure.duplicate} onAdd={structure.add} onDelete={setDeleteTarget} />}
+        <div className={`min-w-0 ${sheet.open ? SHEET_PANEL : ""}`} data-selection-enabled="true">
           {stories.map((story: any, i: number) => (
-            <div key={structure.keys[i] ?? i} hidden={i !== shownStory} className={i === shownStory ? "grid gap-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-start" : "hidden"}>
+            <div key={structure.keys[i] ?? i} hidden={i !== shownStory} className={i === shownStory ? `grid gap-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-start ${sheet.open ? SHEET_PANEL + " max-md:gap-2" : ""}` : "hidden"}>
               <div className="min-w-0 space-y-2 lg:sticky lg:top-20">
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <div className={`flex items-center gap-1.5 flex-wrap ${sheet.open ? "max-md:hidden" : ""}`}>
                   <Badge variant="secondary" className="font-mono text-2xs">Story {i + 1}</Badge>
                   {story.role && (
                     <Badge className="bg-primary/10 text-primary border-primary/20 text-2xs font-mono">{formatSlideRole(story.role)}</Badge>
@@ -736,7 +736,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                 </div>
                 {frames[i] && story.visual ? (
                   <StoryVisualDirectControls
-                    className="mx-auto" hidden={i !== shownStory}
+                    className="mx-auto" hidden={i !== shownStory} compact={sheet.open}
                     storyIndex={i} html={frames[i]!} visual={story.visual}
                     photoEnabled={story.visual.background === "photo" && Boolean(getStoryPhotoUrl(story, i))}
                     onTextMove={(x, y) => moveStoryText(i, x, y)}
@@ -749,9 +749,9 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                   </p>
                 )}
               </div>
-              <StoryEditorPanel
+              <StoryEditorPanel sheet={sheet}
                 story={story} index={i} narration={getStoryText(story)} displayedBody={getDisplayedBody(story)}
-                photoEnabled={story.visual?.background === "photo" && Boolean(getStoryPhotoUrl(story, i))} ask={isMobile ? undefined : storyActions(i, story)}
+                photoEnabled={story.visual?.background === "photo" && Boolean(getStoryPhotoUrl(story, i))} ask={isMobile ? <StoryRedo {...redoOf(i, story)} inline /> : storyActions(i, story)}
                 {...textSetters(i, story)}
                 setSticker={(optionIndex, value) => updateStickerText(i, optionIndex, value)}
                 setTextPosition={(position) => setTextPosition(i, position)}

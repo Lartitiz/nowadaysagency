@@ -5,9 +5,7 @@
 // Maintenant, la page mesure la place réelle entre le haut de la grille de
 // l'éditeur et la barre « Publier » collée en bas, et la slide la prend
 // (plafond 540 px de large : la moitié des 1080 px exportés, toujours net).
-import { useEffect, useLayoutEffect, useState, type CSSProperties, type RefObject } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { setCarouselSheet, useCarouselSheet } from "@/lib/carousel-editor-shown";
+import { useLayoutEffect, useState, type CSSProperties, type RefObject } from "react";
 // Flèches ‹ › sur les bords de la slide (19/11/2026), posées dans la boîte ci-dessous (relative).
 export { SlideEdgeArrows } from "./SlideEdgeArrows";
 
@@ -119,18 +117,5 @@ export function outsideRoom(slide: Element | null | undefined): { above: number;
 /** Largeur de la slide (px) quand le volet est ouvert : elle reste lisible et laisse plus de la moitié de l'écran aux réglages. */
 const SHEET_SLIDE = 164;
 
-/** Classes de la grille quand le volet est ouvert : elle prend la hauteur de l'écran sous la ligne d'outils. */
-export const SHEET_GRID = " max-md:h-[calc(100dvh-var(--app-header-h,49px)-2.75rem)] max-md:scroll-mt-[calc(var(--app-header-h,49px)+2.75rem)] max-md:gap-2 max-md:overflow-hidden";
-
-/** Volet de réglages du téléphone : ouvert ou non, et de quoi l'ouvrir ou le fermer. Toujours fermé sur ordinateur. */
-export function usePhoneSheet(grid: RefObject<HTMLElement>, off = false) {
-  const phone = useIsMobile();
-  const open = useCarouselSheet() && phone && !off;
-  useEffect(() => () => setCarouselSheet(false), []);
-  useEffect(() => {
-    if (open) grid.current?.scrollIntoView?.({ block: "start" });
-    // Les barres du bas se cachent ou reviennent : la slide se remesure.
-    window.dispatchEvent(new Event("resize"));
-  }, [open, grid]);
-  return { open, phone, set: setCarouselSheet };
-}
+// Le volet lui-même est commun avec les stories depuis le 27/11/2026 : src/hooks/use-phone-sheet.ts.
+export { SHEET_GRID, usePhoneSheet } from "@/hooks/use-phone-sheet";
