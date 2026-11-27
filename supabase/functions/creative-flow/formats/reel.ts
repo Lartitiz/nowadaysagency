@@ -159,6 +159,26 @@ export function isUsableHookText(text: unknown): boolean {
 //    réel (2,5 mots/s). Mesuré à l'audit : durées déclarées sous-estimées de
 //    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
 /** Renvoie les échos d'accroche AVANT correction (undefined = garde non armée, hook verrouillé ou passe échouée). */
+/**
+ * Textes dont les chiffres sont « à elle » pour la relecture du reel.
+ * Ses réponses aux questions y manquaient jusqu'au 27/11/2026 (les posts,
+ * LinkedIn, stories et newsletters les avaient) : la relecture prenait « bébé
+ * de 2 mois », « avant 3 ans » ou « surgras à 8 % » pour des chiffres inventés
+ * et les effaçait (« avant plusieurs années »). Mesuré sur 3 sujets sur 5.
+ */
+export function reelNumberSources(body: any, fullContext: string): string[] {
+  return [
+    typeof body.context === "string" ? body.context : "",
+    body.answers ? JSON.stringify(body.answers) : "",
+    body.followUpAnswers ? JSON.stringify(body.followUpAnswers) : "",
+    (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
+    body.selected_hook ? JSON.stringify(body.selected_hook) : "",
+    typeof body.news_context === "string" ? body.news_context : "",
+    fullContext || "",
+    typeof body.lived_material === "string" ? body.lived_material : "",
+  ];
+}
+
 export async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[]; audienceAddress?: AudienceAddress | null }): Promise<number | undefined> {
   const { body, effectiveObjective, researchSource, brandGuardText, echoSubject, previousHooks } = params;
   // Reel à partir de photos : ce que la rédaction y a vu compte comme source,
@@ -173,14 +193,7 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
   // ni l'une ni l'autre ne décide à la place de l'utilisatrice).
   const hasChosenHook = enforceSelectedReelHook(parsed, body.selected_hook);
   try {
-    const { allowed: reelAllowed, research: reelResearch } = gateNumbers([
-      typeof body.context === "string" ? body.context : "",
-      (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
-      body.selected_hook ? JSON.stringify(body.selected_hook) : "",
-      typeof body.news_context === "string" ? body.news_context : "",
-      fullContext || "",
-      typeof body.lived_material === "string" ? body.lived_material : "",
-    ], researchSource);
+    const { allowed: reelAllowed, research: reelResearch } = gateNumbers(reelNumberSources(body, fullContext), researchSource);
     // 🔑 L'écho d'accroche n'est mesuré QUE si le hook n'est pas verrouillé.
     // Quand l'utilisatrice a choisi son hook à l'étape hook_selection, la passe
     // reçoit déjà l'ordre de le recopier À L'IDENTIQUE : y ajouter « réécris
