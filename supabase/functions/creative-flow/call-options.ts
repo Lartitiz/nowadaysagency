@@ -39,7 +39,11 @@ export function callOptionsForStep(params: {
   // `generate` (et adjust/angles/dictation) suivaient le même chemin sans
   // aucune limite jusqu'ici — le générateur le plus utilisé de l'outil
   // tournait sans filet (audit latences 17/08).
-  const abortMs = (step === "questions" || step === "follow-up") ? 30000
+  // Questions (27/11/2026) : 15 s au lieu de 30. Un essai normal prend 3 à 6 s ;
+  // vu sur le Loom du 27/11 : questions arrivées après 30 à 50 s (appel bloqué
+  // coupé à 30 s puis relancé). Trois essais tiennent aussi dans les 60 s du front.
+  const abortMs = step === "questions" ? 15000
+    : step === "follow-up" ? 30000
     : step === "hooks" ? 45000
     : step === "generate" ? GENERATE_ABORT_MS
     : step === "adjust" ? ADJUST_ABORT_MS

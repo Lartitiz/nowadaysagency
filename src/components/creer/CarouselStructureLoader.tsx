@@ -1,6 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { elapsedLabel } from "@/components/creer/GenerationTimeHint";
-import { waitPhaseEnded, waitPhaseStarted } from "@/lib/generation-wait-clock";
+import WaitingScreen from "@/components/creer/WaitingScreen";
 import { initialRows, stepPhotos, type ContextStepPhoto } from "@/features/creer/photo-context-step";
 
 /**
@@ -48,71 +46,31 @@ export default function CarouselStructureLoader({ hasPhotos = false, photos = []
   const kept = answers.map((a) => a.trim()).filter(Boolean).slice(0, 3);
   const rich = understood.length > 0 || kept.length > 0;
   const messages = hasPhotos ? MESSAGES_PHOTOS : MESSAGES_SANS_PHOTOS;
-  const [messageIndex, setMessageIndex] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const [slow, setSlow] = useState(false);
-  const startTimeRef = useRef(Date.now());
-  // Départ du chrono partagé avec l'écran de rédaction (« Déjà X s » total).
-  const [waitStart] = useState(() => waitPhaseStarted());
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    startTimeRef.current = Date.now();
-
-    const msgInterval = setInterval(() => {
-      setMessageIndex((prev) => (prev + 1) % messages.length);
-    }, 3500);
-
-    // Barre de progression : rapide au début, ralentit en approchant 90 %.
-    // Calée sur ~1 min (constante /25) : le plan dure 55-64 s avec 3 photos et
-    // 10 slides (mesure du 09/10/2026). À /14, elle restait figée à 90 % la
-    // moitié de l'attente.
-    const progressInterval = setInterval(() => {
-      const elapsed = (Date.now() - startTimeRef.current) / 1000;
-      const p = Math.min(90, 90 * (1 - Math.exp(-elapsed / 25)));
-      setProgress(Math.round(p));
-      setNow(Date.now());
-      // Le serveur relance un second plan identique à 80 s (structure-hedge.ts).
-      if (elapsed >= SLOW_AFTER_S) setSlow(true);
-    }, 300);
-
-    return () => {
-      clearInterval(msgInterval);
-      clearInterval(progressInterval);
-    };
-  }, [messages.length]);
-  useEffect(() => () => waitPhaseEnded(), []);
-  const elapsed = Math.max(0, Math.round((now - waitStart) / 1000));
 
   return (
-    <div className={`${rich ? "py-8 max-w-2xl" : "py-16 max-w-md"} text-center space-y-5 animate-fade-in mx-auto`}>
-      <span className="inline-block text-2xs font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 rounded-full px-3 py-1">
-        D'abord le plan des slides
-      </span>
-
-      <div className="space-y-3">
-        <p
-          key={messageIndex}
-          className="text-sm font-medium text-foreground animate-fade-in"
-        >
-          {messages[messageIndex]}
-        </p>
-        <div className="w-full bg-secondary rounded-full h-2">
-          <div
-            className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Depuis #568, la structure est auto-validée (plus d'écran de review) :
-          ne rien promettre que le flux ne fait plus. */}
-      <p className="text-xs text-muted-foreground">
-        {hasPhotos
-          ? "J'analyse tes photos une par une (environ une minute), puis je rédige les slides. Compte 3 à 4 minutes en tout pour ton carrousel."
-          : "Je prépare le plan (environ une minute), puis je rédige les slides. Compte 3 à 4 minutes en tout pour ton carrousel."}{" "}
-        <span data-testid="structure-elapsed">Déjà {elapsedLabel(elapsed)}.</span>
-      </p>
+    <WaitingScreen
+      className={`${rich ? "py-8 max-w-2xl" : "py-16 max-w-md"} text-center space-y-5 animate-fade-in mx-auto`}
+      badge={
+        <span className="inline-block text-2xs font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 rounded-full px-3 py-1">
+          D'abord le plan des slides
+        </span>
+      }
+      rotation={{ messages, everyMs: 3500 }}
+      // Barre calée sur ~1 min (constante 25 s) : le plan dure 55-64 s avec 3 photos
+      // et 10 slides (mesure du 09/10/2026). À 14 s, elle restait figée à 90 %.
+      tauSeconds={25}
+      ceiling={90}
+      // Départ du chrono partagé avec l'écran de rédaction (« Déjà X s » total).
+      shareClock
+      // Le serveur relance un second plan identique à 80 s (structure-hedge.ts).
+      notes={[{ afterSeconds: SLOW_AFTER_S, text: "C'est plus long que d'habitude : je relance la structure en parallèle, encore une minute environ." }]}
+      // Depuis #568, la structure est auto-validée (plus d'écran de review) :
+      // ne rien promettre que le flux ne fait plus.
+      hint={hasPhotos
+        ? "J'analyse tes photos une par une (environ une minute), puis je rédige les slides. Compte 3 à 4 minutes en tout pour ton carrousel."
+        : "Je prépare le plan (environ une minute), puis je rédige les slides. Compte 3 à 4 minutes en tout pour ton carrousel."}
+      elapsedTestId="structure-elapsed"
+    >
       {rich && (
         <div className="grid gap-5 text-left sm:grid-cols-2" data-testid="structure-material">
           {understood.length > 0 && (
@@ -143,11 +101,6 @@ export default function CarouselStructureLoader({ hasPhotos = false, photos = []
           )}
         </div>
       )}
-      {slow && (
-        <p className="text-xs text-muted-foreground animate-fade-in">
-          C'est plus long que d'habitude : je relance la structure en parallèle, encore une minute environ.
-        </p>
-      )}
-    </div>
+    </WaitingScreen>
   );
 }

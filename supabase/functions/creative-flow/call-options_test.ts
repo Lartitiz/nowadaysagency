@@ -20,7 +20,7 @@ const pick = (o: ReturnType<typeof callOptionsForStep>) => ({
 });
 
 Deno.test("callOptionsForStep : réglages par étape", () => {
-  assertEquals(pick(callOptionsForStep({ ...base, step: "questions" })), { maxTokens: 800, tempText: 0.85, model: "questions", abortMs: 30000, tool: "poser_questions", fictif: false });
+  assertEquals(pick(callOptionsForStep({ ...base, step: "questions" })), { maxTokens: 800, tempText: 0.85, model: "questions", abortMs: 15000, tool: "poser_questions", fictif: false });
   assertEquals(pick(callOptionsForStep({ ...base, step: "follow-up" })), { maxTokens: 8192, tempText: 0.85, model: "questions", abortMs: 30000, tool: "poser_questions_suivi", fictif: false });
   assertEquals(pick(callOptionsForStep({ ...base, step: "hooks", contentType: "reel" })), { maxTokens: 1400, tempText: 0.85, model: "content", abortMs: 45000, tool: "proposer_hooks", fictif: false });
   assertEquals(pick(callOptionsForStep({ ...base, step: "generate" })), { maxTokens: 8192, tempText: 0.85, model: "content", abortMs: GENERATE_ABORT_MS, tool: undefined, fictif: false });

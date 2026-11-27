@@ -59,6 +59,7 @@ export { buildGeneratePrompt } from "./prompts/generate.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
+  const debutRequete = Date.now();
   // Erreur → réponse claire (aussi renvoyée dans le flux SSE du reel).
   // deno-lint-ignore no-explicit-any
   const errorResponse = (e: any): Response => {
@@ -386,6 +387,7 @@ serve(async (req) => {
     // Reel en flux (13/11/2026) : même travail qu'en JSON, mais le script écrit
     // part tout de suite (`draft`) puis la relecture (`correcting`), pour que la
     // cliente lise son brouillon pendant la passe qualité au lieu d'un écran vide.
+    const contextePret = Date.now();
     const produce = async (emitStatus?: StatusEmitter): Promise<Response> => {
     let rawContent: string;
     // Une seule des branches ci-dessous s'exécute → un sink partagé suffit.
@@ -453,6 +455,13 @@ serve(async (req) => {
         console.warn("[creative-flow] parse échec (adjust), retry unique");
         rawContent = await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage, abortMs);
       }
+    }
+
+    // Durée des questions (27/11/2026) : lecture de la marque vs écriture IA, pour
+    // savoir d'où vient une attente longue (base lente ou appel IA bloqué).
+    if (step === "questions") {
+      const fin = Date.now();
+      console.log(JSON.stringify({ type: "questions_duree", contexte_ms: contextePret - debutRequete, ia_ms: fin - contextePret, total_ms: fin - debutRequete, photos: !!body.photo_mode }));
     }
 
     // Plus de fallback { raw } muet : une réponse illisible = erreur claire (502),
