@@ -38,7 +38,6 @@ import { removePhotoFromLibrary } from "@/lib/photo-storage";
 import { PhotoCard } from "@/components/photos/PhotoCard";
 import { PhotoUploadingCard } from "@/components/photos/PhotoUploadingCard";
 import { PhotoRetouchDialog } from "@/components/photos/PhotoRetouchDialog";
-import { findStudioSessionForPhoto } from "@/features/visual-studio/api";
 import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
 import { PackshotDialog } from "@/components/photos/PackshotDialog";
 import { MiseEnSceneDialog } from "@/components/photos/MiseEnSceneDialog";
@@ -116,12 +115,20 @@ function PhotosLibrary() {
     if (photos.some(photo => photo.id === target.studioPhotoId)) setDetailPhotoId(target.studioPhotoId);
     navigate('/photos', { replace: true, state: null });
   }, [location.state, activeWorkspace?.id, hasPhotoData, photos, navigate]);
-  // « Modifier la photo » : rouvre la session du Studio déjà ouverte sur cette
-  // photo plutôt que d'en créer une nouvelle à chaque fois.
-  async function openStudioFor(photoId: string) {
-    const existing = activeWorkspace ? await findStudioSessionForPhoto(activeWorkspace.id, photoId) : null;
-    navigate(existing ? `/photos/studio?session=${existing}` : `/photos/studio?photo=${photoId}`);
+  // « Modifier la photo » : le Studio s'ouvre tout de suite ; c'est lui qui
+  // reprend la session déjà ouverte sur cette photo s'il y en a une
+  // (useStudioSession → openPhoto). Loom du 27/11/2026 : attendre ici
+  // laissait la bibliothèque figée quelques secondes après le clic.
+  function openStudioFor(photoId: string) {
+    navigate(`/photos/studio?photo=${photoId}`);
   }
+  // Le code du Studio se charge en avance, pendant qu'on regarde ses photos :
+  // au clic, l'écran n'attend plus son téléchargement.
+  useEffect(() => {
+    const load = () => { void import("./VisualStudioPage").catch(() => {}); };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    if (w.requestIdleCallback) w.requestIdleCallback(load); else setTimeout(load, 1500);
+  }, []);
   const detailPhoto = detailPhotoId ? (photos.find((p) => p.id === detailPhotoId) ?? null) : null;
   const [packshotPhoto, setPackshotPhoto] = useState<UserPhotoRow | null>(null);
   const [miseEnScenePhoto, setMiseEnScenePhoto] = useState<UserPhotoRow | null>(null);

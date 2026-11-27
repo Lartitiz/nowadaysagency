@@ -5,8 +5,8 @@
 // l'identique depuis src/pages/VisualStudioPage.tsx ; chaque valeur lue dans la
 // page arrive en prop sous le même nom. Les `id` `studio-draft` /
 // `studio-draft-mobile` ne changent pas (un bouton du fil les cherche).
-import { useState, type MutableRefObject, type RefObject } from "react";
-import { ImagePlus, Library, Loader2, Plus } from "lucide-react";
+import { useEffect, useState, type MutableRefObject, type RefObject } from "react";
+import { ChevronDown, ImagePlus, Library, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,6 +61,7 @@ export function StudioComposer({
   setPicker,
   sourcePhoto,
   onPrepare,
+  pendingMessage = "",
 }: {
   mobile: boolean;
   dropActive: boolean;
@@ -102,8 +103,21 @@ export function StudioComposer({
   sourcePhoto: UserPhotoRow | null;
   /** Ouvre « Format et lumière » (sans crédit) sur cette photo. */
   onPrepare: () => void;
+  /** Message parti, réponse attendue : il est déjà dans le fil. */
+  pendingMessage?: string;
 }) {
   const [photoTool, setPhotoTool] = useState<StudioPhotoTool>(null);
+  // Loom du 27/11/2026 : « il faudrait que ce soit refermé pour mieux voir le
+  // texte ». Le bas de la colonne prenait près de la moitié de la hauteur :
+  // les photos jointes se replient en une pastille (elles s'ouvrent quand on
+  // en ajoute une, se referment quand le message part) et le champ vide tient
+  // sur une ligne tant qu'on n'écrit pas.
+  const [focused, setFocused] = useState(false);
+  useEffect(() => { if (pendingMessage) setPhotosOpen(false); }, [pendingMessage, setPhotosOpen]);
+  // Le message envoyé s'affiche déjà dans le fil : le champ ne le montre pas
+  // une deuxième fois pendant l'attente (il reste gardé pour réessayer).
+  const echo = !!pendingMessage && draft.trim() === pendingMessage;
+  const compact = !focused && !draft.trim();
   return (
     <div
       className={`studio-composer p-3 border-t space-y-2${dropActive ? " studio-drop-active" : ""}`}
@@ -162,6 +176,14 @@ export function StudioComposer({
             </DropdownMenu>
           )}
         </div>
+        {attachedReferences.length > 0 && <button type="button" className="studio-photos-pill"
+          aria-expanded={photosOpen} onClick={() => setPhotosOpen(!photosOpen)}>
+          <span className="studio-photos-pill-thumbs" aria-hidden="true">
+            {attachedReferences.slice(0, 3).map((ref) => <img key={ref.id} src={ref.url} alt="" />)}
+          </span>
+          {attachedReferences.length === 1 ? "1 photo jointe" : `${attachedReferences.length} photos jointes`}
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform${photosOpen ? " rotate-180" : ""}`} aria-hidden="true" />
+        </button>}
         {!!selectedId && <button type="button" className="studio-selection-pill" onClick={() => { setSelectedId(null); setSelectedReferenceId(null); setCompare(false); }}>
           <span className="studio-selection-dot" aria-hidden="true" />
           Image sélectionnée
@@ -195,7 +217,7 @@ export function StudioComposer({
       >
         Ta demande
       </label>
-      {attachedReferences.length > 0 && (
+      {attachedReferences.length > 0 && photosOpen && (
         <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
           onSelection={ids => void updateSelection(ids)}
           onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
@@ -203,10 +225,14 @@ export function StudioComposer({
       )}
 
       <Textarea
-        className="min-h-[88px] max-h-36 overflow-y-auto"
+        className={`${compact ? "min-h-[44px]" : "min-h-[88px]"} max-h-36 overflow-y-auto`}
+        rows={compact ? 1 : undefined}
         id={mobile ? "studio-draft-mobile" : "studio-draft"}
-        value={draft}
+        value={echo ? "" : draft}
+        readOnly={echo}
         maxLength={6000}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         onChange={(e) => editDraft(e.target.value)}
         onKeyDown={(e) => {
           if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;

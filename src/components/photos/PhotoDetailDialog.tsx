@@ -330,7 +330,16 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
             « Créer un co… » et « Retoucher » en « R… ». */}
         {photo.status === "ready" && (
           <div className="flex flex-col gap-2 min-w-0">
+            {/* Une seule porte pour modifier : le Studio, avec ses raccourcis
+                (format et lumière sans crédit, fond blanc, portrait…).
+                Loom du 27/11/2026 : dans « Mes photos », on vient d'abord
+                travailler la photo → « Modifier la photo » est le bouton
+                principal, « Créer un contenu » passe en second. */}
+            {studioOnly && <Button className="w-full min-w-0" onClick={() => { onOpenChange(false); onStudio(photo); }}>
+              <Wand2 className="h-4 w-4 mr-2 shrink-0" /> Modifier la photo
+            </Button>}
             <Button
+              variant={studioOnly ? "outline" : "default"}
               className="w-full sm:flex-[2] min-w-0"
               onClick={() => {
                 navigate("/creer", { state: { libraryPhotoIds: [photo.id] } });
@@ -340,11 +349,6 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
               <Sparkles className="h-4 w-4 mr-2 shrink-0" />
               <span className="truncate">Créer un contenu</span>
             </Button>
-            {/* Une seule porte pour modifier : le Studio, avec ses raccourcis
-                (format et lumière sans crédit, fond blanc, portrait…). */}
-            {studioOnly && <Button variant="outline" className="w-full min-w-0" onClick={() => { onOpenChange(false); onStudio(photo); }}>
-              <Wand2 className="h-4 w-4 mr-2 shrink-0" /> Modifier la photo
-            </Button>}
             {retouchOptions.length > 0 && (
               <Button
                 variant="outline"

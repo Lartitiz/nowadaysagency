@@ -180,6 +180,17 @@ it.each([
   expect(onStudio).toHaveBeenCalledWith(p);
 });
 
+// Loom du 27/11/2026 : dans « Mes photos », on vient d'abord travailler la
+// photo → « Modifier la photo » passe en premier, en bouton plein.
+it("avec le Studio, « Modifier la photo » est le bouton principal, avant « Créer un contenu »", () => {
+  wrap(<PhotoDetailDialog photo={photo({ kind: "ambiance" })} open onOpenChange={vi.fn()} onPrepare={vi.fn()} onStudio={vi.fn()} />);
+  const modifier = screen.getByRole("button", { name: /Modifier la photo/ });
+  const creer = screen.getByRole("button", { name: /Créer un contenu/ });
+  expect(modifier.compareDocumentPosition(creer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(modifier.className).toContain("bg-primary");
+  expect(creer.className).not.toContain("bg-primary");
+});
+
 it("sans accès au Studio : le menu reste, sans la carte « Une photo, plusieurs contenus »", () => {
   wrap(<PhotoDetailDialog photo={photo({ kind: "portrait" })} open onOpenChange={vi.fn()} onPrepare={vi.fn()} onRetouche={vi.fn()} />);
   expect(screen.queryByRole("button", { name: /Modifier la photo/ })).toBeNull();
