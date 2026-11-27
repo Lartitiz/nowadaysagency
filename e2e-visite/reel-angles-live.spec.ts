@@ -37,7 +37,7 @@ const CREATIVE_FLOW = "**/functions/v1/creative-flow";
 const QUESTIONS_SEUIL_S = 15;
 
 /** /creer → sujet → Instagram → Reel → questions passées → écran des angles. */
-async function allerJusquAuxAngles(page: Page) {
+async function allerJusquAuxAngles(page: Page, reponse?: string): Promise<boolean> {
   await page.goto("/creer?new=1", { waitUntil: "networkidle" });
   const closeBtn = page.locator('[data-testid="branding-banner-close"], button[aria-label*="ermer"]').first();
   if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) await closeBtn.click();
@@ -71,8 +71,54 @@ async function allerJusquAuxAngles(page: Page) {
   // des journaux de creative-flow (contexte_ms = base lente, ia_ms = IA bloquée).
   const attenteS = (Date.now() - debutQuestions) / 1000;
   console.log(`⏱️ Questions du reel : ${attenteS <= QUESTIONS_SEUIL_S ? "✅" : "🟠"} affichées en ${attenteS.toFixed(1)} s (seuil ${QUESTIONS_SEUIL_S} s)`);
+  // Lundi : on répond à la 1re question (sonde 🔢 des chiffres gardés), puis
+  // « Générer avec mes précisions » (ou « Générer » s'il n'y a qu'une question).
+  const champ = page.locator('textarea[id^="creation-question-"]').first();
+  if (reponse && await champ.isVisible().catch(() => false)) {
+    await champ.fill(reponse);
+    const avecPrecisions = page.getByRole("button", { name: /Générer avec mes précisions/i }).first();
+    if (await avecPrecisions.isVisible().catch(() => false)) await avecPrecisions.click();
+    else await page.getByTestId("creer-questions-next").click();
+    return true;
+  }
   if (await passer.isVisible().catch(() => false)) await passer.click();
   else await genererDirect.click();
+  return false;
+}
+
+// 🔢 Sonde du 27/11/2026 (#2193) : la relecture du reel effaçait les chiffres
+// tirés des RÉPONSES de la personne (« bébé de 2 mois » disparu), parce qu'elle
+// ne les comptait pas comme « à elle ». Réponse aux prix précis, puis on relit
+// le script final : au moins un de ces prix doit y être.
+const REPONSE_CHIFFREE =
+  "Une cliente m'a demandé trois savons pour 10 € au lieu de 9 € pièce. J'ai refusé : " +
+  "chaque savon me coûte déjà 4,20 € en matières, sans compter les six semaines de séchage.";
+const CHIFFRES_REPONSE: Array<[string, RegExp]> = [
+  ["4,20 €", /4[,.]20\s*(€|euros?)|quatre euros vingt/i],
+  ["10 €", /\b10\s*(€|euros?)|dix euros/i],
+  ["9 €", /\b9\s*(€|euros?)|neuf euros/i],
+];
+/** Ce que l'ancienne relecture faisait aux prix de sa réponse (essai de la sonde). */
+const effacerPrix = (t: string) =>
+  t.replace(/\b\d+(?:[,.]\d+)?\s*(?:€|euros?)|\b(?:quatre|dix|neuf) euros(?: vingt)?/gi, "quelques euros");
+
+/** Le texte du script final, lu dans l'événement `done` du flux de `generate`. */
+function texteDuScript(flux: string): string | null {
+  let dernier: any = null;
+  for (const bloc of flux.split("\n\n")) {
+    const ligne = bloc.split("\n").find((l) => l.startsWith("data:"));
+    if (!ligne) continue;
+    try {
+      const ev = JSON.parse(ligne.slice(5));
+      if (ev?.type === "done") dernier = ev;
+    } catch { /* morceau non JSON */ }
+  }
+  if (!dernier) return null;
+  let r: any = dernier.full ?? dernier;
+  if (typeof r === "string") { try { r = JSON.parse(r); } catch { return r; } }
+  const reel = r?.reel ?? r?.content ?? r?.result ?? r;
+  const morceaux = [reel?.accroche, reel?.script, reel?.sections, reel?.lecture_test].filter((x) => x != null);
+  return morceaux.length ? JSON.stringify(morceaux) : JSON.stringify(reel);
 }
 
 /** Les cartes d'angles, ou l'écran de repli quand il n'y en a aucune. */
@@ -245,7 +291,36 @@ test("angles du reel : parcours réel jusqu'au script (lundi, ~1-2 crédits)", a
     });
   }
 
-  await allerJusquAuxAngles(page);
+  // Essai de la ligne 🔢 contre la relecture d'avant #2193 : `SONDE_SANS_CHIFFRES=1`
+  // efface les prix du script rendu, comme le faisait l'ancienne relecture.
+  // La ligne doit passer au 🟠.
+  if (process.env.SONDE_SANS_CHIFFRES) {
+    await page.route(CREATIVE_FLOW, async (route) => {
+      const req = route.request();
+      let step = "";
+      try { step = (req.postDataJSON() ?? {}).step ?? ""; } catch { /* corps non JSON */ }
+      if (req.method() !== "POST" || step !== "generate") return route.continue();
+      const res = await route.fetch({ timeout: 300_000 });
+      const headers = { ...res.headers() };
+      delete headers["content-encoding"];
+      delete headers["content-length"];
+      return route.fulfill({ status: res.status(), headers, body: effacerPrix(await res.text()) });
+    });
+  }
+
+  // Le flux de `generate`, lu à la fin (sonde 🔢).
+  let fluxGenerate: Promise<string> | null = null;
+  let reponseEnvoyee = false;
+  page.on("response", (res) => {
+    if (!res.url().includes("/functions/v1/creative-flow")) return;
+    let body: any = {};
+    try { body = res.request().postDataJSON() ?? {}; } catch { /* corps non JSON */ }
+    if (body.step !== "generate") return;
+    reponseEnvoyee = JSON.stringify(body).includes("4,20");
+    fluxGenerate = res.text().catch(() => "");
+  });
+
+  const arepondu = await allerJusquAuxAngles(page, REPONSE_CHIFFREE);
   const a = angles(page);
 
   await Promise.race([
@@ -284,5 +359,21 @@ test("angles du reel : parcours réel jusqu'au script (lundi, ~1-2 crédits)", a
   await expect(page.getByRole("tab", { name: /^Script$/ })).toBeVisible({ timeout: 780_000 });
   await expect(page.getByRole("tab", { name: /^Légende$/ })).toBeVisible();
   await page.screenshot({ path: path.join(SHOTS, "reel-2-script.png"), fullPage: true });
+
+  // 🔢 Les prix de sa réponse sont-ils encore dans le script final ?
+  // Le flux SSE n'a pas de corps lisible côté Playwright quand il arrive au fil de
+  // l'eau : on lit le script affiché (onglet Script), sinon le flux (essai simulé).
+  const affiche = await page.getByRole("tabpanel").first().innerText().catch(() => "");
+  const script = affiche.trim().length > 80 ? affiche : fluxGenerate ? texteDuScript(await fluxGenerate) : null;
+  if (!arepondu || !reponseEnvoyee) {
+    console.log(`🔢 Reel, chiffres de sa réponse : 🟠 pas vérifié (${!arepondu ? "aucune question où répondre" : "la réponse n'est pas partie avec la demande"})`);
+  } else if (script === null) {
+    console.log("🔢 Reel, chiffres de sa réponse : 🟠 pas vérifié (script final introuvable dans la réponse du serveur)");
+  } else {
+    const gardes = CHIFFRES_REPONSE.filter(([, re]) => re.test(script)).map(([nom]) => nom);
+    console.log(gardes.length
+      ? `🔢 Reel, chiffres de sa réponse : ✅ ${gardes.length}/${CHIFFRES_REPONSE.length} gardés (${gardes.join(", ")})`
+      : `🔢 Reel, chiffres de sa réponse : 🟠 aucun des ${CHIFFRES_REPONSE.length} prix de sa réponse dans le script (la relecture les a-t-elle effacés ? voir reelNumberSources, #2193)`);
+  }
   console.log(`✅ Reel généré depuis un angle choisi (${nb} angles proposés)`);
 });

@@ -77,6 +77,10 @@ Specs de garde dédiées :
   message lisible + des sorties (« Laisser l'IA choisir », « Revenir aux
   questions ») jamais désactivées. Le 2ᵉ test du fichier joue le parcours réel
   (lundi, ~1-2 crédits, `FORCE_REEL_ANGLES=1`).
+  Depuis le 27/11/2026, ce parcours répond à la 1re question avec trois prix
+  (4,20 €, 10 €, 9 €) et la ligne 🔢 vérifie qu'au moins un reste dans le script
+  final (🟠 sinon : la relecture efface ses chiffres, cf. #2193). Essai de la
+  sonde : `SONDE_SANS_CHIFFRES=1` efface les prix du script rendu → 🟠 attendu.
   Le test tient les deux entrées possibles : des angles (cas nominal) **ou** le
   repli si le 1er appel réel revient déjà vide — au 04/08 c'est le cas sur le
   workspace de Camille, l'edge n'étant pas encore redéployé. La charge vide de
