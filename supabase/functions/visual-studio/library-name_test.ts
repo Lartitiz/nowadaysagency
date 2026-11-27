@@ -9,11 +9,15 @@ Deno.test("nom de bibliothèque : n'empile plus « — Studio »", () => {
 });
 Deno.test("nom de bibliothèque : sans titre, le premier changement confirmé, raccourci", () => {
   const name = studioLibraryName("Salon", { change: ["ajout d'un bureau en bois avec chaise contre le mur de droite de la pièce"] })!;
-  assertEquals(name.startsWith("Salon — ajout d'un bureau en bois avec chaise"), true);
+  assertEquals(name.startsWith("Salon — bureau en bois avec chaise"), true);
   assertEquals(name.endsWith("…"), true);
 });
 Deno.test("nom de bibliothèque : série numérotée, séance sans nom, rien à dire", () => {
   assertEquals(studioLibraryName("Bol", { image_title: "table d'été", series_size: 3, series_index: 1 }), "Bol — table d'été 2");
   assertEquals(studioLibraryName("", { image_title: "affiche marché de Noël" }), "Affiche marché de Noël");
   assertEquals(studioLibraryName("IMG_1", {}), null);
+});
+Deno.test("nom de bibliothèque : le verbe d'action du changement est retiré", () => {
+  assertEquals(studioLibraryName("IMG_5315 — Studio", { image_title: "", change: ["Ajout d’une petite étagère murale discrète"] }), "IMG_5315 — petite étagère murale discrète");
+  assertEquals(studioLibraryName("IMG_5315", { change: ["fond blanc uni"] }), "IMG_5315 — fond blanc uni");
 });

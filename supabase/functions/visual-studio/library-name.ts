@@ -17,7 +17,11 @@ const clean = (value: string) => value.replace(/\s+/g, " ").replace(/[.!?…]+$/
 
 export function studioLibraryName(sessionName: string | null | undefined, proposal: NamedProposal): string | null {
   const first = (proposal.change || []).find((item) => item?.trim()) || "";
-  let label = clean(proposal.image_title || "") || clean(first);
+  // Essai en ligne du 27/11/2026 : le modèle laisse souvent image_title vide.
+  // Le premier changement confirmé sert alors de nom, sans son verbe d'action
+  // (« ajout d'une petite étagère » → « petite étagère »).
+  const fromChange = clean(first).replace(/^(ajout|ajouter|remplacement|remplacer|installation|installer|mise en place)\s+(d['’]\s*|de\s+|du\s+|des\s+)?(une?\s+|la\s+|le\s+|les\s+|l['’])?/i, "");
+  let label = clean(proposal.image_title || "") || fromChange || clean(first);
   if (!label) return null;
   if (label.length > 48) label = `${label.slice(0, 47).replace(/\s+\S*$/, "")}…`;
   if (proposal.series_size) label += ` ${(proposal.series_index || 0) + 1}`;
