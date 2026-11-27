@@ -222,7 +222,9 @@ export function CalendarPostMetadata({
             <label className="text-2xs font-medium mb-1 block text-muted-foreground">Format</label>
             <div className="flex flex-wrap gap-1.5">
               {(FORMAT_OPTIONS_BY_CANAL[postCanal] || FORMAT_OPTIONS_BY_CANAL.instagram).map((f) => (
-                <button key={f.id} onClick={() => setFormat(format === f.id ? null : f.id)}
+                // Un format choisi le reste (27/11/2026) : recliquer dessus le décochait sans rien
+                // dire, et un post sans format partait en carrousel à « Rédiger avec l'IA ».
+                <button key={f.id} aria-pressed={format === f.id} onClick={() => setFormat(f.id)}
                   className={`rounded-pill px-2.5 py-1 text-2xs font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
                   {f.emoji} {f.label}
                 </button>
