@@ -25,7 +25,7 @@
  * de la vaisselle. Il imprime `🧹 … : OK` / `KO <raison>` et laisse le verdict
  * du test intact.
  */
-import type { Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -45,7 +45,7 @@ export type LigneCreee = { table: string; id: string };
  * côté serveur, cf. QA_TEST_USER_IDS dans _shared/plan-limiter.ts — elle
  * n'y écrit aucune ligne).
  */
-const TABLES_NETTOYABLES = new Set([
+export const TABLES_NETTOYABLES = new Set([
   "calendar_posts",
   "content_briefs",
   "generated_carousels",
@@ -98,8 +98,11 @@ export async function tokenCamille(): Promise<string | null> {
 }
 
 export interface TraceurCreations {
-  /** À brancher sur la page AVANT toute navigation. */
-  branche(page: Page): void;
+  /**
+   * À brancher AVANT toute navigation, sur la page ou sur le contexte entier
+   * (toutes les pages et fenêtres du test : c'est ce que fait test-propre.ts).
+   */
+  branche(cible: Page | BrowserContext): void;
   /** Filet : l'app redirige vers `/calendrier?date=…&post=<id>` après la pose. */
   ajouteDepuisUrl(url: string): void;
   /** Lignes créées, dédoublonnées (attend les lectures de corps en cours). */
@@ -120,19 +123,46 @@ export interface TraceurCreations {
 export function traceurDeCreations(): TraceurCreations {
   const lignes: LigneCreee[] = [];
   const enCours: Promise<unknown>[] = [];
+  // Créations parties mais dont la réponse n'est pas encore revenue. Le
+  // 27/11/2026, « mes-slides » laissait une fiche par passage : le brouillon
+  // partait 1,5 s avant la fin du test, la base répondait après, et le ménage
+  // avait déjà fait ses comptes. On attend donc les réponses en route.
+  const enVol = new Set<unknown>();
+  const estCreation = (methode: string, url: string) => {
+    if (methode !== "POST") return null;
+    const m = url.match(/\/rest\/v1\/([a-z_]+)(?:\?|$)/);
+    return m && TABLES_NETTOYABLES.has(m[1]) ? m[1] : null;
+  };
 
   const ajoute = (table: string, id: unknown) => {
     if (typeof id === "string" && id) lignes.push({ table, id });
   };
 
   return {
-    branche(page: Page) {
-      page.on("response", (r) => {
-        if (r.request().method() !== "POST") return;
+    branche(cible: Page | BrowserContext) {
+      const source = cible as Page;
+      source.on("request", (req) => {
+        if (estCreation(req.method(), req.url())) enVol.add(req);
+      });
+      source.on("requestfinished", (req) => void enVol.delete(req));
+      source.on("requestfailed", (req) => void enVol.delete(req));
+      source.on("response", (r) => {
+        const req = r.request();
         if (r.status() < 200 || r.status() >= 300) return;
-        const m = r.url().match(/\/rest\/v1\/([a-z_]+)(?:\?|$)/);
-        if (!m || !TABLES_NETTOYABLES.has(m[1])) return;
-        const table = m[1];
+        const table = estCreation(req.method(), r.url());
+        if (!table) return;
+        // Garde-fou : un POST « resolution=… » peut RÉÉCRIRE une ligne qui
+        // existait avant le run. On ne trace que les créations franches.
+        if (/resolution=/.test(req.headers()["prefer"] || "")) return;
+        // L'app fournit parfois l'id elle-même (brouillon de carrousel) et ne
+        // demande pas toujours la ligne en retour : l'id envoyé par le run,
+        // accepté par la base, vaut autant que l'id renvoyé.
+        try {
+          const envoye = JSON.parse(req.postData() || "null");
+          for (const row of Array.isArray(envoye) ? envoye : [envoye]) ajoute(table, row?.id);
+        } catch {
+          /* corps illisible : on s'en tient à la réponse */
+        }
         enCours.push(
           r
             .json()
@@ -151,6 +181,10 @@ export function traceurDeCreations(): TraceurCreations {
     },
 
     async collectees() {
+      // Laisse revenir les créations en route (20 s au plus : une base qui rame
+      // ne doit pas bloquer la visite).
+      const limite = Date.now() + 20_000;
+      while (enVol.size > 0 && Date.now() < limite) await new Promise((r) => setTimeout(r, 200));
       await Promise.allSettled(enCours);
       const vues = new Set<string>();
       return lignes.filter((l) => {
@@ -175,6 +209,41 @@ function resume(lignes: LigneCreee[]): string {
   return [...parTable].map(([t, n]) => `${t}×${n}`).join(", ");
 }
 
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Jeton gardé 20 min par processus : une visite fait une trentaine de ménages,
+// inutile de reconnecter Camille à chaque fois.
+let jetonGarde: { token: string; a: number } | null = null;
+
+/**
+ * Jeton de Camille, avec trois essais espacés. Le 27/11/2026, pendant une visite
+ * où le serveur ramait, sept ménages ont échoué sur « login impossible (délai) »
+ * au premier et unique essai : sept fiches laissées pour une lenteur passagère.
+ */
+async function jetonAvecEssais(): Promise<{ token: string | null; motif: string }> {
+  if (jetonGarde && Date.now() - jetonGarde.a < 20 * 60_000) return { token: jetonGarde.token, motif: "" };
+  let dernier = "login refusé";
+  for (const attente of [0, 4_000, 10_000]) {
+    if (attente) await pause(attente);
+    try {
+      const token = await tokenCamille();
+      if (token) {
+        jetonGarde = { token, a: Date.now() };
+        return { token, motif: "" };
+      }
+      dernier = "login refusé";
+    } catch (e) {
+      dernier = `login impossible (${motif(e)})`;
+    }
+  }
+  return { token: null, motif: dernier };
+}
+
+/** `saved_ideas 1a2b…, 3c4d…` : de quoi retirer plus tard exactement ces lignes-là. */
+function identifiants(lignes: LigneCreee[]): string {
+  return lignes.map((l) => `${l.table} ${l.id}`).join(", ");
+}
+
 /**
  * Supprime les lignes tracées et renvoie une PHRASE à logguer (ne jette
  * jamais : un nettoyage raté ne doit pas rougir un test vert, il doit se LIRE).
@@ -183,35 +252,45 @@ function resume(lignes: LigneCreee[]): string {
  * ça retire le post calendrier avant les lignes créées plus tôt qui le
  * référencent (les FK sont en SET NULL / CASCADE, mais l'ordre reste le bon
  * réflexe).
+ *
+ * Chaque suppression a droit à un second essai. Ce qui reste malgré tout est
+ * NOMMÉ par son identifiant dans la phrase, pour pouvoir le retirer à la main
+ * sans jamais chercher par titre.
  */
 export async function supprimeLignesCreees(lignes: LigneCreee[]): Promise<string> {
   if (lignes.length === 0) return "rien à supprimer (aucune ligne créée par ce run)";
   const { url, anon } = configSupabase();
-  if (!url || !anon) return `KO config Supabase absente (${resume(lignes)} laissées en base)`;
+  if (!url || !anon) return `KO config Supabase absente — laissées en base : ${identifiants(lignes)}`;
 
-  let token: string | null = null;
-  try {
-    token = await tokenCamille();
-  } catch (e) {
-    return `KO login impossible (${motif(e)}) — ${resume(lignes)} laissées en base`;
-  }
-  if (!token) return `KO login refusé — ${resume(lignes)} laissées en base`;
+  const { token, motif: pourquoi } = await jetonAvecEssais();
+  if (!token) return `KO ${pourquoi} — laissées en base : ${identifiants(lignes)}`;
 
   const echecs: string[] = [];
+  const restees: LigneCreee[] = [];
   for (const l of [...lignes].reverse()) {
-    try {
-      const res = await fetch(`${url}/rest/v1/${l.table}?id=eq.${l.id}`, {
-        method: "DELETE",
-        headers: { apikey: anon, Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(15_000),
-      });
-      if (!res.ok) echecs.push(`${l.table} ${res.status}`);
-    } catch (e) {
-      echecs.push(`${l.table} ${motif(e)}`);
+    let erreur = "";
+    for (const attente of [0, 4_000]) {
+      if (attente) await pause(attente);
+      try {
+        const res = await fetch(`${url}/rest/v1/${l.table}?id=eq.${l.id}`, {
+          method: "DELETE",
+          headers: { apikey: anon, Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(20_000),
+        });
+        erreur = res.ok ? "" : `${l.table} ${res.status}`;
+        if (res.status === 401) jetonGarde = null; // jeton périmé : le prochain ménage se reconnecte
+      } catch (e) {
+        erreur = `${l.table} ${motif(e)}`;
+      }
+      if (!erreur) break;
+    }
+    if (erreur) {
+      echecs.push(erreur);
+      restees.push(l);
     }
   }
 
   return echecs.length === 0
     ? `OK (${lignes.length} ligne(s) : ${resume(lignes)})`
-    : `KO ${echecs.length}/${lignes.length} échec(s) : ${echecs.slice(0, 4).join(" | ")}`;
+    : `KO ${echecs.length}/${lignes.length} échec(s) : ${echecs.slice(0, 4).join(" | ")} — laissées en base : ${identifiants(restees)}`;
 }

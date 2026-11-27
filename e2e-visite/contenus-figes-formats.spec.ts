@@ -12,7 +12,7 @@
  *   FIGE_RECORD=1 npx playwright test -c playwright.visite.config.ts e2e-visite/contenus-figes-formats.spec.ts --project=desktop -g "<format>" --update-snapshots
  * Accepter un changement de design voulu (sans régénérer) : même commande sans FIGE_RECORD.
  */
-import { test, expect, type Page, type Locator } from "@playwright/test";
+import { test, expect, type Page, type Locator } from "./test-propre";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";

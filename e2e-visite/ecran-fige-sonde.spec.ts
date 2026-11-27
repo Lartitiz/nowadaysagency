@@ -33,7 +33,7 @@
  *    partout produirait des rouges non actionnables).
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test-propre";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { ECRANS } from "./ecrans";

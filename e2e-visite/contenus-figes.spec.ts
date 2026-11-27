@@ -22,7 +22,7 @@
  * Accepter un changement de design VOULU (sans régénérer) :
  *   npx playwright test -c playwright.visite.config.ts e2e-visite/contenus-figes.spec.ts --project=desktop --update-snapshots
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test-propre";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";

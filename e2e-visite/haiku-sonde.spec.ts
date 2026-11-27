@@ -21,7 +21,7 @@
  * question vouvoie (lectures de questions-qualite.ts).
  * Jamais rouge : c'est une lecture, pas une panne.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test-propre";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";

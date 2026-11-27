@@ -1,4 +1,4 @@
-import { test } from "@playwright/test";
+import { test } from "./test-propre";
 import * as path from "path";
 import { fileURLToPath } from "url";
 

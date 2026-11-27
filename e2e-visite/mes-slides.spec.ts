@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test-propre";
 
 // Smoke visuel du mode carrousel « Mes slides » (texte fourni, design seul).
 // Parcours : /creer → idée → format carrousel → tuile « Mes slides » → Suivant

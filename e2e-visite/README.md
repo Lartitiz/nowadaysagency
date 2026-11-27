@@ -160,6 +160,27 @@ une passe massive (risque type 23/07). Ces fonctions restent marquées déployé
 **exprès** — ne pas les « démarquer » : une sonde qui sort 65 lignes chaque matin
 ne sera pas lue.
 
+## Ménage sur le compte de référence (27/11/2026)
+
+Dès qu'un parcours passe par `/creer`, l'app range toute seule un brouillon dans
+« Mes idées » (`saved_ideas`). Une spec qui ne retire pas ses lignes en laisse à
+chaque passage : le 27/11/2026 Camille avait plus de 1100 fiches, la lecture des
+idées était coupée par la base sur téléphone (500, code 57014) et le panneau du
+calendrier montrait trois fois la même fiche de test.
+
+**Règle pour toute spec qui passe par `/creer`** : importer `test` depuis
+`./test-propre` au lieu de `@playwright/test`. Rien d'autre à écrire : à la fin de
+chaque test, réussi ou non, les lignes que ce test a créées sont supprimées
+(identifiants vus passer pendant le test, jamais par titre).
+
+**Contrôle d'ensemble** : la dernière ligne de la visite dit
+`🧹 Idées laissées par la visite : 0 ✅` ou `N 🟠` avec les titres. Un 🟠 = une spec
+neuve qui n'importe pas `./test-propre`, ou un ménage raté (la ligne
+`🧹 ménage après « … » : KO` nomme alors les identifiants restés).
+
+**Arriéré** : `node e2e-visite/purge-idees-visite.mjs` LISTE les brouillons de test
+(aucune écriture). `--apply` supprime, à la main et avec l'accord de Laetitia.
+
 ## Garde-fou de lancement (27/11/2026)
 
 `garde-base.ts` tourne avant chaque batterie en direct (visite et smoke à froid). Il refuse de démarrer si une autre batterie en direct tourne déjà sur la machine, ou si la base met plus de 1,5 s (médiane de 3 lectures d'une ligne). Il écrit toujours la ligne `⏱️ Base avant lancement : …`. Une visite refusée ou rouge sur base lente ne se relance pas en entier : attendre que la base réponde de nouveau en moins d'une seconde. `VISITE_FORCE=1` passe outre.

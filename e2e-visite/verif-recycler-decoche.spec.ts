@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test-propre";
 
 // Vérif post-publish #582 (0 crédit — on ne génère rien) :
 // 1) Recycler par défaut → AUCUNE case cochée.

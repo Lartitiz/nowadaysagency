@@ -21,7 +21,7 @@
  * PR #689 ce bouton n'existe qu'à la DERNIÈRE étape du parcours reel, on
  * l'attendrait jusqu'au timeout.
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./test-propre";
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";

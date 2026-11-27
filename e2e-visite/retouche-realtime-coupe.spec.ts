@@ -20,7 +20,7 @@
  * jamais dégrader la bibliothèque du compte de démo.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test-propre";
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";

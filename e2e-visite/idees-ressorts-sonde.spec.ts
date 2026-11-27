@@ -10,7 +10,7 @@
  * 🔴 = réponse en erreur ou pas 4 idées (test rouge) ; 🟠 = moins de 4 ressorts
  * différents ou une raison de partage manquante (ligne 🟠, test vert) ; ✅ sinon.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test-propre";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";

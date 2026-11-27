@@ -11,7 +11,7 @@
  * « il faut au moins une photo » dans l'écran, non recouverte (elle naissait sous l'écran, la cliente ne voyait rien).
  * Sans photo jointe, « Suivant » ne passe pas l'écran : rien n'est généré.
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./test-propre";
 
 type Cas = { nom: string; ok: boolean; hauteur: number };
 
