@@ -113,3 +113,17 @@ export function chosenHookText(selectedHook: unknown): string {
   const text = (selectedHook as { text?: unknown } | null)?.text;
   return typeof text === "string" ? text.trim() : "";
 }
+
+/**
+ * Brouillon suivant (27/11/2026) : le dernier envoi, juste avant la relecture,
+ * n'a ni accroche ni texte parlé. Ce qui est déjà affiché reste : l'accroche
+ * ne disparaît pas du téléphone et les scènes ne reculent jamais.
+ */
+export function mergeReelDraft(prev: ReelDraft | null, next: Partial<ReelDraft> & { sections: ReelDraft["sections"] }, chosenHook = ""): ReelDraft {
+  const sections = next.sections.length >= (prev?.sections.length ?? 0) ? next.sections : prev!.sections;
+  return {
+    hook: chosenHook || next.hook || prev?.hook || "",
+    sections,
+    monologue: (typeof next.monologue === "string" && next.monologue) || prev?.monologue || "",
+  };
+}

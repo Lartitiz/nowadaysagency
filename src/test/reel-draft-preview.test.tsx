@@ -15,7 +15,7 @@ vi.mock("@/lib/posthog-lazy", () => ({ posthog: { capture: vi.fn() } }));
 vi.mock("@/lib/quota-error-handler", () => ({ handleQuotaError: () => false }));
 
 import { useContentGenerator } from "@/hooks/use-content-generator";
-import { ReelDraftPreview, chosenHookText } from "@/components/creer/ReelDraftPreview";
+import { ReelDraftPreview, chosenHookText, mergeReelDraft } from "@/components/creer/ReelDraftPreview";
 
 const SCRIPT = [
   { timing: "0-3 sec", texte_parle: "J'ai arrêté les remises.", texte_overlay: "REMISES" },
@@ -84,6 +84,14 @@ describe("ReelDraftPreview", () => {
     expect(screen.getByTestId("reel-draft-scenes").querySelectorAll("li")).toHaveLength(2);
     expect(screen.queryByTestId("reel-draft-monologue")).toBeNull();
     expect(screen.getByRole("status").textContent).toContain("scène par scène");
+  });
+  it("dernier brouillon sans accroche ni texte parlé : ce qui est affiché reste", () => {
+    const live = mergeReelDraft(null, { hook: "Mes savons sèchent 6 semaines.", monologue: "texte", sections: SCRIPT });
+    const last = mergeReelDraft(live, { hook: "", sections: SCRIPT });
+    expect(last.hook).toBe("Mes savons sèchent 6 semaines.");
+    expect(last.monologue).toBe("texte");
+    expect(mergeReelDraft(live, { hook: "", sections: [] }).sections).toHaveLength(2);
+    expect(mergeReelDraft(live, { hook: "", sections: [] }, "Choisie").hook).toBe("Choisie");
   });
   it("lit l'accroche choisie sous ses deux formes", () => {
     expect(chosenHookText({ text: " Une accroche " })).toBe("Une accroche");

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
-import { chosenHookText, type ReelDraft } from "@/components/creer/ReelDraftPreview";
+import { chosenHookText, mergeReelDraft, type ReelDraft } from "@/components/creer/ReelDraftPreview";
 import { posthog } from "@/lib/posthog-lazy";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { readableError } from "@/lib/error-messages";
@@ -210,7 +210,7 @@ export function useContentGenerator() {
             onStatus: (stage, event) => {
               if (epoch !== generationEpoch.current) return;
               const draft = event?.reel as ReelDraft | undefined;
-              if (stage === "draft") { if (Array.isArray(draft?.sections)) setReelDraft({ hook: hook || draft.hook || "", sections: draft.sections, monologue: typeof draft.monologue === "string" ? draft.monologue : "" }); }
+              if (stage === "draft") { if (Array.isArray(draft?.sections)) setReelDraft((prev) => mergeReelDraft(prev, draft, hook)); }
               else setGenerationStage(stage);
             },
           }, REEL_GENERATE_TIMEOUT_MS);
