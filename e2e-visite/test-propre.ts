@@ -19,7 +19,7 @@
  * jamais échouer un test : il imprime une ligne 🧹 qui se lit.
  */
 import { test as base } from "@playwright/test";
-import { supprimeLignesCreees, traceurDeCreations } from "./nettoyage-camille";
+import { supprimeLignesCreees, TABLES_NETTOYABLES, traceurDeCreations } from "./nettoyage-camille";
 
 export * from "@playwright/test";
 
@@ -29,6 +29,15 @@ export const test = base.extend<{ menageCamille: void }>({
       const traceur = traceurDeCreations();
       traceur.branche(context);
       await use();
+      // Le test est fini mais la page vit encore un instant (capture de fin,
+      // fermeture) : l'app peut y ranger un dernier brouillon APRÈS nos comptes.
+      // Vu le 27/11/2026 sur « mes-slides » (une fiche laissée par passage). On
+      // ferme donc le robinet des créations avant de compter ; celles déjà
+      // parties sont attendues par `collectees()`.
+      const creations = new RegExp(`/rest/v1/(${[...TABLES_NETTOYABLES].join("|")})(\\?|$)`);
+      await context
+        .route(creations, (route) => (route.request().method() === "POST" ? route.abort() : route.fallback()))
+        .catch(() => {});
       const lignes = await traceur.collectees();
       if (lignes.length === 0) return; // silence quand il n'y a rien : la sortie reste lisible
       const res = await supprimeLignesCreees(lignes);

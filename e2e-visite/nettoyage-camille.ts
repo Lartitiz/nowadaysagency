@@ -45,7 +45,7 @@ export type LigneCreee = { table: string; id: string };
  * côté serveur, cf. QA_TEST_USER_IDS dans _shared/plan-limiter.ts — elle
  * n'y écrit aucune ligne).
  */
-const TABLES_NETTOYABLES = new Set([
+export const TABLES_NETTOYABLES = new Set([
   "calendar_posts",
   "content_briefs",
   "generated_carousels",
@@ -123,6 +123,16 @@ export interface TraceurCreations {
 export function traceurDeCreations(): TraceurCreations {
   const lignes: LigneCreee[] = [];
   const enCours: Promise<unknown>[] = [];
+  // Créations parties mais dont la réponse n'est pas encore revenue. Le
+  // 27/11/2026, « mes-slides » laissait une fiche par passage : le brouillon
+  // partait 1,5 s avant la fin du test, la base répondait après, et le ménage
+  // avait déjà fait ses comptes. On attend donc les réponses en route.
+  const enVol = new Set<unknown>();
+  const estCreation = (methode: string, url: string) => {
+    if (methode !== "POST") return null;
+    const m = url.match(/\/rest\/v1\/([a-z_]+)(?:\?|$)/);
+    return m && TABLES_NETTOYABLES.has(m[1]) ? m[1] : null;
+  };
 
   const ajoute = (table: string, id: unknown) => {
     if (typeof id === "string" && id) lignes.push({ table, id });
@@ -130,16 +140,20 @@ export function traceurDeCreations(): TraceurCreations {
 
   return {
     branche(cible: Page | BrowserContext) {
-      (cible as Page).on("response", (r) => {
+      const source = cible as Page;
+      source.on("request", (req) => {
+        if (estCreation(req.method(), req.url())) enVol.add(req);
+      });
+      source.on("requestfinished", (req) => void enVol.delete(req));
+      source.on("requestfailed", (req) => void enVol.delete(req));
+      source.on("response", (r) => {
         const req = r.request();
-        if (req.method() !== "POST") return;
         if (r.status() < 200 || r.status() >= 300) return;
-        const m = r.url().match(/\/rest\/v1\/([a-z_]+)(?:\?|$)/);
-        if (!m || !TABLES_NETTOYABLES.has(m[1])) return;
+        const table = estCreation(req.method(), r.url());
+        if (!table) return;
         // Garde-fou : un POST « resolution=… » peut RÉÉCRIRE une ligne qui
         // existait avant le run. On ne trace que les créations franches.
         if (/resolution=/.test(req.headers()["prefer"] || "")) return;
-        const table = m[1];
         // L'app fournit parfois l'id elle-même (brouillon de carrousel) et ne
         // demande pas toujours la ligne en retour : l'id envoyé par le run,
         // accepté par la base, vaut autant que l'id renvoyé.
@@ -167,6 +181,10 @@ export function traceurDeCreations(): TraceurCreations {
     },
 
     async collectees() {
+      // Laisse revenir les créations en route (20 s au plus : une base qui rame
+      // ne doit pas bloquer la visite).
+      const limite = Date.now() + 20_000;
+      while (enVol.size > 0 && Date.now() < limite) await new Promise((r) => setTimeout(r, 200));
       await Promise.allSettled(enCours);
       const vues = new Set<string>();
       return lignes.filter((l) => {
