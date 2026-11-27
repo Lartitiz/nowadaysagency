@@ -488,7 +488,7 @@ function CreerWorkspace() {
     generating,
     generationStage,
     draftSlides,
-    outlineTitles, reelDraft,
+    outlineTitles, reelDraft, storyDraft,
     result,
     setResult,
     error,
@@ -1790,7 +1790,7 @@ function CreerWorkspace() {
                 // un plan ou des brouillons de texte annonceraient autre chose (08/10/2026).
                 draftSlides={selectedFormat === "carousel" && carouselSubMode !== "pure_photo" ? draftSlides : undefined}
                 outlineTitles={selectedFormat === "carousel" && carouselSubMode !== "pure_photo" ? outlineTitles : undefined}
-                reelDraft={selectedFormat === "reel" ? reelDraft : undefined}
+                reelDraft={selectedFormat === "reel" ? reelDraft : undefined} storyDraft={selectedFormat === "story" ? storyDraft : undefined}
                 streamingContent={streaming ? streamingContent : undefined}
                 step2of2={selectedFormat === "carousel" && !!lastConfirmedStructure && (carouselSubMode === "photo" || carouselSubMode === "mix")}
                 qualityMax={qualityMax}

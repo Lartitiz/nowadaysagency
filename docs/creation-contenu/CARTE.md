@@ -47,6 +47,24 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 | Menu IA sur sélection de texte | `ai-text-action` | `src/components/SelectionMenu.tsx`, `SelectionMenuProvider.tsx` | — |
 | Brouillon rapide depuis le calendrier | `generate-content` (`calendar-quick`, `express-draft`) | `CalendarPostDialog.tsx`, `dashboard/SuggestedContents.tsx` | — |
 
+### Comment on appelle l'IA et ce qui s'affiche pendant l'attente (27/11/2026)
+
+Là où on voit le texte avant la fin. Trois façons d'appeler depuis le front : `invokeWithTimeout` (réponse d'un bloc), `invokeWithHeartbeat` (flux avec signaux de vie, `onStatus` reçoit les évènements `status` / `draft`), `useStreamingInvoke` (flux de texte, utilisé par `generateStream` pour les formats texte). Le choix par format se lit ici, pas dans le `switch` de `use-content-generator.ts`.
+
+| Format | Appel depuis /creer | Ce qu'on voit avant la fin | Au fil de l'eau ? |
+|---|---|---|---|
+| Carrousel | `invokeWithHeartbeat` → `carousel-ai` | titres prévus, puis slides en brouillon (`CarouselDraftPreview`) | oui |
+| Reel | `invokeWithHeartbeat` → `creative-flow` | accroche, texte parlé, scènes finies (`ReelDraftPreview`) | oui |
+| Stories (sans photo) | `invokeWithHeartbeat` → `creative-flow` (depuis le 27/11/2026) | chaque story finie, en brouillon (`StoryDraftPreview`) | oui |
+| Stories (mode photo) | `invokeWithHeartbeat`, réponse d'un bloc côté serveur (vision) | messages qui tournent | non |
+| Post Instagram | `generateStream` → `useStreamingInvoke` → `streamDefaultPostSSE` | texte qui s'écrit mot à mot (`streamingContent`) | oui (déjà) |
+| Post LinkedIn | `generateStream` → `runLinkedInTwoStep` (heartbeat, sans texte) | étapes « rédaction » puis « relecture », texte à la fin | non |
+| Newsletter | `generateStream` → `runNewsletterTwoStep` (heartbeat, sans texte) | étapes seulement | non |
+| Pinterest texte | `generateStream` → `streamDefaultPostSSE` | texte qui s'écrit | oui |
+| Questions, accroches du reel | `invokeWithTimeout` | écran d'attente | non (étapes gratuites) |
+
+Le `switch` du hook (`case "story"`, `"post"`, `"linkedin"` de `generate()`) n'est pas le chemin de /creer pour post, LinkedIn, newsletter et Pinterest : `use-do-generate.ts` les envoie à `generateStream`. Les évènements `draft` d'un format ne sont jamais lus pour un autre : serveur `formats/<format>.ts` (suivi du JSON pendant l'écriture), front un composant d'aperçu par format.
+
 ---
 
 ## 2. Parcours /creer (front)
