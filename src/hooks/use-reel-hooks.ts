@@ -79,7 +79,9 @@ export function useReelHooks() {
           ...(excludeHooks?.length ? { exclude_hooks: excludeHooks.slice(0, 12) } : {}),
           ...(reelPhotos?.length ? { photos: reelPhotos } : {}),
         },
-      }, 60000);
+      // 110 s : le serveur laisse 45 s à chaque essai et réessaie une fois. À 60 s,
+      // l'écran abandonnait pendant le rattrapage (mesuré le 27/11/2026 : 10 à 64 s).
+      }, 110000);
       if (fnError) throw fnError;
       const hooks = Array.isArray((data as any)?.hooks) ? (data as any).hooks : [];
       if (hooks.length === 0) throw new Error("empty");
