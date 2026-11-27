@@ -26,6 +26,11 @@ export function ReelDraftPreview({ draft, stage }: { draft: ReelDraft; stage?: s
   // ne commence qu'à l'étape « correcting » envoyée par le serveur.
   const reviewing = stage === "correcting";
   const current = reviewing ? 2 : hasScript || monologue || draft.hook ? 1 : 0;
+  // L'accroche n'est cochée que quand elle existe (choisie, écrite, ou portée
+  // par la 1re scène) : le modèle écrit tout le texte parlé AVANT l'accroche,
+  // elle était donc cochée ~3 s trop tôt (vu en ligne le 27/11/2026).
+  const hookDone = !!draft.hook || hasScript;
+  const done = (i: number) => i < current && (i !== 0 || hookDone);
   const message = reviewing
     ? "Je relis ton script pour gommer les tournures d'IA…"
     : monologue && !hasScript
@@ -45,10 +50,10 @@ export function ReelDraftPreview({ draft, stage }: { draft: ReelDraft; stage?: s
             </span>
           )}
         </div>
-        <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" data-reel-draft-steps>
           {STEPS.map((label, i) => (
             <li key={label} className={`flex items-center gap-1 ${i === current ? "text-foreground font-medium" : ""}`}>
-              {i < current ? <Check className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> : <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />}
+              {done(i) ? <Check className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> : <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />}
               {label}
             </li>
           ))}

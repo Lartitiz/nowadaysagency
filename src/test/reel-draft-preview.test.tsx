@@ -79,6 +79,15 @@ describe("ReelDraftPreview", () => {
     expect(screen.queryByTestId("reel-draft-skeleton")).toBeNull();
     expect(screen.getByRole("status").textContent).not.toContain("Je relis");
   });
+  it("texte parlé sans accroche : « Accroche » pas encore cochée, le script est en cours (27/11/2026)", () => {
+    const { container, rerender } = render(<ReelDraftPreview draft={{ hook: "", sections: [], monologue: "Tu crois que" }} stage="generating" />);
+    const etapes = () => Array.from(container.querySelectorAll("[data-reel-draft-steps] li"));
+    const coche = (li: Element) => !!li.querySelector("svg");
+    expect(coche(etapes()[0])).toBe(false);
+    expect(etapes()[1].className).toContain("font-medium");
+    rerender(<ReelDraftPreview draft={{ hook: "Mes savons sèchent 6 semaines.", sections: [], monologue: "Tu crois que" }} stage="generating" />);
+    expect(coche(etapes()[0])).toBe(true);
+  });
   it("scènes arrivées pendant l'écriture : pas encore « Je relis »", () => {
     render(<ReelDraftPreview draft={{ hook: "", sections: SCRIPT, monologue: "texte" }} stage="generating" />);
     expect(screen.getByTestId("reel-draft-scenes").querySelectorAll("li")).toHaveLength(2);
