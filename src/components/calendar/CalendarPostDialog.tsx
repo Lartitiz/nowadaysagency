@@ -383,9 +383,12 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
         ) : (
           // ── Desktop : détails repliables + 2 colonnes (contenu | aperçu) ──
           <div className="flex-1 flex flex-col overflow-hidden px-6 pt-3 pb-6">
-            <div className="shrink-0">{detailsPanel}</div>
-            <div className="flex-1 overflow-y-auto mt-3">
-              <div className="grid grid-cols-[1fr_340px] gap-5">
+            {/* Détails DANS la zone qui défile (27/11/2026) : dépliés avec « Modifier canal,
+                format, objectif », ils prenaient toute la hauteur et recouvraient le contenu ;
+                « Rédiger avec l'IA » n'était plus cliquable sur un écran de portable. */}
+            <div className="flex-1 overflow-y-auto" data-testid="post-dialog-scroll">
+              {detailsPanel}
+              <div className="grid grid-cols-[1fr_340px] gap-5 mt-3">
                 {/* Contenu */}
                 <main className="min-w-0 border-r border-border pr-5">
                   {editionBlock}
