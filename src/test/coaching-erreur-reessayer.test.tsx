@@ -68,6 +68,16 @@ describe.each(screens)("%s : coaching en erreur", (_name, ui) => {
   });
 });
 
+// Forme réelle renvoyée par invokeWithTimeout quand le serveur refuse pour quota.
+const quotaRefus = { data: { error: "limit_reached", message: "Tu as utilisé tes 23 crédits du mois.", quota: { reason: "total", plan: "free", usage: { total: { used: 23, limit: 23 } } } },
+  error: { code: "RATE_LIMIT", isRateLimit: true, message: "Tu as utilisé tes 23 crédits du mois.", data: { error: "limit_reached", quota: { reason: "total", plan: "free", usage: { total: { used: 23, limit: 23 } } } } } };
+it.each(screens.filter(([n]) => n !== "LinkedIn"))("%s : quota atteint → la limite est dite, pas de Réessayer", async (_name, ui) => {
+  mock.invoke.mockResolvedValue(quotaRefus);
+  render(<MemoryRouter>{ui()}</MemoryRouter>);
+  expect(await screen.findByRole("alert")).toHaveTextContent(/23 crédits/);
+  expect(screen.queryByRole("button", { name: "Réessayer" })).toBeNull();
+});
+
 it("LinkedIn : quota atteint → pas de rond qui tourne sans fin, pas de Réessayer", async () => {
   mock.quota.mockReturnValue(true);
   mock.invoke.mockResolvedValue({ data: { error: "limit_reached", quota: { reason: "total", plan: "free", usage: {} } }, error: { message: "limit" } });

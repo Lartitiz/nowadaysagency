@@ -18,6 +18,9 @@ export interface DescribedError {
 
 const DEFAULT_FALLBACK = "Quelque chose n'a pas fonctionné. Réessaie, et si le problème persiste, contacte-nous.";
 
+// Phrases de quota du serveur (plan-limiter) et code « limit_reached ».
+const QUOTA_TEXT = /^limit_reached$|^Tu as (utilisé|fait|créé) tes \d+ |^Tu as atteint (la|une) limite|limites? du mois|comprises? dans Premium|disponible à partir/i;
+
 function rawOf(e: unknown): string {
   if (typeof e === "string") return e;
   const anyE = e as any;
@@ -35,6 +38,12 @@ export function describeError(e: unknown, opts: { fallback?: string } = {}): Des
     return { kind: "quota", message: readableError(e, fallback), retryable: false };
   }
   const raw = rawOf(e).trim();
+  // Quota reconnu au texte quand l'objet quota s'est perdu en route (erreur
+  // recréée avec le seul message, ou message passé en chaîne). Une panne de
+  // VÉRIFICATION du quota (quota_check_failed) n'est pas un quota atteint.
+  if (anyE?._isQuota || (QUOTA_TEXT.test(raw) && !/quota_check_failed|impossible de vérifier/i.test(raw))) {
+    return { kind: "quota", message: readableError(e, fallback), retryable: false };
+  }
   if (anyE?.isTimeout || anyE?.code === "TIMEOUT") {
     // Le message de invokeWithTimeout dit de vérifier le résultat avant de relancer
     // (le traitement peut s'être terminé et avoir débité) : on le garde tel quel.
@@ -42,6 +51,9 @@ export function describeError(e: unknown, opts: { fallback?: string } = {}): Des
   }
   if (!raw) return { kind: "empty", message: fallback, retryable: true };
   const message = readableError(e, fallback);
+  if (anyE?.isAuth || anyE?.code === "AUTH" || anyE?.code === "FORBIDDEN") {
+    return { kind: "auth", message, retryable: false };
+  }
   if (/\b401\b|non.?authentifi|not.?authenticated|\bjwt\b|session a expiré/i.test(raw) || /session a expiré/i.test(message)) {
     return { kind: "auth", message, retryable: false };
   }
@@ -54,6 +66,9 @@ export function describeError(e: unknown, opts: { fallback?: string } = {}): Des
  */
 export function reportErrorBlock(where: string, kind: ErrorKind): void {
   try {
+    // Comme generation-telemetry : quota, session expirée et coupure réseau
+    // ne sont pas des pannes de l'outil.
+    if (kind === "quota" || kind === "auth" || kind === "offline") return;
     if (!import.meta.env.PROD) return;
     const w = /^[a-z0-9_.-]{1,60}$/i.test(where) ? where : "inconnu";
     (Sentry as any).captureMessage(`Erreur affichée : ${w}`, {

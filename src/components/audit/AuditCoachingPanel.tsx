@@ -131,7 +131,7 @@ function AuditCoachingPanelInner({
       const { data, error } = await invokeWithTimeout("coaching-module", {
         body: { phase: "questions", module, rec_id: recId, offer_id: offerId, persona_id: personaId, workspace_id: column === "workspace_id" ? workspaceId : undefined },
       }, 60000);
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setQuestions(data.questions || []);
       setIntro(data.intro || conseil || "");
@@ -162,7 +162,7 @@ function AuditCoachingPanelInner({
       const { data, error } = await invokeWithTimeout("coaching-module", {
         body: { phase: "diagnostic", module, answers: answersPayload, rec_id: recId, offer_id: offerId, persona_id: personaId, workspace_id: column === "workspace_id" ? workspaceId : undefined },
       }, 90000);
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setDiagnostic(data);
       const edited: Record<string, string> = {};
