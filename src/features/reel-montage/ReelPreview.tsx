@@ -2,10 +2,10 @@
 // jouée par le lecteur officiel HyperFrames, sans fabriquer de MP4. Dessous :
 // les retouches (boutons bornés + demande libre) et la fabrication du MP4,
 // seulement au clic « Télécharger ma vidéo » / « Ranger cette vidéo ».
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { readableError } from "@/lib/error-messages";
 import { askReelTweak } from "./reel-tweak-api";
 import { fabricationMessage, useElapsedSeconds } from "./use-elapsed";
@@ -25,20 +25,46 @@ function loadPlayer(): Promise<void> {
   return playerScript;
 }
 
+/** Ce que la scène pilote dans le lecteur : la ligne de temps est sa seule barre d'avancement. */
+export interface ReelPlayerHandle {
+  play: () => void;
+  pause: () => void;
+  seek: (seconds: number) => void;
+}
+
+interface HyperframesPlayerProps {
+  html: string;
+  /** Clips chargés (ou repli au bout de 25 s) : la lecture peut partir. */
+  onLoaded?: () => void;
+  onTime?: (seconds: number) => void;
+  onPlayingChange?: (playing: boolean) => void;
+}
+
+type PlayerElement = HTMLElement & { play?: () => void; pause?: () => void; seek?: (t: number) => void };
+
 /** Le lecteur, créé à la main (élément web, hors de React) et nourri par `srcdoc`. */
-export function HyperframesPlayer({ html }: { html: string }) {
+export const HyperframesPlayer = forwardRef<ReelPlayerHandle, HyperframesPlayerProps>(function HyperframesPlayer({ html, onLoaded, onTime, onPlayingChange }, ref) {
   const host = useRef<HTMLDivElement>(null);
-  const player = useRef<HTMLElement | null>(null);
+  const player = useRef<PlayerElement | null>(null);
   const [failed, setFailed] = useState(false);
   // Tant que les clips chargent, le lecteur est un carré noir : on le dit
   // (essai filmé du 26/11/2026, « ça charge… »). Repli au bout de 25 s.
   const [loaded, setLoaded] = useState(false);
+  const callbacks = useRef({ onLoaded, onTime, onPlayingChange });
+  callbacks.current = { onLoaded, onTime, onPlayingChange };
+  useImperativeHandle(ref, () => ({
+    play: () => { try { player.current?.play?.(); } catch { /* lecture refusée par le navigateur : le bouton reste là */ } },
+    pause: () => { try { player.current?.pause?.(); } catch { /* rien à arrêter */ } },
+    seek: (seconds: number) => { try { player.current?.seek?.(seconds); } catch { /* lecteur pas encore prêt */ } },
+  }), []);
+  useEffect(() => { if (loaded) callbacks.current.onLoaded?.(); }, [loaded]);
   useEffect(() => {
     let alive = true;
     loadPlayer().then(() => {
       if (!alive || !host.current || player.current) return;
-      const el = document.createElement("hyperframes-player");
-      el.setAttribute("controls", "");
+      const el = document.createElement("hyperframes-player") as PlayerElement;
+      // Pas de barre du lecteur : la ligne de temps de la scène la remplace (une seule barre d'avancement).
+      el.setAttribute("disable-click-to-play", "");
       el.setAttribute("width", "1080");
       el.setAttribute("height", "1920");
       el.style.display = "block";
@@ -46,7 +72,14 @@ export function HyperframesPlayer({ html }: { html: string }) {
       el.style.height = "100%";
       const done = () => { if (alive) setLoaded(true); };
       el.addEventListener("assetsready", done);
-      el.addEventListener("playbackerror", done);
+      el.addEventListener("playbackerror", () => { done(); callbacks.current.onPlayingChange?.(false); });
+      el.addEventListener("timeupdate", (e) => {
+        const t = (e as CustomEvent<{ currentTime?: number }>).detail?.currentTime;
+        if (typeof t === "number") callbacks.current.onTime?.(t);
+      });
+      el.addEventListener("play", () => callbacks.current.onPlayingChange?.(true));
+      el.addEventListener("pause", () => callbacks.current.onPlayingChange?.(false));
+      el.addEventListener("ended", () => callbacks.current.onPlayingChange?.(false));
       window.setTimeout(done, 25_000);
       host.current.appendChild(el);
       player.current = el;
@@ -59,25 +92,26 @@ export function HyperframesPlayer({ html }: { html: string }) {
   useEffect(() => {
     if (player.current && player.current.getAttribute("srcdoc") !== html) {
       setLoaded(false);
+      callbacks.current.onPlayingChange?.(false);
       player.current.setAttribute("srcdoc", html);
       const id = window.setTimeout(() => setLoaded(true), 25_000);
       return () => window.clearTimeout(id);
     }
   }, [html]);
   useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
-  if (failed) return <p className="text-xs text-destructive p-3">L’aperçu ne s’affiche pas sur ce navigateur. Tu peux quand même télécharger ta vidéo.</p>;
+  if (failed) return <p className="text-xs text-destructive p-3">Le reel ne se lit pas sur ce navigateur. Tu peux quand même télécharger ta vidéo.</p>;
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
       <div ref={host} data-testid="reel-preview-player" className="h-full w-full" />
       {!loaded && (
         <div role="status" className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80 px-4 text-center text-xs text-white">
           <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-          Je charge tes clips pour l’aperçu…
+          Je charge tes clips pour lire tout le reel…
         </div>
       )}
     </div>
   );
-}
+});
 
 interface ReelPreviewProps {
   duration: number;
@@ -86,11 +120,10 @@ interface ReelPreviewProps {
   passages: { duration: number; text: string }[];
   workspaceId?: string;
   busy: boolean;
-  onDownload: () => void;
   onSave: () => void;
 }
 
-export function ReelPreview({ duration, tweaks, setTweaks, passages, workspaceId, busy, onDownload, onSave }: ReelPreviewProps) {
+export function ReelPreview({ duration, tweaks, setTweaks, passages, workspaceId, busy, onSave }: ReelPreviewProps) {
   const [request, setRequest] = useState("");
   const [asking, setAsking] = useState(false);
   const [answer, setAnswer] = useState("");
@@ -121,7 +154,7 @@ export function ReelPreview({ duration, tweaks, setTweaks, passages, workspaceId
   return (
     <section aria-label="Aperçu de ton reel" className="space-y-3 rounded-lg border border-border bg-background p-3">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-sm font-medium">Retoucher l’aperçu</p>
+        <p className="text-sm font-medium">Retoucher le montage</p>
         <span className="text-2xs text-muted-foreground">{Math.round(duration)} s</span>
       </div>
 
@@ -150,16 +183,12 @@ export function ReelPreview({ duration, tweaks, setTweaks, passages, workspaceId
       {answer && <p role="status" className="text-xs text-muted-foreground">{answer}</p>}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-        <Button type="button" size="sm" disabled={locked} onClick={onDownload}>
-          {busy ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Download className="h-4 w-4 mr-1.5" />}
-          Télécharger ma vidéo
-        </Button>
         <Button type="button" size="sm" variant="outline" disabled={locked} onClick={onSave}>Ranger cette vidéo</Button>
       </div>
       <p className="text-2xs text-muted-foreground">
         {busy
           ? fabricationMessage(elapsed)
-          : "Retouche autant que tu veux : l’aperçu est immédiat. La vidéo n’est fabriquée qu’au téléchargement (3 à 4 minutes)."}
+          : "Retouche autant que tu veux : la lecture suit tout de suite. La vidéo n’est fabriquée qu’au téléchargement (3 à 4 minutes)."}
       </p>
     </section>
   );

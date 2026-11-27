@@ -33,8 +33,12 @@ vi.mock("@/features/studio-video/StudioVideoPanel", () => ({
   },
 }));
 vi.mock("@/components/creer/ReelVoiceRecorder", () => ({
-  default: ({ onVoicesChange }: { onVoicesChange: (v: typeof m.voices) => void }) => (
-    <button onClick={() => onVoicesChange(m.voices)}>Poser les voix de test</button>
+  default: ({ onVoicesChange, onRecordingChange, index }: { onVoicesChange: (v: typeof m.voices) => void; onRecordingChange?: (i: number | null) => void; index?: number }) => (
+    <>
+      <button onClick={() => onVoicesChange(m.voices)}>Poser les voix de test</button>
+      <button onClick={() => onRecordingChange?.(index ?? 0)}>Démarrer la prise de test</button>
+      <button onClick={() => onRecordingChange?.(null)}>Arrêter la prise de test</button>
+    </>
   ),
 }));
 
@@ -53,12 +57,11 @@ const project = (p: Partial<ReelMontageProject>): ReelMontageProject => ({
   version: 1, sectionTexts: TEXTS, montageMode: "cache", voiceMode: "recorded",
   clips: [null, null], cutaways: [null, null], voiceClips: [null, null], ...p,
 });
-const assemble = () => fireEvent.click(screen.getByRole("button", { name: "Assembler mon reel" }));
-/* Reel sans voix (14/11/2026) : « Assembler » ouvre l'aperçu immédiat ; le MP4 part au clic « Télécharger ma vidéo ». */
-const assembleSilent = async () => {
-  assemble();
-  fireEvent.click(await screen.findByRole("button", { name: "Télécharger ma vidéo" }));
-};
+/* 27/11/2026 : le bouton du bas fabrique et télécharge la vidéo (« Télécharger ma vidéo »), dans tous les modes ;
+   voir le reel entier se fait sur la vidéo (« Lire tout le reel »), sans rien fabriquer. */
+const assemble = () => fireEvent.click(screen.getByTestId("montage-bar-make"));
+const assembleSilent = async () => { assemble(); };
+const playAll = () => fireEvent.click(screen.getByRole("button", { name: "Lire tout le reel" }));
 const settle = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
 beforeEach(() => {
@@ -101,7 +104,7 @@ describe("ReelMontage — phrase enregistrée sans clip", () => {
     render(<ReelMontage sections={SECTIONS} initialProject={project({ clips: [stock(1), null], voiceClips: [voice(1), voice(2)] })} />);
     await settle();
     assemble();
-    expect(confirm).toHaveBeenLastCalledWith("La phrase 2 est enregistrée mais n'a aucun clip : elle ne sera PAS dans la vidéo, ta voix non plus. Assembler quand même ?");
+    expect(confirm).toHaveBeenLastCalledWith("La phrase 2 est enregistrée mais n'a aucun clip : elle ne sera PAS dans la vidéo, ta voix non plus. Fabriquer la vidéo quand même ?");
     expect(m.submit).not.toHaveBeenCalled();
     assemble();
     await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
@@ -115,7 +118,7 @@ describe("ReelMontage — phrase enregistrée sans clip", () => {
     })} />);
     await settle();
     assemble();
-    expect(confirm).toHaveBeenCalledWith("Les phrases 2, 3 sont enregistrées mais n'ont aucun clip : elles ne seront PAS dans la vidéo, ta voix non plus. Assembler quand même ?");
+    expect(confirm).toHaveBeenCalledWith("Les phrases 2, 3 sont enregistrées mais n'ont aucun clip : elles ne seront PAS dans la vidéo, ta voix non plus. Fabriquer la vidéo quand même ?");
   });
 });
 
@@ -162,10 +165,10 @@ describe("ReelMontage — texte modifié depuis le montage", () => {
       initialProject={project({ montageMode: "filme", sectionTexts: ["Ancien texte", "Phrase deux"], clips: [mine(1), mine(2)] })} />);
     await settle();
     expect(screen.getByRole("alert")).toHaveTextContent("Le texte du Reel a changé depuis ce montage");
-    expect(screen.getByRole("button", { name: "Assembler mon reel" })).toBeDisabled();
+    expect(screen.getByTestId('montage-bar-make')).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "J’ai vérifié les passages" }));
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByRole("button", { name: "Assembler mon reel" })).toBeEnabled();
+    expect(screen.getByTestId('montage-bar-make')).toBeEnabled();
     await waitFor(() => expect(onProjectChange).toHaveBeenLastCalledWith(expect.objectContaining({ sectionTexts: TEXTS })));
   });
 });
@@ -401,7 +404,7 @@ describe("ReelMontage — projet sauvegardé", () => {
 });
 
 describe("ReelMontage — un passage par page", () => {
-  it("affiche un seul passage, passe au suivant, et garde « Assembler mon reel » à l'écran", async () => {
+  it("affiche un seul passage, passe au suivant, et garde « Télécharger ma vidéo » à l'écran", async () => {
     render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent", clips: [stock(1), null] })} />);
     await settle();
     expect(screen.getByText("Passage 1 sur 2")).toBeInTheDocument();
@@ -414,7 +417,7 @@ describe("ReelMontage — un passage par page", () => {
     expect(screen.queryByText("Phrase un")).toBeNull();
     expect(screen.queryByRole("button", { name: "Passage suivant" })).toBeNull();
     expect(screen.getByTestId("montage-assemble-bar").className).toContain("sticky");
-    expect(screen.getByRole("button", { name: /Assembler mon reel/ })).toBeInTheDocument();
+    expect(screen.getByTestId('montage-bar-make')).toBeInTheDocument();
     expect(screen.queryByText(/bêta/i)).toBeNull();
   });
 });
@@ -425,10 +428,6 @@ describe("ReelMontage — message pendant l'assemblage, selon le mode", () => {
     m.voices = [];
     render(<ReelMontage sections={SECTIONS} initialProject={project(p)} />);
     await settle();
-    if (p.voiceMode === "silent" && p.montageMode !== "filme") {
-      await assembleSilent();
-      return screen.findByText(/Fabrication de ta vidéo/);
-    }
     assemble();
     return screen.findByText(/Assemblage des clips/);
   };
@@ -498,7 +497,7 @@ describe("ReelMontage — atelier du 26/11/2026 : la vidéo à gauche, un passag
     await settle();
     const stage = screen.getByTestId("reel-stage");
     // Jamais vide : le clip du passage 1, lisible au clic, avec le texte prévu à l'écran.
-    expect(within(stage).getByRole("button", { name: "Lire le clip de ce passage" })).toBeInTheDocument();
+    expect(within(stage).getByRole("button", { name: "Lire tout le reel" })).toBeInTheDocument();
     expect(within(stage).getByText("Un")).toBeInTheDocument();
     // L'enregistreur est dans la carte du passage, sous « Ta voix ».
     const card = document.getElementById("studio-reel-passage-0")!;
@@ -517,10 +516,9 @@ describe("ReelMontage — atelier du 26/11/2026 : la vidéo à gauche, un passag
     render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent", clips: [stock(1), stock(2)] })} />);
     await settle();
     expect(screen.queryByText("Ta voix")).toBeNull();
-    assemble();
+    playAll();
     await screen.findByRole("region", { name: "Aperçu de ton reel" });
     expect(within(screen.getByTestId("reel-stage")).getByTestId("reel-preview-player")).toBeInTheDocument();
-    expect(within(screen.getByTestId("reel-stage")).getByRole("button", { name: /Aperçu/ })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("vidéo déjà montée : elle est dans la scène, « Ta vidéo est prête » et le téléchargement à droite", async () => {
@@ -594,7 +592,7 @@ describe("ReelMontage — aperçu immédiat du reel sans voix (14/11/2026)", () 
     const onProjectChange = vi.fn();
     render(<ReelMontage sections={SECTIONS} onProjectChange={onProjectChange} initialProject={project({ voiceMode: "silent", clips: [stock(1), stock(2)] })} />);
     await settle();
-    assemble();
+    playAll();
     expect(await screen.findByRole("region", { name: "Aperçu de ton reel" })).toBeInTheDocument();
     expect(screen.getByTestId("reel-preview-player")).toBeInTheDocument();
     expect(m.submit).not.toHaveBeenCalled();
@@ -606,7 +604,7 @@ describe("ReelMontage — aperçu immédiat du reel sans voix (14/11/2026)", () 
     })));
     expect(m.submit).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Télécharger ma vidéo" }));
+    assemble();
     await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
     expect(m.submit.mock.calls[0][1]).toEqual({ textScale: 1.15, calm: false, sounds: false, volume: 1 });
   });
@@ -616,15 +614,14 @@ describe("ReelMontage — aperçu immédiat du reel sans voix (14/11/2026)", () 
     const studio = { ...stock(1), source: "studio" as const, studioJobId: "job-1" };
     render(<ReelMontage sections={SECTIONS} workspaceId="space" initialProject={project({ voiceMode: "silent", clips: [studio, stock(2)] })} />);
     await settle();
-    assemble();
+    playAll();
     await screen.findByRole("region", { name: "Aperçu de ton reel" });
     expect(m.readStudio).toHaveBeenCalledTimes(1);
-    // Le bouton du bas ramène à l'aperçu au lieu de tout reconstruire (lecteur et clips rechargés).
-    fireEvent.click(screen.getByRole("button", { name: "Voir l’aperçu" }));
+    // Reel déjà préparé : la scène ne propose plus de le préparer, rien n'est reconstruit.
     await settle();
     expect(m.readStudio).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Télécharger ma vidéo" }));
+    assemble();
     const msg = await screen.findByText(/Fabrication de ta vidéo/);
     expect(msg.textContent).toMatch(/0:0\d \(compte 3 à 4 minutes\)/);
     expect(msg.textContent).not.toMatch(/≈/);
@@ -637,7 +634,7 @@ describe("ReelMontage — aperçu immédiat du reel sans voix (14/11/2026)", () 
   it("« Plus court » raccourcit les passages envoyés au rendu", async () => {
     render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent", clips: [stock(1), stock(2)] })} />);
     await settle();
-    assemble();
+    playAll();
     fireEvent.click(await screen.findByRole("button", { name: "Plus court" }));
     fireEvent.click(screen.getByRole("button", { name: "Ranger cette vidéo" }));
     await waitFor(() => expect(m.submit).toHaveBeenCalledOnce());
@@ -687,5 +684,35 @@ describe("ReelMontage — choix déjà fait sur l'écran des accroches", () => {
     expect(screen.queryByText("Comment veux-tu ce reel ?")).toBeNull();
     expect(screen.getByText("Changer")).toBeInTheDocument();
     localStorage.removeItem("reel_se_filme");
+  });
+});
+
+describe("ReelMontage — lecture du reel entier et ligne de temps (27/11/2026)", () => {
+  it("« Ma voix » : le bouton lecture prépare le reel entier sans rien fabriquer, la ligne de temps suit les durées des prises", async () => {
+    render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "recorded", clips: [stock(1), stock(2)], voiceClips: [voice(1, 2), voice(2, 6)] })} />);
+    await settle();
+    const stage = screen.getByTestId("reel-stage");
+    // Un bloc par passage, large comme sa durée : la prise de 6 s pèse plus que celle de 2 s.
+    const blocks = within(stage).getAllByRole("button", { name: /^Passage \d/ });
+    expect(blocks).toHaveLength(2);
+    expect(Number(blocks[1].style.flexGrow)).toBeGreaterThan(Number(blocks[0].style.flexGrow));
+    playAll();
+    await waitFor(() => expect(within(stage).getByTestId("reel-preview-player")).toBeInTheDocument());
+    expect(m.submit).not.toHaveBeenCalled();
+    // Les retouches ne concernent que le reel sans voix.
+    expect(screen.queryByRole("region", { name: "Aperçu de ton reel" })).toBeNull();
+    // Le bouton du bas ne dit plus « Assembler » : il fabrique et télécharge.
+    expect(screen.getByTestId("montage-bar-make")).toHaveTextContent("Télécharger ma vidéo");
+  });
+
+  it("pendant l'enregistrement, la scène montre le passage lu et le dit", async () => {
+    render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "recorded", clips: [stock(1), stock(2)] })} />);
+    await settle();
+    fireEvent.click(screen.getByRole("button", { name: "Démarrer la prise de test" }));
+    const stage = screen.getByTestId("reel-stage");
+    expect(within(stage).getByText("Ce qu’on verra pendant ta phrase 1")).toBeInTheDocument();
+    expect(within(stage).queryByRole("button", { name: "Lire tout le reel" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Arrêter la prise de test" }));
+    expect(within(stage).getByRole("button", { name: "Lire tout le reel" })).toBeInTheDocument();
   });
 });
