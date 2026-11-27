@@ -21,6 +21,7 @@ import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/fea
 import { CAROUSEL_MAX_SLIDES, renumberDocument, type CarouselDocument, type EditorSlide } from "@/lib/carousel-editor";
 import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import { SlideThumb } from "@/components/creer/CarouselEditorParts/PanelBits";
+import { thumbClick, thumbDragHandlers } from "@/components/creer/thumb-reorder";
 
 type StripProps = {
   channel?: "linkedin" | "instagram";
@@ -147,6 +148,7 @@ export function SlideStrip(props: StripProps) {
     setActive(i);
     setSelected(null);
   };
+  const drag = { thumbDrag, justDragged, setDragSlide, setDropAt, thumbIndexAt, count: () => current.current.slides.length, reorder };
   return (
     <div className="mt-2 flex min-w-0 flex-col items-center gap-1">
       <div className="flex w-full items-center gap-2 md:hidden">
@@ -170,41 +172,12 @@ export function SlideStrip(props: StripProps) {
             type="button"
             data-thumb={i}
             style={{ touchAction: "none" }}
-            onPointerDown={(e) => {
-              thumbDrag.current = { from: i, x: e.clientX, y: e.clientY, moved: false };
-              (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-            }}
-            onPointerMove={(e) => {
-              const d = thumbDrag.current;
-              if (!d || (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6)) return;
-              d.moved = true;
-              setDragSlide(d.from);
-              setDropAt(Math.min(thumbIndexAt(e.clientX, e.clientY), current.current.slides.length - 1));
-            }}
-            onPointerUp={(e) => {
-              const d = thumbDrag.current;
-              thumbDrag.current = null;
-              setDragSlide(null);
-              setDropAt(null);
-              if (d?.moved) {
-                justDragged.current = true;
-                const at = thumbIndexAt(e.clientX, e.clientY);
-                reorder(d.from, at > d.from ? at - 1 : at);
-              }
-            }}
-            onPointerCancel={() => {
-              thumbDrag.current = null;
-              setDragSlide(null);
-              setDropAt(null);
-            }}
-            onClick={() => {
-              if (justDragged.current) {
-                justDragged.current = false;
-                return;
-              }
+            // Glisser pour changer l'ordre : geste commun avec les stories (thumb-reorder.ts).
+            {...thumbDragHandlers(drag, i)}
+            onClick={thumbClick(drag, () => {
               open(i);
               setAll(false);
-            }}
+            })}
             aria-label={`Sélectionner la slide ${i + 1}`}
             aria-pressed={i === active}
             title="Clique pour ouvrir, glisse pour changer l’ordre"

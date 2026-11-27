@@ -3,11 +3,15 @@
 // ouverte, monter / descendre / dupliquer ; en bas, Ajouter et Supprimer.
 // Téléphone : une rangée de vignettes qui défile, les gestes sont dans « … ».
 // Remplace la rangée de numéros (StoryNav) : mêmes noms de boutons.
+// Ordinateur (27/11/2026) : on glisse une vignette pour changer l'ordre, comme les slides
+// (geste commun, src/components/creer/thumb-reorder.ts). Pas sur téléphone : la rangée y
+// défile au doigt, l'ordre se change par le menu « … ».
 import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MAX_STORIES } from "@/lib/story-sequence-ops";
 import StoryFramePreview from "@/components/stories/StoryFramePreview";
+import { thumbClick, thumbDragHandlers, useThumbReorder } from "@/components/creer/thumb-reorder";
 
 const ICON_BTN = "h-7 w-7 p-0 text-muted-foreground hover:text-foreground";
 
@@ -25,6 +29,8 @@ export default function StoryStrip({ frames, current, onChange, onMove, onDuplic
   const full = count >= MAX_STORIES;
   const fullTitle = full ? `${MAX_STORIES} stories au plus dans une séquence` : undefined;
   const width = isMobile ? 40 : 64;
+  const drag = useThumbReorder({ selector: "[data-story-thumb]", count, reorder: onMove });
+  const draggable = !isMobile && count > 1;
   return (
     <nav aria-label="Choisir la story à régler" className="min-w-0 space-y-2" data-story-strip>
       <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
@@ -34,8 +40,10 @@ export default function StoryStrip({ frames, current, onChange, onMove, onDuplic
               type="button"
               aria-label={`Voir la story ${i + 1}`}
               aria-current={i === current ? "step" : undefined}
-              onClick={() => onChange(i)}
-              className={`flex flex-col items-center gap-0.5 rounded-lg border-2 p-0.5 text-2xs font-semibold ${i === current ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:border-primary/40"}`}
+              data-story-thumb={i}
+              {...(draggable ? { ...thumbDragHandlers(drag.api, i), style: { touchAction: "none" }, title: "Clique pour ouvrir, glisse pour changer l’ordre" } : {})}
+              onClick={thumbClick(drag.api, () => onChange(i))}
+              className={`flex flex-col items-center gap-0.5 rounded-lg border-2 p-0.5 text-2xs font-semibold ${i === current ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:border-primary/40"} ${draggable ? "cursor-grab" : ""} ${drag.dragSlide === i ? "opacity-50" : ""} ${drag.dropAt === i && drag.dragSlide !== i ? "outline outline-2 outline-offset-2 outline-primary" : ""}`}
             >
               {html ? (
                 <StoryFramePreview html={html} title={`Vignette story ${i + 1}`} width={width} className="pointer-events-none" />
