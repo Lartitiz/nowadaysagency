@@ -196,7 +196,7 @@ function IdeasInWorkspace({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse, re
         </div>
       )}
       <div className="flex items-start justify-between gap-2 mb-2">
-        <h2 className="font-display text-lg font-bold">Tes idées à développer</h2>
+        <h2 className="font-display text-lg font-bold">Tes idées et contenus à placer</h2>
         {onCollapse && <button onClick={onCollapse} aria-label="Replier le panneau idées" className="p-1 rounded-md text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>}
       </div>
       <p className="text-xs text-muted-foreground mb-4">{isMobile ? "Choisis une idée, puis une date." : "Glisse une fiche sur une date, ou clique sur Placer."}</p>
