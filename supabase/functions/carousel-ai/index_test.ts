@@ -306,6 +306,9 @@ function makeFakeSupabase(ownerId: string = TEST_USER_ID) {
 
 /** Réinitialise TOUS les champs de `_deps` avant chaque test (état de module partagé). */
 function resetDeps() {
+  // Réécriture automatique du fil : coupée en ligne depuis le 27/11/2026, rallumée ici
+  // pour que les tests de la réécriture gardent leur sens (le test « coupée » la remet à false).
+  _deps.autoThreadRepair = true;
   // Trace des refus de validation : muette par défaut (aucun réseau).
   _deps.noterRefusValidation = async () => {};
   _deps.matchPhotos = async (doc) => doc;
@@ -2278,4 +2281,31 @@ for (const judgeEndMs of [100_000, 175_000]) Deno.test(`2e contrôle : 1er contr
       assertEquals(doc.progression_review.repair_skipped, "time-budget");
     }
   } finally { globalThis.fetch = oldFetch; Date.now = now; }
+});
+
+// 27/11/2026 : réécriture automatique coupée en ligne (6 lancées en 7 jours, 2 gardées,
+// ~70 s d'attente à chaque fois). Le juge reste, ses remarques partent telles quelles.
+Deno.test("fil : réécriture automatique coupée → un seul appel d'écriture, un seul juge, les remarques restent", async () => {
+  resetDeps();
+  _deps.autoThreadRepair = false;
+  const draft = { slides: [
+    { slide_number: 1, role: "hook", title: "Les retours demandent une direction commune." },
+    { slide_number: 2, role: "body", title: "Les remarques contradictoires restent à départager." },
+    { slide_number: 3, role: "conclusion", title: "Le choix validé guide les corrections." },
+  ], caption: { body: "Un choix commun précède les modifications.", hashtags: [] } };
+  let writes = 0, judges = 0;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => { writes++; Object.assign(sink, { model: o.model, total_tokens: 10 }); return JSON.stringify(draft); }) as any;
+  _deps.reviewThread = async (doc: any) => { judges++; return verdict(doc, ["La conclusion est insuffisamment préparée."]); };
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", subject: "Choisir une direction avant de modifier", slide_count: 3 }));
+    assertEquals(res.status, 200);
+    const data = await res.json(), doc = JSON.parse(data.content);
+    assertEquals([writes, judges], [1, 1]);
+    assertEquals(doc.progression_review.verdict, "needs_repair");
+    assertEquals(doc.progression_review.issues, ["La conclusion est insuffisamment préparée."]);
+    assertEquals(doc.progression_review.repair, undefined);
+    assertEquals(doc.progression_review.repair_skipped, undefined);
+    assertEquals(data.timings.thread_repair_ms, undefined);
+    assert(doc.structure_warnings.length > 0);
+  } finally { resetDeps(); }
 });
