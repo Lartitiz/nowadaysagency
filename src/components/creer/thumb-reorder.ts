@@ -3,7 +3,7 @@
 // stories n'avaient que les flèches. Ici : le geste seul (où lâcher, quand c'est un glissé et
 // pas un clic). Ce que « changer l'ordre » veut dire reste à chaque éditeur (`reorder`).
 // Test : src/test/thumb-reorder.test.tsx.
-import { useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
 
 export type ThumbDragState = { from: number; x: number; y: number; moved: boolean } | null;
 
@@ -31,6 +31,22 @@ export function thumbIndexAt(selector: string, x: number, y: number, axis: "row"
   return index;
 }
 
+/** Bandes du haut et du bas de l'écran où la page défile pendant un glissé (en-tête et barre du bas comprises). */
+const EDGE_TOP = 120;
+const EDGE_BOTTOM = 130;
+const EDGE_MAX_SPEED = 16;
+
+/**
+ * De combien de pixels faire défiler la page à cette image, pour un pointeur à la hauteur `y` :
+ * négatif près du haut, positif près du bas, 0 ailleurs. Plus on est près du bord, plus ça va vite.
+ */
+export function edgeScrollSpeed(y: number, viewportHeight: number): number {
+  if (y < EDGE_TOP) return -Math.ceil((Math.min(EDGE_TOP - y, EDGE_TOP) / EDGE_TOP) * EDGE_MAX_SPEED);
+  const fromBottom = viewportHeight - y;
+  if (fromBottom < EDGE_BOTTOM) return Math.ceil((Math.min(EDGE_BOTTOM - fromBottom, EDGE_BOTTOM) / EDGE_BOTTOM) * EDGE_MAX_SPEED);
+  return 0;
+}
+
 /** Ce dont le geste a besoin : où il en est, comment dire ce qui bouge, et comment changer l'ordre. */
 export interface ThumbReorder {
   thumbDrag: MutableRefObject<ThumbDragState>;
@@ -43,11 +59,21 @@ export interface ThumbReorder {
   count: () => number;
   /** `to` = la place d'arrivée dans la liste une fois la vignette retirée. */
   reorder: (from: number, to: number) => void;
+  /**
+   * Présent = la page défile toute seule quand on glisse près du haut ou du bas de l'écran
+   * (colonne de vignettes plus haute que l'écran : les stories). Absent = pas de défilement
+   * (la rangée du carrousel tient à l'écran).
+   */
+  edgeScroll?: MutableRefObject<{ raf: number; x: number; y: number }>;
 }
 
 /** Les quatre réactions à poser sur la vignette `i`. */
 export function thumbDragHandlers(r: ThumbReorder, i: number) {
   const stop = () => {
+    if (r.edgeScroll) {
+      cancelAnimationFrame(r.edgeScroll.current.raf);
+      r.edgeScroll.current.raf = 0;
+    }
     r.thumbDrag.current = null;
     r.setDragSlide(null);
     r.setDropAt(null);
@@ -63,6 +89,25 @@ export function thumbDragHandlers(r: ThumbReorder, i: number) {
       d.moved = true;
       r.setDragSlide(d.from);
       r.setDropAt(Math.min(r.thumbIndexAt(e.clientX, e.clientY), r.count() - 1));
+      const edge = r.edgeScroll?.current;
+      if (edge) {
+        edge.x = e.clientX;
+        edge.y = e.clientY;
+        if (!edge.raf) {
+          // Une boucle par glissé : tant que le pointeur reste dans une bande, la page défile
+          // et la place d'arrivée suit (le pointeur ne bouge pas, ce sont les vignettes qui passent).
+          const tick = () => {
+            if (!r.thumbDrag.current) { edge.raf = 0; return; }
+            const speed = edgeScrollSpeed(edge.y, window.innerHeight);
+            if (speed) {
+              window.scrollBy(0, speed);
+              r.setDropAt(Math.min(r.thumbIndexAt(edge.x, edge.y), r.count() - 1));
+            }
+            edge.raf = requestAnimationFrame(tick);
+          };
+          edge.raf = requestAnimationFrame(tick);
+        }
+      }
     },
     onPointerUp: (e: ReactPointerEvent<HTMLElement>) => {
       const d = r.thumbDrag.current;
@@ -95,12 +140,17 @@ export function thumbClick(r: Pick<ThumbReorder, "justDragged">, open: () => voi
 }
 
 /** Le geste avec son propre état, pour un éditeur qui ne le tenait pas encore (stories). */
-export function useThumbReorder({ selector, axis = "auto", count, reorder }: {
+export function useThumbReorder({ selector, axis = "auto", count, reorder, scrollAtEdges = false }: {
   selector: string;
   axis?: "row" | "column" | "auto";
   count: number;
   reorder: (from: number, to: number) => void;
+  /** La page défile quand on glisse près du haut ou du bas de l'écran. */
+  scrollAtEdges?: boolean;
 }) {
+  const edgeScroll = useRef({ raf: 0, x: 0, y: 0 });
+  // L'écran se ferme en plein glissé : le défilement s'arrête avec lui.
+  useEffect(() => () => { cancelAnimationFrame(edgeScroll.current.raf); edgeScroll.current.raf = 0; }, []);
   const thumbDrag = useRef<ThumbDragState>(null);
   const justDragged = useRef(false);
   const [dragSlide, setDragSlide] = useState<number | null>(null);
@@ -112,6 +162,7 @@ export function useThumbReorder({ selector, axis = "auto", count, reorder }: {
     thumbIndexAt: (x, y) => thumbIndexAt(selector, x, y, axis),
     count: () => latest.current.count,
     reorder: (from, to) => latest.current.reorder(from, Math.min(to, latest.current.count - 1)),
+    edgeScroll: scrollAtEdges ? edgeScroll : undefined,
   };
   return { api, dragSlide, dropAt };
 }

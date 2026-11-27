@@ -29,7 +29,8 @@ export default function StoryStrip({ frames, current, onChange, onMove, onDuplic
   const full = count >= MAX_STORIES;
   const fullTitle = full ? `${MAX_STORIES} stories au plus dans une séquence` : undefined;
   const width = isMobile ? 40 : 64;
-  const drag = useThumbReorder({ selector: "[data-story-thumb]", count, reorder: onMove });
+  // La colonne dépasse l'écran dès 6 stories : la page défile quand on glisse près du haut ou du bas.
+  const drag = useThumbReorder({ selector: "[data-story-thumb]", count, reorder: onMove, scrollAtEdges: true });
   const draggable = !isMobile && count > 1;
   return (
     <nav aria-label="Choisir la story à régler" className="min-w-0 space-y-2" data-story-strip>

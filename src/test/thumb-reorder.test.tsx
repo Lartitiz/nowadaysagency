@@ -7,7 +7,7 @@ import React, { useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import StoryResult from "@/components/creer/formatRenderers/StoryResult";
-import { thumbClick, thumbDragHandlers, thumbIndexAt, type ThumbReorder } from "@/components/creer/thumb-reorder";
+import { edgeScrollSpeed, thumbClick, thumbDragHandlers, thumbIndexAt, type ThumbReorder } from "@/components/creer/thumb-reorder";
 
 vi.mock("@/hooks/use-branding", () => ({ useBrandCharter: () => ({ data: null }) }));
 vi.mock("@/hooks/use-user-photos", () => { const data: unknown[] = []; return { useUserPhotos: () => ({ data }) }; });
@@ -129,6 +129,45 @@ describe("le clic qui suit un glissé", () => {
     await new Promise((done) => setTimeout(done, 5));
     thumbClick(r, open)();
     expect(open).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("glisser près du bord de l'écran : la page défile", () => {
+  it("vitesse : vers le haut près du haut, vers le bas près du bas, rien au milieu, plus vite au bord", () => {
+    expect(edgeScrollSpeed(450, 900)).toBe(0);
+    expect(edgeScrollSpeed(60, 900)).toBeLessThan(0);
+    expect(edgeScrollSpeed(840, 900)).toBeGreaterThan(0);
+    expect(Math.abs(edgeScrollSpeed(5, 900))).toBeGreaterThan(Math.abs(edgeScrollSpeed(100, 900)));
+    expect(edgeScrollSpeed(895, 900)).toBeGreaterThan(edgeScrollSpeed(800, 900));
+  });
+  const pointer = (x: number, y: number) => ({ clientX: x, clientY: y, pointerId: 1, currentTarget: { setPointerCapture() {} } }) as any;
+  const base = (): ThumbReorder => ({
+    thumbDrag: { current: null }, justDragged: { current: false },
+    setDragSlide: () => {}, setDropAt: vi.fn(), thumbIndexAt: () => 0, count: () => 6, reorder: vi.fn(),
+  });
+  const frame = () => new Promise((done) => requestAnimationFrame(() => done(null)));
+  it("stories : la page défile tant que le pointeur reste près du bord, et s'arrête au relâché", async () => {
+    const scrollBy = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
+    const r = { ...base(), edgeScroll: { current: { raf: 0, x: 0, y: 0 } } };
+    const h = thumbDragHandlers(r, 5);
+    h.onPointerDown(pointer(30, 400)); h.onPointerMove(pointer(30, 20));
+    await frame(); await frame(); await frame();
+    expect(scrollBy.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(scrollBy.mock.calls[0][1]).toBeLessThan(0);
+    h.onPointerUp(pointer(30, 20));
+    const count = scrollBy.mock.calls.length;
+    await frame(); await frame();
+    expect(scrollBy.mock.calls.length).toBe(count);
+    scrollBy.mockRestore();
+  });
+  it("carrousel (sans l'option) : la page ne défile jamais", async () => {
+    const scrollBy = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
+    const h = thumbDragHandlers(base(), 5);
+    h.onPointerDown(pointer(30, 400)); h.onPointerMove(pointer(30, 20));
+    await frame(); await frame();
+    expect(scrollBy).not.toHaveBeenCalled();
+    h.onPointerUp(pointer(30, 20));
+    scrollBy.mockRestore();
   });
 });
 
