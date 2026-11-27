@@ -92,3 +92,29 @@ export function provisionalCaptions(plan: RenderPlan, clips: (SelectedClip | nul
     });
   });
 }
+
+/** Un dixième de seconde de silence (WAV 8 bits mono) : la « voix » d'un passage pas encore enregistré, pour la lecture seulement. */
+function silentWav(): string {
+  const samples = 800;
+  const bytes = new Uint8Array(44 + samples).fill(0x80);
+  const view = new DataView(bytes.buffer);
+  const ascii = (at: number, text: string) => { for (let i = 0; i < text.length; i++) bytes[at + i] = text.charCodeAt(i); };
+  ascii(0, "RIFF"); view.setUint32(4, 36 + samples, true); ascii(8, "WAVEfmt ");
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, 8000, true); view.setUint32(28, 8000, true); view.setUint16(32, 1, true); view.setUint16(34, 8, true);
+  ascii(36, "data"); view.setUint32(40, samples, true);
+  return `data:audio/wav;base64,${btoa(String.fromCharCode(...bytes))}`;
+}
+
+/**
+ * Lecture du reel entier avec « Ma voix » : un passage pas encore enregistré montrait
+ * son clip sans aucun texte, comme si le texte avait disparu (essai du 27/11/2026).
+ * On lui pose une piste muette : `provisionalCaptions` y écrit alors la phrase du script,
+ * au même rythme que les sous-titres. Pour la LECTURE seulement, jamais pour la fabrication.
+ */
+export function withPhrasesToRecord(plan: RenderPlan): RenderPlan {
+  if ((plan.mode ?? "cache") !== "cache" || plan.voice_mode !== "recorded") return plan;
+  if (plan.sections.every((s) => s.voice_audio_url)) return plan;
+  const silence = silentWav();
+  return { ...plan, sections: plan.sections.map((s) => (s.voice_audio_url ? s : { ...s, voice_audio_url: silence })) };
+}
