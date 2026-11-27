@@ -55,6 +55,9 @@ Deno.test("vécu : variantes au passé en première personne", () => {
       "J'ai fini ma dernière série hier soir.",
       "J'ai vendu trois bols au marché samedi.",
       "J'ai ouvert mon atelier en 2019.",
+      "Moi non plus, avant de m'y mettre.",
+      "Moi aussi, au début, je les lisais en diagonale.",
+      "C'est précisément ça qui m'a donné envie d'apprendre la saponification.",
     ]
   ) {
     assertEquals(findInventedExperiences(t, BRIEF).length, 1, t);
@@ -75,6 +78,8 @@ Deno.test("vécu : pas de faux positif sur une opinion au présent, une hypothè
       "Si je pensais que la fréquence suffisait, je posterais tous les jours.",
       "Comme je l'ai dit plus haut, la portée dépend des premières réactions.",
       "Résultat : ta portée stagne.",
+      "Moi non plus, je ne baisse pas mes prix.",
+      "Ça me donne envie de tout recommencer.",
       CLEAN,
     ]
   ) {

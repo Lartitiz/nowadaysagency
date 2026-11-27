@@ -81,6 +81,11 @@ const FIRST_PERSON_PAST_RES: RegExp[] = [
   /(?<!\p{L})je\s+me\s+suis\s+(?:longtemps\s+|vite\s+|alors\s+)?(?:lancée?|mise?\s+à|rendue?\s+compte|aperçue?|dit|retrouvée?|surprise?|accrochée?|obligée?)(?!\p{L})/iu,
   /(?<!\p{L})je\s+(?:pensais|croyais|me\s+disais|m['’]imaginais|imaginais|publiais|postais|testais|passais|suivais|m['’]acharnais|me\s+demandais)(?!\p{L})/iu,
   /(?<!\p{L})j['’](?:étais|ai\s+été)\s+(?:convaincue?|persuadée?|sûre?|certaine?)(?!\p{L})/iu,
+  // Aveu d'un passé sans verbe au passé composé (27/11/2026, annonce LinkedIn sans vécu fourni) :
+  // « Moi non plus, avant de m'y mettre. », « c'est ça qui m'a donné envie d'apprendre ».
+  /(?<!\p{L})moi\s+(?:non\s+plus|aussi)\s*,?\s+(?:avant|au\s+début|pendant\s+longtemps|il\s+y\s+a)(?!\p{L})/iu,
+  /(?<!\p{L})avant\s+de\s+m['’]y\s+(?:mettre|lancer|intéresser)(?!\p{L})/iu,
+  /(?<!\p{L})(?:ça|cela|ce\s+qui|qui)\s+m['’]a\s+(?:donné\s+envie|poussée?|décidée?|fait\s+(?:changer|basculer|comprendre))(?!\p{L})/iu,
 ];
 // Voix prêtée au lecteur (« tu te dis : j'ai tout essayé ») : pas un vécu de l'autrice.
 const READER_VOICE_RE = /(?<!\p{L})(?:tu|vous)\s+(?:te\s+|vous\s+|t['’])?(?:dis|dites|penses|pensez|répètes|répétez|réponds|répondez|avoues|avouez|es\s+dit|êtes\s+dit)(?!\p{L})/iu;
