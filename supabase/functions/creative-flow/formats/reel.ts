@@ -68,6 +68,10 @@ export function normalizeHooksResponse(parsed: any, params: { body: any; rawCont
   } else if (enPhrases.length === 0 && parsed.hooks.length > 0) {
     console.warn(JSON.stringify({ event: "reel_hooks_tous_haches", count: parsed.hooks.length }));
   }
+  // Champ de travail (l'enjeu dit en mots simples) : sert à l'écriture, tracé, jamais envoyé à l'écran.
+  const enjeux = parsed.hooks.map((h: any) => typeof h.enjeu_pour_tous === "string" ? h.enjeu_pour_tous.slice(0, 80) : null);
+  if (enjeux.some(Boolean)) console.log(JSON.stringify({ event: "reel_hooks_enjeux", enjeux }));
+  for (const h of parsed.hooks) delete h.enjeu_pour_tous;
   // Élisions déterministes AVANT affichage : le hook choisi est ensuite
   // verrouillé tel quel sur le script (enforceSelectedReelHook) — une
   // coquille née ici se propagerait partout (vécu 21/07 : « qu'on marchand »).
@@ -476,13 +480,14 @@ export const HOOKS_TOOL = {
           properties: {
             type: { type: "string", description: "vecu_perso | contre_intuition | objection_retournee | question_choc | fait_brut | scene_coupee" },
             type_label: { type: "string", description: "label court lisible du type, ex. « Vécu perso »" },
+            enjeu_pour_tous: { type: "string", description: "À ÉCRIRE AVANT text : en 3 à 8 mots de tous les jours, ce qu'une personne qui ne connaît rien à son métier comprend comme enjeu (une perte, une décision, un délai, une somme, une cliente, une surprise). Aucun mot technique. Si tu n'arrives pas à l'écrire, change de hook." },
             text: { type: "string", description: "le hook PARLÉ : une phrase entière qu'on dit (sujet et verbe conjugué), 8-20 mots, tension immédiate ; jamais des bouts de phrases à la suite" },
             text_overlay: { type: "string", description: "texte à l'écran en muet : extrait de 3 à 8 mots du hook parlé (text), recopié tel quel, qui se comprend seul ; casse normale, pas de majuscules imposées" },
             format_recommande: { type: "string", description: "face_cam_confession | voix_off_broll | hook_loop" },
             format_label: { type: "string", description: "nom de la structure en français simple : « Face caméra », « Voix off sur images » ou « Boucle courte »" },
             duree_cible: { type: "string", description: "durée estimée du reel avec ce hook, 55 s au plus, ex. « ~45 s »" },
           },
-          required: ["type", "type_label", "text", "text_overlay", "format_recommande", "format_label", "duree_cible"],
+          required: ["type", "type_label", "enjeu_pour_tous", "text", "text_overlay", "format_recommande", "format_label", "duree_cible"],
         },
       },
     },
@@ -550,8 +555,11 @@ RÈGLES ABSOLUES :
    le son et porte son mot ou chiffre fort. Jamais une information que le parlé ne
    dit pas. Casse normale d'une phrase, pas de majuscules imposées.
 4. AUCUN chiffre qui ne vient pas du brief, des réponses ou du branding.
-5. SINGULARITÉ : pas le hook consensuel de la niche. Ancre dans SON métier, SES mots,
-   SA matière (contexte de marque ci-dessus).
+5. SINGULARITÉ : pas le hook consensuel de la niche. Le fait vient de SA matière et
+   de SES mots, mais l'enjeu se comprend sans connaître son métier : le mot technique
+   et le détail de fabrication restent pour le script. Pour chaque hook, écris d'abord
+   "enjeu_pour_tous", puis "text" met CET enjeu dans la phrase. Les 3 hooks sont rangés
+   du plus compréhensible par tout le monde au plus pointu.
 5bis. FRANÇAIS IRRÉPROCHABLE — relis chaque hook à voix haute : élisions (« l'avant/après »,
    jamais « le avant/après ») et homophones (« qu'UN marchand de biens, ça… », jamais
    « qu'on marchand de biens ») ; le hook choisi part TEL QUEL dans le script final.

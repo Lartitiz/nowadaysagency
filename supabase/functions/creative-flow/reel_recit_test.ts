@@ -3,7 +3,7 @@
 // conditionnées à la matière ; deux filets en code les accompagnent.
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { reelBrief, REEL_CREUX, REEL_PREMIERE_PHRASE, REEL_RECIT_PARLE, REEL_TRAMES } from "../_shared/format-briefs/reel.ts";
-import { applyReelCreuxTip, buildHooksPrompt, normalizeHooksResponse, REEL_CREUX_TIP } from "./formats/reel.ts";
+import { applyReelCreuxTip, buildHooksPrompt, HOOKS_TOOL, normalizeHooksResponse, REEL_CREUX_TIP } from "./formats/reel.ts";
 
 Deno.test("brief du reel : creux, première phrase et trames présents, jamais sans condition de matière", () => {
   const brief = reelBrief({ subject: "Mes prix", effectiveObjective: "confiance" });
@@ -108,4 +108,12 @@ Deno.test("accroches : une vraie première phrase est gardée, les bouts de phra
     "J'ai jeté 40 savons la veille de les livrer.",
     "J'ai jeté 40 savons la veille de les livrer. J'étais dégoûtée, je vous raconte.",
   ]);
+});
+
+Deno.test("accroches : l'enjeu dit en mots simples est demandé avant la phrase, et ne part pas à l'écran", () => {
+  const req = (HOOKS_TOOL.input_schema.properties.hooks.items as any).required as string[];
+  assert(req.indexOf("enjeu_pour_tous") >= 0 && req.indexOf("enjeu_pour_tous") < req.indexOf("text"));
+  const parsed: any = { hooks: [{ text: "J'ai jeté quarante savons la veille de les livrer.", enjeu_pour_tous: "une commande perdue la veille" }] };
+  assertEquals(normalizeHooksResponse(parsed, { body: {}, rawContent: "", corsHeaders: {} }), null);
+  assertEquals("enjeu_pour_tous" in parsed.hooks[0], false);
 });
