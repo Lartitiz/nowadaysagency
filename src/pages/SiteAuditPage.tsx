@@ -27,6 +27,7 @@ import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
 import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { parseAiJson } from "@/lib/parse-ai-json";
+import { useWaitingScreen, WaitingBar } from "@/components/creer/WaitingScreen";
 
 // ── Loading messages ──
 const LOADING_MESSAGES = [
@@ -44,6 +45,20 @@ const MOTIVATIONAL_QUOTES = [
   "Un appel à l'action visible = une cliente en moins qui part sans agir.",
   "Ton site est ta vitrine 24h/24. Autant qu'il bosse pour toi.",
 ];
+
+/** Barre + phrase + pourcentage de l'attente (brique commune WaitingScreen). */
+function SiteAuditWaiting() {
+  const w = useWaitingScreen({ timeline: LOADING_MESSAGES, tauSeconds: 15, scale: 100, ceiling: 95 });
+  return (
+    <div className="space-y-3">
+      <WaitingBar value={w.progress} className="h-3 rounded-full bg-muted overflow-hidden" fillClassName="h-full rounded-full bg-primary transition-all duration-500 ease-out" />
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-foreground animate-pulse">{w.message}</p>
+        <span className="text-xs text-muted-foreground">{Math.round(w.progress)}%</span>
+      </div>
+    </div>
+  );
+}
 
 // ── Old audit types (kept for backward compat) ──
 type AnswerValue = "oui" | "non" | "pas_sure" | null;
@@ -131,8 +146,6 @@ const SiteAuditPage = () => {
   const [showExtraPages, setShowExtraPages] = useState(false);
   const [autoResult, setAutoResult] = useState<AutoAuditResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0].text);
-  const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingQuote] = useState(() => MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)]);
 
   // Screenshot state (kept from old)
@@ -180,26 +193,6 @@ const SiteAuditPage = () => {
   useEffect(() => {
     if (searchParams.get("mode") === "screenshot") setStep("screenshot");
   }, [searchParams]);
-
-  // Loading animation
-  useEffect(() => {
-    if (!analyzing) return;
-    const startTime = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      // Non-linear progress: fast start, slow end, cap at 95%
-      const progress = Math.min(95, (1 - Math.exp(-elapsed / 15000)) * 100);
-      setLoadingProgress(progress);
-
-      // Update message based on elapsed time
-      let msg = LOADING_MESSAGES[0].text;
-      for (const lm of LOADING_MESSAGES) {
-        if (elapsed >= lm.time) msg = lm.text;
-      }
-      setLoadingMsg(msg);
-    }, 300);
-    return () => clearInterval(interval);
-  }, [analyzing]);
 
   // ── Auto audit launch ──
   const launchAutoAudit = async () => {
@@ -485,18 +478,7 @@ const SiteAuditPage = () => {
         {/* ── STEP: Loading ── */}
         {step === "loading" && (
           <div className="rounded-2xl border border-border bg-card p-8 space-y-6">
-            <div className="space-y-3">
-              <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
-                  style={{ width: `${loadingProgress}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-foreground animate-pulse">{loadingMsg}</p>
-                <span className="text-xs text-muted-foreground">{Math.round(loadingProgress)}%</span>
-              </div>
-            </div>
+            <SiteAuditWaiting />
 
             <div className="rounded-xl bg-muted/50 border border-border p-4">
               <p className="text-sm text-muted-foreground italic text-center">
