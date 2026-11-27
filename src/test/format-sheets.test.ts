@@ -40,10 +40,11 @@ describe("La fiche par format dit la vérité sur le code", () => {
       const s = FORMAT_SHEETS[f];
       const cases: [string, OuiNon][] = [["filDeLeau", s.filDeLeau], ["enregistreSeul", s.enregistreSeul]];
       for (const [nom, c] of cases) {
-        const texte = c.etat === "oui" ? c.detail : c.raison;
+        const texte = "detail" in c ? c.detail : c.raison;
         expect(texte.trim().length, `${f}.${nom}`).toBeGreaterThan(15);
       }
-      if (s.questions.fonction === null) expect(s.questions.raison.trim().length, `${f}.questions`).toBeGreaterThan(15);
+      if ("raison" in s.questions) expect(s.questions.raison.trim().length, `${f}.questions`).toBeGreaterThan(15);
+      else expect(s.questions.fonction, `${f}.questions`).toBeTruthy();
       if (s.socle.formats.length === 0) expect((s.socle.raison || "").trim().length, `${f}.socle`).toBeGreaterThan(15);
     }
   });
