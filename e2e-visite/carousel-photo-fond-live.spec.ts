@@ -19,7 +19,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { tapCarouselSse, watchWaitingScreen } from "./carousel-wait-probe";
-import { fillPhotoContextStep } from "./photo-context-step";
+import { fillPhotoContextStep, probePhotoContextStep } from "./photo-context-step";
 import { autoOpenReadyCarousel } from "./carousel-ready";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -107,6 +107,10 @@ test("carrousel « Tes photos en fond » : plan, brouillons sur photo, texte sur
   // de l'écran d'import a disparu avec #1995) : sans description, le choix final
   // des photos refuse ces fixtures sans rapport visible avec la savonnerie du
   // compte test (vu le 08/10 : 6/6 « image à choisir »).
+  // Sonde « fenêtre photos » : ne clique rien. SONDE_FENETRE_SEULE=1 s'arrête ici, avant
+  // toute création payante (sert à essayer la sonde contre une ancienne version).
+  await probePhotoContextStep(page);
+  if (process.env.SONDE_FENETRE_SEULE) return;
   await fillPhotoContextStep(page, [
     "Moi, portrait de face : c'est le visage derrière la marque",
     "Un visuel d'ambiance de ma marque",
