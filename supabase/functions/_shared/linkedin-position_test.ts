@@ -75,4 +75,6 @@ Deno.test("brief LinkedIn : ouverture avant la coupure, fin nette, annonce lisib
   assertEquals(brief.includes("jamais sur une phrase ou une scène inventée"), true);
   assertEquals(brief.includes("La question n'est pas obligatoire"), true);
   assertEquals(brief.includes("informations pratiques fournies (date, lieu, places, prix) groupées"), true);
+  assertEquals(brief.includes("l'enjeu se comprend sans connaître le métier"), true);
+  assertEquals(brief.includes("Élargis l'enjeu, pas la morale"), true);
 });
