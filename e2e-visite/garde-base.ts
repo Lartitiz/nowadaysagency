@@ -16,7 +16,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const SEUIL_BASE_LENTE_MS = 1500;
 const DELAI_MAX_LECTURE_MS = 20_000;
-const BATTERIE_EN_DIRECT = /playwright(\.js)?\s+test\b.*playwright\.(visite|cold)\.config/;
+// Aussi `node …/@playwright/test/cli.js test` (lancement conseillé dans un worktree),
+// invisible avant le 27/11/2026.
+const BATTERIE_EN_DIRECT = /(?:playwright(?:\.js)?|playwright\/cli\.js|@playwright\/test\/cli\.js)\s+test\b.*playwright\.(visite|cold)\.config/;
+// Un shell n'est jamais une batterie : sa ligne recopie le script qu'il exécute,
+// donc aussi la boucle d'ATTENTE d'une autre session (« tant qu'une batterie
+// tourne, dormir »). Le 27/11/2026, trois sessions qui attendaient leur tour se
+// sont bloquées entre elles sans qu'aucun test ne tourne. Une vraie batterie
+// lancée depuis un shell a toujours son processus node (ou npm exec), compté.
+const SHELL = /^(?:\S*\/)?-?(?:zsh|bash|sh|dash|fish)(?:\s|$)/;
 
 export type Processus = { pid: number; ppid: number; commande: string };
 
@@ -44,7 +52,7 @@ export function autresBatteries(processus: Processus[], monPid: number): Process
     }
   }
   for (const pid of descendants) famille.add(pid);
-  return processus.filter((p) => !famille.has(p.pid) && BATTERIE_EN_DIRECT.test(p.commande));
+  return processus.filter((p) => !famille.has(p.pid) && !SHELL.test(p.commande) && BATTERIE_EN_DIRECT.test(p.commande));
 }
 
 export function mediane(valeurs: number[]): number {
