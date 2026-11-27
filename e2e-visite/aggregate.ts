@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { ligneIdeesLaissees } from "./idees-laissees";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SONDE_DIR = path.join(__dirname, "sonde");
@@ -49,7 +50,7 @@ type Finding = { bac: "dur" | "observation"; type: string; ecran: string; detail
 // globalTeardown : lit tous les JSON de sonde/ et les trie en deux bacs.
 // 🔴 dur = casse le vert (JS non catché, écran de plantage React, 5xx, requête essentielle échouée, page non chargée).
 // 🟡 observation = n'invalide PAS le vert (4xx d'API, console.error, débordement, lenteur, a11y).
-export default function () {
+function synthese() {
   if (!fs.existsSync(SONDE_DIR)) return; // aucune sonde lancée (ex : run de specs fonctionnelles seules)
 
   const files = fs.readdirSync(SONDE_DIR).filter((f) => f.endsWith(".json"));
@@ -200,4 +201,11 @@ export default function () {
   console.log(
     `\n[sonde] ${nEcrans} écrans · 🔴 ${dur.length} dur · 🟡 ${obs.length} obs · mode ${report.mode} → e2e-visite/sonde-report.md`,
   );
+}
+
+// globalTeardown : la synthèse de la sonde, puis la ligne de ménage (toujours
+// imprimée, même quand aucune sonde n'a tourné).
+export default async function () {
+  synthese();
+  console.log(`\n${await ligneIdeesLaissees()}`);
 }
