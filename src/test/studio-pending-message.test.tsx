@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { StudioMessageList } from "@/features/visual-studio/StudioMessageList";
+import type { StudioState } from "@/features/visual-studio/api";
 
 const base = {
   current: undefined, proposal: null, references: [], writable: true, busy: "",
@@ -31,8 +32,7 @@ describe("Studio : idées pour la suite", () => {
     const current = { session: { id: "s1", revision: 1, messages: [
       { id: "m1", role: "assistant", text: "Voilà.", suggestions: ["Essayer en petit salon"] },
     ] }, versions: [], memory: [] };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    render(<StudioMessageList {...base} current={current as any} editDraft={editDraft} setAutoSend={setAutoSend} />);
+    render(<StudioMessageList {...base} current={current as unknown as StudioState} editDraft={editDraft} setAutoSend={setAutoSend} />);
     fireEvent.click(screen.getByRole("button", { name: "Essayer en petit salon" }));
     expect(editDraft).toHaveBeenCalledWith("Essayer en petit salon");
     expect(setAutoSend).toHaveBeenCalledWith("Essayer en petit salon");
