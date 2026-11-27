@@ -180,3 +180,7 @@ neuve qui n'importe pas `./test-propre`, ou un ménage raté (la ligne
 
 **Arriéré** : `node e2e-visite/purge-idees-visite.mjs` LISTE les brouillons de test
 (aucune écriture). `--apply` supprime, à la main et avec l'accord de Laetitia.
+
+## Garde-fou de lancement (27/11/2026)
+
+`garde-base.ts` tourne avant chaque batterie en direct (visite et smoke à froid). Il refuse de démarrer si une autre batterie en direct tourne déjà sur la machine, ou si la base met plus de 1,5 s (médiane de 3 lectures d'une ligne). Il écrit toujours la ligne `⏱️ Base avant lancement : …`. Une visite refusée ou rouge sur base lente ne se relance pas en entier : attendre que la base réponde de nouveau en moins d'une seconde. `VISITE_FORCE=1` passe outre.

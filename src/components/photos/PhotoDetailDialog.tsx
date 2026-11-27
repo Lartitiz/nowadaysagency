@@ -118,9 +118,9 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
     setMeta({ description: photo.description, tags: photo.tags ?? [] });
     let cancelled = false;
     Promise.all([
-      getSignedPhotoUrl(photo.storage_path),
+      getSignedPhotoUrl(photo.storage_path, undefined, { version: photo.updated_at }),
       photo.original_storage_path !== photo.storage_path
-        ? getSignedPhotoUrl(photo.original_storage_path)
+        ? getSignedPhotoUrl(photo.original_storage_path, undefined, { version: photo.created_at })
         : Promise.resolve(null),
     ]).then(([a, b]) => {
       if (cancelled) return;

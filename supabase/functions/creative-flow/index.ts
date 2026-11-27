@@ -39,7 +39,7 @@ export { isExplicitlyFictionalBrief, isFactualFictionalLinkedInBrief, alignFactu
 export { photoVoiceRule } from "./shared.ts";
 export { NEWSLETTER_ADDRESS_FIELDS, applyNewsletterCorrectionPass } from "./formats/newsletter.ts";
 export { gateNumbers, _deps, POST_ADDRESS_FIELDS } from "./shared.ts";
-import { buildHooksPrompt, reelPhotoUserContent, reelPhotosOf, reelDraftPreview } from "./formats/reel.ts";
+import { buildHooksPrompt, reelHooksUsable, reelPhotoUserContent, reelPhotosOf, reelDraftPreview } from "./formats/reel.ts";
 import { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, buildQuestionsPrompt } from "./prompts/assist.ts";
 export { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, buildQuestionsPrompt } from "./prompts/assist.ts";
 export { resolveFormatHint, detectFormatFlags } from "./format-flags.ts";
@@ -405,8 +405,8 @@ serve(async (req) => {
       // Les accroches (step hooks) les voient aussi : sinon elles inventent des détails.
       const reelPhotos = (step === "generate" || step === "hooks") && isReel ? reelPhotosOf(body) : [];
       const userContent = reelPhotos.length ? reelPhotoUserContent(reelPhotos, userPrompt!) : userPrompt!;
-      rawContent = structuredTool || reelPhotos.length
-        ? await callAnthropic({
+      const firstCall = () => structuredTool || reelPhotos.length
+        ? callAnthropic({
             model: modelForCall,
             system: systemPrompt,
             messages: [{ role: "user", content: userContent }],
@@ -415,7 +415,14 @@ serve(async (req) => {
             abortTimeoutMs: abortMs,
             tool: structuredTool,
           }, finalUsage)
-        : await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage, abortMs);
+        : callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage, abortMs);
+      rawContent = await firstCall();
+      // Accroches du reel : une réponse sans aucune accroche lisible est relancée
+      // une fois avant de répondre « pas réussi » (étape gratuite, échec isolé du 27/11/2026).
+      if (step === "hooks" && !reelHooksUsable(rawContent)) {
+        console.warn(JSON.stringify({ type: "hooks_vides_relance", raw: String(rawContent || "").slice(0, 300) }));
+        rawContent = await firstCall();
+      }
 
       // Step "adjust" (bouton "Ajuster" de CreerStepEdit.tsx) : jamais streamé, sans
       // tool forcé quel que soit le format → le modèle peut renvoyer du JSON en texte

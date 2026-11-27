@@ -41,3 +41,34 @@ export async function fillPhotoContextStep(page: Page, texts: string[]): Promise
   console.log(`📝 « Que montre chaque photo ? » : ${texts.length} ligne(s) remplie(s)`);
   return true;
 }
+
+/**
+ * SONDE « fenêtre photos » (27/11/2026, accord de Laetitia). Depuis le 26/11, la fenêtre
+ * « Que montre chaque photo ? » ne s'ouvre que s'il manque une description (retour de
+ * Laetitia : « si c'est déjà écrit, ça ne sert à rien cette étape »). Si elle revient
+ * alors que toutes ses lignes sont remplies, la sonde le dit.
+ *
+ * À appeler juste après « Générer », AVANT fill/skipPhotoContextStep (elle ne clique rien).
+ * Lecture : ✅ pas ouverte, ou ouverte avec au moins une ligne vide ; 🟠 ouverte alors que
+ * toutes les lignes sont déjà remplies (une seule fois suffit : c'est une régression).
+ */
+export async function probePhotoContextStep(page: Page): Promise<"absente" | "utile" | "inutile"> {
+  const dialog = page.getByTestId("photo-context-step");
+  const shown = await dialog.waitFor({ state: "visible", timeout: 8000 }).then(() => true).catch(() => false);
+  if (!shown) {
+    console.log("🪟 Fenêtre photos : pas ouverte ✅");
+    return "absente";
+  }
+  // Les légendes automatiques arrivent en quelques secondes : on leur laisse le temps.
+  const lines = dialog.locator("input[id^='photo-ctx-']");
+  const empties = async () => (await lines.evaluateAll((els) => els.filter((e) => !(e as HTMLInputElement).value.trim()).length));
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline && (await empties()) > 0) await page.waitForTimeout(1000);
+  const total = await lines.count(), vides = await empties();
+  if (vides === 0) {
+    console.log(`🪟 Fenêtre photos : 🟠 ouverte alors que les ${total} photo(s) sont déjà décrites (elle ne sert à rien)`);
+    return "inutile";
+  }
+  console.log(`🪟 Fenêtre photos : ouverte, ${vides} description(s) manquante(s) sur ${total} ✅`);
+  return "utile";
+}

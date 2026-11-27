@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Mic, Square, CircleCheck, Circle, Loader2, Play, Pause, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { blobToWav, uploadVoiceClip, type VoiceClip } from "@/lib/reel-voice";
+import { micDisplayName, openMicrophone } from "@/lib/real-microphone";
 
 interface Props {
   /** Textes parlés, dans l'ordre des sections. */
@@ -51,6 +52,11 @@ export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange,
   const [elapsed, setElapsed] = useState(0);
   /** Niveau du micro pendant la prise, 0 → 1. Preuve visible qu'on est entendue. */
   const [level, setLevel] = useState(0);
+  /**
+   * Nom du micro quand il n'envoie RIEN (zéro pile, pas juste une pièce calme) : micro coupé ou
+   * micro fantôme. On le nomme au lieu de dire « parle plus fort ».
+   */
+  const [deadMic, setDeadMic] = useState<string | null>(null);
   /** Index de la prise en cours de relecture dans la liste, null si silence. */
   const [playing, setPlaying] = useState<number | null>(null);
 
@@ -93,8 +99,20 @@ export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange,
       analyser.fftSize = 512;
       ctx.createMediaStreamSource(stream).connect(analyser);
       const buf = new Uint8Array(analyser.frequencyBinCount);
+      const exact = new Float32Array(analyser.fftSize);
+      const label = micDisplayName(stream.getAudioTracks?.()[0]?.label) || "ton micro";
+      let silentSince: number | null = null;
       const tick = () => {
         analyser.getByteTimeDomainData(buf);
+        // Un vrai micro souffle toujours un peu : du zéro pile pendant 2 s = aucun son n'arrive.
+        analyser.getFloatTimeDomainData?.(exact);
+        if (exact.every((v) => v === 0)) {
+          silentSince ??= performance.now();
+          if (performance.now() - silentSince > 2000) setDeadMic(label);
+        } else {
+          silentSince = null;
+          setDeadMic(null);
+        }
         // Écart quadratique moyen autour du silence (128) → niveau perçu.
         let sum = 0;
         for (const v of buf) {
@@ -117,12 +135,13 @@ export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange,
     void audioCtxRef.current?.close();
     audioCtxRef.current = null;
     setLevel(0);
+    setDeadMic(null);
   }
 
   async function startRecording(i: number) {
     stopPlayback();
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await openMicrophone();
       const rec = new MediaRecorder(stream);
       recorderRef.current = rec;
       chunksRef.current = [];
@@ -240,7 +259,11 @@ export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange,
             ))}
           </div>
           <p className="text-center text-2xs text-muted-foreground" aria-live="polite">
-            {litBars > 0 ? "Je t'entends…" : "Parle un peu plus fort"}
+            {litBars > 0
+              ? "Je t'entends…"
+              : deadMic
+                ? `Aucun son n'arrive de « ${deadMic} ». Vérifie le micro choisi dans ton navigateur.`
+                : "Parle un peu plus fort"}
           </p>
           <div className="flex justify-center">
             <Button variant="destructive" size="sm" onClick={stopRecording}>

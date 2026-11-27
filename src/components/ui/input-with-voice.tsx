@@ -42,7 +42,7 @@ const InputWithVoice = React.forwardRef<HTMLInputElement, InputWithVoiceProps>(
 
     return (
       <div className="relative w-full">
-        <Input ref={ref} type={type} value={value} onChange={onChange} className={cn("pr-10", className)} {...props} />
+        <Input ref={ref} type={type} value={value} onChange={onChange} className={cn(className, "!pr-12")} {...props} />
         <div className="absolute right-2 top-1/2 -translate-y-1/2">
           <MicButton isListening={isListening} isSupported={isSupported} onClick={toggle} size="sm" error={error} />
         </div>

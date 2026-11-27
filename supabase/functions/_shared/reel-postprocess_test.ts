@@ -513,3 +513,26 @@ Deno.test("reelChoppyPassages : numéros de section et extraits, accroche compri
   assertEquals(out.map((p) => p.section), [1, 2]);
   assertEquals(out[1].extraits, ["diagnostic fait, devis signé, planning envoyé aux artisans"]);
 });
+
+Deno.test("findWrittenParticipleLists : adverbe ou complément du nom avant le participe (vu en ligne le 27/11)", () => {
+  assertEquals(
+    findWrittenParticipleLists("Tout était prêt, la recette testée, les étiquettes déjà imprimées, la date calée avec l'épicière."),
+    ["la recette testée, les étiquettes déjà imprimées, la date calée avec l'épicière"],
+  );
+  assertEquals(findWrittenParticipleLists("Recette testée, date de livraison fixée."), ["Recette testée, date de livraison fixée"]);
+  for (const t of [
+    "J'avais testé la recette, les étiquettes étaient déjà imprimées.",
+    "Et au démoulage, j'ai vu des poches de liquide à l'intérieur de chaque savon.",
+    "Depuis, j'ajoute le miel à la toute fin, à froid, et je ne promets plus jamais une date.",
+    "Un savon qui sort du moule est encore gorgé d'eau.",
+  ]) assertEquals(findWrittenParticipleLists(t), [], t);
+});
+
+Deno.test("findWrittenParticipleLists : une phrase normale à virgule n'est pas une liste (faux signalement du 27/11)", () => {
+  for (const t of [
+    "Un savon qui sort du moule, en vrai, il est pas fini.",
+    "Mon devis signé, je commence le chantier.",
+    "Des produits naturels, des tissus recyclés par une amie.",
+    "Un bijou fini, un colis prêt.",
+  ]) assertEquals(findWrittenParticipleLists(t), [], t);
+});

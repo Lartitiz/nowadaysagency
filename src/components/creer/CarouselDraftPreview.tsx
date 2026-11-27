@@ -40,6 +40,8 @@ export function CarouselDraftPreview({ slides, outline, stage, photos }: { slide
   const reached = useRef(0);
   const current = Math.max(reached.current, STAGE_STEP[stage ?? ""] ?? 0);
   useEffect(() => { reached.current = current; }, [current]);
+  // Après le contrôle du fil, « correcting » vient du choix des photos (final-photo-match.ts) :
+  // la réécriture automatique du fil est coupée depuis le 27/11/2026. Avec des photos, on le dit.
   const fixingThread = current === 2 && stage === "correcting";
   const planOnly = slides.length === 0 && (outline?.length ?? 0) > 0;
   // Nombre de slides prévu par le plan, quand on le connaît (« slide 4 sur 7 »).
@@ -52,7 +54,7 @@ export function CarouselDraftPreview({ slides, outline, stage, photos }: { slide
     : current === 1
       ? "Je relis ton texte pour gommer les tournures d'IA…"
       : fixingThread
-        ? "J'ajuste l'enchaînement entre les slides…"
+        ? (photos?.length ? "Je place tes photos sur les slides…" : "J'ajuste l'enchaînement entre les slides…")
         : "Je vérifie que les slides s'enchaînent…";
 
   return (

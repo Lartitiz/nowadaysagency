@@ -1,0 +1,3 @@
+DELETE FROM cron.job_run_details d WHERE d.end_time < now() - interval '7 days' AND d.runid NOT IN (SELECT max(runid) FROM cron.job_run_details GROUP BY jobid);
+SELECT cron.schedule('purge-historique-cron', '40 3 * * *', $$DELETE FROM cron.job_run_details d WHERE d.end_time < now() - interval '7 days' AND d.runid NOT IN (SELECT max(runid) FROM cron.job_run_details GROUP BY jobid)$$);
+TRUNCATE net._http_response;

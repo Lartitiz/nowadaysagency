@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { Loader2, AlertTriangle, RefreshCw, EyeOff, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { getSignedPhotoUrl, type UserPhotoRow } from "@/lib/photo-storage";
+import { forgetSignedPhotoUrl, getSignedPhotoUrl, type UserPhotoRow } from "@/lib/photo-storage";
 
 interface PhotoCardProps {
   photo: UserPhotoRow;
@@ -43,7 +43,7 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
       return;
     }
     setPreviewError(false);
-    getSignedPhotoUrl(photo.storage_path).then((url) => {
+    getSignedPhotoUrl(photo.storage_path, undefined, { version: photo.updated_at }).then((url) => {
       if (cancelled) return;
       setPreviewUrl(url);
       if (!url) setPreviewError(true);
@@ -51,7 +51,7 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
     return () => {
       cancelled = true;
     };
-  }, [photo.status, photo.storage_path, previewAttempt]);
+  }, [photo.status, photo.storage_path, photo.updated_at, previewAttempt]);
 
   // Elapsed timer for pending/processing
   useEffect(() => {
@@ -84,7 +84,11 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
           alt={photo.name ?? "Photo"}
           className="h-full w-full object-cover"
           loading="lazy"
-          onError={() => setPreviewError(true)}
+          onError={() => {
+            // L'adresse gardée ne sert plus l'image : « Réessayer » en signe une neuve.
+            forgetSignedPhotoUrl(photo.storage_path);
+            setPreviewError(true);
+          }}
         />
       )}
       {isReady && !previewUrl && !previewError && (

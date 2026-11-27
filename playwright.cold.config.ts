@@ -30,6 +30,8 @@ export default defineConfig({
   retries: 0,
   reporter: "list",
   outputDir: "./e2e-visite/results-cold",
+  // Ne démarre ni sur une base déjà lente ni à côté d'une autre batterie.
+  globalSetup: "./e2e-visite/garde-base.ts",
 
   use: {
     baseURL: process.env.VISITE_BASE_URL || "https://nowadays-assistant.fr",

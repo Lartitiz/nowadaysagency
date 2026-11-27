@@ -101,6 +101,21 @@ export function normalizeHooksResponse(parsed: any, params: { body: any; rawCont
   return null;
 }
 
+/**
+ * La réponse de l'étape « hooks » contient-elle au moins une accroche lisible ?
+ * Sert à relancer UNE fois l'écriture avant de répondre « pas réussi » (27/11/2026 :
+ * un échec isolé sur ~40 appels, sujet relancé 5 fois sans problème ensuite).
+ */
+export function reelHooksUsable(rawContent: string): boolean {
+  const parsed = tryParseAiJson<any>(rawContent, "creative-flow:hooks-usable");
+  let hooks = parsed?.hooks;
+  if (typeof hooks === "string") {
+    const inner = tryParseAiJson<any>(hooks, "creative-flow:hooks-usable-unwrap");
+    hooks = Array.isArray(inner) ? inner : inner?.hooks;
+  }
+  return Array.isArray(hooks) && hooks.some((h: any) => (typeof h === "string" && h.trim()) || (typeof h?.text === "string" && h.text.trim()));
+}
+
 // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
 // Le reel était le seul format riche sans filet post-génération. Trois étages :
 // 1. face_cam=non : enforcement déterministe de la structure (format_type,

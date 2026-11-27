@@ -95,7 +95,7 @@ describe('angles d’attaque du reel', () => {
     expect(mocks.invoke).toHaveBeenCalledWith('creative-flow', { body: {
       step: 'hooks', contentType: 'reel', context: 'Mon reel', objective: 'visibilite', face_cam: 'oui',
       answers: [{ question: 'Pour qui ?', answer: 'Les artisanes' }], workspace_id: 'A',
-    } }, 60000);
+    } }, 110000);
     await waitFor(() => expect(loadFlowState()?.step).toBe('hook_selection'));
     expect(mocks.generate).not.toHaveBeenCalled();
 

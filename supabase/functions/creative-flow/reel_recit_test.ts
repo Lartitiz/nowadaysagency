@@ -117,3 +117,14 @@ Deno.test("accroches : l'enjeu dit en mots simples est demandé avant la phrase,
   assertEquals(normalizeHooksResponse(parsed, { body: {}, rawContent: "", corsHeaders: {} }), null);
   assertEquals("enjeu_pour_tous" in parsed.hooks[0], false);
 });
+
+import { reelHooksUsable } from "./formats/reel.ts";
+
+Deno.test("accroches : une réponse sans accroche lisible se reconnaît (relance côté serveur)", () => {
+  assert(reelHooksUsable(JSON.stringify({ hooks: [{ text: "J'ai jeté quarante savons la veille de les livrer." }] })));
+  assert(reelHooksUsable(JSON.stringify({ hooks: ["J'ai jeté quarante savons."] })));
+  assert(reelHooksUsable(JSON.stringify({ hooks: JSON.stringify([{ text: "Une accroche." }]) })));
+  for (const vide of ["", "{}", JSON.stringify({ hooks: [] }), JSON.stringify({ hooks: [{ type: "fait_brut" }] }), JSON.stringify({ hooks: "pas du json" }), "Désolé, je ne peux pas."]) {
+    assert(!reelHooksUsable(vide), vide);
+  }
+});
