@@ -446,6 +446,8 @@ export function reelOverlayInText(overlay: string, text: string): boolean {
 const PARTICIPE_RE = /^\p{L}+(?:é|ée|és|ées|i|ie|is|ies|ise|ises|it|ite|its|ites|u|ue|us|ues|ert|erte|erts|ertes|int|inte|ints|ait|aite|aits)$/iu;
 const DETERMINANT_RE = /^(?:le|la|les|l'\p{L}*|un|une|des|mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|votre|vos|leur|leurs|ce|cet|cette|ces)$/iu;
 const ADVERBE_RE = /^(?:déjà|bien|enfin|encore|tout|toute|toutes|juste|presque|même|pas)$/iu;
+const RELATIF_RE = /(?<![\p{L}])(?:qui|que|qu'|dont|où|quand|si|comme)(?![\p{L}])/iu;
+const FAUX_PARTICIPE_RE = /^(?:vrai|vraie|vrais|ceci|midi|menu|menus|vécu|côté|côtés|café|cafés|bois|mois|fois|puis|lait|nuit|nuits|bruit|toit|aussi|ainsi|parmi|merci|celui|aujourd'hui|vertu|début|débuts|tissu|tissus|bijou|revenu|revenus|contenu|contenus|produit|produits|fruit|fruits|circuit|circuits|souci|soucis|ennui|ennuis|avis|devis|permis|colis|tapis|pays|temps|statut|statuts|salut)$/iu;
 const SUJET_OU_AUXILIAIRE_RE = /(?<![\p{L}])(?:je|j'|tu|il|elle|on|nous|vous|ils|elles|c'|ça|est|sont|a|ont|avait|avaient|était|étaient)(?![\p{L}])/iu;
 
 /**
@@ -468,7 +470,8 @@ export function findWrittenParticipleLists(text: string): string[] {
       // Le participe suit le nom, parfois après un adverbe (« étiquettes déjà imprimées »)
       // ou un complément du nom (« date de livraison calée ») : 2e au 4e mot.
       const sansAdverbe = words.filter((w, i) => i === 0 || !ADVERBE_RE.test(w));
-      const participe = sansAdverbe.slice(1, 4).some((w) => PARTICIPE_RE.test(w));
+      // « qui », « vrai », « ici », « aussi » finissent comme un participe sans en être.
+      const participe = !RELATIF_RE.test(clean) && sansAdverbe.slice(1, 4).some((w) => w.length >= 4 && !FAUX_PARTICIPE_RE.test(w) && PARTICIPE_RE.test(w));
       const ok = sansAdverbe.length >= 2 && sansAdverbe.length <= 6 && participe && !SUJET_OU_AUXILIAIRE_RE.test(clean);
       if (ok) run.push(item); else flush();
     }
