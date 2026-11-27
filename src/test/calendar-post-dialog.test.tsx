@@ -280,6 +280,21 @@ describe("remise à zéro par la clé", () => {
   });
 });
 
+// 27/11/2026 (essai réel) : sur ordinateur, les détails dépliés prenaient toute la hauteur
+// de la fenêtre et recouvraient « Rédiger avec l'IA ». Les détails et le contenu vivent
+// maintenant dans la MÊME zone qui défile : le bouton reste toujours atteignable.
+describe("fenêtre du post sur ordinateur : détails et contenu défilent ensemble", () => {
+  it("le panneau « Détails du post » et le bouton pour rédiger sont dans la même zone défilante", () => {
+    renderDialog({ editingPost: post() });
+    const zone = screen.getByTestId("post-dialog-scroll");
+    expect(zone.className).toContain("overflow-y-auto");
+    expect(zone.contains(screen.getByText(/Détails du post/))).toBe(true);
+    expect(zone.contains(screen.getByText("faux:générer"))).toBe(true);
+    // Aucun bloc « qui ne rétrécit pas » entre la fenêtre et les détails.
+    expect(screen.getByText(/Détails du post/).closest(".shrink-0")).toBeNull();
+  });
+});
+
 describe("navigation vers /creer", () => {
   const full = () => post({
     theme: "Sujet", objectif: "vente", angle: "Storytelling", format: "post_carrousel", notes: "N", content_draft: "Brouillon",
