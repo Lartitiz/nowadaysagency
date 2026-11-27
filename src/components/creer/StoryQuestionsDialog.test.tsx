@@ -31,4 +31,14 @@ describe("Je te pose des questions", () => {
     ]);
     await waitFor(() => expect(vi.mocked(invokeWithTimeout).mock.calls.at(-1)![1]!.body.story_answers).toHaveLength(2));
   });
+
+  it("pendant la préparation des questions : l'attente commune (barre + phrase), puis les questions", async () => {
+    let resolve!: (v: unknown) => void;
+    vi.mocked(invokeWithTimeout).mockReturnValueOnce(new Promise((r) => { resolve = r; }) as never);
+    render(<StoryQuestionsDialog open onOpenChange={() => {}} workspaceId="ws" onKeep={() => {}} />);
+    expect(screen.getByRole("progressbar")).toBeTruthy();
+    expect(screen.getByText("Je prépare tes questions…")).toBeTruthy();
+    resolve({ data: { questions: GENERIC_STORY_QUESTIONS }, error: null });
+    expect(await screen.findByTestId("story-answer")).toBeTruthy();
+  });
 });
