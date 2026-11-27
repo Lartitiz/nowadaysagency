@@ -3,7 +3,7 @@
 // l'ordre : l'aperçu immédiat s'il est ouvert, la vidéo fabriquée si elle existe,
 // sinon l'image du passage en cours avec son texte. Elle n'est donc jamais vide.
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, Film, Play } from "lucide-react";
+import { Check, Film, Loader2, Play } from "lucide-react";
 import type { Section, SelectedClip } from "./types";
 
 interface ReelStageProps {
@@ -17,6 +17,8 @@ interface ReelStageProps {
   focus?: number;
   /** Vidéo fabriquée, à montrer quand aucun aperçu n'est ouvert. */
   mp4Url?: string | null;
+  /** Recherche automatique des vidéos en cours, passage par passage. */
+  searching?: boolean[];
 }
 
 /** Le texte montré sur l'image du passage : celui prévu à l'écran, sinon la phrase dite. */
@@ -25,12 +27,21 @@ function passageCaption(s: Section | undefined): string {
   return text.length > 110 ? `${text.slice(0, 107).trimEnd()}…` : text;
 }
 
-function PassageImage({ clip }: { clip: SelectedClip | null }) {
+function PassageImage({ clip, searching }: { clip: SelectedClip | null; searching?: boolean }) {
   const video = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   useEffect(() => { setPlaying(false); }, [clip?.url]);
   if (!clip) {
-    return <div className="flex h-full w-full items-center justify-center px-4 text-center text-xs text-white/80">Choisis l’image de ce passage</div>;
+    // Pendant la recherche automatique, on le dit : « Choisis… » laissait croire
+    // qu'il fallait agir alors que les vidéos arrivaient seules (Loom du 27/11/2026).
+    return searching ? (
+      <div role="status" className="flex h-full w-full flex-col items-center justify-center gap-2 px-4 text-center text-xs text-white/80">
+        <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+        Je cherche des vidéos pour ce passage…
+      </div>
+    ) : (
+      <div className="flex h-full w-full items-center justify-center px-4 text-center text-xs text-white/80">Choisis la vidéo de ce passage</div>
+    );
   }
   if (clip.source === "photo") return <img src={clip.url} alt="" className="h-full w-full object-cover" />;
   const toggle = () => {
@@ -53,7 +64,7 @@ function PassageImage({ clip }: { clip: SelectedClip | null }) {
   );
 }
 
-export function ReelStage({ spoken, clips, page, goTo, player, focus = 0, mp4Url }: ReelStageProps) {
+export function ReelStage({ spoken, clips, page, goTo, player, focus = 0, mp4Url, searching }: ReelStageProps) {
   // « video » = l'aperçu ou la vidéo fabriquée ; « passage » = l'image du passage en cours.
   const hasVideo = !!player || !!mp4Url;
   const [view, setView] = useState<"video" | "passage">(hasVideo ? "video" : "passage");
@@ -73,11 +84,17 @@ export function ReelStage({ spoken, clips, page, goTo, player, focus = 0, mp4Url
         {!player && mp4Url && showVideo && <video src={mp4Url} controls playsInline className="h-full w-full bg-black object-contain" />}
         {!showVideo && (
           <>
-            <PassageImage clip={clips[page] ?? null} />
+            <PassageImage clip={clips[page] ?? null} searching={!!searching?.[page]} />
             {clips[page] && passageCaption(section) && (
-              <p className="pointer-events-none absolute inset-x-[8%] bottom-[14%] text-center text-2xs font-semibold leading-snug text-white [text-shadow:0_1px_6px_rgba(0,0,0,.7)] lg:text-sm">
-                {passageCaption(section)}
-              </p>
+              <>
+                {/* Même voile sombre et même ombre que la vidéo assemblée (reel-render/hyperframes.ts,
+                    #shade et .line p) : sur un clip clair, le texte se lit dès ici, pas seulement
+                    après « Assembler » (Loom du 27/11/2026). */}
+                <span aria-hidden data-testid="reel-stage-shade" className="pointer-events-none absolute inset-x-0 bottom-0 h-[57%] bg-gradient-to-b from-transparent via-[rgba(10,8,6,0.5)] to-[rgba(10,8,6,0.82)]" />
+                <p className="pointer-events-none absolute inset-x-[8%] bottom-[14%] text-center text-2xs font-bold leading-snug text-white [text-shadow:0_1px_3px_rgba(0,0,0,.55),0_0_14px_rgba(0,0,0,.75)] lg:text-sm">
+                  {passageCaption(section)}
+                </p>
+              </>
             )}
           </>
         )}
@@ -85,7 +102,7 @@ export function ReelStage({ spoken, clips, page, goTo, player, focus = 0, mp4Url
 
       <div className="min-w-0 flex-1 space-y-2 lg:w-full lg:flex-none">
         <p className="text-2xs text-muted-foreground lg:text-center">
-          {showVideo ? (player ? "Aperçu de ton reel" : "Ta vidéo") : "L’image de ce passage, avec son texte"}
+          {showVideo ? (player ? "Aperçu de ton reel" : "Ta vidéo") : "La vidéo de ce passage, avec son texte"}
         </p>
         <nav aria-label="Passages du reel" className="flex flex-wrap items-center gap-1.5 lg:justify-center">
           {spoken.map((_, i) => {

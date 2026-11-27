@@ -144,6 +144,14 @@ export default function HookSelectionStep({
         <p role="alert" data-testid="hooks-error" className="text-sm text-muted-foreground">
           {error || "Je n'ai pas réussi à préparer les angles d'attaque."}
         </p>
+        {/* Le choix « Je me filme / Je ne me montre pas » reste posé ici aussi : sans
+            lui, « Continuer sans choisir » écrivait un plan face caméra sans jamais
+            l'avoir demandé (Loom du 27/11/2026). Le changer relance les angles. */}
+        {onFaceCamChange && (
+          <div className="flex justify-center [&_[role=radiogroup]]:justify-center">
+            <FaceCamChoice faceCam={faceCam} onChange={onFaceCamChange} />
+          </div>
+        )}
         <div className="flex items-center justify-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={onRefresh} disabled={refreshing}>
             {refreshing ? (

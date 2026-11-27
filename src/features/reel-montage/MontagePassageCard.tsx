@@ -81,7 +81,7 @@ export function MontagePassageCard({ s, i, total = 1, montageMode, clips, setCli
           {voiceSlot}
         </div>
       )}
-      <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{montageMode === "filme" ? "Ta vidéo" : "L’image"}</p>
+      <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{montageMode === "filme" ? "Ta vidéo" : "La vidéo"}</p>
 
       {montageMode === "cache" && (
         <>

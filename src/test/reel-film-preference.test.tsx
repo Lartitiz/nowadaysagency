@@ -42,4 +42,13 @@ describe("pastilles de l'écran des accroches", () => {
     fireEvent.click(screen.getByTestId("reel-face-cam-non"));
     expect(onFaceCamChange).toHaveBeenCalledWith("non");
   });
+
+  it("restent sur l'écran « pas réussi à préparer les angles » (Loom du 27/11/2026)", () => {
+    const onFaceCamChange = vi.fn();
+    render(<HookSelectionStep hooks={[]} loading={false} error="Je n'ai pas réussi à préparer les angles d'attaque." onSelect={noop} onSkip={noop} onRefresh={noop} onBack={noop} faceCam="oui" onFaceCamChange={onFaceCamChange} />);
+    expect(screen.getByTestId("hooks-error")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("reel-face-cam-non"));
+    expect(onFaceCamChange).toHaveBeenCalledWith("non");
+    expect(screen.getByRole("button", { name: /Continuer sans choisir/ })).toBeInTheDocument();
+  });
 });
