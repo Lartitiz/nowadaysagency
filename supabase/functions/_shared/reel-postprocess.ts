@@ -445,6 +445,7 @@ export function reelOverlayInText(overlay: string, text: string): boolean {
 
 const PARTICIPE_RE = /^\p{L}+(?:é|ée|és|ées|i|ie|is|ies|ise|ises|it|ite|its|ites|u|ue|us|ues|ert|erte|erts|ertes|int|inte|ints|ait|aite|aits)$/iu;
 const DETERMINANT_RE = /^(?:le|la|les|l'\p{L}*|un|une|des|mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|votre|vos|leur|leurs|ce|cet|cette|ces)$/iu;
+const ADVERBE_RE = /^(?:déjà|bien|enfin|encore|tout|toute|toutes|juste|presque|même|pas)$/iu;
 const SUJET_OU_AUXILIAIRE_RE = /(?<![\p{L}])(?:je|j'|tu|il|elle|on|nous|vous|ils|elles|c'|ça|est|sont|a|ont|avait|avaient|était|étaient)(?![\p{L}])/iu;
 
 /**
@@ -464,7 +465,11 @@ export function findWrittenParticipleLists(text: string): string[] {
       const all = clean.split(/\s+/);
       // Un déterminant devant le nom (« la recette testée ») ne compte pas.
       const words = DETERMINANT_RE.test(all[0] ?? "") ? all.slice(1) : all;
-      const ok = words.length >= 2 && words.length <= 5 && PARTICIPE_RE.test(words[1]) && !SUJET_OU_AUXILIAIRE_RE.test(clean);
+      // Le participe suit le nom, parfois après un adverbe (« étiquettes déjà imprimées »)
+      // ou un complément du nom (« date de livraison calée ») : 2e au 4e mot.
+      const sansAdverbe = words.filter((w, i) => i === 0 || !ADVERBE_RE.test(w));
+      const participe = sansAdverbe.slice(1, 4).some((w) => PARTICIPE_RE.test(w));
+      const ok = sansAdverbe.length >= 2 && sansAdverbe.length <= 6 && participe && !SUJET_OU_AUXILIAIRE_RE.test(clean);
       if (ok) run.push(item); else flush();
     }
     flush();
