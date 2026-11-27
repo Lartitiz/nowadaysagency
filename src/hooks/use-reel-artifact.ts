@@ -35,7 +35,10 @@ export function useReelArtifact({ result, workspaceId, creationId, ps, saveFlowS
   useEffect(() => { saveFlowState({ reelMp4Url, reelSourceKey: reelSource }); }, [reelMp4Url, reelSource]);
   // Reel repris du calendrier (calendar-reel-resume.ts) : sa vidéo montée revient,
   // une seule fois, et seulement pour le script qui l'a produite.
-  const resumedMp4 = result?.raw?._reel_resume;
+  // Reel rouvert depuis Mes idées dans un autre onglet (27/11/2026) : la vidéo est gardée
+  // avec le contenu (`montage_mp4`, écrit par ReelResult), plus seulement dans l'onglet.
+  const savedMp4 = result?.raw?.montage_mp4;
+  const resumedMp4 = result?.raw?._reel_resume ?? (savedMp4?.url ? { mp4: savedMp4.url, source: savedMp4.source } : undefined);
   const resumeApplied = useRef<string | null>(null);
   useEffect(() => {
     if (!resumedMp4 || resumedMp4.source !== reelSource || !isDurableReelUrl(resumedMp4.mp4) || resumeApplied.current === resumedMp4.mp4) return;
