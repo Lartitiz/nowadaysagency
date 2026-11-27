@@ -134,6 +134,30 @@ export interface StoryFrameBranding extends StoryStyleSettings {
   color_text?: string | null;
 }
 
+/**
+ * La charte telle qu'elle est en base → ce que le dessin d'une story en lit.
+ * SEUL endroit qui fait ce tri : l'atelier, l'export, le calendrier et « Mes
+ * idées » passent tous par ici, pour que l'aperçu et l'image exportée ne
+ * puissent pas diverger. Nouveau réglage « Stories » de la charte = une ligne
+ * ici (test : src/test/story-branding-from-charter.test.ts).
+ * Réglages absents (charte d'avant la migration) : le dessin retombe sur ses
+ * valeurs par défaut.
+ */
+export function storyBrandingFromCharter(charter: unknown): StoryFrameBranding | null {
+  if (!charter || typeof charter !== "object") return null;
+  const c = charter as Record<string, any>;
+  return {
+    color_primary: c.color_primary,
+    color_secondary: c.color_secondary,
+    color_background: c.color_background,
+    color_text: c.color_text,
+    story_assemblage: c.story_assemblage ?? null,
+    story_pill_color: c.story_pill_color ?? null,
+    story_corners: c.story_corners ?? null,
+    story_align: c.story_align ?? null,
+  };
+}
+
 export interface StoryFrameOptions {
   /** URL (https ou data:) de la photo attachée, utilisée comme fond des gabarits photo. */
   photoUrl?: string | null;

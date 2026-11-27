@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useBrandCharter } from "@/hooks/use-branding";
-import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
+import { buildStoryFrameHtml, storyBrandingFromCharter } from "@/lib/story-visual";
 import { exportStoryPng } from "@/lib/export-carousel-png";
 import { exportStoryPptx } from "@/lib/export-story-pptx";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
@@ -47,21 +47,7 @@ export function useStoryExport(
 ): StoryExportApi {
   const list = useMemo(() => (Array.isArray(stories) ? stories : []), [stories]);
   const { data: charter } = useBrandCharter();
-  const branding: StoryFrameBranding | null = charter
-    ? {
-        color_primary: charter.color_primary,
-        color_secondary: charter.color_secondary,
-        color_background: charter.color_background,
-        color_text: charter.color_text,
-        // Réglages « Stories » de la charte (assemblage, pastilles, coins,
-        // alignement) — absents tant que la migration n'est pas passée : le
-        // renderer retombe alors sur l'assemblage A.
-        story_assemblage: charter.story_assemblage ?? null,
-        story_pill_color: charter.story_pill_color ?? null,
-        story_corners: charter.story_corners ?? null,
-        story_align: charter.story_align ?? null,
-      }
-    : null;
+  const branding = storyBrandingFromCharter(charter);
 
   // photo_id bibliothèque → URL signée, résolue à l'affichage (jamais persistée).
   const [libraryUrls, setLibraryUrls] = useState<Map<string, string>>(new Map());
