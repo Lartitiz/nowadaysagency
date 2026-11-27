@@ -40,7 +40,12 @@ const EDGE_MAX_SPEED = 16;
  * De combien de pixels faire défiler la page à cette image, pour un pointeur à la hauteur `y` :
  * négatif près du haut, positif près du bas, 0 ailleurs. Plus on est près du bord, plus ça va vite.
  */
-export function edgeScrollSpeed(y: number, viewportHeight: number): number {
+export function edgeScrollSpeed(y: number, viewportHeight: number, ends?: { top: number; bottom: number } | null): number {
+  // `ends` = le haut de la première vignette et le bas de la dernière. Une fois la vignette du
+  // bout entièrement sortie de la bande, il n'y a plus rien à aller chercher : on s'arrête là
+  // (sans ça, la page descendait jusqu'à sa toute fin, vu en ligne le 27/11/2026).
+  if (ends && y < EDGE_TOP && ends.top >= EDGE_TOP) return 0;
+  if (ends && viewportHeight - y < EDGE_BOTTOM && ends.bottom <= viewportHeight - EDGE_BOTTOM) return 0;
   if (y < EDGE_TOP) return -Math.ceil((Math.min(EDGE_TOP - y, EDGE_TOP) / EDGE_TOP) * EDGE_MAX_SPEED);
   const fromBottom = viewportHeight - y;
   if (fromBottom < EDGE_BOTTOM) return Math.ceil((Math.min(EDGE_BOTTOM - fromBottom, EDGE_BOTTOM) / EDGE_BOTTOM) * EDGE_MAX_SPEED);
@@ -65,6 +70,8 @@ export interface ThumbReorder {
    * (la rangée du carrousel tient à l'écran).
    */
   edgeScroll?: MutableRefObject<{ raf: number; x: number; y: number }>;
+  /** Haut de la première vignette et bas de la dernière, à l'écran : le défilement s'arrête quand le bout est visible. */
+  thumbEnds?: () => { top: number; bottom: number } | null;
 }
 
 /** Les quatre réactions à poser sur la vignette `i`. */
@@ -98,7 +105,7 @@ export function thumbDragHandlers(r: ThumbReorder, i: number) {
           // et la place d'arrivée suit (le pointeur ne bouge pas, ce sont les vignettes qui passent).
           const tick = () => {
             if (!r.thumbDrag.current) { edge.raf = 0; return; }
-            const speed = edgeScrollSpeed(edge.y, window.innerHeight);
+            const speed = edgeScrollSpeed(edge.y, window.innerHeight, r.thumbEnds?.());
             if (speed) {
               window.scrollBy(0, speed);
               r.setDropAt(Math.min(r.thumbIndexAt(edge.x, edge.y), r.count() - 1));
@@ -163,6 +170,11 @@ export function useThumbReorder({ selector, axis = "auto", count, reorder, scrol
     count: () => latest.current.count,
     reorder: (from, to) => latest.current.reorder(from, Math.min(to, latest.current.count - 1)),
     edgeScroll: scrollAtEdges ? edgeScroll : undefined,
+    thumbEnds: () => {
+      const thumbs = window.document.querySelectorAll<HTMLElement>(selector);
+      if (!thumbs.length) return null;
+      return { top: thumbs[0].getBoundingClientRect().top, bottom: thumbs[thumbs.length - 1].getBoundingClientRect().bottom };
+    },
   };
   return { api, dragSlide, dropAt };
 }
