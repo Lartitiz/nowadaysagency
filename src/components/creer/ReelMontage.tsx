@@ -165,7 +165,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-6">
-          <ReelStage spoken={spoken} clips={clips} page={page} goTo={goTo} focus={previewFocus}
+          <ReelStage spoken={spoken} clips={clips} page={page} goTo={goTo} focus={previewFocus} searching={loading}
             player={preview ? <HyperframesPlayer html={preview.html} /> : undefined}
             mp4Url={phase !== "rendering" ? mp4Url : null} />
 

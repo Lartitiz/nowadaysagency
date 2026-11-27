@@ -507,7 +507,10 @@ describe("ReelMontage — atelier du 26/11/2026 : la vidéo à gauche, un passag
     // Une vignette change le passage affiché à droite ; un passage sans image le dit.
     fireEvent.click(within(stage).getByRole("button", { name: "Passage 2" }));
     expect(screen.getByText("Passage 2 sur 2")).toBeInTheDocument();
-    expect(within(stage).getByText("Choisis l’image de ce passage")).toBeInTheDocument();
+    expect(within(stage).getByText(/Choisis la vidéo de ce passage|Je cherche des vidéos pour ce passage/)).toBeInTheDocument();
+    // Le texte du passage a le même voile sombre que la vidéo assemblée (lisible sur un clip clair).
+    fireEvent.click(within(stage).getByRole("button", { name: /Passage 1/ }));
+    expect(within(stage).getByTestId("reel-stage-shade")).toBeInTheDocument();
   });
 
   it("sans voix : pas de bloc « Ta voix » ; l'aperçu s'ouvre dans la scène, les retouches à droite", async () => {
