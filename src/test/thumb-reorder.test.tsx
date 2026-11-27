@@ -7,7 +7,7 @@ import React, { useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import StoryResult from "@/components/creer/formatRenderers/StoryResult";
-import { thumbIndexAt } from "@/components/creer/thumb-reorder";
+import { thumbClick, thumbDragHandlers, thumbIndexAt, type ThumbReorder } from "@/components/creer/thumb-reorder";
 
 vi.mock("@/hooks/use-branding", () => ({ useBrandCharter: () => ({ data: null }) }));
 vi.mock("@/hooks/use-user-photos", () => { const data: unknown[] = []; return { useUserPhotos: () => ({ data }) }; });
@@ -104,6 +104,31 @@ describe("stories : glisser une vignette pour changer l'ordre", () => {
     fireEvent.pointerMove(thumbs[2], { clientX: 10, clientY: 50, pointerId: 1 });
     fireEvent.pointerUp(thumbs[2], { clientX: 10, clientY: 50, pointerId: 1 });
     expect(saved()).toEqual(["Première", "Deuxième", "Troisième"]);
+  });
+});
+
+describe("le clic qui suit un glissé", () => {
+  const pointer = (x: number, y: number) => ({ clientX: x, clientY: y, pointerId: 1, currentTarget: { setPointerCapture() {} } }) as any;
+  function gesture() {
+    const r: ThumbReorder = {
+      thumbDrag: { current: null }, justDragged: { current: false },
+      setDragSlide: () => {}, setDropAt: () => {}, thumbIndexAt: () => 3, count: () => 4, reorder: vi.fn(),
+    };
+    const h = thumbDragHandlers(r, 0);
+    h.onPointerDown(pointer(0, 0)); h.onPointerMove(pointer(40, 0)); h.onPointerUp(pointer(300, 0));
+    return r;
+  }
+  it("le clic qui termine le glissé n'ouvre rien", () => {
+    const r = gesture(); const open = vi.fn();
+    thumbClick(r, open)();
+    expect(open).not.toHaveBeenCalled();
+    expect(r.reorder).toHaveBeenCalledWith(0, 2);
+  });
+  it("si ce clic n'arrive pas (vignette déplacée dans la page), le clic suivant n'est pas avalé", async () => {
+    const r = gesture(); const open = vi.fn();
+    await new Promise((done) => setTimeout(done, 5));
+    thumbClick(r, open)();
+    expect(open).toHaveBeenCalledTimes(1);
   });
 });
 

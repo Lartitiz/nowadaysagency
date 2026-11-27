@@ -69,6 +69,12 @@ export function thumbDragHandlers(r: ThumbReorder, i: number) {
       stop();
       if (d?.moved) {
         r.justDragged.current = true;
+        // Le clic qui termine le glissé arrive juste après ce relâché, et remet le repère à zéro.
+        // Mais il n'arrive pas toujours : quand la vignette glissée change de place dans la page
+        // (carrousel, glissé vers la fin), le navigateur ne l'envoie pas, et le clic SUIVANT était
+        // avalé (il fallait cliquer deux fois, vu en ligne le 27/11/2026). On le remet donc à zéro
+        // nous-mêmes, juste après le tour où ce clic aurait dû passer.
+        setTimeout(() => { r.justDragged.current = false; }, 0);
         const at = r.thumbIndexAt(e.clientX, e.clientY);
         r.reorder(d.from, at > d.from ? at - 1 : at);
       }
