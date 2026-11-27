@@ -25,7 +25,7 @@
  * de la vaisselle. Il imprime `🧹 … : OK` / `KO <raison>` et laisse le verdict
  * du test intact.
  */
-import type { Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -98,8 +98,11 @@ export async function tokenCamille(): Promise<string | null> {
 }
 
 export interface TraceurCreations {
-  /** À brancher sur la page AVANT toute navigation. */
-  branche(page: Page): void;
+  /**
+   * À brancher AVANT toute navigation, sur la page ou sur le contexte entier
+   * (toutes les pages et fenêtres du test : c'est ce que fait test-propre.ts).
+   */
+  branche(cible: Page | BrowserContext): void;
   /** Filet : l'app redirige vers `/calendrier?date=…&post=<id>` après la pose. */
   ajouteDepuisUrl(url: string): void;
   /** Lignes créées, dédoublonnées (attend les lectures de corps en cours). */
@@ -126,13 +129,26 @@ export function traceurDeCreations(): TraceurCreations {
   };
 
   return {
-    branche(page: Page) {
-      page.on("response", (r) => {
-        if (r.request().method() !== "POST") return;
+    branche(cible: Page | BrowserContext) {
+      (cible as Page).on("response", (r) => {
+        const req = r.request();
+        if (req.method() !== "POST") return;
         if (r.status() < 200 || r.status() >= 300) return;
         const m = r.url().match(/\/rest\/v1\/([a-z_]+)(?:\?|$)/);
         if (!m || !TABLES_NETTOYABLES.has(m[1])) return;
+        // Garde-fou : un POST « resolution=… » peut RÉÉCRIRE une ligne qui
+        // existait avant le run. On ne trace que les créations franches.
+        if (/resolution=/.test(req.headers()["prefer"] || "")) return;
         const table = m[1];
+        // L'app fournit parfois l'id elle-même (brouillon de carrousel) et ne
+        // demande pas toujours la ligne en retour : l'id envoyé par le run,
+        // accepté par la base, vaut autant que l'id renvoyé.
+        try {
+          const envoye = JSON.parse(req.postData() || "null");
+          for (const row of Array.isArray(envoye) ? envoye : [envoye]) ajoute(table, row?.id);
+        } catch {
+          /* corps illisible : on s'en tient à la réponse */
+        }
         enCours.push(
           r
             .json()

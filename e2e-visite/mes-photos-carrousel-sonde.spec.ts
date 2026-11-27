@@ -8,7 +8,7 @@
  * des photos signées ne se voyaient qu'en ligne.
  * Aucun appel d'IA ne part : toute fonction de génération est coupée.
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./test-propre";
 
 async function versCarrousel(page: Page) {
   await page.goto("/creer?new=1", { waitUntil: "networkidle" });

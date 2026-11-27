@@ -9,7 +9,7 @@
  * 3. compteur de crédits → « Il te reste ce mois-ci » par type ;
  * 4. Studio en panne (500 avec un code technique) → aucun code affiché.
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./test-propre";
 
 const TECHNIQUE = /Failed to fetch|Edge Function|non-2xx|TypeError|undefined|internal_boom/i;
 

@@ -16,7 +16,7 @@
  *
  * Coût ~1 crédit → à la demande uniquement : FORCE_NEWSLETTER_LIVE=1.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test-propre";
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";

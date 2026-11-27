@@ -16,7 +16,7 @@
  * - le bouton « 🔄 Réessayer » est présent
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test-propre";
 
 test.describe("429 pendant la génération", () => {
   test.skip(({ viewport }) => (viewport?.width ?? 0) < 1024, "desktop uniquement");

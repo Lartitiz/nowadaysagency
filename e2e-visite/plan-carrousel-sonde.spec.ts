@@ -11,7 +11,7 @@
  * Rouge : réponse en erreur, plan vide ou longueur ≠ 10. Ligne 🟡 seulement au-delà
  * de 120 s (normal : 50-65 s ; l'écran attend 170 s depuis #1438).
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test-propre";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";

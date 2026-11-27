@@ -10,7 +10,7 @@
  * Coût réel ~1 crédit → lundi uniquement, ou VISITE_PAYANTE=1. Desktop.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test-propre";
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";

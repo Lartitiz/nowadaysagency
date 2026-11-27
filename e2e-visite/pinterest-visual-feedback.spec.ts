@@ -10,7 +10,7 @@
  * part réellement, comme dans fonctionnel-t1.
  */
 
-import { test, expect, Page } from "@playwright/test";
+import { test, expect, Page } from "./test-propre";
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";

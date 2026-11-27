@@ -17,7 +17,7 @@
  * réels de #415/#420). LÀ il y a des assertions : un défaut = ROUGE export.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test-propre";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";

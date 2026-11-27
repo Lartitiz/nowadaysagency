@@ -11,7 +11,7 @@
  * - La zone sticker de l'aperçu mentionne « à poser dans Instagram »
  */
 
-import { test, expect, Page } from "@playwright/test";
+import { test, expect, Page } from "./test-propre";
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
