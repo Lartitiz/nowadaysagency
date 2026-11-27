@@ -22,6 +22,7 @@ import { COACHING_CHECKLISTS, COACHING_LABELS } from "@/lib/coaching-checklists"
 import Confetti from "@/components/Confetti";
 import { toast } from "sonner";
 import { trackError } from "@/lib/error-tracker";
+import ErrorWithRetry from "@/components/ErrorWithRetry";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import {
   type AIResponse,
@@ -992,13 +993,8 @@ function BrandingCoachingSession({ section, personaId, offerId, focus, onComplet
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-center space-y-4"
             >
-              <p className="text-lg">😅</p>
-              <p className="text-sm text-muted-foreground">{error}</p>
-              <Button onClick={handleRetry} variant="outline" className="rounded-pill gap-2">
-                <RefreshCw className="h-4 w-4" /> Réessayer
-              </Button>
+              <ErrorWithRetry error={error} where="branding.coaching" onRetry={handleRetry} />
             </motion.div>
           ) : currentQuestion ? (
             <motion.div

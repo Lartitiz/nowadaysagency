@@ -51,6 +51,29 @@ describe("describeError", () => {
   });
 });
 
+describe("messages du coaching branding : gardés tels quels, Réessayer présent", () => {
+  it.each([
+    "L'IA a eu un blanc. Ça arrive 😅",
+    "L'IA a besoin d'un petit instant. Attends quelques secondes avant de réessayer 😊",
+    "La génération prend plus de temps que prévu. Réessaie dans quelques instants.",
+    "Connexion perdue. Vérifie ta connexion internet et réessaie.",
+    "Un souci technique est survenu. Réessaie en reformulant ta réponse 😊",
+    "Réponse vide de l'IA. Réessaie.",
+    "Réponse inattendue de l'IA. Réessaie.",
+    "Réponse incomplète de l'IA. Réessaie.",
+    "Quelque chose a coincé. Réessaie.",
+    "La conversation n'a pas pu être chargée. Recharge la page avant de continuer.",
+    "La conversation n'a pas pu être enregistrée. Ta réponse reste ici : réessaie.",
+    "La sauvegarde n'a pas abouti. Tes réponses restent ici : réessaie avant de continuer.",
+    "Le profil est encore indisponible. Réessaie.",
+  ])("%s", (m) => {
+    expect(describeError(m)).toMatchObject({ message: m, retryable: true });
+  });
+  it("session expirée : pas de Réessayer", () => {
+    expect(describeError("Ta session a expiré. Reconnecte-toi pour continuer.")).toMatchObject({ kind: "auth", retryable: false });
+  });
+});
+
 describe("ErrorWithRetry (rendu réel)", () => {
   it("montre la phrase et un bouton Réessayer qui rappelle", () => {
     const onRetry = vi.fn();
