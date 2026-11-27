@@ -15,7 +15,7 @@ import { runWithHeartbeatSSE, clientStillThere, type StatusEmitter } from "../_s
 import { relancerQuestionsSiBesoin } from "../_shared/questions-form.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { livedCaseFromCreativeBody } from "../_shared/lived-case.ts";
-import { attachLivedMaterial } from "../_shared/lived-material.ts";
+import { attachLivedMaterial, fetchPastBriefs } from "../_shared/lived-material.ts";
 import { authoredContentSource } from "../_shared/editorial-voice.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
@@ -45,7 +45,7 @@ export { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAngl
 export { resolveFormatHint, detectFormatFlags } from "./format-flags.ts";
 export { buildHooksPrompt } from "./formats/reel.ts";
 import { logGenerationQualityTelemetry } from "./telemetry.ts";
-import { skipDepthResearch, creativeDepthBlock, runDeepResearchWebSearch } from "./research.ts";
+import { creativeDepthBlock, planDepthResearch, runDeepResearchWebSearch } from "./research.ts";
 export { skipDepthResearch, creativeDepthBlock, runDeepResearchWebSearch } from "./research.ts";
 import { callOptionsForStep } from "./call-options.ts";
 import { detectFormatFlags, personaChannel } from "./format-flags.ts";
@@ -167,7 +167,28 @@ serve(async (req) => {
     // Canal du persona (getUserContext) tiré de la même détection.
     const channelFromType = personaChannel(formatFlags);
 
+    // Préparation en parallèle (27/11/2026) : les lectures qui ne dépendent pas
+    // les unes des autres partent ensemble au lieu de se suivre (~7 s avant le
+    // premier mot du reel). Mêmes lectures, mêmes résultats, même prompt.
+    const debutContexte = Date.now();
+    const echoSubject = typeof context === "string" ? context : undefined;
+    const previousHooksPromise = fetchPreviousHooks(userId, echoSubject, undefined, workspace_id);
+    const livedMaterialEnabled = step === "generate" && (isCaption || isReel || isStories) && !isPhotoMode && livedCaseFromCreativeBody(body).mode === "none";
+    const pastBriefsPromise = livedMaterialEnabled ? fetchPastBriefs(supabase, userId, workspace_id) : null;
     const ctx = await getUserContext(supabase, userId, workspace_id, channelFromType);
+    const contexteLu = Date.now();
+
+    // Recherche « creuser le sujet » lancée dès que la marque est lue : elle
+    // tourne pendant les autres lectures, son bloc est ajouté au prompt plus bas,
+    // à la même place qu'avant.
+    const depthPlan = planDepthResearch({ step, deepResearch, isPhotoMode, isCaption, isLinkedIn, isReel, isStories, body });
+    let rechercheMs: number | null = null;
+    const depthPromise = depthPlan.run
+      ? creativeDepthBlock({ context, newsContext, activity: ctx?.profile?.activite || profile?.activite || "", livedCase: depthPlan.livedCase })
+        .finally(() => { rechercheMs = Date.now() - contexteLu; })
+      : null;
+    // Une erreur avant l'attente ne doit pas laisser une promesse rejetée sans lecteur.
+    depthPromise?.catch(() => {});
 
     // Recent briefs context — fetched server-side as fallback if not provided.
     // Used by `questions` step to avoid repeating angles already covered.
@@ -178,7 +199,7 @@ serve(async (req) => {
 
     // Matière vécue retrouvée (26/11/2026) : post, reel et stories Instagram, sans cas donné pour ce contenu.
     await attachLivedMaterial({ body, ctx, supabase, userId, workspaceId: workspace_id, tag: "creative-flow",
-      enabled: step === "generate" && (isCaption || isReel || isStories) && !isPhotoMode && livedCaseFromCreativeBody(body).mode === "none",
+      enabled: livedMaterialEnabled, fetchBriefs: pastBriefsPromise ? () => pastBriefsPromise : undefined,
       subjectText: [context, angle?.title].filter((v) => typeof v === "string").join("\n"),
       alreadyGiven: authoredContentSource(body) });
 
@@ -316,20 +337,12 @@ serve(async (req) => {
     }
 
     // Recherche « creuser le sujet » pour posts, posts LinkedIn, reels et stories (hors légende photo).
-    if (step === "generate" && !deepResearch && !isPhotoMode && (isCaption || isLinkedIn || isReel || isStories)) {
-      const lived = livedCaseFromCreativeBody(body);
-      if (skipDepthResearch(isStories, lived)) {
-        // Décision de Laetitia (05/10/2026) : des stories sur SON cas ne parlent
-        // que d'elle, sans aucun chiffre de recherche.
-        console.log(`[creative-flow] stories sur son propre cas (${lived.reasons.join(", ")}) — aucune recherche, aucun chiffre de recherche`);
-      } else {
-        if (lived.provided) console.log(`[creative-flow] cas personnel fourni (${lived.reasons.join(", ")}) — ton cas d'abord, recherche en appui`);
-        else if (lived.mode === "news_feeling") console.log(`[creative-flow] actu + ressenti fourni (${lived.reasons.join(", ")}) — son ressenti porte le contenu, recherche en profondeur`);
-        const depthBlock = await creativeDepthBlock({ context, newsContext, activity, livedCase: lived.provided ? lived.answers.join("\n") || String(context || "") : undefined });
-        if (depthBlock) {
-          systemPrompt += depthBlock;
-          researchSource = depthBlock;
-        }
+    // Lancée plus haut (planDepthResearch, research.ts), attendue ici.
+    if (depthPromise) {
+      const depthBlock = await depthPromise;
+      if (depthBlock) {
+        systemPrompt += depthBlock;
+        researchSource = depthBlock;
       }
     }
 
@@ -341,8 +354,7 @@ serve(async (req) => {
     // erreur renvoie [] et ne change rien.
     // ⚠️ AVANT l'aiguillage SSE, jamais dedans : un await de plus une fois le
     // flux ouvert, c'est le deadlock déjà vécu (corps lu DANS le stream).
-    const echoSubject = typeof context === "string" ? context : undefined;
-    const previousHooks = await fetchPreviousHooks(userId, echoSubject, undefined, workspace_id);
+    const previousHooks = await previousHooksPromise;
     if (isStories) {
       // Stories : la redite d'accroche se voit aussi ENTRE sujets (même amorce
       // trois semaines plus tard sur un autre thème) → on ajoute les accroches
@@ -388,6 +400,11 @@ serve(async (req) => {
     // part tout de suite (`draft`) puis la relecture (`correcting`), pour que la
     // cliente lise son brouillon pendant la passe qualité au lieu d'un écran vide.
     const contextePret = Date.now();
+    // Durée de la préparation avant l'écriture (27/11/2026), lisible dans les journaux :
+    // auth + crédit, lecture de la marque, recherche, total avant l'appel au modèle.
+    if (step === "generate") {
+      console.log(JSON.stringify({ type: "generate_duree", format: typeof contentType === "string" ? contentType : "", pipeline_ms: debutContexte - debutRequete, contexte_ms: contexteLu - debutContexte, recherche_ms: rechercheMs, preparation_ms: contextePret - debutRequete }));
+    }
     const produce = async (emitStatus?: StatusEmitter): Promise<Response> => {
     let rawContent: string;
     // Une seule des branches ci-dessous s'exécute → un sink partagé suffit.
