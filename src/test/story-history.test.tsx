@@ -10,10 +10,12 @@ import StoryUndoButtons from "@/components/stories/StoryUndoButtons";
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
+type Row = { champ: string; texte: string };
+
 function setup(automatic?: { current: boolean }) {
   return renderHook(({ epoch }: { epoch: string }) => {
-    const [value, setValue] = useState<{ champ: string; texte: string }>({ champ: "titre", texte: "" });
-    const history = useStoryHistory(value, setValue, epoch, (_prev, next) => next.champ, automatic);
+    const [value, setValue] = useState<Row>({ champ: "titre", texte: "" });
+    const history = useStoryHistory<Row>(value, setValue, epoch, (_prev, next) => next.champ, automatic);
     return { value, setValue, history };
   }, { initialProps: { epoch: "1" } });
 }
