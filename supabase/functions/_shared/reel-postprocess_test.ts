@@ -536,3 +536,32 @@ Deno.test("findWrittenParticipleLists : une phrase normale à virgule n'est pas 
     "Un bijou fini, un colis prêt.",
   ]) assertEquals(findWrittenParticipleLists(t), [], t);
 });
+
+// ═══ Phrase longue sans verbe (reste du Loom, 27/11/2026) ═══
+import { findLongVerblessSentences } from "./reel-postprocess.ts";
+
+Deno.test("findLongVerblessSentences : la phrase nominale de plus de 10 mots est repérée", () => {
+  const t = "Cette texture bizarre, des poches de liquide sous la surface, une odeur qui ne trompe pas.";
+  assertEquals(findLongVerblessSentences(t), [t]);
+  assertEquals(findLongVerblessSentences("Et là, surprise. Un vieux conduit en briques derrière la cloison, des gravats sur trois mètres de long."), ["Un vieux conduit en briques derrière la cloison, des gravats sur trois mètres de long."]);
+  const parsed = { script: [
+    { section: "hook", texte_parle: "J'ai jeté quarante savons la veille de les livrer." },
+    { section: "body", texte_parle: `Au démoulage, j'ai regardé de près. ${t}` },
+  ] };
+  assertEquals(reelChoppyPassages(parsed), [{ section: 2, extraits: [t] }]);
+  assert(reelHookIsChoppy(t));
+});
+
+Deno.test("findLongVerblessSentences : une longue phrase avec un verbe n'est pas signalée", () => {
+  for (const t of [
+    "Et au démoulage, j'ai vu des poches de liquide à l'intérieur de chaque savon.",
+    "Les murs de la cuisine cachaient une surprise, un vieux conduit que personne n'avait vu.",
+    "Le chantier démarre lundi avec toute l'équipe et les deux artisans du coin.",
+    "Un savon qui sort du moule, en vrai, il est pas fini avant six semaines.",
+    "Depuis, j'ajoute le miel à la toute fin, à froid, et je ne promets plus jamais une date.",
+    "Pourquoi une odeur pareille, des poches de liquide, une texture aussi bizarre au démoulage ?",
+    "Cette texture bizarre, des poches de liquide.",
+    "Sur le papier, tout était calé : diagnostic fait, devis signé, planning envoyé aux artisans.",
+    "",
+  ]) assertEquals(findLongVerblessSentences(t), [], t);
+});
