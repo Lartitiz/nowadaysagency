@@ -8,6 +8,7 @@ import type { UserPhotoRow } from "@/lib/photo-storage";
 import { useUploadLibraryPhotos } from "@/hooks/use-user-photos";
 import {
   draftKey,
+  findStudioSessionForPhoto,
   listStudioSessions,
   readDraft,
   type StudioComposition,
@@ -257,6 +258,15 @@ export function useStudioSession({
         creation.current = { id: crypto.randomUUID(), photoId: id };
       }
       try {
+        // Loom du 27/11/2026 : « Modifier la photo » attendait cette recherche
+        // sur la bibliothèque figée avant d'ouvrir le Studio. Elle se fait
+        // maintenant ici, Studio déjà affiché (« Ouverture de la session… ») :
+        // une session déjà ouverte sur cette photo est reprise.
+        const existing = await findStudioSessionForPhoto(workspaceId, id);
+        if (existing) {
+          if (alive.current) navigate(studioPath(existing), { replace: true });
+          return;
+        }
         const result = await studioRequest({
           action: "create",
           workspace_id: workspaceId,
@@ -264,6 +274,9 @@ export function useStudioSession({
           photo_id: id,
         });
         if (alive.current) {
+          // La réponse de « create » est déjà l'état complet de la session :
+          // on la garde pour ne pas la relire aussitôt (un appel de moins).
+          cache.setQueryData(["visual-studio", userId, workspaceId, result.session.id], result);
           writeDraft(
             draftKey(userId, workspaceId, result.session.id),
             draftRef.current,
@@ -281,7 +294,7 @@ export function useStudioSession({
         if (alive.current) setBusy("");
       }
     },
-    [writable, workspaceId, userId, navigate, studioPath],
+    [writable, workspaceId, userId, navigate, studioPath, cache],
   );
   useEffect(() => {
     if (photoId && !sessionId && !sourceInit.current && writable) {

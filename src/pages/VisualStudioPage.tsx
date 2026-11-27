@@ -369,6 +369,7 @@ function Studio({
                   writable={writable}
                   busy={busy}
                   pendingMessage={pendingMessage}
+                  pendingWithImages={attachedReferences.length > 0 || !!selectedId}
                   generating={generating}
                   mutate={mutate}
                   onRetryVersion={(id) => void retryFailedVersion(id)}
@@ -463,6 +464,7 @@ function Studio({
                 setPicker={setPicker}
                 sourcePhoto={sourcePhoto}
                 onPrepare={() => void openPreparation()}
+                pendingMessage={pendingMessage}
               />
         </>
       </div>

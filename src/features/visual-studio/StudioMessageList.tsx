@@ -6,11 +6,12 @@
 // le tiroir d'outils restent construits par la page (`proposalCard`,
 // `children`) ; ouvrir l'éditeur d'affiche ou un outil aussi (`onEditComposition`,
 // `onOpenExistingTool`).
-import type { MutableRefObject, ReactNode } from "react";
+import { useRef, type MutableRefObject, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { StudioMessage, StudioProposal, StudioReference, StudioState } from "@/features/visual-studio/api";
 import { cleanStudioSummary } from "@/features/visual-studio/summary";
+import { StudioPendingSteps } from "@/features/visual-studio/StudioPendingSteps";
 
 export function StudioMessageList({
   current,
@@ -31,6 +32,7 @@ export function StudioMessageList({
   onOpenExistingTool,
   proposalCard,
   pendingMessage,
+  pendingWithImages = false,
   children,
 }: {
   current: StudioState | undefined;
@@ -53,8 +55,21 @@ export function StudioMessageList({
   proposalCard: ReactNode;
   /** Message envoyé, pas encore confirmé par le serveur : affiché tout de suite. */
   pendingMessage?: string;
+  /** Des images partent avec le message : l'attente annonce qu'il les regarde. */
+  pendingWithImages?: boolean;
   children?: ReactNode;
 }) {
+  // Loom du 27/11/2026 : une réponse arrivée pendant qu'on regarde se déroule
+  // de haut en bas (~1 s) au lieu de tomber d'un bloc. Seulement ce qui arrive
+  // après l'ouverture : rouvrir une session n'anime rien.
+  const shownAtOpen = useRef<{ id: string; count: number; summary: string | null } | null>(null);
+  if (current && shownAtOpen.current?.id !== current.session.id) {
+    shownAtOpen.current = { id: current.session.id, count: current.session.messages.length, summary: proposal?.summary ?? null };
+  }
+  const arrived = (index: number) =>
+    !!shownAtOpen.current && index >= shownAtOpen.current.count;
+  const proposalArrived = !!proposal && !!shownAtOpen.current &&
+    proposal.summary !== shownAtOpen.current.summary;
   return (
     <>
       {!current && (
@@ -74,7 +89,7 @@ export function StudioMessageList({
           key={m.id || i}
           className={m.role === "user"
             ? "studio-message mine"
-            : "studio-message"}
+            : `studio-message${arrived(i) ? " studio-arrive" : ""}`}
         >
           <span className="block text-xs font-semibold mb-1">
             {m.role === "user" ? "Toi" : "Studio"}
@@ -114,7 +129,7 @@ export function StudioMessageList({
           )}
         </div>
       ))}
-      {proposal && <div className="studio-chat-confirmation">{proposalCard}</div>}
+      {proposal && <div className={`studio-chat-confirmation${proposalArrived ? " studio-arrive" : ""}`}>{proposalCard}</div>}
       {!proposal && readyFollowUp && (
         <div className="studio-message">
           <span className="block text-xs font-semibold mb-1">Studio</span>
@@ -159,7 +174,7 @@ export function StudioMessageList({
           </div>
           <div className="studio-message" role="status">
             <span className="block text-xs font-semibold mb-1">Studio</span>
-            <p><Loader2 className="h-4 w-4 animate-spin inline mr-2" />Je lis ta demande…</p>
+            <StudioPendingSteps withImages={pendingWithImages} />
           </div>
         </>
       )}
