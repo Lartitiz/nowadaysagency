@@ -104,7 +104,7 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
           return;
         }
       }
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setQuestions(data.questions || []);
       setIntro(data.intro || "");
@@ -141,7 +141,7 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
           return;
         }
       }
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setDiagnostic(data);
       const edited: Record<string, string> = {};

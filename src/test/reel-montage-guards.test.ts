@@ -61,7 +61,7 @@ describe("assembleRefusal", () => {
   it("texte à revérifier, puis clip Studio muet en « Je me filme », puis aucun clip", () => {
     expect(assembleRefusal({ needsReview: true, montageMode: "filme", clips: [studio] })).toBe("Vérifie les passages après la modification du texte.");
     expect(assembleRefusal({ needsReview: false, montageMode: "filme", clips: [studio] })).toBe("Un clip du Studio est muet. Choisis une prise face caméra pour porter ta voix, puis ajoute ce clip comme plan.");
-    expect(assembleRefusal({ needsReview: false, montageMode: "cache", clips: [null, null] })).toBe("Choisis au moins un clip avant d'assembler.");
+    expect(assembleRefusal({ needsReview: false, montageMode: "cache", clips: [null, null] })).toBe("Choisis au moins une vidéo avant de fabriquer ton reel.");
   });
 
   it("un clip Studio est accepté en « Je ne me montre pas » ; rien à refuser", () => {
@@ -87,9 +87,9 @@ describe("voiceGuards", () => {
 
   it("phrase enregistrée sans clip : confirmation, singulier et pluriel", () => {
     const one = voiceGuards({ montageMode: "cache", voiceMode: "recorded", chosen: [chosen[0], null], voiceUrls: ["v1", "v2"] });
-    expect(one).toEqual({ confirm: "La phrase 2 est enregistrée mais n'a aucun clip : elle ne sera PAS dans la vidéo, ta voix non plus. Assembler quand même ?", refuse: null });
+    expect(one).toEqual({ confirm: "La phrase 2 est enregistrée mais n'a aucun clip : elle ne sera PAS dans la vidéo, ta voix non plus. Fabriquer la vidéo quand même ?", refuse: null });
     const many = voiceGuards({ montageMode: "cache", voiceMode: "recorded", chosen: [chosen[0], null, null], voiceUrls: ["v1", "v2", "v3"] });
-    expect(many.confirm).toBe("Les phrases 2, 3 sont enregistrées mais n'ont aucun clip : elles ne seront PAS dans la vidéo, ta voix non plus. Assembler quand même ?");
+    expect(many.confirm).toBe("Les phrases 2, 3 sont enregistrées mais n'ont aucun clip : elles ne seront PAS dans la vidéo, ta voix non plus. Fabriquer la vidéo quand même ?");
   });
 });
 

@@ -103,7 +103,7 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
       const { data, error } = await invokeWithTimeout("coaching-module", {
         body: { phase: "questions", module, rec_id: recId, offer_id: offerId, persona_id: personaId, workspace_id: column === "workspace_id" ? workspaceId : undefined },
       }, 120000);
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setQuestions(data.questions || []);
       setIntro(data.intro || conseil || "");
@@ -237,6 +237,7 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
       // Max reached — show message handled in UI
       return;
     }
+    setFailure(null);
     setPhase("adjust");
   };
 

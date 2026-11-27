@@ -1,4 +1,4 @@
-// Rendu de l'écran de montage d'un reel : « Assembler mon reel » (gardes, plan,
+// Rendu de l'écran de montage d'un reel : « Télécharger ma vidéo » (gardes, plan,
 // rendu, archivage chez nous), « Ranger cette vidéo » sans relancer le rendu,
 // téléchargement, et invalidation du MP4 quand une entrée change (jamais au
 // premier rendu). Sorti de ReelMontage.tsx à l'identique (fiche 16 de
@@ -121,38 +121,46 @@ export function useReelRender({ initialMp4Url = null, renderKey, onPhaseChange, 
     return true;
   }
 
-  /** « Assembler mon reel » : aperçu immédiat (sans voix) ou rendu MP4 (autres modes). */
-  async function handleAssemble() {
-    if (!instantPreview) return renderMp4();
-    // Aperçu déjà ouvert pour ces entrées : on le remontre, on ne le refait pas.
+  /**
+   * « Lire tout le reel » (bouton lecture de la scène, tous les modes) : prépare le plan
+   * que joue le lecteur, sans rien fabriquer. Pas de garde de voix ici : on peut regarder
+   * un reel dont il manque des prises, c'est la fabrication qui les exige.
+   */
+  async function openPlayback() {
+    // Déjà prêt pour ces entrées : on le remontre, on ne le refait pas.
     // Le refaire rechargeait le lecteur et tous les clips (« ça ralentit quand je reclique »).
-    if (previewOpen && previewPlan) { setPreviewFocus(n => n + 1); return; }
+    if (previewPlan) { setPreviewOpen(true); setPreviewFocus(n => n + 1); return; }
     if (renderBusy.current || archiveBusy.current) return;
-    if (!passGuards()) return;
+    const chosen = chosenClips(clips);
+    if (!chosen.some(Boolean)) { toast.error("Choisis au moins une vidéo avant de lire ton reel."); return; }
     const generation = activeRender.current.generation;
     renderBusy.current = true;
     setPreparingPreview(true);
     try {
-      const chosen = chosenClips(clips);
       const plan = await buildMontagePlan({ spoken, clips, chosen, cutaways, montageMode, voiceMode, voiceUrls, voiceDurations, charter, workspaceId });
       if (!activeRender.current.mounted || activeRender.current.generation !== generation) return;
       setPreviewPlan(plan);
       setPreviewOpen(true);
+      setPreviewFocus(n => n + 1);
       setErrorMsg("");
       if (phase === "error") setPhase("idle");
     } catch (e) {
-      toast.error(readableError(e, "L’aperçu n’a pas pu se préparer."));
+      toast.error(readableError(e, "Ton reel n’a pas pu se préparer pour la lecture."));
     } finally {
       renderBusy.current = false;
       if (activeRender.current.mounted) setPreparingPreview(false);
     }
   }
 
+  /** « Télécharger ma vidéo » (barre du bas) : fabrique le MP4, le range et le télécharge. */
+  function handleAssemble() {
+    return renderMp4({ download: true });
+  }
+
   /** Fabrique le MP4 (relais Google Cloud ou JSON2Video), le range chez nous, et le télécharge si demandé. */
   async function renderMp4(opts: { download?: boolean } = {}) {
     if (renderBusy.current || archiveBusy.current) return;
-    if (!instantPreview && !passGuards()) return;
-    if (instantPreview && !previewPlan) return;
+    if (!passGuards()) return;
     const generation = activeRender.current.generation;
     const isCurrent = () => activeRender.current.mounted && activeRender.current.generation === generation;
     const chosen = chosenClips(clips);
@@ -165,7 +173,7 @@ export function useReelRender({ initialMp4Url = null, renderKey, onPhaseChange, 
     setErrorMsg("");
     try {
       let project: string;
-      if (instantPreview && previewPlan) {
+      if (instantPreview) {
         // Les liens du Studio expirent : on resigne, puis on applique les retouches de l'aperçu.
         const fresh = await buildMontagePlan({ spoken, clips, chosen, cutaways, montageMode, voiceMode, voiceUrls, voiceDurations, charter, workspaceId });
         const n = fresh.sections.length;
@@ -273,6 +281,6 @@ export function useReelRender({ initialMp4Url = null, renderKey, onPhaseChange, 
     activeRender, handleAssemble, handleArchiveRetry, handleDownload,
     instantPreview, previewPlan: previewOpen ? previewPlan : null, hasPreview: !!previewPlan,
     reopenPreview: () => { if (previewPlan) setPreviewOpen(true); },
-    renderMp4, preparingPreview, previewFocus,
+    renderMp4, preparingPreview, previewFocus, openPlayback,
   };
 }

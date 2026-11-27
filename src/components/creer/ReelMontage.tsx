@@ -22,10 +22,11 @@ import { storedReelFaceCam } from "@/lib/reel-film-preference";
 import { MontageVoiceChoice } from "@/features/reel-montage/MontageVoiceChoice";
 import { StudioClipDialog } from "@/features/reel-montage/StudioClipDialog";
 import { montageRenderKey, savedMontageProject, withTweaksKey } from "@/features/reel-montage/montage-project";
-import { HyperframesPlayer, ReelPreview } from "@/features/reel-montage/ReelPreview";
+import { ReelPreview } from "@/features/reel-montage/ReelPreview";
 import { ReelStage } from "@/features/reel-montage/ReelStage";
 import ReelVoiceRecorder from "@/components/creer/ReelVoiceRecorder";
-import { DEFAULT_TWEAKS, hasInstantPreview, maxDurationsFor, previewComposition, sanitizeTweaks, tweakedPlan, type ReelTweaks } from "@/features/reel-montage/reel-preview";
+import { DEFAULT_TWEAKS, hasInstantPreview, maxDurationsFor, previewComposition, sanitizeTweaks, spokenPlaybackComposition, tweakedPlan, type ReelTweaks } from "@/features/reel-montage/reel-preview";
+import { provisionalCaptions, reelTimeline } from "@/features/reel-montage/reel-timeline";
 import { useReelStockSearch } from "@/features/reel-montage/use-reel-stock-search";
 import { useReelMyVideos } from "@/features/reel-montage/use-reel-my-videos";
 import { useReelStudioReturn } from "@/features/reel-montage/use-reel-studio-return";
@@ -117,16 +118,21 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
     projectCallback.current?.(project);
   }, [montageMode, voiceMode, clips, voiceClips, cutaways, associationTexts, tweaks]);
   const { phase, tick, mp4Url, archived, errorMsg, archiving, downloadFailed, downloading, archiveRetryAvailable,
-    activeRender, handleAssemble, handleArchiveRetry, handleDownload, previewPlan, hasPreview, reopenPreview, renderMp4, instantPreview, preparingPreview, previewFocus } = useReelRender({
+    activeRender, handleAssemble, handleArchiveRetry, handleDownload, previewPlan, hasPreview, reopenPreview, renderMp4, instantPreview, preparingPreview, previewFocus, openPlayback } = useReelRender({
     initialMp4Url, renderKey, previewKey, tweaks, onPhaseChange, onMp4Ready, needsReview, montageMode, voiceMode, spoken, clips, cutaways, voiceUrls, voiceDurations, charter, workspaceId, inputsReady: !charterLoading,
   });
   const maxDurations = maxDurationsFor(clips);
-  const preview = useMemo(() => previewPlan ? previewComposition(previewPlan, tweaks, maxDurations, window.location.origin) : null,
-    // maxDurations découle de clips.
+  // La page du reel entier, jouée par la scène. Sans voix : avec les retouches. Avec une voix
+  // (« Ma voix », « Je me filme ») : les prises posées, sous-titres provisoires (reel-timeline.ts).
+  const preview = useMemo(() => !previewPlan ? null : instantPreview
+    ? previewComposition(previewPlan, tweaks, maxDurations, window.location.origin)
+    : spokenPlaybackComposition(previewPlan, provisionalCaptions(previewPlan, clips, spoken, voiceDurations), window.location.origin),
+    // maxDurations découle de clips ; spoken et voiceDurations changent la clé de l'aperçu, donc previewPlan.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [previewPlan, tweaks, clips]);
+    [previewPlan, tweaks, clips, instantPreview]);
+  const timeline = reelTimeline({ spoken, clips, montageMode, voiceMode, voiceUrls, voiceDurations, tweaks });
   // Passages tels que retouchés (durées), dans l'ordre du script : ce que lit l'IA de « Dis ce que tu veux changer ».
-  const previewPassages = previewPlan
+  const previewPassages = previewPlan && instantPreview
     ? tweakedPlan(previewPlan, { ...sanitizeTweaks(tweaks, previewPlan.sections.length), order: null }, maxDurations).sections
       .map((s) => ({ duration: s.duration, text: s.overlay_text || "" }))
     : [];
@@ -139,7 +145,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
   const ready = clips.filter(Boolean).length;
 
   // Un passage par page (« Passage 2 sur 4 ») : l'écran reste court et
-  // « Assembler mon reel » reste en vue. Le retour du Studio rouvre le bon passage.
+  // « Télécharger ma vidéo » reste en vue. Le retour du Studio rouvre le bon passage.
   const [current, setCurrent] = useState(() => highlightedPassage ?? 0);
   const page = Math.min(current, Math.max(0, spoken.length - 1));
   useEffect(() => { if (highlightedPassage !== null) setCurrent(highlightedPassage); }, [highlightedPassage]);
@@ -149,9 +155,11 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
     if (index !== current) requestAnimationFrame(() => document.getElementById(`studio-reel-passage-${index}`)?.scrollIntoView?.({ block: "nearest" }));
   };
 
+  // Passage dont la voix s'enregistre : la scène joue son image (Loom du 27/11/2026).
+  const [recordingPassage, setRecordingPassage] = useState<number | null>(null);
   const voiceSlot = montageMode === "cache" && voiceMode === "recorded" ? (
     <ReelVoiceRecorder texts={spoken.map((s) => s.texte_parle as string)} initialClips={voiceClips} onVoicesChange={setVoiceClips}
-      index={page} onIndexChange={goTo} />
+      index={page} onIndexChange={goTo} onRecordingChange={setRecordingPassage} />
   ) : undefined;
 
   return (
@@ -166,7 +174,8 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-6">
           <ReelStage spoken={spoken} clips={clips} page={page} goTo={goTo} focus={previewFocus} searching={loading}
-            player={preview ? <HyperframesPlayer html={preview.html} /> : undefined}
+            timeline={timeline} reelHtml={preview?.html ?? null} onPlayAll={() => void openPlayback()} preparing={preparingPreview}
+            onFollow={setCurrent} recording={voiceSlot ? recordingPassage : null}
             mp4Url={phase !== "rendering" ? mp4Url : null} />
 
           <div className="min-w-0 space-y-3 rounded-lg border border-border bg-card p-3 sm:p-4">
@@ -194,12 +203,11 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
               onChange={(e) => handleFileChosen(e.target.files)}
             />
 
-            {preview && (
+            {preview && instantPreview && (
               <ReelPreview duration={preview.duration} tweaks={tweaks} setTweaks={setTweaks} passages={previewPassages}
-                workspaceId={workspaceId} busy={phase === "rendering"}
-                onDownload={() => void renderMp4({ download: true })} onSave={() => void renderMp4()} />
+                workspaceId={workspaceId} busy={phase === "rendering"} onSave={() => void renderMp4()} />
             )}
-            <MontageResult previewOpen={!!preview} preparingPreview={preparingPreview} canReopenPreview={instantPreview && hasPreview && !preview} reopenPreview={reopenPreview} spoken={spoken} ready={ready} phase={phase} archiving={archiving} needsReview={needsReview} handleAssemble={handleAssemble} setAssociationTexts={setAssociationTexts} sectionTexts={sectionTexts} setNeedsReview={setNeedsReview} montageMode={montageMode} voiceMode={voiceMode} clips={clips} tick={tick} errorMsg={errorMsg} mp4Url={mp4Url} downloading={downloading} handleDownload={handleDownload} downloadFailed={downloadFailed} archived={archived} archiveRetryAvailable={archiveRetryAvailable} handleArchiveRetry={handleArchiveRetry} />
+            <MontageResult previewOpen={!!preview && instantPreview} canReopenPreview={instantPreview && hasPreview && !preview} reopenPreview={reopenPreview} spoken={spoken} ready={ready} phase={phase} archiving={archiving} needsReview={needsReview} handleAssemble={handleAssemble} setAssociationTexts={setAssociationTexts} sectionTexts={sectionTexts} setNeedsReview={setNeedsReview} montageMode={montageMode} voiceMode={voiceMode} clips={clips} tick={tick} errorMsg={errorMsg} mp4Url={mp4Url} downloading={downloading} handleDownload={handleDownload} downloadFailed={downloadFailed} archived={archived} archiveRetryAvailable={archiveRetryAvailable} handleArchiveRetry={handleArchiveRetry} />
           </div>
         </div>
       )}

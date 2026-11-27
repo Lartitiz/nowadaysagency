@@ -63,6 +63,8 @@ Là où on voit le texte avant la fin. Trois façons d'appeler depuis le front :
 | Pinterest texte | `generateStream` → `streamDefaultPostSSE` | texte qui s'écrit | oui |
 | Questions, accroches du reel | `invokeWithTimeout` | écran d'attente | non (étapes gratuites) |
 
+**La fiche par format** (`src/features/creer/format-sheets.ts`, 27/11/2026) reprend ce tableau et le complète, format par format : fonction des questions, fonction d'écriture, façon d'appeler, fil de l'eau, enregistrement tout seul dans Mes idées, règles d'écriture du socle. `src/test/format-sheets.test.ts` relit le vrai code et échoue si une case ne dit plus la vérité, ou si un « non » n'a pas sa raison. Tu changes le chemin d'un format (appel, brouillon, sauvegarde) : mets sa fiche à jour dans la même PR.
+
 Le `switch` du hook (`case "story"`, `"post"`, `"linkedin"` de `generate()`) n'est pas le chemin de /creer pour post, LinkedIn, newsletter et Pinterest : `use-do-generate.ts` les envoie à `generateStream`. Les évènements `draft` d'un format ne sont jamais lus pour un autre : serveur `formats/<format>.ts` (suivi du JSON pendant l'écriture), front un composant d'aperçu par format.
 
 ---

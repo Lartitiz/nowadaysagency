@@ -1,4 +1,4 @@
-// Gardes de « Assembler mon reel » (écran ReelMontage). Sorties de
+// Gardes de la fabrication (« Télécharger ma vidéo », avant le 27/11/2026 « Assembler mon reel ») (écran ReelMontage). Sorties de
 // handleAssemble à l'identique (fiche 16 de docs/robustesse/gros-fichiers.md,
 // lot 3), messages compris (apostrophes droites et typographiques telles
 // quelles). Le toast et le window.confirm restent dans le composant.
@@ -21,7 +21,7 @@ export function assembleRefusal({ needsReview, montageMode, clips }:
   if (montageMode === "filme" && clips.some(clip => clip?.source === "photo")) {
     return "Ta photo de départ ne porte pas ta voix. Pour « Je me filme », remplace-la par une prise face caméra.";
   }
-  if (!chosenClips(clips).some(Boolean)) return "Choisis au moins un clip avant d'assembler.";
+  if (!chosenClips(clips).some(Boolean)) return "Choisis au moins une vidéo avant de fabriquer ton reel.";
   return null;
 }
 
@@ -38,8 +38,8 @@ export function voiceGuards({ montageMode, voiceMode, chosen, voiceUrls }:
   const orphans = sectionsWithVoiceButNoClip(chosen, voiceUrls);
   const list = orphans.join(", ");
   const confirm = orphans.length === 0 ? null : orphans.length === 1
-    ? `La phrase ${list} est enregistrée mais n'a aucun clip : elle ne sera PAS dans la vidéo, ta voix non plus. Assembler quand même ?`
-    : `Les phrases ${list} sont enregistrées mais n'ont aucun clip : elles ne seront PAS dans la vidéo, ta voix non plus. Assembler quand même ?`;
+    ? `La phrase ${list} est enregistrée mais n'a aucun clip : elle ne sera PAS dans la vidéo, ta voix non plus. Fabriquer la vidéo quand même ?`
+    : `Les phrases ${list} sont enregistrées mais n'ont aucun clip : elles ne seront PAS dans la vidéo, ta voix non plus. Fabriquer la vidéo quand même ?`;
   const missing = countSectionsWithoutVoice(chosen, voiceUrls);
   const refuse = missing === 0 ? null : missing === 1
     ? "Enregistre la voix de cette phrase, ou choisis « Sans voix » pour monter un reel muet."

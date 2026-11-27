@@ -537,6 +537,17 @@ Deno.test("findWrittenParticipleLists : une phrase normale à virgule n'est pas 
   ]) assertEquals(findWrittenParticipleLists(t), [], t);
 });
 
+Deno.test("finalizeReelScript : `sections` recopié depuis `script` quand le modèle ne l'écrit pas (27/11/2026)", () => {
+  const parsed: any = { script: [
+    { section: "hook", texte_parle: "J'ai jeté quarante savons.", texte_overlay: "quarante savons" },
+    { section: "cta", texte_parle: "Maintenant j'attends le démoulage.", texte_overlay: "j'attends le démoulage" },
+  ] };
+  assertEquals(parsed.sections, undefined);
+  finalizeReelScript(parsed, null);
+  assertEquals(parsed.sections, parsed.script);
+  assertEquals(parsed.sections.length, 2);
+});
+
 // ═══ Phrase longue sans verbe (reste du Loom, 27/11/2026) ═══
 import { findLongVerblessSentences } from "./reel-postprocess.ts";
 

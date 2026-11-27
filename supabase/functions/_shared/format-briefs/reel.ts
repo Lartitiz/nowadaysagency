@@ -507,7 +507,6 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
       "tip": null
     }
   ],
-  "sections": "DUPLIQUE ICI le contenu du tableau script (mêmes objets, même ordre) pour compat UI ReelResult",
   "caption": {
     "text": "...",
     "cta": "..."
@@ -554,7 +553,6 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
 IMPORTANT :
 - Total des texte_parle : 130 mots au plus (55 secondes). Au-delà, le reel ne peut pas être monté.
 - Le tableau "script" doit avoir entre ${REEL_SECTIONS.min} et ${REEL_SECTIONS.max} sections (hook + body segments + cta), une idée par section
-- DUPLIQUE le contenu de "script" dans un champ "sections" (même structure) pour compat UI
 - Chaque section body a une indication de cut
 - Le texte overlay est COURT (3-8 mots), extrait mot pour mot du texte_parle de sa section, sans majuscules imposées
 - ${REEL_COUVERTURE}

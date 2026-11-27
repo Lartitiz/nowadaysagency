@@ -5,6 +5,7 @@
 import { buildReelComposition } from "../../../supabase/functions/reel-render/hyperframes.ts";
 import { applyCut, lookOf, sanitizeTweaks, type ReelTweaks } from "../../../supabase/functions/reel-render/tweaks.ts";
 import type { RenderPlan } from "@/lib/reel-plan";
+import type { CaptionWord } from "../../../supabase/functions/reel-render/captions.ts";
 import type { MontageMode, SelectedClip } from "./types";
 
 export type { ReelTweaks } from "../../../supabase/functions/reel-render/tweaks.ts";
@@ -40,5 +41,19 @@ export function previewComposition(plan: RenderPlan, tweaks: ReelTweaks, maxDura
     look: lookOf(sanitizeTweaks(tweaks, plan.sections.length)),
     assetBase: `${origin.replace(/\/$/, "")}/reel-assets/`,
     brand: plan.brand,
+  });
+}
+
+/**
+ * Lecture du reel entier avec une voix (« Ma voix », « Je me filme ») : même page de
+ * montage que la fabrication, avec des sous-titres provisoires (reel-timeline.ts).
+ * Sans aucune piste de voix, on coupe la nappe sonore : elle n'est pas à ce volume dans la vidéo finale.
+ */
+export function spokenPlaybackComposition(plan: RenderPlan, captions: CaptionWord[][], origin: string) {
+  return buildReelComposition(plan, {
+    look: captions.length ? undefined : { sounds: false },
+    assetBase: `${origin.replace(/\/$/, "")}/reel-assets/`,
+    brand: plan.brand,
+    captions,
   });
 }
