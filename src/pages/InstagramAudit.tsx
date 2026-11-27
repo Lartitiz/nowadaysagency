@@ -344,7 +344,6 @@ function InstagramAuditForm() {
       // Check for retryable errors from backend
       if (res.data?.error && res.data?.retryable && retryCount < 1) {
         console.log("[Audit] Retryable error, auto-retrying in 3s...", res.data.error);
-        setLoadingMsg("⏳ L'IA met un peu plus de temps que prévu, on réessaie...");
         await new Promise(r => setTimeout(r, 3000));
         if (!active.current) return;
         return handleSubmit(form, retryCount + 1, live);
@@ -438,7 +437,6 @@ function InstagramAuditForm() {
       const isTransient = /surchargée|trop de temps|timeout|abort|504|503|529|429/i.test(errStr);
       if (isTransient && retryCount < 1) {
         console.log("[Audit] Transient error, auto-retrying in 3s...", errStr);
-        setLoadingMsg("⏳ L'IA met un peu plus de temps que prévu, on réessaie...");
         await new Promise(r => setTimeout(r, 3000));
         if (!active.current) return;
         return handleSubmit(form, retryCount + 1, live);
