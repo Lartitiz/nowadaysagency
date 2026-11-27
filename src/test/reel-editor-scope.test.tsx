@@ -34,3 +34,16 @@ it('reel repris du calendrier : la vidéo montée revient si le script est le m�
  const {result:r2}=renderHook(p=>useActualEditor(p),{initialProps:{result:{raw:other},workspaceId:'A',creationId:'c2',ps:null,saveFlowState}});
  expect(r2.current.reelMp4Url).toBeNull();
 });
+
+it('reel rouvert depuis Mes idées dans un autre onglet : la vidéo gardée avec le contenu revient, jamais pour un autre script',()=>{
+ const saveFlowState=vi.fn();
+ const saved={...raw,montage_mp4:{url:video,source:reelSourceKey(raw)}};
+ const {result}=renderHook(p=>useActualEditor(p),{initialProps:{result:{raw:saved},workspaceId:'A',creationId:'c3',ps:null,saveFlowState},wrapper:StrictMode});
+ expect(result.current.reelMp4Url).toBe(video);
+ const other={sections:[{texte_parle:'Script B'}],montage_mp4:{url:video,source:reelSourceKey(raw)}};
+ const {result:r2}=renderHook(p=>useActualEditor(p),{initialProps:{result:{raw:other},workspaceId:'A',creationId:'c4',ps:null,saveFlowState}});
+ expect(r2.current.reelMp4Url).toBeNull();
+ const cleared={...raw,montage_mp4:null};
+ const {result:r3}=renderHook(p=>useActualEditor(p),{initialProps:{result:{raw:cleared},workspaceId:'A',creationId:'c5',ps:null,saveFlowState}});
+ expect(r3.current.reelMp4Url).toBeNull();
+});

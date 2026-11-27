@@ -194,6 +194,21 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
   // l'identité peut changer à chaque rendu du parent, ce qui bloquerait tout
   // le monde à l'étape 1).
   const sourceKey = reelSourceKey(result);
+  // Dernière version du reel envoyée au parent : le montage et la vidéo s'enregistrent
+  // parfois dans le même instant, chacun doit partir de l'autre et pas d'une copie ancienne.
+  const latestResult = useRef(result);
+  latestResult.current = result;
+  const pushResult = (patch: Record<string, unknown>) => {
+    const next = { ...latestResult.current, ...patch };
+    latestResult.current = next;
+    onResultChange?.(next);
+  };
+  /** La vidéo fabriquée est gardée avec le contenu, liée au script qui l'a produite. */
+  const rememberMp4 = (url: string | null) => {
+    const saved = latestResult.current?.montage_mp4?.url ?? null;
+    if (saved === url) return;
+    pushResult({ montage_mp4: url ? { url, source: sourceKey } : null });
+  };
   const prevScript = useRef(sourceKey);
   useEffect(() => {
     if (prevScript.current === sourceKey) return;
@@ -299,9 +314,9 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
             subject={result?.subject || result?.pillar}
             workspaceId={workspaceId}
             initialProject={result?.montage_project as ReelMontageProject | undefined}
-            onProjectChange={project => onResultChange?.({ ...result, montage_project: project })}
+            onProjectChange={project => pushResult({ montage_project: project })}
             onPhaseChange={setMontagePhase}
-            onMp4Ready={(url) => { setMp4Url(url); onMp4Change?.(url); }}
+            onMp4Ready={(url) => { setMp4Url(url); onMp4Change?.(url); rememberMp4(url); }}
             startPhoto={startPhoto}
             initialMp4Url={mp4Url}
           />
