@@ -488,7 +488,7 @@ export default function CreerStepResult({
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{displayContent}</p>
               <span className="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5" />
             </div>
-            <p className="text-xs text-center text-muted-foreground">L'IA rédige en temps réel…</p>
+            <p className="text-xs text-center text-muted-foreground">{generationStage === "correcting" ? "Relecture finale : on gomme les tournures d'IA…" : "L'IA rédige en temps réel…"}</p>
             <GenerationTimeHint format={format} startedAt={waitStartRef.current} afterPlan={step2of2} />
           </div>
         );

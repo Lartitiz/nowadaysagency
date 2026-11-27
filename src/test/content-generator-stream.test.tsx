@@ -119,13 +119,13 @@ describe("generateStream — lecture du texte reçu", () => {
 });
 
 describe("useContentGenerator — contrat des clés rendues", () => {
-  it("exactement les 26 clés lues par /creer", () => {
+  it("exactement les 27 clés lues par /creer", () => {
     const { result } = renderHook(useContentGenerator);
     expect(Object.keys(result.current).sort()).toEqual([
       "clearQuotaExhausted", "draftSlides", "error", "generate", "generateQuestions", "generateStream",
       "generating", "generationStage", "loadingQuestions", "markQuotaExhausted", "outlineTitles", "questions",
       "questionsError", "quotaExhausted", "reelDraft", "reset", "result", "setQuestions", "setResult", "storyDraft", "streamDone",
-      "streamError", "streamReset", "streamStage", "streaming", "streamingContent",
+      "streamError", "streamIsDraft", "streamReset", "streamStage", "streaming", "streamingContent",
     ]);
   });
 });

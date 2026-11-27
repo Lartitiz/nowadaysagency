@@ -16,6 +16,11 @@ interface UseStreamingInvokeReturn {
    * (streaming de texte classique) — l'UI garde alors ses messages simulés.
    */
   stage: string | null;
+  /**
+   * true quand `content` est un BROUILLON envoyé pendant l'écriture (évènement
+   * `draft`, LinkedIn) : à afficher, jamais à garder comme résultat (non relu).
+   */
+  isDraft: boolean;
   /** Erreur éventuelle */
   error: string | null;
   /** Lance le streaming */
@@ -29,6 +34,7 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
   const [streaming, setStreaming] = useState(false);
   const [done, setDone] = useState(false);
   const [stage, setStage] = useState<string | null>(null);
+  const [isDraft, setIsDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -42,6 +48,7 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
     setStreaming(false);
     setDone(false);
     setStage(null);
+    setIsDraft(false);
     setError(null);
   }, []);
 
@@ -192,7 +199,10 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
             setDone(true);
           }
 
-          if (event.type === "status" && typeof event.stage === "string") {
+          if (event.type === "status" && event.stage === "draft" && typeof event.text === "string") {
+            // Brouillon envoyé pendant l'écriture (LinkedIn, 27/11/2026) : affiché, remplacé par `done`.
+            if (!doneFull) { setIsDraft(true); setContent(event.text); }
+          } else if (event.type === "status" && typeof event.stage === "string") {
             setStage(event.stage);
           }
 
@@ -225,5 +235,5 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
     }
   }, [reset]);
 
-  return { content, streaming, done, stage, error, invoke, reset };
+  return { content, streaming, done, stage, isDraft, error, invoke, reset };
 }

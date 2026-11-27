@@ -505,7 +505,7 @@ function CreerWorkspace() {
     streamingContent,
     streaming,
     streamDone,
-    streamStage,
+    streamStage, streamIsDraft,
     streamReset,
   } = useContentGenerator();
   // Filet « Régénérer » / « Changer d'angle » : la version d'avant (retouches
@@ -607,7 +607,7 @@ function CreerWorkspace() {
   // génération en cours, purge) : use-generation-reload-guard.ts.
   const interruptedGeneration = useGenerationReloadGuard({
     restoredInterrupted: safeStep === "result" && isInterruptedGeneration(ps),
-    step, result, streaming, streamingContent, selectedFormat, conflictPending, saveFlowState,
+    step, result, streaming, streamingContent: streamIsDraft ? "" : streamingContent, selectedFormat, conflictPending, saveFlowState, // brouillon non relu (LinkedIn) : jamais gardé au rechargement
     busy: generating || streaming || structureLoading || photoDumpResolving || pinterestVisualGenerating,
   });
 

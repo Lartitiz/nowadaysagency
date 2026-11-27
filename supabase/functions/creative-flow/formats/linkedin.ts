@@ -13,7 +13,8 @@ import { applyAudienceAddressPass } from "../../_shared/audience-address-pass.ts
 import { enforceAudienceAddressInFields, enforceAudienceAddressInJsonText } from "../../_shared/audience-address-fields.ts";
 import { logUsage } from "../../_shared/plan-limiter.ts";
 import { tryParseAiJson, tryParseAiObject } from "../../_shared/parse-ai-json.ts";
-import { callAnthropicSimple, type UsageSink, type AnthropicModel, HAIKU_MODEL } from "../../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, sanitizeStyle, type UsageSink, type AnthropicModel, HAIKU_MODEL } from "../../_shared/anthropic.ts";
+import { partialTopLevelString } from "../../_shared/partial-json.ts";
 import { streamAnthropicSSE, createClientSSEStream, clientStillThere, type StatusEmitter } from "../../_shared/anthropic-stream.ts";
 import { buildVisionGenerateBrief } from "../../_shared/vision-prompts.ts";
 import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceNoAddedLegalRules, enforceResearchNumberSources, fixElisionsInFields, runTextRedacGate, textRedacRawCount, textRedacViolations, hookEchoesBefore } from "../../_shared/redac-gate.ts";
@@ -241,7 +242,14 @@ export async function runLinkedInTwoStep(params: {
   const genLkUsage: UsageSink = {};
   const corrLkUsage: UsageSink = {};
   emitStatus("writing");
-  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, genLkUsage, GENERATE_ABORT_MS);
+  // En flux (27/11/2026) : le post s'affiche pendant qu'il s'écrit (évènement `draft`), avant la relecture.
+  // Même demande à l'IA ; hors flux (pas de `clientGone`), appel d'un bloc comme avant.
+  const rawContent = typeof emitStatus.clientGone === "function"
+    ? await callAnthropic({
+        model, system: systemPrompt, messages: [{ role: "user", content: userPrompt! }], temperature: 0.85, max_tokens: 4096,
+        abortTimeoutMs: GENERATE_ABORT_MS, onText: linkedinDraftTracker((text) => emitStatus("draft", { text })),
+      }, genLkUsage)
+    : await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, genLkUsage, GENERATE_ABORT_MS);
   console.log("[CORRECTION DEBUG] First call done, rawContent length:", rawContent?.length);
 
   // Parse the raw content to extract the post text
@@ -518,4 +526,22 @@ Réponds UNIQUEMENT en JSON :
   return new Response(JSON.stringify(fallbackParsed), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+// ═══ BROUILLON DU POST PENDANT L'ÉCRITURE (27/11/2026) ═══
+// Le post LinkedIn n'arrivait qu'à la fin (écriture + relecture). Le texte
+// écrit part maintenant à l'écran au fil de l'écriture ; le post relu le remplace.
+
+/** Suit le JSON du post pendant l'écriture et envoie le texte quand il a grandi (6 mots de plus, ou fini). */
+export function linkedinDraftTracker(emit: (text: string) => void): (raw: string) => void {
+  let lastWords = 0, closedSent = false;
+  return (raw: string) => {
+    const part = partialTopLevelString(raw, "content") ?? partialTopLevelString(raw, "full_text");
+    const text = (part?.text ?? "").trim();
+    const words = text ? text.split(/\s+/).length : 0;
+    if (!part || !words || closedSent) return;
+    if (words - lastWords < 6 && !part.closed) return;
+    lastWords = words; closedSent = part.closed;
+    emit(sanitizeStyle(text.slice(0, 5000)));
+  };
 }
