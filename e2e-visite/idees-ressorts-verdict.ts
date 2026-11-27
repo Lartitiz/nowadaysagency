@@ -11,3 +11,15 @@ export function verdictIdees(ideas: unknown): { niveau: "✅" | "🟠" | "🔴";
   if (avecRaison < 4) return { niveau: "🟠", ressorts, avecRaison, motif: `« Pourquoi on l'enverra » sur ${avecRaison}/4` };
   return { niveau: "✅", ressorts, avecRaison, motif: "4 ressorts différents, 4 raisons de partage" };
 }
+
+/** Longueur au-delà de laquelle un titre d'idée n'est plus « une phrase qu'on dit » (règle de `_shared/ideas/title.ts`). */
+export const TITRE_MAX = 110;
+/** Lecture des 4 titres (#2158, 27/11/2026) : un titre trop long ou coupé par un deux-points qui
+ * annonce une explication est le signe que la règle « compris de tous » n'est plus appliquée
+ * (consigne réécrite, fonction redéployée d'une vieille version). Ne juge pas le fond : les titres
+ * sont imprimés pour être lus. Jamais 🔴 : c'est une lecture, pas une panne. */
+export function verdictTitres(ideas: unknown): { niveau: "✅" | "🟠"; titres: string[]; hors: number; motif: string } {
+  const titres = (Array.isArray(ideas) ? ideas as Array<Record<string, unknown>> : []).map(i => String(i?.subject ?? "").trim()).filter(Boolean);
+  const hors = titres.filter(t => t.length > TITRE_MAX || /:\s/.test(t)).length;
+  return { niveau: hors ? "🟠" : "✅", titres, hors, motif: hors ? `${hors} titre(s) sur ${titres.length} de plus de ${TITRE_MAX} caractères ou avec un deux-points` : `${titres.length} titres courts, sans deux-points` };
+}
