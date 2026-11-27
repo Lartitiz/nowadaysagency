@@ -64,7 +64,17 @@ export function StudioImageStream({
     shown.current = { session: current.session.id, last: lastVersionId };
     if (!previous || previous.session !== current.session.id || !lastVersionId || previous.last === lastVersionId) return;
     const card = document.querySelector(`[data-version-id="${lastVersionId}"]`);
-    if (card && typeof card.scrollIntoView === "function") {
+    if (!card) return;
+    // Sur ordinateur, seule la colonne des images défile : scrollIntoView
+    // faisait aussi glisser toute la page de 80 px sous l'en-tête (essai en
+    // ligne du 27/11/2026). Sur téléphone la colonne ne défile pas, la page si.
+    const stage = card.closest<HTMLElement>(".studio-stage");
+    if (stage && stage.scrollHeight > stage.clientHeight + 4 && typeof stage.scrollTo === "function") {
+      stage.scrollTo({
+        top: stage.scrollTop + card.getBoundingClientRect().top - stage.getBoundingClientRect().top - 12,
+        behavior: "smooth",
+      });
+    } else if (typeof card.scrollIntoView === "function") {
       card.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [current.session.id, lastVersionId]);
