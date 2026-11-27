@@ -110,12 +110,17 @@ Deno.test("accroches : une vraie première phrase est gardée, les bouts de phra
   ]);
 });
 
-Deno.test("accroches : l'enjeu dit en mots simples est demandé avant la phrase, et ne part pas à l'écran", () => {
-  const req = (HOOKS_TOOL.input_schema.properties.hooks.items as any).required as string[];
-  assert(req.indexOf("enjeu_pour_tous") >= 0 && req.indexOf("enjeu_pour_tous") < req.indexOf("text"));
-  const parsed: any = { hooks: [{ text: "J'ai jeté quarante savons la veille de les livrer.", enjeu_pour_tous: "une commande perdue la veille" }] };
+Deno.test("accroches : l'enjeu dit en mots simples est demandé avant les accroches, et ne part pas à l'écran", () => {
+  const schema = HOOKS_TOOL.input_schema as any;
+  const keys = Object.keys(schema.properties);
+  assert(keys.indexOf("enjeux") >= 0 && keys.indexOf("enjeux") < keys.indexOf("hooks"));
+  assert(schema.required.includes("enjeux"));
+  // Plus dans chaque accroche : le modèle y cassait le JSON (27/11/2026).
+  assertEquals("enjeu_pour_tous" in schema.properties.hooks.items.properties, false);
+  const parsed: any = { enjeux: ["une commande perdue la veille"], hooks: [{ text: "J'ai jeté quarante savons la veille de les livrer.", enjeu_pour_tous: "ancienne forme" }] };
   assertEquals(normalizeHooksResponse(parsed, { body: {}, rawContent: "", corsHeaders: {} }), null);
   assertEquals("enjeu_pour_tous" in parsed.hooks[0], false);
+  assertEquals("enjeux" in parsed, false);
 });
 
 import { reelHooksUsable } from "./formats/reel.ts";
@@ -123,8 +128,61 @@ import { reelHooksUsable } from "./formats/reel.ts";
 Deno.test("accroches : une réponse sans accroche lisible se reconnaît (relance côté serveur)", () => {
   assert(reelHooksUsable(JSON.stringify({ hooks: [{ text: "J'ai jeté quarante savons la veille de les livrer." }] })));
   assert(reelHooksUsable(JSON.stringify({ hooks: ["J'ai jeté quarante savons."] })));
-  assert(reelHooksUsable(JSON.stringify({ hooks: JSON.stringify([{ text: "Une accroche." }]) })));
+  assert(reelHooksUsable(JSON.stringify({ hooks: JSON.stringify([{ text: "Une accroche qui se dit bien." }]) })));
   for (const vide of ["", "{}", JSON.stringify({ hooks: [] }), JSON.stringify({ hooks: [{ type: "fait_brut" }] }), JSON.stringify({ hooks: "pas du json" }), "Désolé, je ne peux pas."]) {
     assert(!reelHooksUsable(vide), vide);
   }
+});
+
+// Réponses réelles relevées dans les journaux de creative-flow le 27/11/2026 (sujet
+// « la marge affichée le jour de la signature… », avec réponses) : `hooks` en texte
+// JSON dont une clé n'a pas de valeur, ou dont la phrase vaut « placeholder ».
+const CASSE_AVEC_PHRASE = JSON.stringify({ hooks: '{"hooks":[{"type":"vecu_perso","type_label":"Vécu perso","enjeu_pour_tous","text":"J\'ai annoncé 95 000 euros de marge à un client, et on a fini par en encaisser 31 000.","text_overlay":"95 000 euros annoncés","format_recommande":"face_cam_confession","format_label":"Face caméra","duree_cible":"~45 s"}]}' });
+const CASSE_PLACEHOLDER = JSON.stringify({ hooks: '{"hooks":[{"type":"vecu_perso","type_label":"Vécu perso","enjeu_pour_tous","text":"placeholder"}]}' });
+
+Deno.test("accroches : un texte JSON à clé sans valeur est réparé, « placeholder » ne compte pas", () => {
+  assert(reelHooksUsable(CASSE_AVEC_PHRASE));
+  assert(!reelHooksUsable(CASSE_PLACEHOLDER));
+  const parsed: any = JSON.parse(CASSE_AVEC_PHRASE);
+  assertEquals(normalizeHooksResponse(parsed, { body: {}, rawContent: CASSE_AVEC_PHRASE, corsHeaders: {} }), null);
+  assertEquals(parsed.hooks.length, 1);
+  assertEquals(parsed.hooks[0].text, "J'ai annoncé 95 000 euros de marge à un client, et on a fini par en encaisser 31 000.");
+  assertEquals("enjeu_pour_tous" in parsed.hooks[0], false);
+});
+
+Deno.test("accroches : l'échec dit pourquoi c'est vide (forme reçue, cause, longueur)", async () => {
+  const warns: string[] = [];
+  const orig = console.warn;
+  console.warn = (m: string) => { warns.push(String(m)); };
+  try {
+    const res = normalizeHooksResponse(JSON.parse(CASSE_PLACEHOLDER), { body: {}, rawContent: CASSE_PLACEHOLDER, corsHeaders: {} });
+    assertEquals(res?.status, 502);
+    const illisible = normalizeHooksResponse({ hooks: '{"hooks":[{"text":"oups' }, { body: {}, rawContent: "x", corsHeaders: {} });
+    assertEquals(illisible?.status, 502);
+  } finally {
+    console.warn = orig;
+  }
+  const traces = warns.filter((w) => w.includes('"hooks_vides"')).map((w) => JSON.parse(w));
+  assertEquals(traces[0].cause, "aucune_phrase_utilisable");
+  assertEquals(traces[0].shape_in, "string");
+  assertEquals(traces[0].objets, 1);
+  assertEquals(traces[0].raw_length, CASSE_PLACEHOLDER.length);
+  assertEquals(traces[1].cause, "hooks_texte_illisible");
+});
+
+import { unquoteOpeningAddress } from "./formats/reel.ts";
+
+Deno.test("accroches : une citation qui ouvre l'accroche suit le tu/vous de la marque", () => {
+  // Loom du 27/11/2026 : « Tu crois vraiment… » au milieu d'accroches qui vouvoient.
+  assertEquals(
+    unquoteOpeningAddress("« Tu crois vraiment que ta marge est acquise le jour de la signature ? » Je vous montre pourquoi non.", "vous"),
+    "Tu crois vraiment que ta marge est acquise le jour de la signature ? Je vous montre pourquoi non.",
+  );
+  assertEquals(unquoteOpeningAddress("\"Tu crois vraiment que c'est gagné ?\", m'a dit mon banquier.", "vous"), "Tu crois vraiment que c'est gagné ?, m'a dit mon banquier.");
+  // Déjà conforme, citation plus loin dans la phrase, ou pas de réglage : intact.
+  const ok = "« Vous croyez vraiment que la marge est acquise ? » Pas si vite.";
+  assertEquals(unquoteOpeningAddress(ok, "vous"), ok);
+  const loin = "Mon client m'a dit « mais tu m'avais annoncé 95 000 », et j'ai tout repris.";
+  assertEquals(unquoteOpeningAddress(loin, "vous"), loin);
+  assertEquals(unquoteOpeningAddress("« Tu crois vraiment que c'est gagné ? »", null), "« Tu crois vraiment que c'est gagné ? »");
 });

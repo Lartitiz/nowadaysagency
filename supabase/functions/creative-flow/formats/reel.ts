@@ -6,7 +6,8 @@
 
 import { authoredContentSource, testimonySourceText } from "../../_shared/editorial-voice.ts";
 import { HAIKU_MODEL } from "../../_shared/anthropic.ts";
-import { enforceAudienceAddress, type AudienceAddress } from "../../_shared/audience-address.ts";
+import { checkAudienceAddress, enforceAudienceAddress, type AudienceAddress } from "../../_shared/audience-address.ts";
+import { enforceAudienceAddressInFields } from "../../_shared/audience-address-fields.ts";
 import { tryParseAiJson } from "../../_shared/parse-ai-json.ts";
 import { applyCorrectionPassReel } from "../../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, enforceNoAddedLegalRules, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, hookEchoesBefore, textRedacRawCount } from "../../_shared/redac-gate.ts";
@@ -30,11 +31,8 @@ export function normalizeHooksResponse(parsed: any, params: { body: any; rawCont
   const shapeIn = Array.isArray(parsed.hooks)
     ? `array[${parsed.hooks.length}]`
     : typeof parsed.hooks;
-  if (typeof parsed.hooks === "string") {
-    const inner = tryParseAiJson<any>(parsed.hooks, "creative-flow:hooks-unwrap");
-    parsed.hooks = Array.isArray(inner) ? inner : Array.isArray(inner?.hooks) ? inner.hooks : [];
-  }
-  if (!Array.isArray(parsed.hooks)) parsed.hooks = [];
+  const rawHooks = parsed.hooks;
+  parsed.hooks = readHooksArray(parsed.hooks, "creative-flow:hooks-unwrap");
   // Entrées en simple CHAÎNE : même dérive que le `hooks` stringifié du
   // 12/07, un cran plus bas (le modèle liste les phrases sans les
   // envelopper). Récupérable → on reconstruit l'objet minimal. Le front
@@ -43,7 +41,9 @@ export function normalizeHooksResponse(parsed: any, params: { body: any; rawCont
     typeof h === "string" && h.trim() ? { text: h.trim() } : h
   );
   // Objets valides uniquement : un hook sans texte parlé est inutilisable.
-  parsed.hooks = parsed.hooks.filter((h: any) => h && typeof h === "object" && typeof h.text === "string" && h.text.trim());
+  // « placeholder », phrase de 2 mots : réponse dégénérée vue en ligne le 27/11/2026.
+  const nObjets = parsed.hooks.length;
+  parsed.hooks = parsed.hooks.filter((h: any) => h && typeof h === "object" && isUsableHookText(h.text));
   // Accroche qui se présente (« Bonjour, je m'appelle… ») : écartée tant qu'il
   // en reste d'autres à proposer (jamais un écran vide pour ça).
   const sansPresentation = parsed.hooks.filter((h: any) => !reelHookIsPresentation(h.text));
@@ -69,9 +69,15 @@ export function normalizeHooksResponse(parsed: any, params: { body: any; rawCont
     console.warn(JSON.stringify({ event: "reel_hooks_tous_haches", count: parsed.hooks.length }));
   }
   // Champ de travail (l'enjeu dit en mots simples) : sert à l'écriture, tracé, jamais envoyé à l'écran.
-  const enjeux = parsed.hooks.map((h: any) => typeof h.enjeu_pour_tous === "string" ? h.enjeu_pour_tous.slice(0, 80) : null);
+  // Écrit à part, en tête de réponse (`enjeux`) depuis le 27/11/2026 : dans chaque
+  // accroche, le modèle cassait le JSON sur ce champ (« "enjeu_pour_tous", "text": … »).
+  const enjeuxTop: unknown[] = Array.isArray(parsed.enjeux) ? parsed.enjeux : [];
+  const enjeux = enjeuxTop.length
+    ? enjeuxTop.map((e) => typeof e === "string" ? e.slice(0, 80) : null)
+    : parsed.hooks.map((h: any) => typeof h.enjeu_pour_tous === "string" ? h.enjeu_pour_tous.slice(0, 80) : null);
   if (enjeux.some(Boolean)) console.log(JSON.stringify({ event: "reel_hooks_enjeux", enjeux }));
   for (const h of parsed.hooks) delete h.enjeu_pour_tous;
+  delete parsed.enjeux;
   // Élisions déterministes AVANT affichage : le hook choisi est ensuite
   // verrouillé tel quel sur le script (enforceSelectedReelHook) — une
   // coquille née ici se propagerait partout (vécu 21/07 : « qu'on marchand »).
@@ -88,6 +94,11 @@ export function normalizeHooksResponse(parsed: any, params: { body: any; rawCont
     console.warn(JSON.stringify({
       type: "hooks_vides",
       shape_in: shapeIn,
+      // Pourquoi c'est vide : texte JSON illisible, aucun objet, ou objets sans phrase utilisable.
+      cause: typeof rawHooks === "string" && nObjets === 0 ? "hooks_texte_illisible"
+        : nObjets === 0 ? "aucun_objet" : "aucune_phrase_utilisable",
+      objets: nObjets,
+      raw_length: String(rawContent || "").length,
       exclude_count: Array.isArray((body as Record<string, unknown>).exclude_hooks)
         ? ((body as Record<string, unknown>).exclude_hooks as unknown[]).length
         : 0,
@@ -108,12 +119,32 @@ export function normalizeHooksResponse(parsed: any, params: { body: any; rawCont
  */
 export function reelHooksUsable(rawContent: string): boolean {
   const parsed = tryParseAiJson<any>(rawContent, "creative-flow:hooks-usable");
-  let hooks = parsed?.hooks;
-  if (typeof hooks === "string") {
-    const inner = tryParseAiJson<any>(hooks, "creative-flow:hooks-usable-unwrap");
-    hooks = Array.isArray(inner) ? inner : inner?.hooks;
-  }
-  return Array.isArray(hooks) && hooks.some((h: any) => (typeof h === "string" && h.trim()) || (typeof h?.text === "string" && h.text.trim()));
+  const hooks = readHooksArray(parsed?.hooks, "creative-flow:hooks-usable-unwrap");
+  return hooks.some((h: any) => isUsableHookText(typeof h === "string" ? h : h?.text));
+}
+
+/**
+ * `hooks` tel que reçu → tableau. Le modèle renvoie parfois le tableau en TEXTE
+ * JSON (12/07), et ce texte peut être cassé : une clé sans valeur
+ * (« "enjeu_pour_tous","text":"…" », journaux du 27/11/2026). On répare ce cas
+ * précis (la clé reçoit une valeur vide) avant d'abandonner.
+ */
+export function readHooksArray(value: unknown, label: string): any[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  const unwrap = (inner: any) => Array.isArray(inner) ? inner : Array.isArray(inner?.hooks) ? inner.hooks : null;
+  const direct = unwrap(tryParseAiJson<any>(value, label));
+  if (direct) return direct;
+  const repaired = value.replace(/([{,]\s*)"([A-Za-z_]+)"\s*(?=[,}])/g, '$1"$2":""');
+  if (repaired === value) return [];
+  return unwrap(tryParseAiJson<any>(repaired, `${label}-repair`)) ?? [];
+}
+
+/** Une vraie phrase d'accroche : au moins 4 mots, jamais un texte de remplissage (« placeholder »). */
+export function isUsableHookText(text: unknown): boolean {
+  if (typeof text !== "string" || !text.trim()) return false;
+  if (/^(?:placeholder|lorem ipsum|texte|todo|à compléter|\.\.\.|…)\W*$/i.test(text.trim())) return false;
+  return text.trim().split(/\s+/).length >= 4;
 }
 
 // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
@@ -457,6 +488,41 @@ export async function enforceReelSpokenSentences(parsed: any, params: {
 /** Accroches de reel proposées à l'étape « hooks » : ce qu'elle dira et ce qu'on lira. */
 export const HOOKS_ADDRESS_FIELDS = ["hooks[].text", "hooks[].text_overlay"];
 
+const OPENING_QUOTE_RE = /^\s*(?:«\s*([^»]+?)\s*»|“([^”]+)”|"([^"\n]+)")/u;
+
+/**
+ * Accroche qui S'OUVRE sur une phrase entre guillemets (« Tu crois vraiment… ? »,
+ * objection retournée) : on l'entend adressée à la personne qui regarde. Le
+ * contrôle tu/vous ignore les citations ; si celle-ci contredit le réglage de la
+ * marque, on retire les guillemets (inaudibles à l'oral) pour que la relecture
+ * tu/vous la corrige. Une citation placée plus loin dans la phrase reste intacte
+ * (« Mon client m'a dit « mais vous m'aviez annoncé 95 000 » »). Loom du 27/11/2026.
+ */
+export function unquoteOpeningAddress(text: string, addr: AudienceAddress | null | undefined): string {
+  if (!addr || typeof text !== "string") return text;
+  const m = text.match(OPENING_QUOTE_RE);
+  if (!m) return text;
+  const quoted = m[1] ?? m[2] ?? m[3] ?? "";
+  if (!checkAudienceAddress(quoted, addr).wrong) return text;
+  const rest = text.slice(m[0].length);
+  return rest && !/^\s/.test(rest) && !/^[,.;:!?…]/.test(rest) ? `${quoted} ${rest}` : quoted + rest;
+}
+
+/** Tu ou vous des accroches : guillemets d'ouverture compris (cf. unquoteOpeningAddress). */
+export async function enforceHooksAddress(parsed: any, addr: AudienceAddress | null | undefined): Promise<void> {
+  if (!addr || !Array.isArray(parsed?.hooks)) return;
+  for (const h of parsed.hooks) {
+    if (h && typeof h.text === "string") {
+      const net = unquoteOpeningAddress(h.text, addr);
+      if (net !== h.text) {
+        console.log(JSON.stringify({ event: "reel_hook_citation_adresse", address: addr }));
+        h.text = net;
+      }
+    }
+  }
+  await enforceAudienceAddressInFields(parsed, HOOKS_ADDRESS_FIELDS, addr, addrOpts("hooks", 20_000));
+}
+
 /** Reel : script parlé, textes à l'écran, légende, couverture, stories de suite (mêmes balises que la relecture). */
 export async function enforceReelAudienceAddress(parsed: any, addr: AudienceAddress | null | undefined): Promise<void> {
   if (!addr || !parsed || typeof parsed !== "object") return;
@@ -487,6 +553,11 @@ export const HOOKS_TOOL = {
   input_schema: {
     type: "object",
     properties: {
+      enjeux: {
+        type: "array",
+        description: "À ÉCRIRE EN PREMIER, un par hook, dans l'ordre des hooks : en 3 à 8 mots de tous les jours, ce qu'une personne qui ne connaît rien à son métier comprend comme enjeu (une perte, une décision, un délai, une somme, une cliente, une surprise). Aucun mot technique. Si tu n'arrives pas à l'écrire, change de hook.",
+        items: { type: "string" },
+      },
       hooks: {
         type: "array",
         description: "TABLEAU de 3 objets hook — jamais une chaîne de caractères, jamais du JSON stringifié",
@@ -495,18 +566,17 @@ export const HOOKS_TOOL = {
           properties: {
             type: { type: "string", description: "vecu_perso | contre_intuition | objection_retournee | question_choc | fait_brut | scene_coupee" },
             type_label: { type: "string", description: "label court lisible du type, ex. « Vécu perso »" },
-            enjeu_pour_tous: { type: "string", description: "À ÉCRIRE AVANT text : en 3 à 8 mots de tous les jours, ce qu'une personne qui ne connaît rien à son métier comprend comme enjeu (une perte, une décision, un délai, une somme, une cliente, une surprise). Aucun mot technique. Si tu n'arrives pas à l'écrire, change de hook." },
             text: { type: "string", description: "le hook PARLÉ : une phrase entière qu'on dit (sujet et verbe conjugué), 8-20 mots, tension immédiate ; jamais des bouts de phrases à la suite" },
             text_overlay: { type: "string", description: "texte à l'écran en muet : extrait de 3 à 8 mots du hook parlé (text), recopié tel quel, qui se comprend seul ; casse normale, pas de majuscules imposées" },
             format_recommande: { type: "string", description: "face_cam_confession | voix_off_broll | hook_loop" },
             format_label: { type: "string", description: "nom de la structure en français simple : « Face caméra », « Voix off sur images » ou « Boucle courte »" },
             duree_cible: { type: "string", description: "durée estimée du reel avec ce hook, 55 s au plus, ex. « ~45 s »" },
           },
-          required: ["type", "type_label", "enjeu_pour_tous", "text", "text_overlay", "format_recommande", "format_label", "duree_cible"],
+          required: ["type", "type_label", "text", "text_overlay", "format_recommande", "format_label", "duree_cible"],
         },
       },
     },
-    required: ["hooks"],
+    required: ["enjeux", "hooks"],
   },
 };
 
@@ -572,8 +642,8 @@ RÈGLES ABSOLUES :
 4. AUCUN chiffre qui ne vient pas du brief, des réponses ou du branding.
 5. SINGULARITÉ : pas le hook consensuel de la niche. Le fait vient de SA matière et
    de SES mots, mais l'enjeu se comprend sans connaître son métier : le mot technique
-   et le détail de fabrication restent pour le script. Pour chaque hook, écris d'abord
-   "enjeu_pour_tous", puis "text" met CET enjeu dans la phrase. Les 3 hooks sont rangés
+   et le détail de fabrication restent pour le script. Écris d'abord "enjeux" (un par
+   hook, dans l'ordre), puis le "text" de chaque hook met SON enjeu dans la phrase. Les 3 hooks sont rangés
    du plus compréhensible par tout le monde au plus pointu.
 5bis. FRANÇAIS IRRÉPROCHABLE — relis chaque hook à voix haute : élisions (« l'avant/après »,
    jamais « le avant/après ») et homophones (« qu'UN marchand de biens, ça… », jamais
