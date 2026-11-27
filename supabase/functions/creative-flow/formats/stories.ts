@@ -5,7 +5,8 @@
 // tous les formats sont dans ../shared.ts. Voir docs/creation-contenu/CARTE.md.
 
 import { authoredContentSource, testimonySourceText } from "../../_shared/editorial-voice.ts";
-import { HAIKU_MODEL } from "../../_shared/anthropic.ts";
+import { HAIKU_MODEL, sanitizeStyle } from "../../_shared/anthropic.ts";
+import { closedTopLevelObjects } from "../../_shared/partial-json.ts";
 import { type AudienceAddress } from "../../_shared/audience-address.ts";
 import { enforceAudienceAddressInFields } from "../../_shared/audience-address-fields.ts";
 import { applyCorrectionPassStories, extractStoriesTexts, reinjectStoriesTexts, storiesAuditableText } from "../../_shared/correction-pass.ts";
@@ -280,4 +281,37 @@ export async function loadStoriesGenerateData(params: { supabase: any; userId: s
   const storiesGardeFouAlerte = await loadStoriesSalesGuard(params);
   const storiesPhotoCatalog = await loadStoriesPhotoCatalog(params);
   return { storiesGardeFouAlerte, storiesPhotoCatalog };
+}
+
+// ═══ BROUILLON DES STORIES PENDANT L'ÉCRITURE (27/11/2026) ═══
+// Comme le reel : chaque story finie part à l'écran pendant que la suivante
+// s'écrit (évènement SSE `draft`), au lieu d'un écran vide jusqu'à la fin.
+// Seul ce qui sert à l'aperçu part ; la séquence relue et mise en forme la remplace.
+
+export type StoriesLiveDraft = { stories: { number: number; role: string; text: string; sticker: string }[] };
+
+/** Aperçu léger des stories telles qu'écrites, avant correction. null si rien à montrer. */
+export function storiesDraftPreview(parsed: any): StoriesLiveDraft | null {
+  const list: any[] = Array.isArray(parsed?.stories) ? parsed.stories : [];
+  const stories = list
+    .filter((s) => s && typeof s === "object" && typeof s.text === "string" && s.text.trim())
+    .slice(0, 15)
+    .map((s, i) => ({
+      number: Number.isInteger(s.number) ? s.number : i + 1,
+      role: typeof s.role === "string" ? sanitizeStyle(s.role.slice(0, 40)) : "",
+      text: sanitizeStyle(s.text.slice(0, 600)),
+      sticker: typeof s.sticker?.label === "string" ? sanitizeStyle(s.sticker.label.slice(0, 40)) : "",
+    }));
+  return stories.length ? { stories } : null;
+}
+
+/** Suit le JSON des stories pendant l'écriture ; n'envoie que quand une story de plus est finie. */
+export function storiesDraftTracker(emit: (draft: StoriesLiveDraft) => void): (text: string) => void {
+  let sent = 0;
+  return (text: string) => {
+    const draft = storiesDraftPreview({ stories: closedTopLevelObjects(text, "stories") });
+    if (!draft || draft.stories.length <= sent) return;
+    sent = draft.stories.length;
+    emit(draft);
+  };
 }

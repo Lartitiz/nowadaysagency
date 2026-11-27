@@ -968,7 +968,7 @@ exports[`generate — stories (creative-flow) > mode photo avec 12 photos : 10 i
     "workspace_id": "workspace",
   },
   "fn": "creative-flow",
-  "onStatus": "undefined",
+  "onStatus": "function",
   "timeout": 150000,
 }
 `;
@@ -996,7 +996,7 @@ Le texte déjà écrit dans le calendrier",
     "workspace_id": "workspace",
   },
   "fn": "creative-flow",
-  "onStatus": "undefined",
+  "onStatus": "function",
   "timeout": 150000,
 }
 `;
