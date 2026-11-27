@@ -5,7 +5,7 @@
 import { outsideRoom } from "@/components/creer/CarouselEditorParts/EditorLayout";
 import { useLayoutEffect, useRef, useState, type MutableRefObject } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Copy, ImagePlus, LockKeyhole, Pipette, Trash2, Unlock } from "lucide-react";
+import { Copy, Crop, ImagePlus, LockKeyhole, Pipette, Trash2, Unlock } from "lucide-react";
 import { photoShapeOf, placeToolbar, type ElementRect, type EditorSlide } from "@/lib/carousel-editor";
 import type { QualityIssue } from "@/lib/carousel-quality";
 import { isFullBleedBox, type CanvasBox } from "@/components/creer/CarouselEditorParts/canvas-geometry";
@@ -29,6 +29,9 @@ export type SelectionBox = CanvasBox & {
   fontSize?: number;
   align?: string;
 };
+
+/** Au-delà, la barre est passée sur deux lignes (une ligne = boutons de 32 px + 2 × 4 px de marge + bordure). */
+const TOOLBAR_ONE_LINE_MAX = 44;
 
 export default function CanvasToolbar({
   box,
@@ -124,11 +127,20 @@ export default function CanvasToolbar({
   // est mesurée (elle passe sur deux lignes quand la slide est étroite).
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarSize, setToolbarSize] = useState({ w: 300, h: 40 });
+  // Barre serrée (27/11/2026) : sur une slide étroite, la barre d'une photo
+  // (Photo, Remplacer, Recadrer, Ombre, Retirer, …) passait sur deux lignes et
+  // recouvrait les vignettes. Quand elle ne tient pas sur une ligne, les
+  // boutons passent en icônes (leur nom reste au survol et pour les lecteurs
+  // d'écran). Mesuré à nouveau à chaque élément choisi et à chaque largeur.
+  const denseKey = `${selected}:${box?.kind}:${Math.round(width)}`;
+  const [denseFor, setDenseFor] = useState<string | null>(null);
+  const dense = denseFor === denseKey;
   useLayoutEffect(() => {
     const el = toolbarRef.current;
     if (!el) return;
     const w = el.offsetWidth;
     const h = el.offsetHeight;
+    if (!dense && h > TOOLBAR_ONE_LINE_MAX) { setDenseFor(denseKey); return; }
     if (w !== toolbarSize.w || h !== toolbarSize.h) setToolbarSize({ w, h });
   });
   const toolbarPosition = () =>
@@ -176,7 +188,8 @@ export default function CanvasToolbar({
         )}
         {box.kind === "photo" && !box.locked && cropId !== selected && onReplacePhoto && (
           <button type="button" className={toolButton} onClick={onReplacePhoto} title={box.emptyFrame ? "Mettre une photo dans ce cadre (ou glisse une photo dessus)" : "Mettre une autre photo dans ce cadre (ou glisse une photo dessus)"}>
-            <ImagePlus size={14} className="mr-1" /> {box.emptyFrame ? "Ajouter une photo" : "Remplacer"}
+            <ImagePlus size={14} className={dense ? undefined : "mr-1"} />
+            {dense ? <span className="sr-only">{box.emptyFrame ? "Ajouter une photo" : "Remplacer"}</span> : box.emptyFrame ? "Ajouter une photo" : "Remplacer"}
           </button>
         )}
         {!simple && box.kind === "photo" && !box.locked && cropId !== selected && !isFullBleedBox(box) && (
@@ -196,11 +209,11 @@ export default function CanvasToolbar({
         )}
         {box.kind === "photo" && !box.locked && !box.emptyFrame && cropId !== selected && (
           <button type="button" className={toolButton} onClick={() => setCropId(selected)} title="Recadrer (double-clic sur la photo)">
-            Recadrer
+            {dense ? <><Crop size={14} /><span className="sr-only">Recadrer</span></> : "Recadrer"}
           </button>
         )}
         {!box.locked && !box.emptyFrame && cropId !== selected && shade && (
-          <ShadeSlider compact value={shade.value} onChange={shade.set} />
+          <ShadeSlider compact narrow={dense} value={shade.value} onChange={shade.set} />
         )}
         {box.locked && (
           <button type="button" className={toolButton} aria-label="Déverrouiller l’élément" onClick={() => latest.current.onLock?.(box.lockedId || selected, false)}>
@@ -274,7 +287,7 @@ export default function CanvasToolbar({
             onClick={() => { tools.current.finish(); latest.current.onDuplicate?.(selected); }}><Copy size={14} /></button>
         )}
         <button type="button" className={toolButton} aria-label="Retirer l’élément" title="Retirer"
-          onClick={() => { tools.current.finish(); latest.current.onRemove(selected); }}><Trash2 size={14} />{simple && <span className="ml-1">Retirer</span>}</button>
+          onClick={() => { tools.current.finish(); latest.current.onRemove(selected); }}><Trash2 size={14} />{simple && !dense && <span className="ml-1">Retirer</span>}</button>
             {!simple && <button type="button" className={toolButton} aria-label="Verrouiller l’élément" title="Verrouiller (⌘⇧L) : il ne bougera plus par erreur"
               onClick={() => { tools.current.finish(); latest.current.onLock?.(selected, true); }}><LockKeyhole size={14} /></button>}
             {simple && (

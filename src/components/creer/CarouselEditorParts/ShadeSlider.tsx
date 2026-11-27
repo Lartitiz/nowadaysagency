@@ -1,10 +1,12 @@
 // Curseur « Ombre sur la photo » (carousel-shade.ts) : le même réglage dans l'onglet Photo
 // et sur la barre posée sur la slide. De 0 (aucune) à 100 (forte).
-export function ShadeSlider({ value, onChange, compact = false, disabled = false }: {
+export function ShadeSlider({ value, onChange, compact = false, narrow = false, disabled = false }: {
   value: number;
   onChange: (value: number) => void;
   /** Sur la barre de la slide : une ligne, sans repères. */
   compact?: boolean;
+  /** Barre de la slide serrée : curseur plus court. */
+  narrow?: boolean;
   disabled?: boolean;
 }) {
   const percent = Math.round(value * 100);
@@ -22,7 +24,7 @@ export function ShadeSlider({ value, onChange, compact = false, disabled = false
       // La barre de la slide retient les clics pour garder la sélection : pas celui du curseur.
       onMouseDown={(e) => e.stopPropagation()}
       onChange={(e) => onChange(Number(e.target.value) / 100)}
-      className={`h-6 cursor-pointer accent-primary ${compact ? "w-20 sm:w-24" : "w-full"}`}
+      className={`h-6 cursor-pointer accent-primary ${compact ? (narrow ? "w-14" : "w-20 sm:w-24") : "w-full"}`}
     />
   );
   if (compact)

@@ -62,16 +62,21 @@ Réponds en JSON : {"questions":[{"question":"...","placeholder":"..."}]}. Table
     system: systemPrompt + QUESTIONS_ADDRESS_OVERRIDE,
     messages,
     max_tokens: 4096,
-    // Questions ancrées sur photos : borne chaque tentative à 60s pour
-    // éviter le blocage indéfini d'un fetch qui traîne.
-    abortTimeoutMs: 60000,
+    // Questions ancrées sur photos : un essai normal prend ~3 s (27/11/2026).
+    // 20 s par tentative (avant 60) : un appel bloqué est relancé vite, et trois
+    // essais tiennent dans les 90 s d'attente du front.
+    abortTimeoutMs: 20000,
     tool: PHOTO_QUESTIONS_TOOL,
   }, deepeningUsage);
   const firstMessages = [{ role: "user", content: messageContent }];
+  const contextePret = Date.now();
   let content = await ask(firstMessages);
   // Une question vouvoie ou reste trop longue : une relance courte.
   content = await relancerQuestionsSiBesoin(content, (consigne) =>
     ask([...firstMessages, { role: "assistant", content }, { role: "user", content: consigne }]));
+  // Durée des questions (27/11/2026), même ligne que creative-flow : base lente ou IA bloquée.
+  const fin = Date.now();
+  console.log(JSON.stringify({ type: "questions_duree", fonction: "carousel-ai", contexte_ms: contextePret - reqCtx.startedAt, ia_ms: fin - contextePret, total_ms: fin - reqCtx.startedAt, photos: true }));
 
   // PAS de logUsage — les questions d'approfondissement sont gratuites
   // (arbitrage 10/07/2026 : un carrousel débite 2 crédits, rédaction +
