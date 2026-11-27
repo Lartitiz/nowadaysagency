@@ -34,6 +34,7 @@ fs.mkdirSync(SHOTS, { recursive: true });
 const SUJET = "Pourquoi je refuse de brader mes savons alors qu'on me le demande tout le temps";
 
 const CREATIVE_FLOW = "**/functions/v1/creative-flow";
+const QUESTIONS_SEUIL_S = 15;
 
 /** /creer → sujet → Instagram → Reel → questions passées → écran des angles. */
 async function allerJusquAuxAngles(page: Page) {
@@ -54,6 +55,7 @@ async function allerJusquAuxAngles(page: Page) {
   // Le choix du format ne valide pas tout seul : « Suivant » ouvre le brief.
   const suivantFormat = page.getByRole("button", { name: /^Suivant$/i }).last();
   await expect(suivantFormat).toBeEnabled({ timeout: 15000 });
+  const debutQuestions = Date.now();
   await suivantFormat.click();
 
   // Les questions (step gratuit) mettent ~10-20 s à arriver ; on les passe :
@@ -64,6 +66,11 @@ async function allerJusquAuxAngles(page: Page) {
     passer.waitFor({ state: "visible", timeout: 120_000 }),
     genererDirect.waitFor({ state: "visible", timeout: 120_000 }),
   ]);
+  // ⏱️ Sonde du 27/11/2026 (Loom : 30 à 50 s d'attente). Normal : 3 à 7 s. Au-delà de
+  // 15 s, un essai du serveur a été coupé et relancé : lire les lignes `questions_duree`
+  // des journaux de creative-flow (contexte_ms = base lente, ia_ms = IA bloquée).
+  const attenteS = (Date.now() - debutQuestions) / 1000;
+  console.log(`⏱️ Questions du reel : ${attenteS <= QUESTIONS_SEUIL_S ? "✅" : "🟠"} affichées en ${attenteS.toFixed(1)} s (seuil ${QUESTIONS_SEUIL_S} s)`);
   if (await passer.isVisible().catch(() => false)) await passer.click();
   else await genererDirect.click();
 }
