@@ -6,7 +6,7 @@
       "any": 1
     },
     "src/components/branding/BrandingCoachingFlow.tsx": {
-      "lignes": 1101,
+      "lignes": 1097,
       "any": 26
     },
     "src/components/branding/BrandingFicheCards.tsx": {
@@ -34,7 +34,7 @@
       "any": 20
     },
     "src/components/creer/formatRenderers/StoryResult.tsx": {
-      "lignes": 860,
+      "lignes": 846,
       "any": 13
     },
     "src/hooks/use-onboarding.ts": {
@@ -68,10 +68,6 @@
     "src/pages/CreerUnifie.tsx": {
       "lignes": 2123,
       "any": 21
-    },
-    "src/pages/InstagramAudit.tsx": {
-      "lignes": 802,
-      "any": 41
     },
     "src/pages/InstagramBio.tsx": {
       "lignes": 855,

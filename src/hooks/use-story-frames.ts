@@ -4,24 +4,13 @@
 // mêmes vignettes que l'aperçu.
 import { useEffect, useMemo, useState } from "react";
 import { useBrandCharter } from "@/hooks/use-branding";
-import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
+import { buildStoryFrameHtml, storyBrandingFromCharter } from "@/lib/story-visual";
 import { resolveLibraryPhotoUrls } from "@/lib/story-photos";
 
 export function useStoryFrames(storiesData: any[] | null | undefined, enabled: boolean): (string | null)[] {
   const { data: charterData } = useBrandCharter();
   const active = enabled && Array.isArray(storiesData) && storiesData.length > 0;
-  const storyBranding: StoryFrameBranding | null = charterData
-    ? {
-        color_primary: (charterData as any).color_primary,
-        color_secondary: (charterData as any).color_secondary,
-        color_background: (charterData as any).color_background,
-        color_text: (charterData as any).color_text,
-        story_assemblage: (charterData as any).story_assemblage ?? null,
-        story_pill_color: (charterData as any).story_pill_color ?? null,
-        story_corners: (charterData as any).story_corners ?? null,
-        story_align: (charterData as any).story_align ?? null,
-      }
-    : null;
+  const storyBranding = storyBrandingFromCharter(charterData);
   const photoIdsSignature = useMemo(
     () => (active ? storiesData : []).map((s: any) => s?.visual?.photo_id).filter(Boolean).sort().join(","),
     [active, storiesData],

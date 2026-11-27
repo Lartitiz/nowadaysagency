@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useBrandCharter } from "@/hooks/use-branding";
-import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
+import { buildStoryFrameHtml, storyBrandingFromCharter } from "@/lib/story-visual";
 import { resolveLibraryPhotoUrls } from "@/lib/story-photos";
 
 // Vignettes de « Mes idées » (13/11/2026), à la façon de Canva : un contenu
@@ -78,11 +78,7 @@ function StoryFrame({ story }: { story: Record<string, unknown> }) {
     return () => { alive = false; };
   }, [photoId, story]);
   const html = useMemo(() => {
-    const c: any = charter;
-    const branding: StoryFrameBranding | null = c ? {
-      color_primary: c.color_primary, color_secondary: c.color_secondary, color_background: c.color_background, color_text: c.color_text,
-      story_assemblage: c.story_assemblage ?? null, story_pill_color: c.story_pill_color ?? null, story_corners: c.story_corners ?? null, story_align: c.story_align ?? null,
-    } : null;
+    const branding = storyBrandingFromCharter(charter);
     const v = (story as any)?.visual;
     return buildStoryFrameHtml(story as any, branding, { photoUrl: v?.photo_url || libraryUrl, preview: true });
   }, [story, charter, libraryUrl]);
