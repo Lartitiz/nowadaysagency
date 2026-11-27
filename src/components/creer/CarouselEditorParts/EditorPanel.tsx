@@ -31,6 +31,7 @@ import { addIcon, brandInk } from "@/components/creer/CarouselEditorParts/editor
 import { PanelSection } from "@/components/creer/CarouselEditorParts/PanelBits";
 import { OPEN_FONT_EVENT } from "@/components/creer/CarouselEditorParts/editor-mode";
 import { SLIDE_ASK_SLOT } from "@/components/creer/CarouselEditorParts/SlideRedoDialog";
+import { PANEL_TABLIST, panelBody, panelBodyFocus, panelFrame, PanelSheetHeader, PanelTabButton } from "@/components/creer/EditorPanelShell";
 
 export type PanelTab = "texte" | "photo" | "page" | "couleurs" | "ajouter" | "calques" | "ia";
 
@@ -168,35 +169,20 @@ export function EditorPanel(p: Props) {
   );
 
   // Téléphone : tous les onglets tiennent dans la largeur (plus de rangée qui défile et cache « Texte »), d'où un nom court pour l'IA.
+  // Le cadre (onglet, ligne « Terminé », zone qui défile) est commun avec les stories : EditorPanelShell.tsx.
   const tabButton = (id: PanelTab, label: string, Icon: typeof Type, extra = "", short = "") => (
-    <button key={id} type="button" role="tab" id={`panel-tab-${id}`} aria-selected={tab === id} aria-controls="panel-content" aria-label={short ? label : undefined} onClick={() => open(id)}
-      className={`flex flex-col max-md:min-w-0 max-md:flex-1 md:min-w-[3.6rem] md:shrink-0 items-center gap-1 rounded-xl px-1 py-2 text-center text-[10.5px] font-medium leading-tight text-muted-foreground hover:text-foreground aria-selected:bg-background aria-selected:text-primary aria-selected:shadow-sm aria-selected:ring-1 aria-selected:ring-primary/25 ${extra}`}>
-      <Icon size={19} aria-hidden="true" />
-      {short || label}
-    </button>
+    <PanelTabButton key={id} id={`panel-tab-${id}`} controls="panel-content" selected={tab === id} label={label} short={short} icon={Icon} extra={extra} onClick={() => open(id)} />
   );
 
   return (
-    <div className={`${p.className} md:grid md:grid-cols-[4.5rem_minmax(0,1fr)] md:overflow-hidden md:rounded-xl md:border md:bg-card ${p.sheet.open ? "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col" : ""}`} data-testid="editor-panel">
-      {p.sheet.open && (
-        <div className="mb-1.5 flex items-center justify-between gap-2 md:hidden">
-          <p className="text-xs text-muted-foreground">Slide {p.document.slides.indexOf(slide) + 1} : tes réglages s’appliquent en direct.</p>
-          <Button size="sm" variant="outline" className="h-8 shrink-0 rounded-full px-4" onClick={() => p.sheet.set(false)}>Terminé</Button>
-        </div>
-      )}
-      <div role="tablist" aria-label="Réglages de la slide" className="flex gap-0.5 rounded-xl bg-muted/60 p-1 md:flex-col md:gap-1 md:overflow-visible md:rounded-none md:border-r md:p-1.5">
+    <div className={`${p.className} ${panelFrame(p.sheet.open)}`} data-testid="editor-panel">
+      {p.sheet.open && <PanelSheetHeader onDone={() => p.sheet.set(false)}>Slide {p.document.slides.indexOf(slide) + 1} : tes réglages s’appliquent en direct.</PanelSheetHeader>}
+      <div role="tablist" aria-label="Réglages de la slide" className={PANEL_TABLIST}>
         {TABS.map(([id, label, Icon]) => tabButton(id, label, Icon))}
         {tabButton("ia", "Demander à l’IA", Sparkles, "text-primary md:hidden", "IA")}
         {tabButton("calques", "Calques", Layers, "md:mt-auto")}
       </div>
-      <div className={`flex min-h-0 min-w-0 flex-col ${p.sheet.open ? "max-md:flex-1 max-md:overflow-y-auto max-md:overscroll-contain max-md:pb-6" : ""}`}
-        // Téléphone : toucher une case des réglages ouvre le volet (la slide reste visible au-dessus du clavier).
-        onFocusCapture={(e) => {
-          if (!p.sheet.phone || p.sheet.open || !(e.target as HTMLElement).matches?.("input, textarea, select")) return;
-          const field = e.target as HTMLElement;
-          p.sheet.set(true);
-          window.setTimeout(() => field.scrollIntoView?.({ block: "nearest" }), 80);
-        }}>
+      <div className={panelBody(p.sheet.open)} onFocusCapture={panelBodyFocus(p.sheet)}>
         <div id="panel-content" role="tabpanel" aria-labelledby={`panel-tab-${shown}`} className={`min-h-0 min-w-0 flex-1 space-y-3 pt-3 md:overflow-y-auto md:p-3 ${tab === "ia" ? "max-md:hidden" : ""}`}>
           {slide.locked && (
             <div role="status" className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">
