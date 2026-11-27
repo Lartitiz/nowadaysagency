@@ -5,6 +5,8 @@ export interface ReelDraft {
   /** Accroche : celle choisie par la cliente dès le départ, puis celle du brouillon. */
   hook: string;
   sections: { timing?: string; texte_parle?: string; texte_overlay?: string }[];
+  /** Texte parlé en entier, pendant qu'il s'écrit (avant les scènes, 27/11/2026). */
+  monologue?: string;
 }
 
 const STEPS = ["Accroche", "Script scène par scène", "Relecture"] as const;
@@ -19,9 +21,15 @@ const STEPS = ["Accroche", "Script scène par scène", "Relecture"] as const;
 export function ReelDraftPreview({ draft, stage }: { draft: ReelDraft; stage?: string | null }) {
   const sections = draft.sections.filter((s) => (s.texte_parle || s.texte_overlay || "").trim());
   const hasScript = sections.length > 0;
-  const current = hasScript ? 2 : draft.hook ? 1 : 0;
-  const message = hasScript
+  const monologue = (draft.monologue || "").trim();
+  // Depuis le 27/11/2026 les scènes arrivent PENDANT l'écriture : la relecture
+  // ne commence qu'à l'étape « correcting » envoyée par le serveur.
+  const reviewing = stage === "correcting";
+  const current = reviewing ? 2 : hasScript || monologue || draft.hook ? 1 : 0;
+  const message = reviewing
     ? "Je relis ton script pour gommer les tournures d'IA…"
+    : monologue && !hasScript
+    ? "J'écris ton texte, puis je le découpe en scènes…"
     : "J'écris ton script scène par scène…";
   const hookShown = draft.hook || sections[0]?.texte_overlay || "";
 
@@ -31,7 +39,7 @@ export function ReelDraftPreview({ draft, stage }: { draft: ReelDraft; stage?: s
         <div className="flex flex-wrap items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" aria-hidden="true" />
           <p className="text-sm font-medium text-foreground min-w-0" role="status" aria-live="polite">{message}</p>
-          {hasScript && (
+          {(hasScript || monologue) && (
             <span className="ml-auto text-2xs font-medium rounded-full px-2.5 py-0.5 bg-amber-100 text-amber-900">
               Brouillon, sera relu
             </span>
@@ -79,6 +87,11 @@ export function ReelDraftPreview({ draft, stage }: { draft: ReelDraft; stage?: s
               </li>
             ))}
           </ol>
+        ) : monologue ? (
+          <div className="flex-1 min-w-0 w-full rounded-lg border border-border bg-secondary/30 px-3 py-2 text-muted-foreground" data-testid="reel-draft-monologue">
+            <span className="block text-2xs text-muted-foreground/70 mb-0.5">Ton texte parlé, en cours d'écriture</span>
+            <p className="text-xs leading-snug whitespace-pre-line">{monologue}<span className="inline-block w-1.5 h-3 ml-0.5 align-middle bg-primary/60 animate-pulse" aria-hidden="true" /></p>
+          </div>
         ) : (
           <div className="flex-1 min-w-0 w-full space-y-2" aria-hidden="true" data-testid="reel-draft-skeleton">
             {[0, 1, 2, 3].map((i) => (

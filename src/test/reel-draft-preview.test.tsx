@@ -28,10 +28,13 @@ describe("useContentGenerator — reel en flux", () => {
   it("passe par le flux, montre l'accroche choisie, puis le brouillon, puis vide le brouillon à la fin", async () => {
     const seen: any[] = [];
     let release!: () => void;
+    let next: (() => void) | undefined;
     const hook = renderHook(useContentGenerator);
     mocks.heartbeat.mockImplementation(async (fn: string, opts: any) => {
       expect(fn).toBe("creative-flow");
       seen.push(hook.result.current.reelDraft);
+      opts.onStatus("draft", { reel: { hook: "", sections: [], monologue: "J'ai arrêté" } });
+      await new Promise<void>((r) => { next = r; });
       opts.onStatus("draft", { reel: { hook: "Accroche du brouillon", sections: SCRIPT } });
       opts.onStatus("correcting");
       await new Promise<void>((r) => { release = r; });
@@ -39,6 +42,10 @@ describe("useContentGenerator — reel en flux", () => {
     });
     let done!: Promise<unknown>;
     act(() => { done = hook.result.current.generate({ format: "reel", subject: "Mes remises", selectedHook: { text: "J'ai arrêté les remises." } } as any); });
+    // Le texte parlé partiel arrive à l'écran avant les scènes.
+    await vi.waitFor(() => expect(hook.result.current.reelDraft?.monologue).toBe("J'ai arrêté"));
+    expect(hook.result.current.reelDraft?.sections).toHaveLength(0);
+    act(() => next!());
     await vi.waitFor(() => expect(hook.result.current.reelDraft?.sections).toHaveLength(2));
     expect(mocks.timeout).not.toHaveBeenCalled();
     // L'accroche choisie reste celle affichée, le script arrive en brouillon.
@@ -65,6 +72,18 @@ describe("ReelDraftPreview", () => {
     expect(screen.getByRole("status").textContent).toContain("Je relis");
     // Sans accroche choisie, le texte à l'écran de la 1re scène occupe le téléphone.
     expect(screen.getByTestId("reel-draft-phone").textContent).toContain("REMISES");
+  });
+  it("pendant l'écriture : le texte parlé s'affiche avant les scènes (27/11/2026)", () => {
+    render(<ReelDraftPreview draft={{ hook: "", sections: [], monologue: "Tu crois que je te fais attendre" }} stage="generating" />);
+    expect(screen.getByTestId("reel-draft-monologue").textContent).toContain("Tu crois que je te fais attendre");
+    expect(screen.queryByTestId("reel-draft-skeleton")).toBeNull();
+    expect(screen.getByRole("status").textContent).not.toContain("Je relis");
+  });
+  it("scènes arrivées pendant l'écriture : pas encore « Je relis »", () => {
+    render(<ReelDraftPreview draft={{ hook: "", sections: SCRIPT, monologue: "texte" }} stage="generating" />);
+    expect(screen.getByTestId("reel-draft-scenes").querySelectorAll("li")).toHaveLength(2);
+    expect(screen.queryByTestId("reel-draft-monologue")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("scène par scène");
   });
   it("lit l'accroche choisie sous ses deux formes", () => {
     expect(chosenHookText({ text: " Une accroche " })).toBe("Une accroche");

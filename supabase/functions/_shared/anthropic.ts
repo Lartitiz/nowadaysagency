@@ -1,5 +1,6 @@
 // Shared Anthropic API helper for edge functions
 import { stripCacheBreakFromMessages, systemBlocks } from "./system-cache.ts";
+import { readAnthropicTextStream } from "./anthropic-text-stream.ts";
 import { HAIKU_MODEL, OPUS_MODEL, alwaysThinks, forcesDisabledThinking, maxTokensFor, modelRequestFields, supportsTemperature, toolInstruction } from "./model-capabilities.ts";
 
 /**
@@ -245,6 +246,8 @@ export interface AnthropicOptions {
    * Les textes GÉNÉRÉS restent assainis par défaut (comportement historique).
    */
   keepDashes?: boolean;
+  /** Texte reçu jusqu'ici, pendant l'écriture (`callAnthropic`, sans outil) : réponse en flux, mêmes contrôles à la fin. */
+  onText?: (text: string) => void;
   /**
    * Sortie structurée : force le modèle à répondre via ce tool (`tool_choice`).
    * L'API garantit alors un `input` conforme au schéma — ça élimine toute la
@@ -628,6 +631,8 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
   if (options.temperature !== undefined && supportsTemperature(options.model)) {
     body.temperature = options.temperature;
   }
+  const streamText = !!options.onText && !options.tool;
+  if (streamText) body.stream = true;
 
   let lastError: Error | null = null;
 
@@ -699,11 +704,23 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
         isAbort ? 504 : 503
       );
     }
+    // En flux, le délai borne aussi la lecture du texte (comme l'attente d'une réponse classique).
+    let data: any = null;
+    if (streamText && response.ok && response.body) {
+      try { data = await readAnthropicTextStream(response.body, options.onText!); } catch (err) {
+        if (abortTimer) clearTimeout(abortTimer);
+        callerSignal?.removeEventListener("abort", onCallerAbort);
+        if (callerSignal?.aborted) throw cancelled();
+        console.error(JSON.stringify({ type: "ai_error", model: options.model, error: `Anthropic stream: ${(err as any)?.name === "AbortError" ? "timeout" : (err as any)?.message}`, attempt: attempt + 1 }));
+        if (attempt < maxRetries) { lastError = new AnthropicError("Connexion à l'IA interrompue, réessai en cours...", 503); continue; }
+        throw new AnthropicError("Connexion à l'IA perdue. Réessaie dans un instant.", 503);
+      }
+    }
     if (abortTimer) clearTimeout(abortTimer);
     callerSignal?.removeEventListener("abort", onCallerAbort);
 
     if (response.ok) {
-      const data = await response.json();
+      data ??= await response.json();
       if (missingExpectedTool(data, options.model, options.tool) && attempt < maxRetries) {
         console.log(JSON.stringify({ type: "ai_tool_missing_retry", model: options.model }));
         continue;
@@ -738,7 +755,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
     // Fallback: if Opus is overloaded (500/529) after all retries, try Sonnet
     if ((response.status === 529 || response.status === 500) && hasSonnetFallback(options.model)) {
       console.log("Opus overloaded after retries — falling back to Sonnet...");
-      const fallbackBody = sonnetFallbackBody(body, options.tool);
+      const fallbackBody = { ...sonnetFallbackBody(body, options.tool), stream: undefined }; // repli lu d'un bloc
       const fallbackRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {

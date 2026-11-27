@@ -5,7 +5,8 @@
 // tous les formats sont dans ../shared.ts. Voir docs/creation-contenu/CARTE.md.
 
 import { authoredContentSource, testimonySourceText } from "../../_shared/editorial-voice.ts";
-import { HAIKU_MODEL } from "../../_shared/anthropic.ts";
+import { HAIKU_MODEL, sanitizeStyle } from "../../_shared/anthropic.ts";
+import { closedTopLevelObjects, partialTopLevelString } from "../../_shared/partial-json.ts";
 import { enforceAudienceAddress, type AudienceAddress } from "../../_shared/audience-address.ts";
 import { tryParseAiJson } from "../../_shared/parse-ai-json.ts";
 import { applyCorrectionPassReel } from "../../_shared/correction-pass.ts";
@@ -691,4 +692,35 @@ export function reelDraftPreview(parsed: any): { hook: string; sections: { timin
   if (!sections.length) return null;
   const hook = typeof parsed?.hook === "string" ? parsed.hook.slice(0, 300) : "";
   return { hook, sections };
+}
+
+// ═══ BROUILLON EN DIRECT PENDANT L'ÉCRITURE (27/11/2026) ═══
+// Loom de Laetitia : ~30 s de rectangle rose vide avant le brouillon, envoyé
+// seulement une fois tout le JSON écrit. Le modèle écrit d'abord le texte
+// parlé en entier (`lecture_test`), puis l'accroche, puis les scènes : on les
+// montre au fil de l'écriture. Même ordre et même consigne qu'avant, rien ne
+// change dans le texte écrit.
+
+export type ReelLiveDraft = { hook: string; monologue: string; sections: { timing: string; texte_parle: string; texte_overlay: string }[] };
+
+/** Suit le JSON du script pendant l'écriture et envoie le brouillon quand il a bougé (5 mots de plus, accroche ou scène finie). */
+export function reelDraftTracker(emit: (draft: ReelLiveDraft) => void): (text: string) => void {
+  let lastKey = "", lastWords = 0;
+  return (text: string) => {
+    const mono = partialTopLevelString(text, "lecture_test");
+    const hook = partialTopLevelString(text, "accroche");
+    const sections = reelDraftPreview({ script: closedTopLevelObjects(text, "script") })?.sections ?? [];
+    const monologue = (mono?.text ?? "").trim();
+    const words = monologue ? monologue.split(/\s+/).length : 0;
+    const hookText = hook?.closed ? hook.text.trim() : "";
+    if (!words && !hookText && !sections.length) return;
+    const key = `${sections.length}|${hookText}|${mono?.closed ? 1 : 0}`;
+    if (key === lastKey && words - lastWords < 5) return;
+    lastKey = key; lastWords = words;
+    emit({
+      hook: sanitizeStyle(hookText.slice(0, 300)),
+      monologue: sanitizeStyle(monologue.slice(0, 1500)),
+      sections: sections.map((s) => ({ ...s, texte_parle: sanitizeStyle(s.texte_parle), texte_overlay: sanitizeStyle(s.texte_overlay) })),
+    });
+  };
 }

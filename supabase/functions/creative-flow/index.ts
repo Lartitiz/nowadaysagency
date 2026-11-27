@@ -39,7 +39,7 @@ export { isExplicitlyFictionalBrief, isFactualFictionalLinkedInBrief, alignFactu
 export { photoVoiceRule } from "./shared.ts";
 export { NEWSLETTER_ADDRESS_FIELDS, applyNewsletterCorrectionPass } from "./formats/newsletter.ts";
 export { gateNumbers, _deps, POST_ADDRESS_FIELDS } from "./shared.ts";
-import { buildHooksPrompt, reelHooksUsable, reelPhotoUserContent, reelPhotosOf, reelDraftPreview } from "./formats/reel.ts";
+import { buildHooksPrompt, reelHooksUsable, reelPhotoUserContent, reelPhotosOf, reelDraftPreview, reelDraftTracker } from "./formats/reel.ts";
 import { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, buildQuestionsPrompt } from "./prompts/assist.ts";
 export { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, buildQuestionsPrompt } from "./prompts/assist.ts";
 export { resolveFormatHint, detectFormatFlags } from "./format-flags.ts";
@@ -405,7 +405,10 @@ serve(async (req) => {
       // Les accroches (step hooks) les voient aussi : sinon elles inventent des détails.
       const reelPhotos = (step === "generate" || step === "hooks") && isReel ? reelPhotosOf(body) : [];
       const userContent = reelPhotos.length ? reelPhotoUserContent(reelPhotos, userPrompt!) : userPrompt!;
-      const firstCall = () => structuredTool || reelPhotos.length
+      // Reel en flux : le script s'affiche pendant qu'il s'écrit (formats/reel.ts, 27/11/2026).
+      const liveDraft = emitStatus && isReel && step === "generate"
+        ? { onText: reelDraftTracker((reel) => emitStatus("draft", { reel })) } : {};
+      const firstCall = () => structuredTool || reelPhotos.length || liveDraft.onText
         ? callAnthropic({
             model: modelForCall,
             system: systemPrompt,
@@ -414,6 +417,7 @@ serve(async (req) => {
             max_tokens: maxTokens ?? 4096,
             abortTimeoutMs: abortMs,
             tool: structuredTool,
+            ...liveDraft,
           }, finalUsage)
         : callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage, abortMs);
       rawContent = await firstCall();
