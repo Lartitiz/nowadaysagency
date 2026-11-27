@@ -51,3 +51,19 @@ export async function readAnthropicTextStream(body: ReadableStream<Uint8Array>, 
   data.content = [{ type: "text", text }];
   return data;
 }
+
+/**
+ * Lecture du flux pour `callAnthropic` : `failed` (coupure, délai dépassé,
+ * évènement `error`) = erreur de transport, que `callAnthropic` relance comme
+ * une erreur réseau. Journalisé comme les autres erreurs d'appel.
+ */
+export async function readStreamedResponse(response: Response, onText: (text: string) => void, model: string, attempt: number): Promise<{ data?: unknown; failed?: boolean }> {
+  try {
+    if (!response.body) throw new AnthropicStreamError("Anthropic stream sans corps");
+    return { data: await readAnthropicTextStream(response.body, onText) };
+  } catch (err) {
+    const e = err as { name?: string; message?: string };
+    console.error(JSON.stringify({ type: "ai_error", model, error: `Anthropic stream: ${e?.name === "AbortError" ? "timeout" : e?.message}`, attempt: attempt + 1 }));
+    return { failed: true };
+  }
+}
