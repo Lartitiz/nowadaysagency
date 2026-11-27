@@ -13,10 +13,12 @@ const QUESTIONS_NOTES: WaitingNote[] = [
   { afterSeconds: 30, text: "C'est un peu plus long que d'habitude : ça arrive. Encore un instant…" },
 ];
 
-export function QuestionsWaiting({ messages, className = "py-10 text-center animate-fade-in space-y-5", testId }: {
+export function QuestionsWaiting({ messages, className = "py-10 text-center animate-fade-in space-y-5", testId, notes = QUESTIONS_NOTES }: {
   messages: string[];
   className?: string;
   testId?: string;
+  /** Réassurance à 15 s et 30 s ; par défaut celle des questions. */
+  notes?: WaitingNote[];
 }) {
   return (
     <div role="status" data-testid={testId}>
@@ -25,7 +27,7 @@ export function QuestionsWaiting({ messages, className = "py-10 text-center anim
         rotation={{ messages, everyMs: 3500 }}
         tauSeconds={25}
         ceiling={90}
-        notes={QUESTIONS_NOTES}
+        notes={notes}
       />
     </div>
   );
@@ -52,8 +54,10 @@ export function QuestionCounter({ index, total, suffix = "", showBars = false, t
 }
 
 /** La question (label), son exemple lisible pendant la saisie, et la zone de texte avec micro. */
-export function QuestionField({ id, question, example, value, onChange, placeholder, labelClassName, children, testId, autoFocus, textareaClassName = "resize-none" }: {
+export function QuestionField({ id, fieldKey, question, example, value, onChange, placeholder, labelClassName, children, testId, autoFocus, textareaClassName = "resize-none" }: {
   id: string;
+  /** Change à chaque question quand `id` reste le même : la case repart à neuf (curseur dedans, dictée arrêtée). */
+  fieldKey?: string | number;
   question: string;
   example?: string;
   value: string;
@@ -72,7 +76,7 @@ export function QuestionField({ id, question, example, value, onChange, placehol
       {example && <p id={`${id}-example`} className="text-sm text-muted-foreground" data-testid="creer-question-example">Par exemple : {example}</p>}
       {children}
       <Textarea
-        key={id}
+        key={fieldKey ?? id}
         id={id}
         data-testid={testId}
         autoFocus={autoFocus}
