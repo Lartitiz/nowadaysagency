@@ -65,9 +65,11 @@ export function MontageResult({ previewOpen = false, preparingPreview = false, c
         vue. On la répète ici, dans la barre toujours visible (essai réel du 26/11/2026). */}
     {phase === "rendering" && previewOpen ? <BarProgress /> : phase === "done" && mp4Url && !previewOpen ? (
       // Vidéo prête : son téléchargement est plus bas dans le panneau, on le met aussi ici.
-      <Button type="button" variant="outline" size="sm" onClick={() => void handleDownload()} disabled={downloading} data-testid="montage-bar-download">
-        <Download className="h-4 w-4 mr-1.5" />{downloading ? "Téléchargement…" : <>Télécharger<span className="hidden sm:inline">&nbsp;ma vidéo</span></>}
-      </Button>
+      <a href={mp4Url} download target="_blank" rel="noopener noreferrer" className="inline-flex" onClick={(event) => { event.preventDefault(); void handleDownload(); }}>
+        <Button type="button" variant="outline" size="sm" disabled={downloading} data-testid="montage-bar-download">
+          <Download className="h-4 w-4 mr-1.5" />{downloading ? "Téléchargement…" : <>Télécharger<span className="hidden sm:inline">&nbsp;ma vidéo</span></>}
+        </Button>
+      </a>
     ) : (
     <span className="text-2xs text-muted-foreground">
       {ready} clip{ready > 1 ? "s" : ""} sur {spoken.length} prêt{ready > 1 ? "s" : ""}
@@ -98,12 +100,16 @@ export function MontageResult({ previewOpen = false, preparingPreview = false, c
     <div className="space-y-2">
       {phase === "done" && <p className="text-sm font-medium">Ta vidéo est prête</p>}
       <div className="flex items-center gap-2 flex-wrap">
+        {/* Vidéo prête : le téléchargement est dans la barre du bas, un seul bouton (27/11/2026).
+            Ici ne reste que celui du montage précédent, que la barre ne propose pas. */}
+        {phase !== "done" && (
         <a href={mp4Url} download target="_blank" rel="noopener noreferrer" className="inline-flex" onClick={(event) => { event.preventDefault(); void handleDownload(); }}>
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-1.5" />
             {downloading ? "Téléchargement…" : "Télécharger le MP4"}
           </Button>
         </a>
+        )}
         {downloadFailed && <a href={mp4Url} target="_blank" rel="noopener noreferrer" className="text-xs underline">Ouvrir le MP4 dans un nouvel onglet</a>}
         {phase === "done" && !archived && archiveRetryAvailable && (
           <Button variant="outline" size="sm" disabled={archiving} onClick={handleArchiveRetry}>

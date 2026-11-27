@@ -525,9 +525,9 @@ describe("ReelMontage — atelier du 26/11/2026 : la vidéo à gauche, un passag
     await settle();
     expect(screen.getByTestId("reel-stage").querySelector("video")?.getAttribute("src")).toBe("https://stockage.test/reel.mp4");
     expect(screen.getByText("Ta vidéo est prête")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Télécharger le MP4/ })).toBeInTheDocument();
-    // Et dans la barre du bas, toujours à l'écran.
+    // Un seul bouton de téléchargement, dans la barre du bas, toujours à l'écran.
     expect(screen.getByTestId("montage-bar-download")).toHaveTextContent("Télécharger ma vidéo");
+    expect(screen.queryByRole("button", { name: /Télécharger le MP4/ })).toBeNull();
   });
 });
 
