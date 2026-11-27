@@ -115,7 +115,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
       const { data, error } = await invokeWithTimeout("instagram-profile-coaching", {
         body: { phase: "questions", module: mod, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       }, 60000);
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setQuestions(data.questions || []);
       setIntro(data.intro || "");
@@ -146,7 +146,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
       const { data, error } = await invokeWithTimeout("instagram-profile-coaching", {
         body: { phase: "diagnostic", module: activeModule, answers: answersPayload, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       }, 90000);
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setDiagnostic(data);
       const edited: Record<string, string> = {};
