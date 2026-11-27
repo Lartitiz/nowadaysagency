@@ -4,6 +4,7 @@
 import { useEffect } from "react";
 import { Redo2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 
 interface History { undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean }
 
@@ -14,10 +15,12 @@ export default function StoryUndoButtons({ history }: { history: History }) {
   const { undo, redo } = history;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || typingIn(e.target)) return;
-      const key = e.key.toLowerCase();
-      if (key === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
-      else if ((key === "z" && e.shiftKey) || key === "y") { e.preventDefault(); redo(); }
+      if (typingIn(e.target)) return;
+      // Même lecture du raccourci que le carrousel et le texte (edit-history-shortcut.ts).
+      const action = editHistoryShortcut(e);
+      if (!action) return;
+      e.preventDefault();
+      if (action === "undo") undo(); else redo();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

@@ -1,32 +1,29 @@
 import { useCallback, useRef, useState } from "react";
+import { emptyHistory, recordStep, travelHistory } from "@/lib/edit-history";
 
-/** Bounded, local history: typing is grouped, programmatic adjustments are not. */
+const MAX_STEPS = 30;
+
+/** Bounded, local history: typing is grouped, programmatic adjustments are not. Pile commune : src/lib/edit-history.ts. */
 export function useTextEditHistory(initial: string) {
   const [state, setState] = useState({ value: initial });
-  const history = useRef({ value: initial, past: [] as string[], future: [] as string[], time: 0, typing: false });
+  const history = useRef({ value: initial, stack: emptyHistory<string>() });
   const change = useCallback((next: string, typing = false) => {
     const h = history.current;
     if (next === h.value) return;
-    const now = Date.now();
-    if (!typing || !h.typing || now - h.time > 800) h.past = [...h.past.slice(-29), h.value];
-    h.future = [];
-    h.typing = typing;
-    h.time = now;
+    recordStep(h.stack, h.value, typing ? "typing" : null, MAX_STEPS);
     h.value = next;
     setState({ value: next });
   }, []);
   const travel = useCallback((redo = false) => {
     const h = history.current;
-    const next = (redo ? h.future : h.past).pop();
+    const next = travelHistory(h.stack, h.value, redo);
     if (next === undefined) return;
-    (redo ? h.past : h.future).push(h.value);
-    h.typing = false;
     h.value = next;
     setState({ value: next });
   }, []);
   const reset = useCallback((value: string) => {
-    history.current = { value, past: [], future: [], time: 0, typing: false };
+    history.current = { value, stack: emptyHistory<string>() };
     setState({ value });
   }, []);
-  return { value: state.value, change, travel, reset, canUndo: !!history.current.past.length, canRedo: !!history.current.future.length };
+  return { value: state.value, change, travel, reset, canUndo: !!history.current.stack.past.length, canRedo: !!history.current.stack.future.length };
 }
