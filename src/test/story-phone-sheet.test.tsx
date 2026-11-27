@@ -71,6 +71,20 @@ describe("volet de réglages des stories sur téléphone", () => {
     expect((panel().getByLabelText("Texte complet de la story 1") as HTMLTextAreaElement).value).toBe("Texte changé");
   });
 
+  it("l'onglet « Demander à l'IA » ouvre le volet avec le champ et le bouton « Refaire cette story »", () => {
+    onPhone();
+    render(<Harness />);
+    expect(panel().getByPlaceholderText(/Facultatif/)).not.toBeVisible();
+    fireEvent.click(panel().getByRole("tab", { name: "Demander à l’IA" }));
+    expect(sheet()).toBe("true");
+    expect(panel().getByText("Demander un changement à l'IA")).toBeVisible();
+    expect(panel().getByRole("button", { name: /Refaire cette story/ })).toBeVisible();
+    // Les réglages de texte laissent la place à la demande.
+    expect(panel().getByLabelText("Texte complet de la story 1")).not.toBeVisible();
+    fireEvent.click(panel().getByRole("tab", { name: "Texte" }));
+    expect(panel().getByLabelText("Texte complet de la story 1")).toBeVisible();
+  });
+
   it("quitter l'écran referme le volet (les barres du bas reviennent)", () => {
     onPhone();
     const view = render(<Harness />);
@@ -90,5 +104,8 @@ describe("volet de réglages des stories sur téléphone", () => {
     expect(sheet()).toBe("false");
     expect(screen.queryByRole("button", { name: "Terminé" })).toBeNull();
     expect(document.querySelector("[data-story-strip]")).not.toBeNull();
+    // Ordinateur : pas d'onglet IA, la demande reste collée en bas du panneau.
+    expect(panel().queryByRole("tab", { name: "Demander à l’IA" })).toBeNull();
+    expect(panel().getByRole("button", { name: /Refaire cette story/ })).toBeInTheDocument();
   });
 });
