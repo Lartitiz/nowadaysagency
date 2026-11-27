@@ -148,11 +148,6 @@ export default function CreerStepQuestions({
     else onSkip();
   };
 
-  const handleFinalize = (finalAnswers: Record<string, string>) => {
-    setIsSubmitting(true);
-    onNext(finalAnswers);
-  };
-
   const hasAnswers = Object.values(answers).some((value) => value.trim());
   // 26/11/2026 (retour de Laetitia : « ça charge l'écran ») : un simple lien, plus un
   // encadré sous chaque question. L'écran des questions ne le montre qu'à la dernière.
@@ -284,7 +279,10 @@ export default function CreerStepQuestions({
       setCurrentIndex((i) => i + 1);
       return;
     }
-    handleFinalize(answers);
+    // Dernière question : seul bouton pour lancer, il passe par le même chemin
+    // que l'ancien lien « Passer les questions » (question de terrain du
+    // newsjacking quand rien n'est rempli).
+    handleSkip();
   };
 
   const handlePrev = () => {
@@ -350,8 +348,11 @@ export default function CreerStepQuestions({
           </Button>
         </div>
 
-        {/* Skip */}
-        <Button
+        {/* Passer les questions : pas à la dernière, où le gros bouton « Générer »
+            fait déjà la même chose (27/11/2026, deux « Générer » l'un sous l'autre).
+            Gardé pour une question unique laissée vide : il dit alors « passer »,
+            pas « générer » une deuxième fois. */}
+        {(!isLast || (questions.length === 1 && !hasAnswers)) && <Button
           variant="link"
           size="sm"
           className="w-full gap-1.5 text-muted-foreground underline underline-offset-2 hover:text-primary"
@@ -364,7 +365,7 @@ export default function CreerStepQuestions({
           ) : (
             <>{hasAnswers ? "Générer avec mes précisions" : "Passer les questions, générer directement"}</>
           )}
-        </Button>
+        </Button>}
         {isSubmitting && (
           <p className="text-xs text-center text-muted-foreground animate-fade-in">
             ⚡ Préparation de la génération…

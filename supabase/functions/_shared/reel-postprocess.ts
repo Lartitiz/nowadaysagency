@@ -11,6 +11,7 @@
 //    montrer : aucun plan ni format visuel face cam ne doit subsister).
 
 import { findChoppyFragments, fixFrenchElisions } from "./redac-gate.ts";
+import { COMMON_VERB_RE, SUBJECT_RE } from "./redac-gate/slop-signals.ts";
 
 /** Rythme parlé naturel : 2,5 mots par seconde (~150 mots/min). */
 const WORDS_PER_SECOND = 2.5;
@@ -425,6 +426,7 @@ function firstSentence(text: string): string {
 export function reelHookIsChoppy(text: unknown): boolean {
   if (typeof text !== "string" || !text.trim()) return false;
   if (findChoppyFragments(text).runs.length > 0) return true;
+  if (findLongVerblessSentences(firstSentence(text)).length > 0) return true;
   return findChoppyFragments(firstSentence(text)).fragments > 0 && /[.!…]\s+\S/.test(text.trim());
 }
 
@@ -482,12 +484,48 @@ export function findWrittenParticipleLists(text: string): string[] {
   return found;
 }
 
+// Phrase longue sans verbe (reste du Loom, 27/11/2026) : « Cette texture
+// bizarre, des poches de liquide sous la surface, une odeur qui ne trompe
+// pas. » Au-delà de 10 mots, `findChoppyFragments` ne la lit plus. Repérée ici
+// quand elle aligne au moins deux groupes de noms séparés par des virgules
+// (chacun ouvert par un déterminant ou un chiffre) et qu'aucun groupe ne porte
+// de sujet ni de verbe conjugué ; un « qui… »/« que… » à l'intérieur d'un
+// groupe ne compte pas (c'est la précision du nom, pas la phrase).
+const LONG_SANS_VERBE_MIN_WORDS = 11;
+const DEBUT_GROUPE_NOM_RE = /^(?:le|la|les|l['’]\p{L}*|un|une|des|du|de|d['’]\p{L}*|mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|votre|vos|leur|leurs|ce|cet|cette|ces|aucun|aucune|chaque|deux|trois|quatre|cinq|six|dix|cent|mille|\d[\d\s,.]*)$/iu;
+const RELATIVE_COUPE_RE = /(?<![\p{L}])(?:qui|que|qu['’]|dont|où)(?![\p{L}])/iu;
+const FIN_VERBE_RE = /\p{L}{2,}(?:ait|aient|ais|era|erai|eront|erait|eraient|èrent)$/iu;
+
+function groupeSansVerbe(groupe: string): boolean {
+  const tete = groupe.split(RELATIVE_COUPE_RE)[0];
+  if (SUBJECT_RE.test(tete) || COMMON_VERB_RE.test(tete)) return false;
+  return !tete.split(/\s+/).some((w) => FIN_VERBE_RE.test(w.replace(/[^\p{L}]/gu, "")));
+}
+
+/** Phrases de plus de 10 mots faites de groupes de noms, sans verbe conjugué. */
+export function findLongVerblessSentences(text: string): string[] {
+  const found: string[] = [];
+  for (const line of (text || "").split(/\n+/)) {
+    for (const sentence of line.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter(Boolean)) {
+      if (/\?\s*$/.test(sentence)) continue;
+      const words = sentence.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w));
+      if (words.length < LONG_SANS_VERBE_MIN_WORDS) continue;
+      const groupes = sentence.replace(/[.!…]+$/, "").split(/\s*[,;:]\s*|\s+[–—-]\s+/).map((g) => g.trim()).filter(Boolean);
+      if (groupes.length < 2) continue;
+      const groupesNoms = groupes.filter((g) => DEBUT_GROUPE_NOM_RE.test(g.split(/\s+/)[0].replace(/^[«"“]+/, "")));
+      if (groupesNoms.length >= 2 && groupes.every(groupeSansVerbe)) found.push(sentence);
+    }
+  }
+  return found;
+}
+
 /** Passages hachés du texte parlé, section par section (numéros à partir de 1). */
 export function reelChoppyPassages(parsed: any): { section: number; extraits: string[] }[] {
   const out: { section: number; extraits: string[] }[] = [];
   sectionsOf(parsed).forEach((s, i) => {
     const text = typeof s.texte_parle === "string" ? s.texte_parle : "";
     const extraits = [...findChoppyFragments(text).runs, ...findWrittenParticipleLists(text)];
+    for (const longue of findLongVerblessSentences(text)) if (!extraits.some((e) => longue.includes(e) || e.includes(longue))) extraits.push(longue);
     if (i === 0 && !extraits.length && reelHookIsChoppy(text)) extraits.push(firstSentence(text));
     if (extraits.length) out.push({ section: i + 1, extraits });
   });

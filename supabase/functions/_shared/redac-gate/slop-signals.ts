@@ -146,8 +146,8 @@ export function hookEndingSimilarity(hookText: string, endingText: string): numb
 // Chaque ligne (story, slide, section) est lue à part : un petit titre ou
 // une ligne de sticker n'est jamais enchaîné au texte qui suit.
 const CHOPPY_MAX_WORDS = 10;
-const SUBJECT_RE = /(?<![\p{L}])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|ce sont|y a)(?![\p{L}])|(?:j|c|ç|qu)['’])/iu;
-const COMMON_VERB_RE = /(?<![\p{L}])(?:est|sont|suis|es|était|étaient|étais|sera|serait|seront|ai|as|a|avons|avez|ont|avait|avais|aura|fait|font|fais|faisait|va|vais|vas|vont|allait|peut|peux|peuvent|pouvait|faut|fallait|veut|veux|voulait|doit|dois|doivent|devait|sait|sais|savait|dit|dis|disait|voit|vois|voyait|vient|viens|viennent|reste|restent|coûte|coûtent|change|changent|marche|marchent|compte|comptent|choisis|choisit|utilise|utilisent|travaille|travaillent|pense|pensent|crois|croit|aime|aiment|parle|parlent|trouve|trouvent|donne|donnent|prend|prends|prennent|met|mets|mettent|passe|passent|arrive|arrivent|semble|semblent|ressemble|ressemblent|devient|deviennent|existe|existent|manque|manquent|suffit|vaut|valent|permet|permettent)(?![\p{L}])/iu;
+export const SUBJECT_RE = /(?<![\p{L}])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|ce sont|y a)(?![\p{L}])|(?:j|c|ç|qu)['’])/iu;
+export const COMMON_VERB_RE = /(?<![\p{L}])(?:est|sont|suis|es|était|étaient|étais|sera|serait|seront|ai|as|a|avons|avez|ont|avait|avais|aura|fait|font|fais|faisait|va|vais|vas|vont|allait|peut|peux|peuvent|pouvait|faut|fallait|veut|veux|voulait|doit|dois|doivent|devait|sait|sais|savait|dit|dis|disait|voit|vois|voyait|vient|viens|viennent|reste|restent|coûte|coûtent|change|changent|marche|marchent|compte|comptent|choisis|choisit|utilise|utilisent|travaille|travaillent|pense|pensent|crois|croit|aime|aiment|parle|parlent|trouve|trouvent|donne|donnent|prend|prends|prennent|met|mets|mettent|passe|passent|arrive|arrivent|semble|semblent|ressemble|ressemblent|devient|deviennent|existe|existent|manque|manquent|suffit|vaut|valent|permet|permettent)(?![\p{L}])/iu;
 
 function isChoppyFragment(sentence: string): boolean {
   const s = sentence.trim();
