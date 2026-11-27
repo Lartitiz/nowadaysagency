@@ -101,7 +101,11 @@ export function outsideRoom(slide: Element | null | undefined): { above: number;
   // La barre d'outils de l'éditeur est collée sous le menu : la place au-dessus commence sous elle.
   const header = Math.max(window.document.querySelector("header")?.getBoundingClientRect().bottom ?? 0, window.document.querySelector("[data-editor-toolbar]")?.getBoundingClientRect().bottom ?? 0);
   const bar = window.document.querySelector('[data-testid="result-actions"]')?.getBoundingClientRect().top ?? window.innerHeight;
-  return { above: Math.max(0, r.top - Math.max(0, header)), below: Math.max(0, Math.min(bar, window.innerHeight) - r.bottom) };
+  // Les vignettes sont en rangée sous la slide depuis le 20/11/2026 : la place du dessous
+  // s'arrête à elles (27/11, la barre d'une photo les recouvrait).
+  const strip = window.document.querySelector('[aria-label="Slides du carrousel"]')?.getBoundingClientRect();
+  const floor = strip && strip.height > 0 && strip.top >= r.bottom - 1 ? Math.min(bar, strip.top) : bar;
+  return { above: Math.max(0, r.top - Math.max(0, header)), below: Math.max(0, Math.min(floor, window.innerHeight) - r.bottom) };
 }
 
 // Volet téléphone (26/11/2026, maquette du même jour). Avant, sur téléphone, les réglages
