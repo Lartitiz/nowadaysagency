@@ -42,4 +42,12 @@ describe("Pièces communes des questions", () => {
     expect(screen.getByRole("progressbar")).toBeTruthy();
     expect(screen.getByText(/Je prépare des questions sur-mesure/)).toBeTruthy();
   });
+
+  it("/creer : la même zone de réponse sert d'une question à l'autre (une dictée en cours n'est pas coupée)", () => {
+    const qs = [{ id: "a", question: "Un ?", placeholder: "" }, { id: "b", question: "Deux ?", placeholder: "" }];
+    render(<CreerStepQuestions format="post" subject="s" questions={qs as never} loadingQuestions={false} onNext={() => {}} onSkip={() => {}} onBack={() => {}} />);
+    const first = screen.getByLabelText("Un ?");
+    fireEvent.click(screen.getByTestId("creer-questions-next"));
+    expect(screen.getByLabelText("Deux ?")).toBe(first);
+  });
 });
