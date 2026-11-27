@@ -152,3 +152,20 @@ Deno.test("deepening keeps the spring of the chosen idea", async () => {
   });
   assertEquals(result.ideas[0].spring, "moment");
 });
+
+Deno.test("the idea title is asked in everyday words, the stake is written before it and never reaches the screen", async () => {
+  const prompts: string[] = []; const events: any[] = []; let systemRules = "";
+  const result = await generateDeepIdeas({ context: "Céramiste", history: "", onEvent: e => events.push(e) }, {
+    model: "claude-opus-5-5", apiKey: "", research: async () => ({ sources: [], status: "not_needed" }),
+    call: async (o) => { const user = o.messages[0].content as string; prompts.push(user); systemRules = o.system as string;
+      if (user.includes("Explore 6 pistes")) return JSON.stringify({ candidates: [1, 2, 3, 4, 5, 6].map(i => ({ subject: `Piste ${i}` })), research_queries: [] });
+      const n = user.match(/piste n°(\d)/)![1];
+      return JSON.stringify({ ideas: [{ ...idea, enjeu_pour_tous: "On paie plus cher sans savoir pourquoi", subject: `Idée ${n}` }] }); },
+  });
+  assert(systemRules.includes("N'IMPORTE QUI COMPREND CE QUI SE JOUE") && systemRules.includes("LA SUITE NE SE DEVINE PAS"));
+  assert(prompts[0].includes("compris hors du métier"), "the pistes shown on screen follow the same rule");
+  const writer = prompts.find(p => p.includes("piste n°1"))!;
+  assert(writer.indexOf('"enjeu_pour_tous"') > 0 && writer.indexOf('"enjeu_pour_tous"') < writer.lastIndexOf('"subject"'), "the stake is written before the title");
+  assertEquals(result.ideas.length, 4);
+  assert(!JSON.stringify(result.ideas).includes("enjeu_pour_tous") && !JSON.stringify(events).includes("enjeu_pour_tous"));
+});
