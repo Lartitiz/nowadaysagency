@@ -140,6 +140,14 @@ describe("glisser près du bord de l'écran : la page défile", () => {
     expect(Math.abs(edgeScrollSpeed(5, 900))).toBeGreaterThan(Math.abs(edgeScrollSpeed(100, 900)));
     expect(edgeScrollSpeed(895, 900)).toBeGreaterThan(edgeScrollSpeed(800, 900));
   });
+  it("s'arrête quand la vignette du bout est entièrement visible, repart si elle est encore cachée", () => {
+    // Vers le bas : dernière vignette finie à 700 px (visible) → arrêt ; à 880 px (sous la barre) → ça défile.
+    expect(edgeScrollSpeed(840, 900, { top: -300, bottom: 700 })).toBe(0);
+    expect(edgeScrollSpeed(840, 900, { top: -300, bottom: 880 })).toBeGreaterThan(0);
+    // Vers le haut : première vignette à 180 px (visible) → arrêt ; à -40 px (au-dessus de l'écran) → ça défile.
+    expect(edgeScrollSpeed(60, 900, { top: 180, bottom: 1100 })).toBe(0);
+    expect(edgeScrollSpeed(60, 900, { top: -40, bottom: 1100 })).toBeLessThan(0);
+  });
   const pointer = (x: number, y: number) => ({ clientX: x, clientY: y, pointerId: 1, currentTarget: { setPointerCapture() {} } }) as any;
   const base = (): ThumbReorder => ({
     thumbDrag: { current: null }, justDragged: { current: false },
