@@ -36,6 +36,8 @@ export function skipDepthResearch(isStories: boolean, lived: { mode: string }): 
 export function planDepthResearch(p: {
   step: string; deepResearch?: unknown; isPhotoMode: boolean;
   isCaption: boolean; isLinkedIn: boolean; isReel: boolean; isStories: boolean; body: any;
+  /** Comparaison avec / sans recherche : vrai seulement pour un compte de test (isQaTestAccount). */
+  skipForTest?: boolean;
 }): { run: boolean; livedCase?: string } {
   if (!(p.step === "generate" && !p.deepResearch && !p.isPhotoMode && (p.isCaption || p.isLinkedIn || p.isReel || p.isStories))) return { run: false };
   const lived = livedCaseFromCreativeBody(p.body);
@@ -43,6 +45,18 @@ export function planDepthResearch(p: {
     // Décision de Laetitia (05/10/2026) : des stories sur SON cas ne parlent
     // que d'elle, sans aucun chiffre de recherche.
     console.log(`[creative-flow] stories sur son propre cas (${lived.reasons.join(", ")}) — aucune recherche, aucun chiffre de recherche`);
+    return { run: false };
+  }
+  // Reel sur son propre cas (décision de Laetitia du 27/11/2026) : plus de
+  // recherche « en appui ». Mesurée sur 5 reels : 3 à 5 s d'attente avant le
+  // premier mot, une source gardée sur 5, aucune reprise dans le script.
+  if (lived.provided && p.isReel) {
+    console.log(`[creative-flow] reel sur son propre cas (${lived.reasons.join(", ")}) — pas de recherche en appui`);
+    return { run: false };
+  }
+  // Essai de comparaison (comptes de test seulement, posé par index.ts) : même demande sans recherche.
+  if (p.skipForTest) {
+    console.log("[creative-flow] essai sans recherche (compte de test)");
     return { run: false };
   }
   if (lived.provided) console.log(`[creative-flow] cas personnel fourni (${lived.reasons.join(", ")}) — ton cas d'abord, recherche en appui`);
