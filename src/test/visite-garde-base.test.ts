@@ -25,7 +25,22 @@ describe("garde-fou de lancement des tests en direct", () => {
 
   it("voit l'autre batterie en direct, pas les tests locaux", () => {
     expect(autresBatteries(processus, 102).map((p) => p.pid)).toEqual([200, 201]);
-    expect(autresBatteries(processus, 201).map((p) => p.pid)).toEqual([100, 101, 102]);
+    expect(autresBatteries(processus, 201).map((p) => p.pid)).toEqual([101, 102]);
+  });
+
+  it("ne prend pas pour une batterie la boucle d'attente d'une autre session (27/11/2026)", () => {
+    const attente = lireProcessus(`
+  37056     1 /bin/zsh -c source /u/.claude/shell-snapshots/s.sh 2>/dev/null || true && eval 'cd ~/wt-x && for i in $(seq 1 60); do pgrep -f "playwright.visite.config" >/dev/null || break; sleep 20; done; npx playwright test --config playwright.visite.config.ts --project=setup'
+  57234 37056 sleep 60
+  43918     1 bash -c for i in 1 2 3; do npx playwright test --config playwright.visite.config.ts --project=setup && break; sleep 60; done
+  500     1 node /x/wt-c/node_modules/@playwright/test/cli.js test -c playwright.visite.config.ts e2e-visite/a.spec.ts
+`);
+    // Les deux boucles d'attente ne comptent pas ; la batterie qui tourne vraiment
+    // (lancée par cli.js, invisible avant), si.
+    expect(autresBatteries(attente, 999).map((p) => p.pid)).toEqual([500]);
+    expect(autresBatteries(lireProcessus(`
+  600     1 node /x/node_modules/.bin/playwright test --config playwright.visite.config.ts
+`), 999).map((p) => p.pid)).toEqual([600]);
   });
 
   it("refuse quand une autre batterie tourne", () => {
