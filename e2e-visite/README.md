@@ -159,3 +159,7 @@ est de le laisser embarquer au prochain redéploiement groupé plutôt que de fo
 une passe massive (risque type 23/07). Ces fonctions restent marquées déployées
 **exprès** — ne pas les « démarquer » : une sonde qui sort 65 lignes chaque matin
 ne sera pas lue.
+
+## Garde-fou de lancement (27/11/2026)
+
+`garde-base.ts` tourne avant chaque batterie en direct (visite et smoke à froid). Il refuse de démarrer si une autre batterie en direct tourne déjà sur la machine, ou si la base met plus de 1,5 s (médiane de 3 lectures d'une ligne). Il écrit toujours la ligne `⏱️ Base avant lancement : …`. Une visite refusée ou rouge sur base lente ne se relance pas en entier : attendre que la base réponde de nouveau en moins d'une seconde. `VISITE_FORCE=1` passe outre.
