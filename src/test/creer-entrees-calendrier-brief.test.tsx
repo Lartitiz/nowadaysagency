@@ -93,6 +93,21 @@ describe('calendrier → /creer (rendu réel)', () => {
     expect(mocks.generate).not.toHaveBeenCalled();
   });
 
+  // 27/11/2026 : « Rédiger avec l'IA » d'un post photo ou d'une story unique arrive ici
+  // (plus de brouillon rapide sur place) : bon format, droit aux questions.
+  it.each([['post_photo', 'post'], ['post_texte', 'post'], ['story', 'story']])('CalendarPostDialog › handleSmartGenerate (%s) : format %s, droit aux questions', async (calFormat, attendu) => {
+    mount({
+      pathname: '/creer',
+      search: '?canal=instagram&calendar_id=cal-9&sujet=Mon+post&from=%2Fcalendrier',
+      state: { fromCalendar: true, calendarPostId: 'cal-9', theme: 'Mon post', objectif: null, angle: null, format: calFormat, notes: '', postDate: '2026-11-28', existingContent: null, existingAccroche: null },
+    });
+    await waitFor(() => expect(mocks.formatNext).toHaveBeenCalledTimes(1));
+    expect(mocks.formatNext.mock.calls[0][0]).toBe(attendu);
+    expect(mocks.formatNext.mock.calls[0][2]).toMatchObject({ overrideSubject: 'Mon post' });
+    await waitFor(() => expect(loadFlowState()).toMatchObject({ ideaText: 'Mon post', calendarPostId: 'cal-9' }));
+    expect(mocks.generate).not.toHaveBeenCalled();
+  });
+
   it('CalendarPostDialog › handleNavigateToDeepen (post_carrousel) : format canonique, angle du post, pas de détour par l’étape format', async () => {
     mount({
       pathname: '/creer',

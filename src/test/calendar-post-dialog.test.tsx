@@ -308,6 +308,28 @@ describe("navigation vers /creer", () => {
     expect((await suivre("faux:générer", post({ ...extra, theme: "Sujet" })))[0]).toMatchSnapshot();
   });
 
+  // 27/11/2026 (décision de Laetitia) : post, story unique et newsletter passent par
+  // /creer comme le carrousel, le reel et LinkedIn (questions, garde-fous, Mes idées).
+  it.each([
+    ["post photo Instagram", { format: "post_photo" }, "/creer?canal=instagram&"],
+    ["post texte Instagram", { format: "post_texte" }, "/creer?canal=instagram&"],
+    ["story unique Instagram", { format: "story" }, "/creer?canal=instagram&"],
+    ["newsletter (format newsletter_standard)", { canal: "newsletter", format: "newsletter_standard" }, "/creer?format=newsletter&"],
+  ])("générer : %s → /creer, plus de brouillon rapide", async (_n, extra, debut) => {
+    const [url, opts] = await suivre("faux:générer", post({ ...extra, theme: "Sujet" }));
+    expect(url.startsWith(debut)).toBe(true);
+    expect(opts.state).toMatchObject({ fromCalendar: true, theme: "Sujet", format: (extra as any).format });
+    expect(m.invoke).not.toHaveBeenCalled();
+  });
+
+  it("live (pas de format dans /creer) → brouillon rapide sur place, pas de navigation", async () => {
+    m.invoke.mockResolvedValue({ data: { content: "Plan. Suite" }, error: null });
+    renderDialog({ editingPost: post({ format: "live" }) });
+    fireEvent.click(screen.getByText("faux:générer"));
+    await waitFor(() => expect(m.invoke).toHaveBeenCalled());
+    expect(m.navigate).not.toHaveBeenCalled();
+  });
+
   it("autre canal sans format dédié → brouillon rapide sur place, pas de navigation", async () => {
     m.invoke.mockResolvedValue({ data: { content: "Idée. Suite" }, error: null });
     renderDialog({ editingPost: post({ canal: "pinterest", format: "epingle" }) });

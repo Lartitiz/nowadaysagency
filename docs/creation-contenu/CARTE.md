@@ -45,7 +45,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 | Crosspost (→ LinkedIn, Instagram, reel, stories) | `linkedin-ai` action `crosspost` | `src/components/CrosspostFlow.tsx` | `src/lib/crosspost-*.ts` |
 | Newsjacking (actu → angles) | `newsjacking-ai`, `newsjacking-angles`, `newsjacking-from-url` | `src/components/creer/NewsjackingPanel.tsx` | — |
 | Menu IA sur sélection de texte | `ai-text-action` | `src/components/SelectionMenu.tsx`, `SelectionMenuProvider.tsx` | — |
-| Brouillon rapide depuis le calendrier | `generate-content` (`calendar-quick`, `express-draft`) | `CalendarPostDialog.tsx`, `dashboard/SuggestedContents.tsx` | — |
+| Brouillon rapide depuis le calendrier | `generate-content` (`calendar-quick`, `express-draft`) | `CalendarPostDialog.tsx`, `dashboard/SuggestedContents.tsx` | Depuis le 27/11/2026, « Rédiger avec l'IA » d'un post du calendrier part vers /creer pour le post (photo, texte), la story unique et la newsletter, comme déjà le carrousel, le reel, les stories et LinkedIn (`handleSmartGenerate`, `use-calendar-post-navigation.ts`). Le brouillon rapide sur place ne reste que pour le live et les autres canaux. |
 
 ### Comment on appelle l'IA et ce qui s'affiche pendant l'attente (27/11/2026)
 
