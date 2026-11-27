@@ -16,6 +16,35 @@ const QUESTIONS_LOADING_MESSAGES = [
   "J'affine pour ne te poser que l'essentiel…",
 ];
 
+// Le serveur coupe un essai qui ne répond pas au bout de 15 s et relance (27/11/2026) :
+// on le dit, et on ouvre la sortie « Passer les questions » au même moment.
+const QUESTIONS_SLOW_AFTER_S = 15;
+const QUESTIONS_SLOW_NOTES = [
+  { afterSeconds: QUESTIONS_SLOW_AFTER_S, text: "Le premier essai n'a pas répondu, je relance…" },
+  { afterSeconds: 35, text: "Toujours pas de réponse, je réessaie une dernière fois. Tu peux passer les questions." },
+];
+
+/** Attente des questions, avec « Passer les questions » dès que le premier essai a traîné. */
+function QuestionsLoadingWithExit({ onSkip, disabled }: { onSkip: () => void; disabled: boolean }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), QUESTIONS_SLOW_AFTER_S * 1000);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div className="space-y-2">
+      <QuestionsWaiting messages={QUESTIONS_LOADING_MESSAGES} notes={QUESTIONS_SLOW_NOTES} />
+      {slow && (
+        <div className="text-center animate-fade-in">
+          <Button variant="link" size="sm" onClick={onSkip} disabled={disabled} data-testid="creer-questions-skip-wait" className="text-muted-foreground underline underline-offset-2 hover:text-primary">
+            Passer les questions, générer directement
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** « Ex. : la lumière… » → « la lumière… » (l'écran écrit lui-même « Par exemple : »). */
 export function questionExample(placeholder?: string): string {
   const clean = (placeholder || "").trim().replace(/^(ex(emple)?\.?|par exemple)\s*:\s*/i, "").replace(/…$|\.{3}$/, "").trim();
@@ -173,7 +202,7 @@ export default function CreerStepQuestions({
   }
 
   if (loadingQuestions) {
-    return <QuestionsWaiting messages={QUESTIONS_LOADING_MESSAGES} />;
+    return <QuestionsLoadingWithExit onSkip={handleSkip} disabled={isSubmitting} />;
   }
 
   if (questions.length === 0) {
