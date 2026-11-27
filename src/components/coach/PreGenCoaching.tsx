@@ -74,16 +74,6 @@ export default function PreGenCoaching({ generationType, onComplete, onSkip }: P
     }
   }, [briefReady, messages]);
 
-  const sendMessage = useCallback(async (text: string) => {
-    if (!text.trim() || loading) return;
-
-    const userMsg: ChatMessage = { role: "user", content: text.trim() };
-    const updated = [...messages, userMsg];
-    setMessages(updated);
-    setInput("");
-    await askCoach(updated);
-  }, [messages, loading, workspaceId, generationType]);
-
   const askCoach = useCallback(async (updated: ChatMessage[]) => {
     setFailure(null);
     setLoading(true);
@@ -122,6 +112,17 @@ export default function PreGenCoaching({ generationType, onComplete, onSkip }: P
       setLoading(false);
     }
   }, [workspaceId, generationType]);
+
+  const sendMessage = useCallback(async (text: string) => {
+    if (!text.trim() || loading) return;
+
+    const userMsg: ChatMessage = { role: "user", content: text.trim() };
+    const updated = [...messages, userMsg];
+    setMessages(updated);
+    setInput("");
+    await askCoach(updated);
+  }, [messages, loading, askCoach]);
+
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {

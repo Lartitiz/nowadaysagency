@@ -9,6 +9,13 @@ describe("describeError", () => {
   it("délai dépassé", () => {
     expect(describeError({ isTimeout: true, message: "x" })).toMatchObject({ kind: "timeout", retryable: true });
   });
+  it("délai dépassé : garde la consigne « vérifie avant de relancer »", () => {
+    const e = { isTimeout: true, code: "TIMEOUT", message: "La réponse prend trop de temps. Le traitement peut encore se terminer : vérifie son résultat avant de relancer." };
+    expect(describeError(e).message).toMatch(/vérifie son résultat avant de relancer/);
+  });
+  it("un nombre 2401 dans un message n'est pas une session expirée", () => {
+    expect(describeError(new Error("Il reste 2401 caractères")).kind).not.toBe("auth");
+  });
   it("hors ligne", () => {
     vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
     expect(describeError(new Error("Failed to fetch"))).toMatchObject({ kind: "offline", retryable: true });
