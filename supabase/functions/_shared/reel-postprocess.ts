@@ -73,6 +73,8 @@ export function recalibrateReelTimings(parsed: any): void {
   }
   parsed.duree_cible = `${cursor} sec`;
   // Miroir strict : l'UI lit `sections`, le calendrier lit `script`.
+  // Depuis le 27/11/2026 le modèle n'écrit plus `sections` (le recopier lui
+  // coûtait ~15 s d'écriture) : cette copie est la seule source du champ.
   if (Array.isArray(parsed.script)) parsed.sections = parsed.script;
 }
 
