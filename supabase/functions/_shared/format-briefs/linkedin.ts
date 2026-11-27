@@ -30,9 +30,11 @@ ${linkedinTemplateContent ? `STRUCTURE ÉDITORIALE CHOISIE :\n${linkedinTemplate
 
 ÉCRITURE :
 - L'ouverture situe le sujet. Pour un récit, elle peut commencer au « je », dans le lieu et l'action fournis ; une introduction logistique n'est pas obligatoire.
+- Seules trois lignes environ s'affichent avant « voir plus » (à peu près 130 caractères ; chaque retour à la ligne en consomme une). La première phrase est complète, courte, et pose une tension tirée des sources ; pas de rafale de lignes courtes avant la coupure. Si les sources contiennent une phrase entendue, un jugement reçu, un aveu ou un chiffre vécu, ouvre dessus plutôt que de le garder pour le milieu du post. Sans matière de ce genre, ouvre sur la position, jamais sur une phrase ou une scène inventée.
 - Chaque paragraphe fait avancer le propos avec un fait, un geste, un choix, une pensée ou une nuance nouvelle. Préserve les formulations personnelles réussies.
 - Expliquer pourquoi une idée reçue existe ne passe pas par une concession suivie d'un retournement (« C'est logique, sur le papier. Sauf que ce n'est pas comme ça que ça marche. ») : énonce directement le mécanisme réel.
-- La fin achève le récit ou la réflexion : elle pose la position, ou une question simple et précise à laquelle on peut répondre en commentaire. Jamais un devoir adressé au lecteur (« il faut », « à vous de », « on doit »). Remercie les personnes citées si le brief le prévoit.
+- La fin achève le récit ou la réflexion : de préférence une phrase nette qui pose la position, ou une question simple et précise à laquelle on peut répondre en commentaire. La question n'est pas obligatoire : n'en ajoute une que si elle demande aux lecteurs un fait ou un vécu précis, jamais une question de principe ajoutée par habitude. Jamais un devoir adressé au lecteur (« il faut », « à vous de », « on doit »). Remercie les personnes citées si le brief le prévoit.
+- Pour une annonce (atelier, offre, date), garde les informations pratiques fournies (date, lieu, places, prix) groupées et faciles à trouver, et n'ajoute sur le produit ou la méthode aucune affirmation absente des sources.
 - Aère pour la lecture sans découper mécaniquement chaque phrase. La longueur suit la matière disponible. Aucun chiffre, lieu, dialogue, résultat ou ressenti de l'autrice inventé.
 - ${VOIX_ORALE_LINKEDIN}
 - 0 à 2 emojis et 0 à 2 hashtags si pertinents. Respecte la voix et les préférences de la marque.`;

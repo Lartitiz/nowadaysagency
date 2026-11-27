@@ -377,7 +377,8 @@ ${livedCaseFromCreativeBody(body).mode === "own_case" ? `\n${LIVED_CASE_EDIT_CHE
 
 Avant de retourner le JSON, RELIS ton output et vérifie :
 
-□ Y a-t-il encore 2 phrases courtes consécutives ? → fusionne
+□ Y a-t-il encore une rafale artificielle de phrases courtes ? → fusionne
+□ Y a-t-il une pensée, une attente ou une émotion de l'autrice absente des sources (« je m'attendais à… », « j'ai eu peur que… », « cette phrase ne m'a plus quittée ») ? → retire-la sans la remplacer
 □ Y a-t-il encore une formule manufacturée ? → réécris
 □ La conclusion ouvre-t-elle vraiment ? → vérifie qu'elle ne résume pas
 □ Le post sonne-t-il INDISTINGUABLE d'un humain ? → si non, recommence

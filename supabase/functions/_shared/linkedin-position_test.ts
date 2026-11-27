@@ -64,3 +64,15 @@ Deno.test("brief LinkedIn : le « je » de position est une opinion, pas un souv
   assertEquals(brief.includes("« Pendant longtemps j'ai cru X / J'ai vu Y arriver trop souvent"), false);
   assertEquals(brief.includes("sans souvenir inventé"), true);
 });
+
+// Veille LinkedIn du 27/11/2026 (115 posts, 7 profils) : la coupure tombe vers
+// 130 caractères, les meilleurs posts ouvrent sur un vécu des sources et
+// finissent sur une phrase nette plutôt que sur une question par habitude.
+Deno.test("brief LinkedIn : ouverture avant la coupure, fin nette, annonce lisible", () => {
+  const brief = linkedinBrief(null);
+  assertEquals(brief.includes("à peu près 130 caractères"), true);
+  assertEquals(brief.includes("ouvre dessus plutôt que de le garder pour le milieu du post"), true);
+  assertEquals(brief.includes("jamais sur une phrase ou une scène inventée"), true);
+  assertEquals(brief.includes("La question n'est pas obligatoire"), true);
+  assertEquals(brief.includes("informations pratiques fournies (date, lieu, places, prix) groupées"), true);
+});
