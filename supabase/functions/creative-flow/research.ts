@@ -11,6 +11,7 @@ import { buildDepthBlock } from "../_shared/depth-research.ts";
 import { isSaleListing } from "../_shared/sale-listing.ts";
 import { logUsage } from "../_shared/plan-limiter.ts";
 import { _deps } from "./shared.ts";
+import { livedCaseFromCreativeBody } from "../_shared/lived-case.ts";
 
 /**
  * Recherche « creuser le sujet » pour posts, reels et stories (04/10/2026, même
@@ -24,6 +25,29 @@ import { _deps } from "./shared.ts";
  * fourni gardent la recherche. */
 export function skipDepthResearch(isStories: boolean, lived: { mode: string }): boolean {
   return isStories && lived.mode === "own_case";
+}
+
+/**
+ * Faut-il lancer la recherche « creuser le sujet » pour cette demande, et avec
+ * quel cas personnel ? Mêmes conditions et mêmes traces qu'avant le 27/11/2026,
+ * sorties du handler pour que la recherche parte dès la marque lue (en
+ * parallèle des autres lectures) au lieu d'attendre la fin de la préparation.
+ */
+export function planDepthResearch(p: {
+  step: string; deepResearch?: unknown; isPhotoMode: boolean;
+  isCaption: boolean; isLinkedIn: boolean; isReel: boolean; isStories: boolean; body: any;
+}): { run: boolean; livedCase?: string } {
+  if (!(p.step === "generate" && !p.deepResearch && !p.isPhotoMode && (p.isCaption || p.isLinkedIn || p.isReel || p.isStories))) return { run: false };
+  const lived = livedCaseFromCreativeBody(p.body);
+  if (skipDepthResearch(p.isStories, lived)) {
+    // Décision de Laetitia (05/10/2026) : des stories sur SON cas ne parlent
+    // que d'elle, sans aucun chiffre de recherche.
+    console.log(`[creative-flow] stories sur son propre cas (${lived.reasons.join(", ")}) — aucune recherche, aucun chiffre de recherche`);
+    return { run: false };
+  }
+  if (lived.provided) console.log(`[creative-flow] cas personnel fourni (${lived.reasons.join(", ")}) — ton cas d'abord, recherche en appui`);
+  else if (lived.mode === "news_feeling") console.log(`[creative-flow] actu + ressenti fourni (${lived.reasons.join(", ")}) — son ressenti porte le contenu, recherche en profondeur`);
+  return { run: true, livedCase: lived.provided ? lived.answers.join("\n") || String(p.body?.context || "") : undefined };
 }
 
 export async function creativeDepthBlock(params: { context?: string | null; newsContext?: string | null; activity?: string; livedCase?: string }): Promise<string> {
