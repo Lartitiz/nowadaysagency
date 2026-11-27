@@ -155,7 +155,7 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   const form = page.getByRole("form", { name: "Formulaire d'inscription" });
   await form.getByPlaceholder("Ton prénom").fill(PRENOM);
   await form.getByPlaceholder("Ton email").fill(EMAIL);
-  await form.getByPlaceholder(/photographe, coach/i).fill("savonnière artisanale");
+  await form.getByRole("textbox", { name: "Activité" }).fill("savonnière artisanale");
   await form.getByPlaceholder(/Mot de passe/i).fill(PWD);
   await form.locator('input[type="checkbox"]').first().check();
   await form.getByRole("button", { name: /Commencer gratuitement/i }).click();
