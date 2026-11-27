@@ -12,6 +12,7 @@ import { invalidateUserPlanCache } from "@/hooks/use-user-plan";
 import { isSafeRedirectTarget } from "@/lib/safe-redirect";
 import { withReadTimeout } from "@/lib/read-timeout";
 import { ensureProfileRow } from "@/lib/ensure-profile-row";
+import { clearSignedPhotoUrlCache } from "@/lib/photo-storage";
 
 interface AuthContextType {
   user: User | null;
@@ -129,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // An explicit sign-out is authoritative even during bootstrap.
         if (event === "SIGNED_OUT") {
+          clearSignedPhotoUrlCache();
           posthog.reset();
           navigateRef.current("/login");
           return;
