@@ -10,7 +10,7 @@ import { enforceAudienceAddress, type AudienceAddress } from "../../_shared/audi
 import { tryParseAiJson } from "../../_shared/parse-ai-json.ts";
 import { applyCorrectionPassReel } from "../../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, enforceNoAddedLegalRules, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, hookEchoesBefore, textRedacRawCount } from "../../_shared/redac-gate.ts";
-import { countReelSpokenWords, enforceReelNoFaceCam, enforceSelectedReelHook, finalizeReelScript, reelAuditableText, extractReelTexts, reinjectReelTexts, reelTemplateLeaks, reelOverlaysNotFromScript, reelHookIsPresentation, reelHookIsChoppy, reelChoppyPassages } from "../../_shared/reel-postprocess.ts";
+import { countReelSpokenWords, enforceReelNoFaceCam, enforceSelectedReelHook, finalizeReelScript, reelAuditableText, extractReelTexts, reinjectReelTexts, reelTemplateLeaks, reelOverlaysNotFromScript, reelHookIsPresentation, reelHookIsChoppy, reelHookTrimFragments, reelOverlayInText, reelChoppyPassages } from "../../_shared/reel-postprocess.ts";
 import { recapHooksLine } from "../../_shared/multi-subject.ts";
 import { REEL_PREMIERE_PHRASE } from "../../_shared/format-briefs/reel.ts";
 import { CORRECTION_ABORT_MS, addrOpts, extractImagePayload, gateNumbers } from "../shared.ts";
@@ -54,6 +54,13 @@ export function normalizeHooksResponse(parsed: any, params: { body: any; rawCont
   // Accroche en bouts de phrases (« Rien sur les plans. Une cheminée condamnée… »,
   // Loom du 26/11/2026) : écartée de la même façon, tant qu'il en reste. Le hook
   // choisi part tel quel dans le script, aucune relecture ne le rattrape ensuite.
+  // Une accroche qui commence par une vraie phrase garde cette phrase : seuls les
+  // bouts de phrases qui la suivent tombent (« J'ai jeté 40 savons la veille de
+  // les livrer. Tous. À la poubelle. » → la première phrase, retour du 27/11).
+  for (const h of parsed.hooks) {
+    const net = reelHookTrimFragments(h.text);
+    if (net !== h.text && (!h.text_overlay || reelOverlayInText(h.text_overlay, net))) h.text = net;
+  }
   const enPhrases = parsed.hooks.filter((h: any) => !reelHookIsChoppy(h.text));
   if (enPhrases.length > 0 && enPhrases.length < parsed.hooks.length) {
     console.log(JSON.stringify({ event: "reel_hook_hache_ecarte", count: parsed.hooks.length - enPhrases.length }));
@@ -530,9 +537,9 @@ RÈGLES ABSOLUES :
    Une 2e phrase seulement si elle prolonge la 1re. Jamais une rafale de bouts de phrases.
    ❌ "Aujourd'hui je vais te parler de..." ❌ hook descriptif ❌ slogan LinkedIn.
 2bis. ${REEL_PREMIERE_PHRASE}
-   Parmi les 3 hooks, au moins UN est un paradoxe tiré de sa matière ; un aveu
-   seulement si elle a donné l'erreur ou le raté. Les autres types restent
-   possibles, aucun ne se présente.${noFaceCam ? " En voix off (elle ne se montre pas), les 3 hooks sont un paradoxe, un aveu ou sa scène." : ""}
+   Si sa matière raconte un vécu, au moins DEUX des 3 hooks partent de ce vécu
+   (le fait ou la décision, avec un enjeu que tout le monde comprend) ; sinon, au
+   moins UN est un paradoxe. Les autres types restent possibles, aucun ne se présente.${noFaceCam ? " En voix off (elle ne se montre pas), les 3 hooks sont un paradoxe, un aveu ou sa scène." : ""}
 2ter. SI SA MATIÈRE RACONTE UN VÉCU (son parcours, une erreur, une situation de
    travail qui a mal tourné), un des hooks peut ouvrir ce récit. Le portrait à la
    troisième personne (« Voici [son prénom]. Elle… », une narratrice parle d'elle)

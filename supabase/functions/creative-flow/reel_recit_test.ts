@@ -10,7 +10,9 @@ Deno.test("brief du reel : creux, première phrase et trames présents, jamais s
   for (const bloc of [REEL_CREUX, REEL_PREMIERE_PHRASE, REEL_TRAMES]) assert(brief.includes(bloc));
   assert(/seulement si SA matière le contient/.test(REEL_CREUX));
   assert(/n'en invente pas/.test(REEL_CREUX));
-  assert(/L'aveu et la scène ne s'inventent jamais/.test(REEL_PREMIERE_PHRASE));
+  assert(/Rien de vécu ne s'invente/.test(REEL_PREMIERE_PHRASE));
+  assert(/N'IMPORTE QUI COMPREND L'ENJEU/.test(REEL_PREMIERE_PHRASE));
+  assert(/ELLE DIT LE FAIT ET GARDE LE POURQUOI/.test(REEL_PREMIERE_PHRASE));
   assert(brief.includes(REEL_RECIT_PARLE));
   assert(/sans récit vécu dans sa matière, tu n'en prends aucune/.test(REEL_TRAMES));
   // Le portrait à la troisième personne ne sort jamais tout seul.
@@ -92,4 +94,18 @@ Deno.test("remise en phrases : refusée si rien ne change, sans appel si rien n'
   const propre: any = { script: [{ section: "hook", texte_parle: "J'ai jeté quarante savons la veille de les livrer." }] };
   await enforceReelSpokenSentences(propre, { body: {}, fullContext: "", hookLocked: false, pass: async (p: any) => { appels++; return p; } });
   assertEquals(appels, 0);
+});
+
+Deno.test("accroches : une vraie première phrase est gardée, les bouts de phrases qui la suivent tombent", () => {
+  const params = { body: {}, rawContent: "", corsHeaders: {} };
+  const parsed: any = { hooks: [
+    { text: "J'ai jeté 40 savons la veille de les livrer. Tous. À la poubelle.", text_overlay: "J'ai jeté 40 savons" },
+    { text: "Le miel a fait rater toute ma fournée. Tous. À la poubelle.", text_overlay: "À la poubelle" },
+    { text: "J'ai jeté 40 savons la veille de les livrer. J'étais dégoûtée, je vous raconte." },
+  ] };
+  assertEquals(normalizeHooksResponse(parsed, params), null);
+  assertEquals(parsed.hooks.map((h: any) => h.text), [
+    "J'ai jeté 40 savons la veille de les livrer.",
+    "J'ai jeté 40 savons la veille de les livrer. J'étais dégoûtée, je vous raconte.",
+  ]);
 });
