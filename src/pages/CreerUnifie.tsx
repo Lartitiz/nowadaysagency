@@ -1791,7 +1791,7 @@ function CreerWorkspace() {
                 draftSlides={selectedFormat === "carousel" && carouselSubMode !== "pure_photo" ? draftSlides : undefined}
                 outlineTitles={selectedFormat === "carousel" && carouselSubMode !== "pure_photo" ? outlineTitles : undefined}
                 reelDraft={selectedFormat === "reel" ? reelDraft : undefined} storyDraft={selectedFormat === "story" ? storyDraft : undefined}
-                streamingContent={streaming ? streamingContent : undefined}
+                streamingContent={streaming ? streamingContent : undefined} streamIsDraft={streaming && streamIsDraft}
                 step2of2={selectedFormat === "carousel" && !!lastConfirmedStructure && (carouselSubMode === "photo" || carouselSubMode === "mix")}
                 qualityMax={qualityMax}
                 photos={(selectedFormat === "carousel" || (photoMode && uploadedPhotos.length > 0)) ? uploadedPhotos : undefined}

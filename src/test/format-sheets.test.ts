@@ -86,7 +86,7 @@ describe("La fiche par format dit la vérité sur le code", () => {
     expect(FORMAT_SHEETS.pinterest_inspiration.ecriture.fonction).toBe("pinterest-inspiration");
   });
 
-  it("au fil de l'eau : brouillon reçu pour carrousel, reel, stories ; texte pour post et Pinterest ; deux passes sinon", () => {
+  it("au fil de l'eau : brouillon reçu pour carrousel, reel, stories, LinkedIn ; texte pour post et Pinterest ; étapes seules pour la newsletter", () => {
     const brouillon: Record<string, string> = { carousel: "setDraftSlides(", reel: "setReelDraft(", story: "setStoryDraft(" };
     for (const [f, setter] of Object.entries(brouillon)) {
       const block = caseBlock(f);
@@ -95,12 +95,15 @@ describe("La fiche par format dit la vérité sur le code", () => {
       expect(block, `évènement draft du format ${f}`).toContain('stage === "draft"');
       expect(FORMAT_SHEETS[f as SupportedFormat].filDeLeau.etat).toBe("oui");
     }
-    // Côté serveur, LinkedIn et newsletter partent en deux passes (étapes seulement) ;
-    // le reste des formats texte s'écrit mot à mot (streamDefaultPostSSE).
+    // Côté serveur, LinkedIn et newsletter partent en deux passes. LinkedIn envoie son texte
+    // en brouillon pendant la 1re (évènement `draft`, 27/11/2026) ; la newsletter, les étapes seulement.
+    // Le reste des formats texte s'écrit mot à mot (streamDefaultPostSSE).
     expect(creativeFlow).toMatch(/if \(isLinkedIn\) \{\s*return runWithHeartbeatSSE\([^\n]*runLinkedInTwoStep/);
     expect(creativeFlow).toMatch(/if \(isNewsletter\) \{\s*return runWithHeartbeatSSE\([^\n]*runNewsletterTwoStep/);
     expect(creativeFlow).toContain("return streamDefaultPostSSE(");
-    expect(withValue((f) => FORMAT_SHEETS[f].ecriture.appel === "texte" && FORMAT_SHEETS[f].filDeLeau.etat === "non")).toEqual(["linkedin", "newsletter"]);
+    expect(withValue((f) => FORMAT_SHEETS[f].ecriture.appel === "texte" && FORMAT_SHEETS[f].filDeLeau.etat === "non")).toEqual(["newsletter"]);
+    expect(read("supabase/functions/creative-flow/formats/linkedin.ts")).toContain('linkedinDraftTracker((text) => emitStatus("draft", { text }))');
+    expect(read("src/hooks/use-streaming-invoke.ts")).toContain('event.stage === "draft" && typeof event.text === "string"');
     // Les épingles d'un bloc n'ont rien à montrer avant la fin.
     for (const f of withValue((x) => FORMAT_SHEETS[x].ecriture.appel === "bloc")) expect(FORMAT_SHEETS[f].filDeLeau.etat).toBe("non");
   });

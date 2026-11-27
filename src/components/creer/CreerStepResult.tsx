@@ -215,7 +215,7 @@ interface Props {
   outlineTitles?: string[];
   /** Reel : accroche choisie puis script en brouillon pendant la relecture (13/11/2026). */
   reelDraft?: ReelDraft | null; storyDraft?: StoryDraft | null;
-  streamingContent?: string;
+  streamingContent?: string; streamIsDraft?: boolean;
   // Carrousel passé par l'étape structure → la rédaction est l'étape 2/2.
   step2of2?: boolean;
   // "Mode qualité Max" activé → rédaction Opus (plus longue) : on prévient pendant l'attente.
@@ -306,7 +306,7 @@ export default function CreerStepResult({
   draftSlides,
   outlineTitles,
   reelDraft, storyDraft,
-  streamingContent,
+  streamingContent, streamIsDraft,
   step2of2,
   qualityMax,
   onEdit,
@@ -488,7 +488,7 @@ export default function CreerStepResult({
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{displayContent}</p>
               <span className="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5" />
             </div>
-            <p className="text-xs text-center text-muted-foreground">{generationStage === "correcting" ? "Relecture finale : on gomme les tournures d'IA…" : "L'IA rédige en temps réel…"}</p>
+            <p className="text-xs text-center text-muted-foreground">{streamIsDraft && <span className="mr-2 text-2xs font-medium rounded-full px-2.5 py-0.5 bg-amber-100 text-amber-900">Brouillon, sera relu</span>}{generationStage === "correcting" ? "Relecture finale : on gomme les tournures d'IA…" : "L'IA rédige en temps réel…"}</p>
             <GenerationTimeHint format={format} startedAt={waitStartRef.current} afterPlan={step2of2} />
           </div>
         );

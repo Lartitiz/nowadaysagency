@@ -58,14 +58,19 @@ describe("rechargement pendant un brouillon", () => {
 });
 
 describe("CreerStepResult — post LinkedIn pendant l'attente", () => {
-  const show = (stage: string) => render(
-    <MemoryRouter><CreerStepResult result={null} format="linkedin" generating streamingContent="J'ai arrêté les remises." generationStage={stage}
+  const show = (stage: string, draft = true) => render(
+    <MemoryRouter><CreerStepResult result={null} format="linkedin" generating streamingContent="J'ai arrêté les remises." streamIsDraft={draft} generationStage={stage}
       onEdit={vi.fn()} onReset={vi.fn()} onRegenerate={vi.fn()} onCopy={vi.fn()} /></MemoryRouter>,
   );
   it("pendant l'écriture : le texte est à l'écran", () => {
     show("writing");
     expect(screen.getByText("J'ai arrêté les remises.")).toBeTruthy();
     expect(screen.getByText(/rédige en temps réel/)).toBeTruthy();
+    expect(screen.getByText("Brouillon, sera relu")).toBeTruthy();
+  });
+  it("texte d'un vrai flux (post Instagram) : pas d'étiquette brouillon", () => {
+    show("writing", false);
+    expect(screen.queryByText("Brouillon, sera relu")).toBeNull();
   });
   it("pendant la relecture : le texte reste, le message dit la relecture", () => {
     show("correcting");
