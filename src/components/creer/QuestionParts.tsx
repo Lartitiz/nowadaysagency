@@ -13,7 +13,7 @@ const QUESTIONS_NOTES: WaitingNote[] = [
   { afterSeconds: 30, text: "C'est un peu plus long que d'habitude : ça arrive. Encore un instant…" },
 ];
 
-export function QuestionsWaiting({ messages, className = "py-10 text-center animate-fade-in space-y-5", testId }: {
+export function QuestionsWaiting({ messages, className = "py-10 max-w-md mx-auto text-center animate-fade-in space-y-5", testId }: {
   messages: string[];
   className?: string;
   testId?: string;
@@ -52,7 +52,7 @@ export function QuestionCounter({ index, total, suffix = "", showBars = false, t
 }
 
 /** La question (label), son exemple lisible pendant la saisie, et la zone de texte avec micro. */
-export function QuestionField({ id, question, example, value, onChange, placeholder, labelClassName, children, testId, autoFocus, textareaClassName = "resize-none" }: {
+export function QuestionField({ id, question, example, value, onChange, placeholder, labelClassName, children, testId, autoFocus, textareaClassName = "resize-none", fieldKey }: {
   id: string;
   question: string;
   example?: string;
@@ -65,6 +65,8 @@ export function QuestionField({ id, question, example, value, onChange, placehol
   testId?: string;
   autoFocus?: boolean;
   textareaClassName?: string;
+  /** Change à chaque question pour repartir d'une zone neuve (curseur reposé, dictée arrêtée). Absent : la même zone sert à toutes les questions. */
+  fieldKey?: string | number;
 }) {
   return (
     <>
@@ -72,7 +74,7 @@ export function QuestionField({ id, question, example, value, onChange, placehol
       {example && <p id={`${id}-example`} className="text-sm text-muted-foreground" data-testid="creer-question-example">Par exemple : {example}</p>}
       {children}
       <Textarea
-        key={id}
+        key={fieldKey}
         id={id}
         data-testid={testId}
         autoFocus={autoFocus}

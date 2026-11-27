@@ -41,4 +41,15 @@ describe("Je te pose des questions", () => {
     resolve({ data: { questions: GENERIC_STORY_QUESTIONS }, error: null });
     expect(await screen.findByTestId("story-answer")).toBeTruthy();
   });
+
+  it("à chaque nouvelle question, le curseur est dans la zone de réponse (on écrit sans recliquer)", async () => {
+    vi.mocked(invokeWithTimeout).mockResolvedValueOnce({ data: { questions: GENERIC_STORY_QUESTIONS }, error: null });
+    render(<StoryQuestionsDialog open onOpenChange={() => {}} workspaceId="ws" onKeep={() => {}} />);
+    const next = await screen.findByTestId("story-next");
+    fireEvent.change(screen.getByTestId("story-answer"), { target: { value: "Une scène." } });
+    next.focus();
+    fireEvent.click(next);
+    expect(screen.getByText("Question 2 sur 4")).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByTestId("story-answer"));
+  });
 });

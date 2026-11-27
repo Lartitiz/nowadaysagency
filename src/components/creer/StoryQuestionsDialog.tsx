@@ -71,8 +71,8 @@ export default function StoryQuestionsDialog({ open, onOpenChange, workspaceId, 
           <DialogDescription>Raconte un moment vécu : on en tire un post qui le raconte.</DialogDescription>
         </DialogHeader>
 
-        {phase === "loading" && <QuestionsWaiting messages={LOADING_MESSAGES} className="py-8 text-center animate-fade-in space-y-5" />}
-        {phase === "thinking" && <QuestionsWaiting messages={THINKING_MESSAGES} className="py-8 text-center animate-fade-in space-y-5" />}
+        {phase === "loading" && <QuestionsWaiting messages={LOADING_MESSAGES} />}
+        {phase === "thinking" && <QuestionsWaiting messages={THINKING_MESSAGES} />}
 
         {phase === "questions" && q && (
           <div className="space-y-4">
@@ -80,6 +80,7 @@ export default function StoryQuestionsDialog({ open, onOpenChange, workspaceId, 
             <QuestionCounter index={index} total={questions.length} />
             <QuestionField
               id="story-answer"
+              fieldKey={index}
               testId="story-answer"
               autoFocus
               question={q.question}
