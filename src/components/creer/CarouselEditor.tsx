@@ -11,6 +11,7 @@ import { compressImageFile } from "@/lib/image-compress";
 import CarouselInstagramPreview from "@/components/creer/CarouselInstagramPreview";
 import type { CarouselStylesApi, SavedCarouselStyle } from "@/hooks/use-carousel-styles";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
+import { thumbIndexAt as thumbIndexAtIn } from "@/components/creer/thumb-reorder";
 import { retouchedOnImport, withRetouched } from "@/lib/carousel-retouched"; import { setPhotoShade } from "@/lib/carousel-shade";
 import {
   slideExtraTexts,
@@ -383,20 +384,8 @@ export default function CarouselEditor({
   // Réordonner en glissant une vignette (souris ou doigt).
   const thumbDrag = useRef<{ from: number; x: number; y: number; moved: boolean } | null>(null);
   const justDragged = useRef(false);
-  const thumbIndexAt = (x: number, y: number) => {
-    const thumbs = Array.from(window.document.querySelectorAll<HTMLElement>("[data-thumb]"));
-    // Position d'insertion : avant la vignette dont on passe la moitié, sinon à la fin
-    // (vignettes en rangées : on regarde d'abord la rangée, puis la moitié de la vignette).
-    let index = thumbs.length;
-    for (let k = 0; k < thumbs.length; k++) {
-      const r = thumbs[k].getBoundingClientRect();
-      if (y < r.top || (y <= r.bottom && x < r.left + r.width / 2)) {
-        index = k;
-        break;
-      }
-    }
-    return index;
-  };
+  // Le geste est commun avec les stories (thumb-reorder.ts) ; ici, vignettes en rangées.
+  const thumbIndexAt = (x: number, y: number) => thumbIndexAtIn("[data-thumb]", x, y, "row");
   const reorder = (from: number, to: number) => {
     if (from === to || from < 0 || to < 0) return;
     const slides = [...current.current.slides];

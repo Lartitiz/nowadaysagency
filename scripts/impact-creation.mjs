@@ -83,7 +83,7 @@ export const FRONT_FILES = [
   [/^src\/components\/creer\/formatRenderers\/Carousel/, "Carrousels : écran de résultat"],
   [/^src\/components\/creer\/CarouselEditor|^src\/lib\/carousel-editor\.ts$/, "Carrousels : éditeur visuel"],
   // Pièces communes aux deux éditeurs (27/11/2026) : y toucher touche le carrousel ET les stories.
-  [/^src\/components\/creer\/EditorPanelShell\.tsx$|^src\/hooks\/use-phone-sheet\.ts$/, "Éditeurs carrousel et stories : cadre commun (panneau, volet téléphone)"],
+  [/^src\/components\/creer\/(EditorPanelShell\.tsx|thumb-reorder\.ts)$|^src\/hooks\/use-phone-sheet\.ts$/, "Éditeurs carrousel et stories : cadre commun (panneau, volet téléphone, glisser des vignettes)"],
   [/^src\/lib\/export-carousel-/, "Carrousels : exports"],
   [/^src\/hooks\/use-generate-visuals\.ts$/, "Carrousels : lancement de la mise en forme visuelle"],
   [/^src\/hooks\/use-user-slides-generate\.ts$/, "Carrousels : slides écrites par l'utilisatrice"],
