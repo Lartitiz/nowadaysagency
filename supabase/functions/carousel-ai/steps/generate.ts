@@ -52,7 +52,9 @@ export async function runGenerationAndRespond(
     // ce correctif (audit timeouts 17/08) — 120s aligné sur la convention
     // "génération standard" du reste des edges du repo. Depuis le 04/10/2026 la
     // rédaction suit le budget global (writerTimeoutMs) au lieu de 120 s fixes.
-    ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: (body.carousel_type === "photo" || body.carousel_type === "mix") ? PHOTO_QUESTIONS_TOOL : QUESTIONS_TOOL } : { abortTimeoutMs: writerTimeoutMs(startedAt) }),
+    // 27/11/2026 : 15 s au lieu de 30 pour les questions (un essai normal prend 3 à 5 s ;
+    // un appel bloqué coupé à 30 s puis relancé faisait attendre 30 à 50 s).
+    ...(type === "deepening_questions" ? { abortTimeoutMs: 15000, tool: (body.carousel_type === "photo" || body.carousel_type === "mix") ? PHOTO_QUESTIONS_TOOL : QUESTIONS_TOOL } : { abortTimeoutMs: writerTimeoutMs(startedAt) }),
   };
   // Durées par étape (ms), renvoyées avec la réponse : sans elles la lenteur du
   // 30/09 (~190 s) n'était décomposable qu'en devinant entre deux évènements SSE.
@@ -78,6 +80,9 @@ export async function runGenerationAndRespond(
       ...writingOptions, model: getModelForAction("questions"),
       messages: [...writingOptions.messages, { role: "assistant", content: first }, { role: "user", content: consigne }],
     }, usage));
+    // Durée des questions (27/11/2026), même ligne que creative-flow : base lente ou IA bloquée.
+    const fin = Date.now();
+    console.log(JSON.stringify({ type: "questions_duree", fonction: "carousel-ai", contexte_ms: timings.prep_ms, ia_ms: fin - startedAt - timings.prep_ms, total_ms: fin - startedAt, photos: false }));
   }
 
   // Contextual review for every generated carousel, legacy scan only on rollback.
