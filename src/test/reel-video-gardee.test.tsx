@@ -37,7 +37,7 @@ it("la vidéo rangée est écrite dans le reel avec son script, sans perdre le m
   await waitFor(() => expect(screen.getByLabelText("Reprendre une de mes vidéos")).toBeTruthy());
   fireEvent.change(screen.getByLabelText("Reprendre une de mes vidéos"), { target: { value: "https://clips.test/take.mp4" } });
   await waitFor(() => expect(screen.getByText(/Ma vidéo · Ma prise/)).toBeTruthy());
-  fireEvent.click(screen.getByRole("button", { name: "Assembler mon reel" }));
+  fireEvent.click(screen.getByTestId('montage-bar-make'));
   await waitFor(() => expect(saved.montage_mp4).toEqual({ url: video, source: reelSourceKey(reel) }));
   // Le montage enregistré juste avant n'est pas écrasé par l'enregistrement de la vidéo.
   expect(saved.montage_project?.montageMode).toBe("filme");

@@ -35,6 +35,8 @@ interface Props {
    */
   index?: number;
   onIndexChange?: (index: number) => void;
+  /** Phrase en cours d'enregistrement (null = aucune) : l'écran de montage joue alors l'image du passage. */
+  onRecordingChange?: (index: number | null) => void;
 }
 
 type SectionState = "todo" | "recording" | "uploading" | "done";
@@ -42,7 +44,7 @@ type SectionState = "todo" | "recording" | "uploading" | "done";
 /** Nombre de barres du vu-mètre. Purement visuel. */
 const METER_BARS = 12;
 
-export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange, index, onIndexChange }: Props) {
+export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange, index, onIndexChange, onRecordingChange }: Props) {
   const piloted = index !== undefined;
   const [current, setCurrentState] = useState(index ?? 0);
   const setCurrent = (i: number) => { setCurrentState(i); onIndexChange?.(i); };
@@ -150,6 +152,7 @@ export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange,
       rec.start();
       setCurrentState(i);
       setStates((s) => setAt(s, i, "recording"));
+      onRecordingChange?.(i);
       setElapsed(0);
       timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
       startMeter(stream);
@@ -163,6 +166,7 @@ export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange,
     if (timerRef.current) clearInterval(timerRef.current);
     stopMeter();
     recorderRef.current?.stop();
+    onRecordingChange?.(null);
   }
 
   async function handleStopped(i: number, stream: MediaStream) {

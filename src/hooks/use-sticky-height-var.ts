@@ -1,6 +1,6 @@
 // Publie la hauteur d'une barre collée en bas de l'écran dans une variable CSS
 // de la page, pour qu'une autre barre collée puisse se poser juste au-dessus
-// (ex. « Assembler mon reel » au-dessus des actions du résultat). La variable
+// (ex. « Télécharger ma vidéo » du montage du reel, au-dessus des actions du résultat). La variable
 // est retirée quand la barre disparaît.
 import { useEffect, type RefObject } from "react";
 
