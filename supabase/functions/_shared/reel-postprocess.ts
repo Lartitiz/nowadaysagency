@@ -426,6 +426,23 @@ export function reelHookIsChoppy(text: unknown): boolean {
   return findChoppyFragments(firstSentence(text)).fragments > 0 && /[.!…]\s+\S/.test(text.trim());
 }
 
+/**
+ * Garde l'accroche qui commence par une vraie phrase et retire les bouts de
+ * phrases sans verbe qui la suivent. Inchangée si elle commence par un fragment.
+ */
+export function reelHookTrimFragments(text: string): string {
+  const sentences = (text || "").trim().split(/(?<=[.!?…])\s+/).filter(Boolean);
+  if (sentences.length < 2 || findChoppyFragments(sentences[0]).fragments > 0) return text;
+  const kept = sentences.filter((s2, i) => i === 0 || findChoppyFragments(s2).fragments === 0);
+  return kept.length === sentences.length ? text : kept.join(" ");
+}
+
+/** Le texte à l'écran est-il encore un extrait du texte parlé ? (comparaison sans casse ni ponctuation) */
+export function reelOverlayInText(overlay: string, text: string): boolean {
+  const norm = (x: string) => (x || "").toLocaleLowerCase("fr").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  return norm(text).includes(norm(overlay));
+}
+
 const PARTICIPE_RE = /^\p{L}+(?:é|ée|és|ées|i|ie|is|ies|ise|ises|it|ite|its|ites|u|ue|us|ues|ert|erte|erts|ertes|int|inte|ints|ait|aite|aits)$/iu;
 const DETERMINANT_RE = /^(?:le|la|les|l'\p{L}*|un|une|des|mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|votre|vos|leur|leurs|ce|cet|cette|ces)$/iu;
 const SUJET_OU_AUXILIAIRE_RE = /(?<![\p{L}])(?:je|j'|tu|il|elle|on|nous|vous|ils|elles|c'|ça|est|sont|a|ont|avait|avaient|était|étaient)(?![\p{L}])/iu;
