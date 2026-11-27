@@ -7,6 +7,10 @@
  * ressorts (consigne réécrite, contrat changé, fonction redéployée d'une vieille
  * version), l'écran retombe sans bruit sur 4 « éclairages » : rien d'autre ne le voit.
  *
+ * Depuis #2158 (27/11/2026), une seconde ligne lit les 4 titres : ils doivent dire l'enjeu en
+ * mots de tous les jours (110 caractères au plus, pas de « sujet : explication »). Ligne 🟠 si
+ * un titre dépasse ou porte un deux-points ; les titres sont imprimés pour être relus.
+ *
  * 🔴 = réponse en erreur ou pas 4 idées (test rouge) ; 🟠 = moins de 4 ressorts
  * différents ou une raison de partage manquante (ligne 🟠, test vert) ; ✅ sinon.
  */
@@ -14,7 +18,7 @@ import { test, expect } from "./test-propre";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { verdictIdees } from "./idees-ressorts-verdict";
+import { verdictIdees, verdictTitres } from "./idees-ressorts-verdict";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 function readEnv(file: string): Record<string, string> {
@@ -58,6 +62,10 @@ test("Trouver une idée : 4 ressorts différents et « Pourquoi on l'enverra » 
   try { data = JSON.parse(r.text); } catch { /* lu plus bas */ }
   const v = verdictIdees(data?.ideas);
   console.log(`💡 Trouver une idée : ${v.niveau} HTTP ${r.status} en ${(r.ms / 1000).toFixed(0)} s · ressorts ${v.ressorts.join(", ") || "aucun"} · « Pourquoi on l'enverra » ${v.avecRaison}/4 · ${v.motif}`);
+  // Lecture des titres (#2158) : imprimés pour être lus, 🟠 s'ils redeviennent longs ou « sujet : explication ».
+  const t = verdictTitres(data?.ideas);
+  console.log(`💡 Titres des idées : ${t.niveau} ${t.motif}`);
+  for (const titre of t.titres) console.log(`💡   · ${titre}`);
   expect(r.status, `réponse : ${r.text.slice(0, 300)}`).toBe(200);
   expect(v.niveau, v.motif).not.toBe("🔴");
 });
