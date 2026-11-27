@@ -222,15 +222,73 @@ export async function uploadPhotoOriginal({
   return { photoId, originalPath };
 }
 
-/**
- * Returns a signed URL valid for `expiresInSeconds` (default 1h).
- * Returns null if the path is empty or the request fails.
- */
-export async function getSignedPhotoUrl(
-  path: string | null | undefined,
-  expiresInSeconds = 3600,
-): Promise<string | null> {
-  if (!path) return null;
+// ── Adresses signées d'affichage : une seule demande, gardées une heure ──
+// Constat du 27/11/2026 (bibliothèque à 17 photos, base chargée) : chaque carte
+// signait sa photo de son côté (17 demandes de 5 s chacune) et une nouvelle
+// signature = une nouvelle adresse = l'image retéléchargée à chaque visite.
+// 1. Les demandes d'un même rendu partent en UN lot (`createSignedUrls`).
+// 2. Quand l'appelant donne une `version` (la date de modification de la
+//    photo), l'adresse est gardée le temps de sa validité : en revenant sur la
+//    page, le navigateur ressert l'image depuis son cache. Sans `version`, rien
+//    n'est gardé : une retouche réécrit le fichier au MÊME chemin, et une
+//    adresse gardée montrerait l'ancienne image.
+const DISPLAY_TTL_SECONDS = 3600;
+const CACHE_MARGIN_MS = 10 * 60 * 1000;
+const CACHE_STORAGE_KEY = "photo-signed-urls-v1";
+const CACHE_MAX_ENTRIES = 400;
+const SIGN_BATCH_SIZE = 100;
+
+interface CachedSignedUrl { url: string; version: string; expiresAt: number }
+const signedUrlCache = new Map<string, CachedSignedUrl>();
+let cacheHydrated = false;
+
+function hydrateSignedUrlCache() {
+  if (cacheHydrated) return;
+  cacheHydrated = true;
+  try {
+    const raw = sessionStorage.getItem(CACHE_STORAGE_KEY);
+    if (!raw) return;
+    const now = Date.now();
+    for (const [path, entry] of Object.entries(JSON.parse(raw) as Record<string, CachedSignedUrl>)) {
+      if (entry?.url && entry.expiresAt - CACHE_MARGIN_MS > now) signedUrlCache.set(path, entry);
+    }
+  } catch {
+    /* stockage indisponible (navigation privée) : cache en mémoire seulement */
+  }
+}
+
+function persistSignedUrlCache() {
+  try {
+    while (signedUrlCache.size > CACHE_MAX_ENTRIES) {
+      const oldest = signedUrlCache.keys().next().value;
+      if (oldest === undefined) break;
+      signedUrlCache.delete(oldest);
+    }
+    sessionStorage.setItem(CACHE_STORAGE_KEY, JSON.stringify(Object.fromEntries(signedUrlCache)));
+  } catch {
+    /* idem */
+  }
+}
+
+/** Oublie l'adresse gardée d'une photo (image qui ne charge plus, « Réessayer »). */
+export function forgetSignedPhotoUrl(path: string | null | undefined) {
+  if (!path) return;
+  hydrateSignedUrlCache();
+  if (signedUrlCache.delete(path)) persistSignedUrlCache();
+}
+
+/** Vide toutes les adresses gardées (déconnexion, changement de compte). */
+export function clearSignedPhotoUrlCache() {
+  cacheHydrated = true;
+  signedUrlCache.clear();
+  try {
+    sessionStorage.removeItem(CACHE_STORAGE_KEY);
+  } catch {
+    /* idem */
+  }
+}
+
+async function signOnePhotoUrl(path: string, expiresInSeconds: number): Promise<string | null> {
   // La signature peut échouer transitoirement (5xx storage observé en prod) :
   // sans retry, la vignette reste vide en silence.
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -241,6 +299,90 @@ export async function getSignedPhotoUrl(
     if (attempt === 0) await new Promise((r) => setTimeout(r, 400));
   }
   return null;
+}
+
+type SignWaiter = (url: string | null) => void;
+let pendingDisplaySigns: Map<string, SignWaiter[]> | null = null;
+
+async function flushDisplaySigns() {
+  const batch = pendingDisplaySigns;
+  pendingDisplaySigns = null;
+  if (!batch) return;
+  const paths = [...batch.keys()];
+  const signed = new Map<string, string>();
+  if (paths.length > 1) {
+    for (let i = 0; i < paths.length; i += SIGN_BATCH_SIZE) {
+      try {
+        const { data, error } = await supabase.storage
+          .from(USER_PHOTOS_BUCKET)
+          .createSignedUrls(paths.slice(i, i + SIGN_BATCH_SIZE), DISPLAY_TTL_SECONDS);
+        if (error || !data) continue;
+        for (const entry of data) {
+          if (entry.signedUrl && entry.path) signed.set(entry.path, entry.signedUrl);
+        }
+      } catch {
+        /* le lot a échoué : chaque photo retombe sur sa signature seule */
+      }
+    }
+  }
+  await Promise.all(
+    paths.map(async (path) => {
+      let url: string | null = signed.get(path) ?? null;
+      if (!url) {
+        try {
+          url = await signOnePhotoUrl(path, DISPLAY_TTL_SECONDS);
+        } catch {
+          url = null;
+        }
+      }
+      for (const resolve of batch.get(path) ?? []) resolve(url);
+    }),
+  );
+}
+
+function queueDisplaySign(path: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (!pendingDisplaySigns) {
+      pendingDisplaySigns = new Map();
+      void Promise.resolve().then(flushDisplaySigns);
+    }
+    const waiters = pendingDisplaySigns.get(path);
+    if (waiters) waiters.push(resolve);
+    else pendingDisplaySigns.set(path, [resolve]);
+  });
+}
+
+/**
+ * Returns a signed URL valid for `expiresInSeconds` (default 1h).
+ * Returns null if the path is empty or the request fails.
+ *
+ * `options.version` (la date `updated_at` de la photo) autorise à resservir
+ * l'adresse déjà signée tant que la photo n'a pas changé.
+ */
+export async function getSignedPhotoUrl(
+  path: string | null | undefined,
+  expiresInSeconds = DISPLAY_TTL_SECONDS,
+  options: { version?: string | null } = {},
+): Promise<string | null> {
+  if (!path) return null;
+  // Les durées longues (publication, export) gardent leur signature à elles.
+  if (expiresInSeconds !== DISPLAY_TTL_SECONDS) return signOnePhotoUrl(path, expiresInSeconds);
+
+  const version = options.version || null;
+  if (version) {
+    hydrateSignedUrlCache();
+    const cached = signedUrlCache.get(path);
+    if (cached && cached.version === version && cached.expiresAt - CACHE_MARGIN_MS > Date.now()) {
+      return cached.url;
+    }
+  }
+  const url = await queueDisplaySign(path);
+  if (url && version) {
+    signedUrlCache.delete(path);
+    signedUrlCache.set(path, { url, version, expiresAt: Date.now() + DISPLAY_TTL_SECONDS * 1000 });
+    persistSignedUrlCache();
+  }
+  return url;
 }
 
 /**

@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { redescribePhoto } from "@/lib/photo-redescribe";
 import type { UserPhotoRow } from "@/lib/photo-storage";
@@ -61,10 +62,19 @@ export function useUserPhotos(limit = 200) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const queryClient = useQueryClient();
+  // Tant que l'espace de travail charge, `useWorkspaceId` rend l'identifiant de
+  // la personne : la liste partait une première fois pour rien (vu le 27/11,
+  // deux lectures de `user_photos` à chaque ouverture de la bibliothèque).
+  let workspaceLoading = false;
+  try {
+    workspaceLoading = useWorkspace().loading;
+  } catch {
+    /* pas de WorkspaceProvider (tests, écrans hors espace) */
+  }
 
   const query = useQuery<UserPhotoRow[]>({
     queryKey: [...QUERY_KEY, workspaceId, limit],
-    enabled: !!user?.id && !!workspaceId,
+    enabled: !!user?.id && !!workspaceId && !workspaceLoading,
     queryFn: async () => {
       const rows: UserPhotoRow[] = [];
       // Bounded pages avoid the server row cap and keep older photos reachable.
