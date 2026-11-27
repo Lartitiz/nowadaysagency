@@ -26,7 +26,7 @@ import { ReelPreview } from "@/features/reel-montage/ReelPreview";
 import { ReelStage } from "@/features/reel-montage/ReelStage";
 import ReelVoiceRecorder from "@/components/creer/ReelVoiceRecorder";
 import { DEFAULT_TWEAKS, hasInstantPreview, maxDurationsFor, previewComposition, sanitizeTweaks, spokenPlaybackComposition, tweakedPlan, type ReelTweaks } from "@/features/reel-montage/reel-preview";
-import { provisionalCaptions, reelTimeline } from "@/features/reel-montage/reel-timeline";
+import { provisionalCaptions, reelTimeline, withPhrasesToRecord } from "@/features/reel-montage/reel-timeline";
 import { useReelStockSearch } from "@/features/reel-montage/use-reel-stock-search";
 import { useReelMyVideos } from "@/features/reel-montage/use-reel-my-videos";
 import { useReelStudioReturn } from "@/features/reel-montage/use-reel-studio-return";
@@ -124,9 +124,13 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
   const maxDurations = maxDurationsFor(clips);
   // La page du reel entier, jouée par la scène. Sans voix : avec les retouches. Avec une voix
   // (« Ma voix », « Je me filme ») : les prises posées, sous-titres provisoires (reel-timeline.ts).
-  const preview = useMemo(() => !previewPlan ? null : instantPreview
-    ? previewComposition(previewPlan, tweaks, maxDurations, window.location.origin)
-    : spokenPlaybackComposition(previewPlan, provisionalCaptions(previewPlan, clips, spoken, voiceDurations), window.location.origin),
+  const preview = useMemo(() => {
+    if (!previewPlan) return null;
+    if (instantPreview) return previewComposition(previewPlan, tweaks, maxDurations, window.location.origin);
+    // Passage pas encore enregistré : sa phrase s'affiche quand même (piste muette, lecture seulement).
+    const played = withPhrasesToRecord(previewPlan);
+    return spokenPlaybackComposition(played, provisionalCaptions(played, clips, spoken, voiceDurations), window.location.origin);
+  },
     // maxDurations découle de clips ; spoken et voiceDurations changent la clé de l'aperçu, donc previewPlan.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [previewPlan, tweaks, clips, instantPreview]);

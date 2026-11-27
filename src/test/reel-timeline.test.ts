@@ -1,7 +1,7 @@
 /* Ligne de temps de l'écran de montage du reel et sous-titres provisoires de la lecture (27/11/2026). */
 import { describe, expect, it } from "vitest";
 import { buildRenderPlan } from "@/lib/reel-plan";
-import { blockAt, formatClock, provisionalCaptions, reelTimeline, timelineTotal } from "@/features/reel-montage/reel-timeline";
+import { blockAt, formatClock, provisionalCaptions, reelTimeline, timelineTotal, withPhrasesToRecord } from "@/features/reel-montage/reel-timeline";
 import { DEFAULT_TWEAKS } from "@/features/reel-montage/reel-preview";
 import type { SelectedClip } from "@/features/reel-montage/types";
 
@@ -63,5 +63,31 @@ describe("provisionalCaptions", () => {
     const clips = [clip(1, 5), clip(2, 5), clip(3, 5)];
     const plan = buildRenderPlan(SECTIONS, clips.map((c) => ({ url: c.url, seek: 0 })), { mode: "filme", voice_mode: "tts", clipDurations: [5, 5, 5] });
     expect(provisionalCaptions(plan, clips, SECTIONS, [null, null, null])).toEqual([[], [], []]);
+  });
+});
+
+describe("withPhrasesToRecord", () => {
+  const clips = [clip(1), clip(2), clip(3)];
+  const chosen = clips.map((c) => ({ url: c.url, seek: 0 }));
+
+  it("ma voix, une seule prise faite : les passages sans prise affichent quand même leur phrase, sur la durée du script", () => {
+    const plan = buildRenderPlan(SECTIONS, chosen, { mode: "cache", voice_mode: "recorded", voiceAudioUrls: ["https://voix.test/1.wav", null, null], voiceDurations: [3, null, null] });
+    const played = withPhrasesToRecord(plan);
+    expect(played.sections[0].voice_audio_url).toBe("https://voix.test/1.wav");
+    expect(played.sections[1].voice_audio_url).toMatch(/^data:audio\/wav;base64,/);
+    const captions = provisionalCaptions(played, clips, SECTIONS, [3, null, null]);
+    expect(captions.map((c) => c.map((w) => w.text).join(" "))).toEqual(["Un deux trois", "Quatre cinq", "Six"]);
+    expect(captions[1][1].end).toBeCloseTo(played.sections[1].duration, 1);
+    // Le plan de départ, celui de la fabrication, n'est pas touché.
+    expect(plan.sections[1].voice_audio_url).toBeUndefined();
+  });
+
+  it("toutes les prises faites, sans voix, ou je me filme : plan rendu tel quel", () => {
+    const all = buildRenderPlan(SECTIONS, chosen, { mode: "cache", voice_mode: "recorded", voiceAudioUrls: ["a", "b", "c"], voiceDurations: [2, 2, 2] });
+    expect(withPhrasesToRecord(all)).toBe(all);
+    const silent = buildRenderPlan(SECTIONS, chosen, { mode: "cache", voice_mode: "silent" });
+    expect(withPhrasesToRecord(silent)).toBe(silent);
+    const filme = buildRenderPlan(SECTIONS, chosen, { mode: "filme", voice_mode: "tts", clipDurations: [5, 5, 5] });
+    expect(withPhrasesToRecord(filme)).toBe(filme);
   });
 });
