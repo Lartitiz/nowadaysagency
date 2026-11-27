@@ -21,6 +21,7 @@ import { sondeResultatActions } from "./resultat-actions-sonde";
 import { sondeGestesStories } from "./gestes-stories-sonde";
 import { sondeApercuStoryTelephone } from "./apercu-story-telephone-sonde";
 import { sondeHauteurEditeur } from "./hauteur-editeur-sonde";
+import { sondeBarreVignettes } from "./barre-vignettes-sonde";
 import { skipPhotoContextStep } from "./photo-context-step";
 import { autoOpenReadyCarousel } from "./carousel-ready";
 
@@ -193,6 +194,7 @@ test("contenus figés — carrousel photo", async ({ page }) => {
   await editorReady(page);
   if (fige.recording) { await fige.save(); await dumpStructure(page, name); }
   await compareZones(page, name, fige, await editorZones(page));
+  await sondeBarreVignettes(page);
 });
 
 test("contenus figés — carrousel mixte", async ({ page }) => {
