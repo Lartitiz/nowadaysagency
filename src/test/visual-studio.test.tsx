@@ -1047,6 +1047,8 @@ it("persists a visible photo role, reordered selection and fresh-request clearin
     return structuredClone(state);
   });
   const mounted = mount();
+  // Les photos jointes sont repliées en pastille à l'ouverture (27/11/2026).
+  fireEvent.click(await screen.findByRole("button", { name: /2 photos jointes/ }));
   fireEvent.change(await screen.findByLabelText("Rôle de l’image 1"), { target: { value: "product" } });
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:"reference",reference_id:"plate",reference_role:"product",role_source:"user"})));
   await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 1")).toHaveValue("product"));
@@ -1056,6 +1058,7 @@ it("persists a visible photo role, reordered selection and fresh-request clearin
   fireEvent.click(screen.getByRole("button", {name:"Déplacer l’image 2 avant"}));
   await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 1")).toHaveValue("person"));
   mounted.unmount();mount();
+  fireEvent.click(await screen.findByRole("button", { name: /2 photos jointes/ }));
   await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 1")).toHaveValue("person"));
   fireEvent.click(screen.getByRole("button", {name:"Retirer Assiette de cette demande"}));
   await waitFor(() => expect(screen.queryByLabelText("Rôle de l’image 2")).not.toBeInTheDocument());

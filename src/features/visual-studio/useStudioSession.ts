@@ -152,12 +152,19 @@ export function useStudioSession({
   const hasExtraTools = !!(references.length || current?.suggested_photos?.length || current?.charter_references?.length || compositionHistory.length || current?.memory?.length);
   const [photosOpen, setPhotosOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const photoCountRef = useRef<number | null>(null);
+  const photoCountRef = useRef<{ session: string; count: number } | null>(null);
   useEffect(() => {
+    // Les photos jointes se déplient seulement quand on en AJOUTE une dans la
+    // session ouverte. L'arrivée des données à l'ouverture (0 → 1) ou le
+    // passage à une autre session ne comptent pas (essai en ligne du 27/11/2026 :
+    // la vignette s'ouvrait toute seule au chargement).
+    const sessionKey = current?.session.id;
     const n = attachedReferences.length;
-    if (photoCountRef.current !== null && n > photoCountRef.current) setPhotosOpen(true);
-    photoCountRef.current = n;
-  }, [attachedReferences.length]);
+    if (!sessionKey) { photoCountRef.current = null; return; }
+    const previous = photoCountRef.current;
+    if (previous && previous.session === sessionKey && n > previous.count) setPhotosOpen(true);
+    photoCountRef.current = { session: sessionKey, count: n };
+  }, [attachedReferences.length, current?.session.id]);
   function setAttachments(ids: string[], key = attachmentKey) {
     const unique = [...new Set(ids)];
     writeAttachedIds(key, unique);
