@@ -30,7 +30,7 @@
       "any": 3
     },
     "src/components/creer/formatRenderers/CarouselPhotoResult.tsx": {
-      "lignes": 1230,
+      "lignes": 1226,
       "any": 20
     },
     "src/components/creer/formatRenderers/StoryResult.tsx": {
@@ -66,11 +66,11 @@
       "any": 14
     },
     "src/pages/CreerUnifie.tsx": {
-      "lignes": 2135,
+      "lignes": 2123,
       "any": 21
     },
     "src/pages/InstagramAudit.tsx": {
-      "lignes": 813,
+      "lignes": 802,
       "any": 41
     },
     "src/pages/InstagramBio.tsx": {

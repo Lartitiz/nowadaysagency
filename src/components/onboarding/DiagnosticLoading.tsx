@@ -7,7 +7,7 @@ import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC, diagnostic
 import { onboardingLabel, ACTIVITY_OPTIONS, BLOCKERS, OBJECTIVES, TIME_OPTIONS, PRODUCT_OPTIONS, CHANNELS, DESIRED_CHANNELS } from "@/lib/onboarding-constants";
 import { ACTIVITY_SECTIONS_REAL_ESTATE, BLOCKERS_REAL_ESTATE, OBJECTIVES_REAL_ESTATE } from "@/lib/onboarding-variants";
 import { Progress } from "@/components/ui/progress";
-import { elapsedLabel } from "@/components/creer/GenerationTimeHint";
+import { WaitingElapsed } from "@/components/creer/WaitingScreen";
 import { effectiveActivityDetail } from "@/features/onboarding/activity-detail";
 
 interface Props {
@@ -457,9 +457,8 @@ export default function DiagnosticLoading({
           normal prend plus longtemps (IA jusqu'à 90 s, + lecture du site). */}
       {phase === "loading" && (
         <p data-testid="diagnostic-time-hint" className="text-xs text-muted-foreground">
-          {elapsedSeconds >= lateAfter
-            ? `C'est plus long que d'habitude, je continue. Déjà ${elapsedLabel(elapsedSeconds)}. Reste sur cette page.`
-            : `Compte ${announced}. Déjà ${elapsedLabel(elapsedSeconds)}. Reste sur cette page.`}
+          {elapsedSeconds >= lateAfter ? "C'est plus long que d'habitude, je continue." : `Compte ${announced}.`}{" "}
+          <WaitingElapsed seconds={elapsedSeconds} /> Reste sur cette page.
         </p>
       )}
     </div>

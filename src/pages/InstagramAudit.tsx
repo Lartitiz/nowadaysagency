@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Loader2, Sparkles, BarChart3, RotateCcw, Search, TrendingUp, CheckCircle2, PauseCircle, FileText, User } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
+import { useWaitingScreen } from "@/components/creer/WaitingScreen";
 import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
 import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
@@ -37,6 +38,12 @@ const AUDIT_LOADING_MESSAGES = [
   { time: 22000, text: "🧠 Rédaction des recommandations personnalisées..." },
   { time: 30000, text: "⏳ Dernières touches..." },
 ];
+/** Phrase qui suit le temps pendant l'audit (brique commune WaitingScreen). */
+function AuditWaitingMessage() {
+  const w = useWaitingScreen({ timeline: AUDIT_LOADING_MESSAGES, tickMs: 500 });
+  return <p className="text-sm text-muted-foreground text-center animate-pulse">{w.message}</p>;
+}
+
 type ViewMode = "hub" | "form" | "results";
 
 export default function InstagramAudit() { return <AuditWorkspaceScope page={InstagramAuditForm} />; }
@@ -52,7 +59,6 @@ function InstagramAuditForm() {
   const { canAudit, remainingAudits, plan, isPaid } = useUserPlan();
 
   const [analyzing, setAnalyzing] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState("");
   const [auditResult, setAuditResult] = useState<any>(null);
   const [auditId, setAuditId] = useState<string | null>(null);
   const [auditDate, setAuditDate] = useState<string | null>(null);
@@ -112,21 +118,6 @@ function InstagramAuditForm() {
     }
     return m;
   };
-
-  // Progressive loading messages during audit
-  useEffect(() => {
-    if (!analyzing) { setLoadingMsg(""); return; }
-    const start = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - start;
-      let msg = AUDIT_LOADING_MESSAGES[0].text;
-      for (const lm of AUDIT_LOADING_MESSAGES) {
-        if (elapsed >= lm.time) msg = lm.text;
-      }
-      setLoadingMsg(msg);
-    }, 500);
-    return () => clearInterval(interval);
-  }, [analyzing]);
 
   // Determine initial view from search params
   const paramView = searchParams.get("view") as ViewMode | null;
@@ -353,7 +344,6 @@ function InstagramAuditForm() {
       // Check for retryable errors from backend
       if (res.data?.error && res.data?.retryable && retryCount < 1) {
         console.log("[Audit] Retryable error, auto-retrying in 3s...", res.data.error);
-        setLoadingMsg("⏳ L'IA met un peu plus de temps que prévu, on réessaie...");
         await new Promise(r => setTimeout(r, 3000));
         if (!active.current) return;
         return handleSubmit(form, retryCount + 1, live);
@@ -447,7 +437,6 @@ function InstagramAuditForm() {
       const isTransient = /surchargée|trop de temps|timeout|abort|504|503|529|429/i.test(errStr);
       if (isTransient && retryCount < 1) {
         console.log("[Audit] Transient error, auto-retrying in 3s...", errStr);
-        setLoadingMsg("⏳ L'IA met un peu plus de temps que prévu, on réessaie...");
         await new Promise(r => setTimeout(r, 3000));
         if (!active.current) return;
         return handleSubmit(form, retryCount + 1, live);
@@ -793,9 +782,7 @@ function InstagramAuditForm() {
 {analyzing && (
           <div className="space-y-4">
             <AiLoadingIndicator context="audit" isLoading={analyzing} />
-            {loadingMsg && (
-              <p className="text-sm text-muted-foreground text-center animate-pulse">{loadingMsg}</p>
-            )}
+            <AuditWaitingMessage />
           </div>
         )}
         <div className={analyzing ? "hidden" : ""}>
