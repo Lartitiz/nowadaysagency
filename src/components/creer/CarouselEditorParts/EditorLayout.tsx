@@ -103,8 +103,11 @@ export function outsideRoom(slide: Element | null | undefined): { above: number;
   const bar = window.document.querySelector('[data-testid="result-actions"]')?.getBoundingClientRect().top ?? window.innerHeight;
   // Les vignettes sont en rangée sous la slide depuis le 20/11/2026 : la place du dessous
   // s'arrête à elles (27/11, la barre d'une photo les recouvrait).
-  const strip = window.document.querySelector('[aria-label="Slides du carrousel"]')?.getBoundingClientRect();
-  const floor = strip && strip.height > 0 && strip.top >= r.bottom - 1 ? Math.min(bar, strip.top) : bar;
+  // La liste est en `display: contents` (rectangle vide) : on mesure les vignettes elles-mêmes.
+  const thumbs = [...(window.document.querySelector('[aria-label="Slides du carrousel"]')?.children ?? [])]
+    .map((el) => el.getBoundingClientRect())
+    .filter((t) => t.height > 0 && t.top >= r.bottom - 1);
+  const floor = thumbs.length ? Math.min(bar, ...thumbs.map((t) => t.top)) : bar;
   return { above: Math.max(0, r.top - Math.max(0, header)), below: Math.max(0, Math.min(floor, window.innerHeight) - r.bottom) };
 }
 

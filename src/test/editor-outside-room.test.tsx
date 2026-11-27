@@ -16,14 +16,23 @@ describe("outsideRoom : place de la barre d'outils hors de la slide", () => {
   it("la place du dessous s'arrête aux vignettes (27/11/2026 : la barre d'une photo les recouvrait)", () => {
     const slide = el("<div></div>", { top: 110, bottom: 557 });
     el('<div data-testid="result-actions"></div>', { top: 660, bottom: 720, height: 60 });
-    el('<div aria-label="Slides du carrousel"></div>', { top: 565, bottom: 635, height: 70 });
+    // Comme dans SlideStrip : la liste est en `display: contents`, son rectangle est vide.
+    const list = el('<div class="contents" aria-label="Slides du carrousel"></div>', {});
+    for (const top of [565, 565]) {
+      const b = document.createElement("button");
+      b.getBoundingClientRect = () => ({ top, bottom: top + 70, left: 0, right: 0, width: 50, height: 70, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+      list.appendChild(b);
+    }
     expect(outsideRoom(slide).below).toBe(8);
   });
 
   it("sans vignettes dessous, la place va jusqu'à la barre « Publier »", () => {
     const slide = el("<div></div>", { top: 110, bottom: 557 });
     el('<div data-testid="result-actions"></div>', { top: 660, bottom: 720, height: 60 });
-    el('<div aria-label="Slides du carrousel"></div>', { top: 120, bottom: 500, height: 380 }); // colonne à côté
+    const list = el('<div class="contents" aria-label="Slides du carrousel"></div>', {});
+    const b = document.createElement("button"); // vignette à côté de la slide, pas dessous
+    b.getBoundingClientRect = () => ({ top: 120, bottom: 190, left: 0, right: 0, width: 50, height: 70, x: 0, y: 120, toJSON: () => ({}) }) as DOMRect;
+    list.appendChild(b);
     expect(outsideRoom(slide).below).toBe(103);
   });
 });
