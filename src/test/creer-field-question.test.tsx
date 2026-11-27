@@ -26,11 +26,16 @@ describe("CreerStepQuestions — question unique du newsjacking", () => {
     expect(onNext).not.toHaveBeenCalled();
   });
 
-  it("une seule question : un seul bouton « Générer », sans lien « Passer les questions » en dessous", () => {
-    render(<CreerStepQuestions {...base} questions={questions} onNext={vi.fn()} onSkip={vi.fn()} />);
+  it("dernière de plusieurs questions, ou réponse écrite : un seul bouton « Générer »", () => {
+    const deux = [{ id: "q1", question: "Quel objectif ?" }, { id: "q2", question: "Quel ton ?" }];
+    const { unmount } = render(<CreerStepQuestions {...base} questions={deux} onNext={vi.fn()} onSkip={vi.fn()} />);
+    expect(screen.getByTestId("creer-generate-direct")).toBeTruthy(); // 1re question : on peut encore passer
+    fireEvent.click(screen.getByTestId("creer-questions-next"));
     expect(screen.getByTestId("creer-questions-next").textContent).toMatch(/Générer/);
     expect(screen.queryByTestId("creer-generate-direct")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Passer les questions|Générer avec mes précisions/ })).toBeNull();
+    unmount();
+    render(<CreerStepQuestions {...base} questions={questions} initialAnswers={{ q1: "Faire réagir" }} onNext={vi.fn()} onSkip={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /Générer avec mes précisions/ })).toBeNull();
   });
 
   it("aucune question en plus hors newsjacking ou quand on a déjà répondu", () => {

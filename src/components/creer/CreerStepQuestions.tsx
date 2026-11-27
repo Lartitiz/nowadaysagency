@@ -349,8 +349,10 @@ export default function CreerStepQuestions({
         </div>
 
         {/* Passer les questions : pas à la dernière, où le gros bouton « Générer »
-            fait déjà la même chose (27/11/2026, deux « Générer » l'un sous l'autre). */}
-        {!isLast && <Button
+            fait déjà la même chose (27/11/2026, deux « Générer » l'un sous l'autre).
+            Gardé pour une question unique laissée vide : il dit alors « passer »,
+            pas « générer » une deuxième fois. */}
+        {(!isLast || (questions.length === 1 && !hasAnswers)) && <Button
           variant="link"
           size="sm"
           className="w-full gap-1.5 text-muted-foreground underline underline-offset-2 hover:text-primary"
