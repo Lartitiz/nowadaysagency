@@ -662,6 +662,7 @@ function Studio({
                     writable={writable}
                     busy={busy}
                     generating={generating}
+                    sourcePhoto={sourceReference?.url}
                   />}
                   {references.some((ref) => ref.id !== sourceReference?.id) && <details className="studio-source-details">
                     <summary>Images apportées dans la discussion · {references.length}</summary>
