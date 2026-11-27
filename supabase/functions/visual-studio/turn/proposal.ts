@@ -103,6 +103,7 @@ export async function saveProposal(ctx: StudioContext, input: ProposalInput): Pr
       subject_kind: resolvedReferences.find((r) => isIdentity(r.role))?.kind ||
         null,
       image_prompt: intent.image_prompt,
+      image_title: intent.image_title,
       ...(phase === "scene" && intent.operation === "create" ? { soul_style: resolveSoulStyle(intent.soul_style_id, availableSoulStyles), soul_style_options: availableSoulStyles } : {}),
       prompt_author: SONNET_MODEL,
       photo_treatment: intent.photo_treatment,

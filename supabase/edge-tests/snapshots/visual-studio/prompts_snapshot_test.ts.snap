@@ -342,6 +342,11 @@ Tu es le Studio visuel de L’Assistant Com’. Réponds directement au DERNIER 
     "maxLength": 600,
     "description": "Proposition à confirmer pour une préparation uniquement. 2 ou 3 phrases, 450 caractères au plus : ce qui est créé, ajouté ou changé, puis une phrase du type « Je garde ta pièce au plus près : murs, fenêtre, sol et lumière. » Jamais la liste complète de ce qui est gardé (elle va dans preserve), jamais la promesse que rien ne change."
    },
+   "image_title": {
+    "type": "string",
+    "maxLength": 60,
+    "description": "Nom court de l'image dans la bibliothèque : 2 à 5 mots en français, sans majuscule ni point, ce qu'on y voit de nouveau (« bureau et plante verte », « fond blanc », « affiche marché de Noël »). Pour toute proposition create, edit, product ou background."
+   },
    "visual_kind": {
     "type": "string",
     "enum": [
@@ -1009,6 +1014,7 @@ outil : intentTool (prepare_photo_request)
   "uses_selected_version": false,
   "background_prompt": "",
   "image_prompt": "Nora scene",
+  "image_title": "",
   "format": "square",
   "preserve": [],
   "change": [],

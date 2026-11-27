@@ -3,6 +3,7 @@
 // Déplacée telle quelle depuis index.ts (fiche 5, lot 2, docs/robustesse/gros-fichiers.md).
 import { BUCKET, download, store, unwrap } from "../storage.ts";
 import type { StudioContext, StudioSession } from "./context.ts";
+import { studioLibraryName } from "../library-name.ts";
 
 export async function saveToLibrary(ctx: StudioContext, session: StudioSession): Promise<Response> {
   const { sb, actor, p, json } = ctx;
@@ -41,5 +42,14 @@ export async function saveToLibrary(ctx: StudioContext, session: StudioSession):
       p_version: v.id,
     }),
   );
+  // Première mise en bibliothèque seulement : un nom qui dit ce que l'image
+  // montre (library-name.ts). Un échec ici ne doit pas faire rater le rangement.
+  if (!v.library_photo_id) {
+    const name = studioLibraryName(session.name, v.proposal || {});
+    if (name) {
+      const renamed = await sb.from("user_photos").update({ name }).eq("id", photoId);
+      if (renamed.error) console.warn("[studio:library-name]", renamed.error.message);
+    }
+  }
   return json({ photo_id: photoId });
 }
