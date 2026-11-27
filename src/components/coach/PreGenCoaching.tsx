@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { cn } from "@/lib/utils";
+import ErrorWithRetry from "@/components/ErrorWithRetry";
 
 export interface PreGenBrief {
   summary: string;
@@ -45,6 +46,8 @@ export default function PreGenCoaching({ generationType, onComplete, onSkip }: P
   const [briefReady, setBriefReady] = useState(false);
   const [briefSummary, setBriefSummary] = useState("");
   const [adjusting, setAdjusting] = useState(false);
+  // Échec du dernier appel : on garde la conversation envoyée pour « Réessayer » sans retaper.
+  const [failure, setFailure] = useState<{ error: unknown; sent: ChatMessage[] } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -78,6 +81,11 @@ export default function PreGenCoaching({ generationType, onComplete, onSkip }: P
     const updated = [...messages, userMsg];
     setMessages(updated);
     setInput("");
+    await askCoach(updated);
+  }, [messages, loading, workspaceId, generationType]);
+
+  const askCoach = useCallback(async (updated: ChatMessage[]) => {
+    setFailure(null);
     setLoading(true);
 
     try {
@@ -91,7 +99,7 @@ export default function PreGenCoaching({ generationType, onComplete, onSkip }: P
         },
       }, 60000);
 
-      if (error) throw new Error(error.message);
+      if (error) throw error;
 
       const responseText = data?.response || "Désolée, je n'ai pas pu répondre. Réessaie !";
       const assistantMsg: ChatMessage = { role: "assistant", content: responseText };
@@ -109,15 +117,11 @@ export default function PreGenCoaching({ generationType, onComplete, onSkip }: P
       }
     } catch (e) {
       console.error("pre-gen coaching error:", e);
-      const errMsg: ChatMessage = {
-        role: "assistant",
-        content: "Oups, une erreur est survenue. Réessaie 🙏",
-      };
-      setMessages([...updated, errMsg]);
+      setFailure({ error: e, sent: updated });
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, workspaceId, generationType]);
+  }, [workspaceId, generationType]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -204,6 +208,12 @@ export default function PreGenCoaching({ generationType, onComplete, onSkip }: P
           </div>
         )}
       </div>
+
+      {failure && (
+        <div className="px-4 pb-3">
+          <ErrorWithRetry error={failure.error} where="pregen.coaching" onRetry={() => askCoach(failure.sent)} />
+        </div>
+      )}
 
       {/* Brief ready state */}
       {briefReady && !adjusting && (
