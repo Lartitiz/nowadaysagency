@@ -12,9 +12,16 @@ vi.mock('@/features/studio-video/StudioVideoPanel',()=>({StudioVideoPanel:({onPi
  <button onClick={()=>onPickClip?.({id:'studio-job',video_url:'https://clips.test/studio.mp4',duration:5,source_name:'Atelier'})}>Tester le clip Studio</button>}));
 const sections=[{section:'hook',texte_parle:'Mon texte',texte_overlay:'Overlay',timing:'0-3 sec'}];
 const video=`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`;
-beforeEach(()=>{vi.clearAllMocks();mocks.charter={data:null,isLoading:false};mocks.submit.mockResolvedValue('project');mocks.poll.mockResolvedValue('https://renderer.test/temp.mp4');mocks.archive.mockResolvedValue(video);
+// La vidéo se télécharge toute seule à la fin de la fabrication. Sans ce faux réseau, chaque
+// test partait chercher le vrai fichier sur internet : selon la vitesse de la réponse, le lien
+// de secours « Ouvrir le MP4 dans un nouvel onglet » apparaissait ou non avant les vérifications
+// (échecs au hasard en CI le 27/11/2026). Ici le téléchargement réussit toujours, sans réseau.
+const fauxTelechargement=()=>vi.fn(async()=>({ok:true,blob:async()=>new Blob(['mp4'])}));
+beforeEach(()=>{vi.clearAllMocks();vi.stubGlobal('fetch',fauxTelechargement());
+ URL.createObjectURL=vi.fn(()=>'blob:test');URL.revokeObjectURL=vi.fn();
+ vi.spyOn(HTMLAnchorElement.prototype,'click').mockImplementation(()=>{});mocks.charter={data:null,isLoading:false};mocks.submit.mockResolvedValue('project');mocks.poll.mockResolvedValue('https://renderer.test/temp.mp4');mocks.archive.mockResolvedValue(video);
  mocks.readStudio.mockResolvedValue({job:{status:'ready',video_url:'https://clips.test/fresh.mp4'}});});
-afterEach(()=>{window.history.replaceState(null,'','/');sessionStorage.clear();});
+afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();window.history.replaceState(null,'','/');sessionStorage.clear();});
 async function setup() {
  const onMp4Ready=vi.fn();const view=render(<ReelMontage sections={sections} onMp4Ready={onMp4Ready}/>);
  fireEvent.click(screen.getByRole('button',{name:/Je me filme/}));
