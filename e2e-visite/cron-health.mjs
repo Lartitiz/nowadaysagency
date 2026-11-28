@@ -361,12 +361,13 @@ try {
       : "   ✅ 🚫 Générations refusées (« Données invalides », 7 j) : 0");
     // photos_collees : edge ≥ 28/11/2026. Seuil : 0 attendu sur 7 jours. ≥ 1 = un chemin d'enregistrement
     // écrit de nouveau les photos (base64) dans le texte du contenu au lieu de les ranger dans le stockage
-    // (« Brouillon mis de côté » l'a fait deux mois, fiches de 1 à 2 Mo en double, #2201).
+    // (« Brouillon mis de côté » l'a fait deux mois, fiches de 1 à 2 Mo en double, #2201). Les pictos de moins
+    // de 20 000 caractères ne comptent pas. Repère de poids : un carrousel rangé pèse 40 à 120 Ko.
     const pc = d.photos_collees;
     if (!pc) console.log("   📎 Photos collées : non mesuré (edge cron-health pas redéployée)");
     else if (pc.erreur) console.log(`   📎 Photos collées : lecture impossible (${pc.erreur})`);
     else console.log(pc.contenus > 0
-      ? `   ⚠️ 📎 Photos collées dans le texte (contenus modifiés, 7 j) : ${pc.contenus} contenu(s) (${pc.idees} idée(s), ${pc.calendrier} post(s) du calendrier), ${pc.clientes} cliente(s) · dernier le ${pc.dernier?.date} dans ${pc.dernier?.table} → un enregistrement ne passe plus par externalizeCarouselMedia ; alléger ensuite par /admin/tools (« Photos collées dans les contenus »)`
+      ? `   ⚠️ 📎 Photos collées dans le texte (contenus modifiés, 7 j) : ${pc.contenus} contenu(s) (${pc.idees} idée(s), ${pc.calendrier} post(s) du calendrier), ${pc.photos} photo(s), le plus gros ${pc.plus_gros_ko} Ko, ${pc.clientes} cliente(s) · dernier le ${pc.dernier?.date} dans ${pc.dernier?.table} → un enregistrement ne passe plus par externalizeCarouselMedia ; alléger ensuite par /admin/tools (« Photos collées dans les contenus »)`
       : "   ✅ 📎 Photos collées dans le texte (contenus modifiés, 7 j) : 0");
     // connexions_figees : edge ≥ 09/11/2026 (#1829). Seuil : 0 attendu. Google / Canva / Pinterest dont le jeton
     // est expiré depuis > 30 j = connexion plus renouvelée (morte, inutilisée, ou app Google repassée en mode test).
