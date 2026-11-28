@@ -299,6 +299,11 @@ export function mondeComplet(): FauxMonde {
       ai_usage_hors_credit: HORS_CREDIT,
       branding_autofill: FICHES_A_RELIRE,
       frontend_debug_logs: JOURNAL_TECHNIQUE,
+      // « 📎 Photos collées » : une idée récente avec une photo dans son texte, une autre sans.
+      saved_ideas: [
+        { id: "idee-photo-collee", user_id: "u-marie", updated_at: ilYa(2 * J), content_draft: null, content_data: { visual_html: [{ html: '<img src="data:image/jpeg;base64,AAAA">' }] } },
+        { id: "idee-legere", user_id: "u-marie", updated_at: ilYa(1 * J), content_draft: "{}", content_data: { visual_html: [{ html: '<img src="https://exemple.test/a.jpg">' }] } },
+      ],
     },
     cronJobs: CRON_JOBS,
     photoroom: { status: 200, body: { credits: { available: 790, subscription: 1000 } } },

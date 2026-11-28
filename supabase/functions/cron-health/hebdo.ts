@@ -18,6 +18,7 @@ import { horsCreditParSource, lireHorsCredit } from "./hors-credit.ts";
 import { fichesCoincees, lireFichesCoincees } from "./fiches-coincees.ts";
 import { connexionsFigees, PLATEFORMES_AUTO_RENOUVELEES } from "./connexions-figees.ts";
 import { generationsRefusees, lireGenerationsRefusees } from "./generations-refusees.ts";
+import { lirePhotosCollees, photosCollees } from "./photos-collees.ts";
 
 export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }: {
   supabase: any;
@@ -27,7 +28,7 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
   emailOf: Map<string, string>;
 }) {
   const since35d = new Date(now - 35 * DAY).toISOString();
-  const [aiRows, calRows, higgsfield, ownerRows, emailsCoupes, horsCreditRows, fichesRows, connRows, refusRows] = await Promise.all([
+  const [aiRows, calRows, higgsfield, ownerRows, emailsCoupes, horsCreditRows, fichesRows, connRows, refusRows, photosRows] = await Promise.all([
     fetchAllRows(
       supabase,
       "ai_usage",
@@ -53,6 +54,8 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
       .catch((e) => ({ erreur: String((e as any)?.message || e).slice(0, 90) })),
     // « 🚫 Générations refusées » : refus « Données invalides » des 7 derniers jours.
     lireGenerationsRefusees(supabase, fetchAllRows, now).catch((e) => ({ erreur: String((e as any)?.message || e).slice(0, 90) })),
+    // « 📎 Photos collées » : contenus des 7 derniers jours avec leurs photos dans le texte.
+    lirePhotosCollees(supabase, fetchAllRows, now).catch((e) => ({ erreur: String((e as any)?.message || e).slice(0, 90) })),
   ]);
   const espaces_owner_multiples = espacesOwnerMultiples(ownerRows, { emailOf, isClient, now });
   const ai = aiRows.filter((a: any) => isClient(a.user_id));
@@ -109,5 +112,7 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
     connexions_figees: Array.isArray(connRows) ? connexionsFigees(connRows, { isClient, now }) : connRows,
     // « 🚫 Générations refusées » : 0 attendu ; ≥ 1 = un champ écrit par l'IA est refusé à la reprise (#2053).
     generations_refusees: Array.isArray(refusRows) ? generationsRefusees(refusRows, { isClient, now }) : refusRows,
+    // « 📎 Photos collées » : 0 attendu ; ≥ 1 = un enregistrement ne range plus ses photos à part (#2201).
+    photos_collees: Array.isArray(photosRows) ? photosCollees(photosRows, { isClient }) : photosRows,
   };
 }

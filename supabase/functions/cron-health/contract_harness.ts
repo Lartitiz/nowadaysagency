@@ -58,6 +58,15 @@ function garde(row: Row, col: string, filtre: string): boolean {
       const liste = val.replace(/^\(|\)$/g, "").split(",").map(valeurFiltre);
       return v !== null && v !== undefined && liste.includes(String(v));
     }
+    case "like": {
+      // `colonne->>clé` : la valeur de la clé, lue comme du texte (sonde « 📎 Photos collées »).
+      const [racine, cle] = col.split("->>");
+      const brut = cle === undefined ? v : (row[racine] as Record<string, unknown> | null)?.[cle];
+      if (brut === null || brut === undefined) return false;
+      const texte = typeof brut === "string" ? brut : JSON.stringify(brut);
+      const motif = val.split(/[%*]/).map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*");
+      return new RegExp(`^${motif}$`, "s").test(texte);
+    }
     default:
       throw new Error(`faux PostgREST : opérateur non géré « ${op} » (${col}=${filtre})`);
   }
