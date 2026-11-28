@@ -58,8 +58,8 @@ describe("où lâcher une vignette", () => {
 });
 
 const story = (text: string): any => ({ text, face_cam: false, visual: { gabarit: "fond_pills", background: "fond_couleur", body_pill: text } });
-function Harness() {
-  const [list, setList] = useState<any[]>([story("Première"), story("Deuxième"), story("Troisième")]);
+function Harness({ one }: { one?: boolean }) {
+  const [list, setList] = useState<any[]>(one ? [story("Première")] : [story("Première"), story("Deuxième"), story("Troisième")]);
   return (<><output data-testid="saved">{JSON.stringify(list.map((s) => s.text))}</output>
     <StoryResult result={{ stories: list }} onStoriesUpdate={setList} /></>);
 }
@@ -71,6 +71,8 @@ describe("stories : glisser une vignette pour changer l'ordre", () => {
     let thumbs = place("[data-story-thumb]", "column");
     expect(thumbs).toHaveLength(3);
     expect(thumbs[0]).toHaveAttribute("title", "Clique pour ouvrir, glisse pour changer l’ordre");
+    // Le geste est annoncé en toutes lettres, comme sous les vignettes des slides.
+    expect(screen.getByText("Glisse une vignette pour changer l’ordre.")).toBeVisible();
     fireEvent.pointerDown(thumbs[2], { clientX: 30, clientY: 300, pointerId: 1 });
     fireEvent.pointerMove(thumbs[2], { clientX: 30, clientY: 150, pointerId: 1 });
     fireEvent.pointerMove(thumbs[2], { clientX: 30, clientY: 10, pointerId: 1 });
@@ -100,11 +102,18 @@ describe("stories : glisser une vignette pour changer l'ordre", () => {
     render(<Harness />);
     const thumbs = place("[data-story-thumb]", "row");
     expect(thumbs[0]).not.toHaveAttribute("title");
+    expect(screen.queryByText("Glisse une vignette pour changer l’ordre.")).toBeNull();
     fireEvent.pointerDown(thumbs[2], { clientX: 170, clientY: 50, pointerId: 1 });
     fireEvent.pointerMove(thumbs[2], { clientX: 10, clientY: 50, pointerId: 1 });
     fireEvent.pointerUp(thumbs[2], { clientX: 10, clientY: 50, pointerId: 1 });
     expect(saved()).toEqual(["Première", "Deuxième", "Troisième"]);
   });
+});
+
+it("une seule story : rien à glisser, la phrase n'est pas écrite", () => {
+  render(<Harness one />);
+  expect(document.querySelectorAll("[data-story-thumb]")).toHaveLength(1);
+  expect(screen.queryByText("Glisse une vignette pour changer l’ordre.")).toBeNull();
 });
 
 describe("le clic qui suit un glissé", () => {

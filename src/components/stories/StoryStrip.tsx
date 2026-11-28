@@ -34,6 +34,9 @@ export default function StoryStrip({ frames, current, onChange, onMove, onDuplic
   const draggable = !isMobile && count > 1;
   return (
     <nav aria-label="Choisir la story à régler" className="min-w-0 space-y-2" data-story-strip>
+      {/* La même annonce que sous les vignettes des slides : le geste ne se devine pas (28/11/2026).
+          Au-dessus des vignettes : dessous, elle sort de l'écran dès 5 stories. */}
+      {draggable && <p className="text-2xs leading-tight text-muted-foreground" data-story-drag-hint>Glisse une vignette pour changer l’ordre.</p>}
       <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
         {frames.map((html, i) => (
           <li key={i} className="flex shrink-0 flex-col items-center gap-1">
