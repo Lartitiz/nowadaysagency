@@ -27,6 +27,7 @@ import { centerOnSlide } from "@/components/creer/CarouselEditorParts/editor-ico
 import { photoShade } from "@/lib/carousel-shade";
 import { useHoverBox } from "@/components/creer/CarouselEditorParts/use-hover-box";
 import type { FixAll } from "@/components/creer/CarouselEditorParts/use-fix-all";
+import { slideTextRects } from "@/lib/toolbar-avoid";
 
 export default function SlideCanvas({
   slide,
@@ -254,6 +255,7 @@ export default function SlideCanvas({
               radius: el.style.borderRadius,
               locked: isLockedEl(el),
               lockedId: el.closest<HTMLElement>("[data-editor-locked]")?.dataset.editorId,
+              avoid: slideTextRects(frame.current?.contentDocument),
             }
           : {};
       })(),

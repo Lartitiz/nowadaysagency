@@ -12,6 +12,7 @@ import { isFullBleedBox, type CanvasBox } from "@/components/creer/CarouselEdito
 import { PhotoShapePicker } from "@/components/creer/CarouselEditorParts/PanelBits";
 import { ShadeSlider } from "@/components/creer/CarouselEditorParts/ShadeSlider";
 import { ToolbarMore } from "@/components/creer/CarouselEditorParts/ToolbarMore";
+import { keepToolbarOffText, type Rect } from "@/lib/toolbar-avoid";
 
 /** Élément choisi tel que mesuré dans l'aperçu (boîte et style utiles à la barre). */
 export type SelectionBox = CanvasBox & {
@@ -28,6 +29,8 @@ export type SelectionBox = CanvasBox & {
   lockedId?: string;
   fontSize?: number;
   align?: string;
+  /** Textes de la slide (mêmes coordonnées que la boîte) : la barre posée dans la slide évite de les cacher. */
+  avoid?: Rect[];
 };
 
 /** Au-delà, la barre est passée sur deux lignes (une ligne = boutons de 32 px + 2 × 4 px de marge + bordure). */
@@ -143,17 +146,15 @@ export default function CanvasToolbar({
     if (!dense && h > TOOLBAR_ONE_LINE_MAX) { setDenseFor(denseKey); return; }
     if (w !== toolbarSize.w || h !== toolbarSize.h) setToolbarSize({ w, h });
   });
-  const toolbarPosition = () =>
-    box
-      ? placeToolbar(
-          { left: box.left * scale, top: box.top * scale, width: box.width * scale, height: box.height * scale },
-          { width: toolbarSize.w, height: toolbarSize.h },
-          { width, height: width * 1.25 },
-          8,
-          4,
-          outside ? outsideRoom(toolbarRef.current?.parentElement) : undefined,
-        )
-      : { left: 0, top: 0 };
+  const toolbarPosition = () => {
+    if (!box) return { left: 0, top: 0 };
+    const at = (r: Rect) => ({ left: r.left * scale, top: r.top * scale, width: r.width * scale, height: r.height * scale });
+    const bar = { width: toolbarSize.w, height: toolbarSize.h };
+    const canvas = { width, height: width * 1.25 };
+    const base = placeToolbar(at(box), bar, canvas, 8, 4, outside ? outsideRoom(toolbarRef.current?.parentElement) : undefined);
+    // Barre posée dans une photo plein cadre : jamais sur le texte quand l'autre bord est libre.
+    return keepToolbarOffText(base, at(box), bar, canvas, box.avoid?.map(at));
+  };
   const toolButton = "flex h-8 min-w-8 items-center justify-center rounded-md px-1.5 text-xs font-semibold hover:bg-muted aria-pressed:bg-primary/15";
   const toolbar =
     // Slide en petit (volet de réglages du téléphone, 164 px) : la barre d'une photo la recouvrait en entier,
