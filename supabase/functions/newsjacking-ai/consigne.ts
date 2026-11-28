@@ -184,7 +184,7 @@ ${scoopMode
   ? `MODE NEWSJACKING ACTIF (cf. bloc "ACTU CHOC À REBONDIR" plus haut). Ici on veut de l'actu chaude, choc, virale, des derniers jours. Tu fais 3 recherches web sur les sources mainstream (Le Monde, Libération, Slate, HuffPost, FranceInfo, etc.) pour trouver les actus qui font débat cette semaine, en respectant le test "oh wow" et les exclusions éthiques.`
   : `On cherche des ACTUALITÉS DE LA SEMAINE DONT TOUT LE MONDE PARLE : l'évènement, la sortie (film, série, livre, émission), la polémique, le chiffre, la déclaration du moment, relayés par les médias grand public. Le newsjacking qui marche part d'une actu que tout le monde connaît et l'associe à ce dont la personne parle.
 
-TEST « TOUT LE MONDE EN PARLE » (obligatoire pour chaque actu de type "globale") : la sœur, la voisine ou la cliente de cette personne en a entendu parler cette semaine, sans travailler dans son secteur. Si seul·es les gens du métier connaissent le sujet, c'est une actu "niche".
+TEST « TOUT LE MONDE EN PARLE » (obligatoire pour chaque actu de type "globale") : la sœur, la voisine ou la cliente de cette personne en a entendu parler cette semaine, sans travailler dans son secteur. Si seul·es les gens du métier connaissent le sujet, c'est une actu "niche". Une étude, un baromètre ou une annonce qui porte sur le métier, le statut ou le public professionnel de la personne (les entrepreneur·es, les indépendant·es, son secteur) est "niche", même publiée par un grand média.
 
 CE QUI N'EST PAS UNE ACTU (ne le renvoie jamais) : un sujet de fond sans fait daté de moins de 3 semaines. Une étude ancienne, une « tendance » générale, un mot à la mode, une analyse sur l'authenticité, la légitimité, la confiance ou la sobriété : ce sont des thèmes, pas des actus. Une actu a une date, un fait précis et un média qui l'a publiée ces derniers jours.${hotNews.length > 0 ? ` Tu as reçu plus haut ${hotNews.length} actu(s) chaude(s) déjà filtrée(s) : pars d'elles.` : ""}`}
 
@@ -197,6 +197,7 @@ RECHERCHES À EFFECTUER
 ${scoopMode ? `▶ RECHERCHES "ACTU CHOC" (obligatoire, REMPLACE les autres) :
 Fais 3 à 5 recherches web ciblées sur les médias mainstream français pour trouver les actus chocs des derniers jours qui répondent au test "oh wow". Couvre des angles différents (société, économie, culture, justice, environnement, déclarations publiques). Pas de recherche "niche" dans ce mode.` : `▶ RECHERCHES GRAND PUBLIC — 3 recherches DIFFÉRENTES (obligatoire) :
 Cherche dans les médias grand public français (lemonde.fr, franceinfo.fr, liberation.fr, lefigaro.fr, huffingtonpost.fr, 20minutes.fr, bfmtv.com, konbini.com, slate.fr, telerama.fr, lesechos.fr) ce dont on parle CETTE SEMAINE. Jamais 2 sujets du même axe.
+Lance chaque recherche TELLE QUELLE : n'y ajoute aucun mot du métier, de la cible ou du secteur de la personne (essai du 28/11/2026 : « étude de la semaine » était devenue « étude entrepreneuses femmes », et deux sujets de secteur étaient sortis à la place d'actus grand public).
 
 ${pickedAxes.map((a, i) => `  ${i + 1}. axe="${a.id}" → cherche : "${a.query}"`).join("\n")}
 
