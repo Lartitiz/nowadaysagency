@@ -6,8 +6,7 @@ import FormatMoreOptions from "./FormatMoreOptions";
 import MultiSubjectChoice from "./MultiSubjectChoice";
 import CreerSubjectLine from "./CreerSubjectLine";
 import ChannelFormatChip from "./ChannelFormatChip";
-import ReelFromPhotosNote from "./ReelFromPhotosNote";
-import { isLinkedInSharedFormat } from "@/features/creer/linkedin-shared-format";
+import ReelFromPhotosNote from "./ReelFromPhotosNote"; import { isLinkedInSharedFormat } from "@/features/creer/linkedin-shared-format";
 import { photoCapForFormat } from "@/lib/format-photo-cap";
 import { multiSubjectChoicePending } from "../../../supabase/functions/_shared/multi-subject";
 import { recommendContentFormat } from "@/lib/format-recommendation";
@@ -62,8 +61,7 @@ function formatAcceptsSinglePhoto(format: string | null | undefined): boolean {
   return ["post", "reel", "story", "linkedin", "newsletter"].includes(format);
 }
 
-function getPhotoToggleCopy(format: string, channel?: string | null): { title: string; subtitle: string } {
-  if (format === "reel" && channel === "linkedin") return { title: "📸 Ma vidéo s'appuie sur mes photos", subtitle: "Elles inspirent l'accroche et le script : ton idée reste le sujet" };
+function getPhotoToggleCopy(format: string, channel?: string | null): { title: string; subtitle: string } { if (format === "reel" && channel === "linkedin") return { title: "📸 Ma vidéo s'appuie sur mes photos", subtitle: "Elles inspirent l'accroche et le script : ton idée reste le sujet" };
   switch (format) {
     case "post":
       return { title: "📸 J'accompagne une photo", subtitle: "Ta photo illustre ton idée : le texte parle de ton sujet, pas de l'image" };
@@ -340,9 +338,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
       : selectedChannel === "linkedin"
         ? [
             { id: "linkedin", label: "Post", emoji: "📝", desc: "1300-2000 caractères, photo en option" },
-            { id: "carousel", label: "Carrousel", preview: "carousel", desc: "Plusieurs slides à faire défiler" },
-            // Vidéo LinkedIn (28/11/2026) : le parcours du reel, légende écrite pour LinkedIn.
-            { id: "reel", label: "Vidéo", preview: "reel", desc: "Une vidéo verticale, avec ton script" },
+            { id: "carousel", label: "Carrousel", preview: "carousel", desc: "Plusieurs slides à faire défiler" }, { id: "reel", label: "Vidéo", preview: "reel", desc: "Une vidéo verticale, avec ton script" }, // vidéo LinkedIn (28/11/2026) : parcours du reel
           ]
         : selectedChannel === "pinterest"
           ? [
