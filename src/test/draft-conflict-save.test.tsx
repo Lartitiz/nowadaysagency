@@ -2,8 +2,11 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 
-const mocks = vi.hoisted(() => ({ insert: vi.fn(), success: vi.fn(), error: vi.fn(), read: vi.fn(), updateEq: vi.fn() }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => ({
+const mocks = vi.hoisted(() => ({ insert: vi.fn(), success: vi.fn(), error: vi.fn(), read: vi.fn(), updateEq: vi.fn(), upload: vi.fn() }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { storage: { from: () => ({
+  upload: mocks.upload,
+  getPublicUrl: (path: string) => ({ data: { publicUrl: `https://projet.supabase.co/storage/v1/object/public/calendar-visuals/${path}` } }),
+}) }, from: () => ({
   insert: mocks.insert,
   update: () => ({ eq: mocks.updateEq }),
   select: () => ({ eq: () => ({ maybeSingle: mocks.read }) }),
@@ -55,6 +58,25 @@ describe("protecting the current draft", () => {
     fireEvent.click(screen.getByRole("button", { name: "Démarrer le nouveau contenu" }));
     await waitFor(() => expect(onStartNew).toHaveBeenCalledTimes(1));
     expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ canal: "linkedin", content_data: { slides: [{ title: "Bonjour" }], visual_html: draft.visualSlides } }));
+  });
+  // Mesuré en base le 28/11/2026 : un brouillon mis de côté gardait ses photos dans
+  // le texte des slides (fiche de 1 à 2 Mo, écrite deux fois).
+  it("stores the slide photos apart: the saved idea only keeps their links", async () => {
+    mocks.insert.mockResolvedValue({ error: null });
+    mocks.upload.mockResolvedValue({ error: null });
+    const photo = `data:image/jpeg;base64,${"A".repeat(40_000)}`;
+    const withPhoto = { ...draft, visualSlides: [{ slide_number: 1, html: `<div style="background-image:url(${photo})">Bonjour</div>` }] };
+    const onStartNew = vi.fn();
+    render(<DraftConflictDialog open draft={withPhoto} newSubject="Nouveau" onResume={vi.fn()} onStartNew={onStartNew} />);
+    fireEvent.click(screen.getByRole("button", { name: "Démarrer le nouveau contenu" }));
+    await waitFor(() => expect(onStartNew).toHaveBeenCalledTimes(1));
+    expect(mocks.upload).toHaveBeenCalledTimes(1);
+    const row = mocks.insert.mock.calls[0][0];
+    const html = row.content_data.visual_html[0].html as string;
+    expect(html).not.toContain("data:image");
+    expect(html).toMatch(/calendar-visuals\/test-user\/carousel-media\/[0-9a-f]{64}\.jpg/);
+    expect(row.content_draft).not.toContain("data:image");
+    expect(row.content_draft.length).toBeLessThan(2_000);
   });
   it("preserves the full initial text and channel instead of only its truncated title", async () => {
     mocks.insert.mockResolvedValue({ error: null });

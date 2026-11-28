@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { storedIdeaTakesFormat } from "@/features/creer/idea-format-guard";
+import { externalizeCarouselMedia } from "@/lib/carousel-media";
 
 const STEP_LABELS: Record<string, string> = {
   idea: "première idée",
@@ -87,9 +88,14 @@ export default function DraftConflictDialog({ open, draft, newSubject, resuming 
       return;
     }
     const raw = draft.result?.raw ?? draft.result;
-    const contentData = raw
+    const localContent = raw
       ? { ...raw, ...(draft.visualSlides?.length ? { visual_html: draft.visualSlides } : {}) }
       : (draft.editContent ? { content: draft.editContent } : draft.ideaText ? { content: draft.ideaText } : null);
+    // Le brouillon gardé sur l'appareil porte ses photos dans le texte des slides.
+    // Écrites telles quelles, elles faisaient une fiche de 1 à 2 Mo, en double
+    // (content_data + content_draft) : mesuré en base le 28/11/2026. On les range
+    // à part comme le fait la sauvegarde continue, la fiche ne garde que leurs liens.
+    const contentData = localContent ? await externalizeCarouselMedia(localContent, user.id) : localContent;
     const canal = draft.forcedChannel || (draft.isLinkedInCarousel || draft.selectedFormat === "linkedin" ? "linkedin"
       : draft.selectedFormat === "newsletter" ? "newsletter"
       : draft.selectedFormat?.startsWith("pinterest") ? "pinterest" : "instagram");
