@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
 import { readableError } from "@/lib/error-messages";
 import { Upload, X, GripVertical, Wand2, Undo2, Globe, Library, Loader2, Images, Sparkles } from "lucide-react";
-import { PhotoContextInput, PhotoPairChip, PhotoPairHint } from "./PhotoPairChip";
+import { PhotoContextInput, PhotoPairChip, PhotoPairHint, PhotoPairMenu } from "./PhotoPairChip";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -717,7 +717,10 @@ export function PhotoUploadZone({
                   }}>→</button>
                 </div>}
                 {pairMarks && <PhotoPairChip photos={photos} index={idx} onChange={updatePhotos} />}
-                <button type="button" className="min-h-9 text-xs text-primary hover:underline" onClick={() => setPrepareIdx(idx)}>Adapter le format</button>
+                <div className="flex items-center justify-center gap-1">
+                  <button type="button" className="min-h-9 text-xs text-primary hover:underline" onClick={() => setPrepareIdx(idx)}>Adapter le format</button>
+                  {pairMarks && <PhotoPairMenu photos={photos} index={idx} onChange={updatePhotos} />}
+                </div>
                 {showContexts && <PhotoContextInput value={p.context} pairMarks={pairMarks} onChange={(v) => updateContext(idx, v)} />}
               </div>
             ))}
