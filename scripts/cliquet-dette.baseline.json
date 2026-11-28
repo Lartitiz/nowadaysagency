@@ -26,7 +26,7 @@
       "any": 2
     },
     "src/components/creer/NewsjackingPanel.tsx": {
-      "lignes": 1038,
+      "lignes": 1022,
       "any": 3
     },
     "src/components/creer/formatRenderers/CarouselPhotoResult.tsx": {
@@ -66,7 +66,7 @@
       "any": 14
     },
     "src/pages/CreerUnifie.tsx": {
-      "lignes": 2123,
+      "lignes": 2122,
       "any": 21
     },
     "src/pages/InstagramBio.tsx": {
@@ -120,10 +120,6 @@
     "supabase/functions/diagnostic-enrichment/index.ts": {
       "lignes": 882,
       "any": 9
-    },
-    "supabase/functions/newsjacking-ai/index.ts": {
-      "lignes": 926,
-      "any": 12
     }
   }
 }

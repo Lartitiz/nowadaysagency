@@ -23,8 +23,11 @@ const UNIVERSE_TOOL: AnthropicTool = {
   },
 };
 import { fetchHotNews, evergreenPatternsForMode, type PerplexityActu } from "../_shared/perplexity.ts";
-import { garderActusSourcees, normaliserActus, pagesTrouvees } from "./sources.ts";
+import { actusDeSecours, garderActusFraiches, garderActusSourcees, normaliserActus, pagesTrouvees } from "./sources.ts";
 import { tutoyerPertinences } from "./pertinence-tu.ts";
+import { axesDuMoment, construireConsigne } from "./consigne.ts";
+import { actusCompletes, lireFluxRecherche, texteDesBlocs, type SuiviFlux } from "./flux.ts";
+import { clientStillThere, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 
 // Perplexity insère parfois ses balises de citation (<cite index="40-3">…</cite>)
 // dans les champs texte. On les retire à la normalisation pour ne jamais les
@@ -176,7 +179,14 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+  // Corps lu AVANT d'ouvrir le flux : sinon la passerelle se bloque (21/07).
+  const body = await req.json().catch(() => ({}));
+  const enFlux = (req.headers.get("accept") || "").includes("text/event-stream");
+  return enFlux ? runWithHeartbeatSSE(corsHeaders, (emit) => chercher(req, body, corsHeaders, emit)) : chercher(req, body, corsHeaders);
+});
 
+// `emit` (réponse en flux) : pistes, recherches et actus partent à l'écran dès qu'elles existent.
+async function chercher(req: Request, body: Record<string, unknown>, corsHeaders: Record<string, string>, emit?: StatusEmitter): Promise<Response> {
   const t0 = Date.now();
   try {
     const authHeader = req.headers.get("Authorization");
@@ -207,10 +217,9 @@ serve(async (req) => {
       });
     }
 
-    const body = await req.json().catch(() => ({}));
-    const workspace_id = body?.workspace_id || undefined;
+    const workspace_id = typeof body?.workspace_id === "string" && body.workspace_id ? body.workspace_id : undefined;
     const forceMacroFromClient: boolean = body?.force_macro === true;
-    const rawIntent = body?.intent || {};
+    const rawIntent = (body?.intent || {}) as { vibes?: unknown; custom?: unknown };
     const intentVibes: string[] = Array.isArray(rawIntent.vibes)
       ? rawIntent.vibes.filter((v: unknown) => typeof v === "string").slice(0, 3)
       : [];
@@ -218,7 +227,7 @@ serve(async (req) => {
       ? rawIntent.custom.trim().slice(0, 200)
       : "";
     const excludedUrls: string[] = Array.isArray(body?.excluded_urls)
-      ? body.excluded_urls.filter((u: unknown) => typeof u === "string").slice(0, 50)
+      ? (body.excluded_urls as unknown[]).filter((u): u is string => typeof u === "string").slice(0, 50)
       : [];
 
     // Détection "intent macro" : la créatrice cherche explicitement des
@@ -345,27 +354,14 @@ serve(async (req) => {
         const customWords = intentCustom
           ? intentCustom.split(/\s+/).filter((w) => w.length > 2).slice(0, 6).join(" ")
           : "";
-        // En mode scoop : on coupe TOTALEMENT le biais niche (les hints sont déjà
-        // dans le prompt Perplexity). En mode macro : pas de niche mais on garde
-        // les hints vibes. En mode default : on garde l'orientation univers.
-        const universKeywords = scoopMode
-          ? []
-          : macroMode
-            ? [...intentVibeHints, customWords].filter(Boolean)
-            : [
-                ...intentVibeHints,
-                customWords,
-                ...universe.valeurs_combat.slice(0, 2),
-                ...universe.moments_de_vie_cible.slice(0, 2),
-                ...universe.univers_emotionnel.slice(0, 2),
-              ].filter(Boolean);
-        const wideMode = macroMode || scoopMode;
+        // Biais de niche coupé dans tous les modes (28/11/2026) : on cherche ce dont
+        // tout le monde parle ; le lien avec la marque est écrit ensuite par Claude.
+        const universKeywords = scoopMode ? [] : [...intentVibeHints, customWords].filter(Boolean);
 
         const ppxController = new AbortController();
         const ppxTimeout = setTimeout(() => ppxController.abort(), scoopMode ? 40000 : 25000);
         try {
           const ppxResult = await fetchHotNews({
-            niche: wideMode ? undefined : nicheLabel,
             universKeywords,
             recency: scoopMode ? "week" : "week",
             excludedUrls,
@@ -373,8 +369,7 @@ serve(async (req) => {
             signal: ppxController.signal,
             mode: scoopMode ? "scoop" : "default",
           });
-          const cap = scoopMode ? 6 : macroMode ? 5 : 3;
-          hotNews = ppxResult.actus.slice(0, cap);
+          hotNews = ppxResult.actus.slice(0, scoopMode ? 6 : 5);
           console.log(`Perplexity (${scoopMode ? "scoop" : macroMode ? "macro" : "niche"}): ${hotNews.length} actu(s) chaude(s) récupérée(s)`);
           if (scoopMode && hotNews.length === 0) {
             console.log("[scoop] sourcing vide après 2 tentatives — fallback Claude web search");
@@ -389,6 +384,7 @@ serve(async (req) => {
     } else {
       console.log("PERPLEXITY_API_KEY absente — sourcing actu chaude désactivé");
     }
+    if (hotNews.length > 0) emit?.("pistes", { actus: hotNews.map((a) => ({ titre: stripCitations(a.titre || ""), source: a.source, source_url: a.source_url, date_publication: a.date_publication })) });
 
     // Claude call with web search
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
@@ -401,15 +397,7 @@ serve(async (req) => {
 
     const model = getModelForAction("content");
 
-    // 6 axes orientés micro-phénomènes culturels et comportementaux
-    const AXES = [
-      { id: "mot_qui_revient", query: "expression mot concept qui revient conversations 2026 France" },
-      { id: "obsession_collective", query: "phénomène culturel dont tout le monde parle France 2026" },
-      { id: "comportement_emergent", query: "nouveau comportement quotidien tendance société France 2026" },
-      { id: "debat_recurrent", query: "débat récurrent authenticité productivité éthique vie quotidienne 2026" },
-      { id: "objet_culturel", query: "film série livre album sortie récente discussion France 2026" },
-      { id: "actu_connectable", query: "actualité société qui touche au quotidien et aux choix de vie France 2026" },
-    ];
+    const AXES = axesDuMoment(monthLabel);
 
     // Si l'utilisatrice a précisé des vibes → axes contraints, sinon shuffle.
     let pickedAxes: typeof AXES;
@@ -424,257 +412,11 @@ serve(async (req) => {
       pickedAxes = [...AXES].sort(() => Math.random() - 0.5).slice(0, 3);
     }
 
-
-    const universeBlock = (universe.univers_emotionnel.length || universe.moments_de_vie_cible.length)
-      ? `\n══════════════════════════════════════════════
-UNIVERS DE MARQUE ÉLARGI — hiérarchisé par FORCE DE PONT
-══════════════════════════════════════════════
-
-Cette personne ne vend pas SEULEMENT "${nicheLabel}". Mais TOUS les éléments de son univers ne se valent PAS pour faire un pont solide. Classement obligatoire :
-
-🟢 NIVEAU 1 — PONTS FORTS (à privilégier massivement) :
-- Valeurs / combats adjacents : ${universe.valeurs_combat.join(", ") || "—"}
-- Moments de vie de la cible : ${universe.moments_de_vie_cible.join(", ") || "—"}
-→ Ces éléments concernent DIRECTEMENT la cible dans sa vie quotidienne ou dans ses convictions. Un sujet branché ici est immédiatement légitime.
-
-🟡 NIVEAU 2 — PONTS MOYENS (ok, mais avec un vrai angle) :
-- Univers émotionnel : ${universe.univers_emotionnel.join(", ") || "—"}
-→ Connectable, mais demande un angle clair pour ne pas tomber dans le "feel-good" générique.
-
-🔴 NIVEAU 3 — PONT FAIBLE (MAX 1 sujet sur l'ensemble) :
-- Lifestyle / esthétiques : ${universe.themes_lifestyle.join(", ") || "—"}
-→ Ces éléments sont décoratifs. Ils ne créent PAS de pont commercial. Utilise-les avec parcimonie.
-
-RÈGLE : si tu hésites entre un sujet niveau 1 et un sujet niveau 2/3, choisis TOUJOURS le niveau 1.\n`
-      : "";
-
-    // Bloc "matière première" : actus chaudes pré-sourcées par Perplexity.
-    // Ces actus contournent le filtre anti-actu-chaude habituel CAR elles sont
-    // déjà passées au tamis Perplexity (faits divers tragiques exclus, etc.).
-    // Claude doit les traiter comme une OPTION supplémentaire, pas une obligation :
-    // il les garde uniquement si elles ont un vrai pont vers le profil.
-    const hotNewsBlock = hotNews.length > 0
-      ? `\n══════════════════════════════════════════════
-ACTUS CHAUDES PRÉ-SOURCÉES (cette semaine en France)
-══════════════════════════════════════════════
-
-Voici ${hotNews.length} actu(s) chaude(s) qui font débat actuellement, déjà filtrées (pas de fait divers tragique, pas de propagande partisane). Tu peux PUISER 1 ou 2 sujets ici si — et SEULEMENT si — tu peux écrire un pont fort vers le profil. Si aucune ne se connecte vraiment, IGNORE-LES et reste sur les recherches micro-phénomènes ci-dessous.
-
-${hotNews.map((a, i) => `  ${i + 1}. "${a.titre}"
-     → ${a.resume}
-     → Source : ${a.source}${a.source_url ? ` (${a.source_url})` : ""}${a.date_publication ? ` — ${a.date_publication}` : ""}`).join("\n\n")}
-
-Si tu reprends une de ces actus chaudes, conserve EXACTEMENT son titre, son résumé, sa source ET son source_url dans ta réponse — c'est important pour la traçabilité. Tag-la avec axe="actu_connectable" et type="globale".\n`
-      : "";
-
-    // Bloc "intention" — uniquement si l'utilisatrice a précisé des vibes ou un texte libre.
-    const intentBlock = (intentVibeLabels.length > 0 || intentCustom)
-      ? `\n══════════════════════════════════════════════
-DEMANDE EXPLICITE DE LA CRÉATRICE — PRIORITÉ ABSOLUE
-══════════════════════════════════════════════
-
-${intentVibeLabels.length > 0 ? `Vibes recherchés : ${intentVibeLabels.join(", ")}` : ""}${intentVibeLabels.length > 0 && intentCustom ? "\n" : ""}${intentCustom ? `Précision libre : "${intentCustom}"` : ""}
-
-→ Les actus que tu proposes DOIVENT correspondre à cette demande, en plus de respecter le pont vers le profil.
-→ Si tu ne trouves pas assez de sujets PARFAITEMENT alignés, ÉLARGIS d'abord ta recherche autour de cette intention (sujets voisins, angle plus large, terme d'univers de niveau 2) AVANT d'abandonner. Pour les sujets issus de cette intention, un pont "moyen" est acceptable.
-→ Ne renvoie le résultat vide qu'en TOUT DERNIER RECOURS, quand vraiment AUCUN sujet connectable n'existe — jamais par excès de prudence. Mieux vaut 3 sujets corrects que zéro.\n`
-      : "";
-
-    // Bloc "mode macro" — la créatrice veut explicitement de l'actu grand public,
-    // pas de l'actu connectée à sa niche. On détend le pont, on bumpe le ratio globale,
-    // on force l'exclusion des sujets méta réseaux sociaux même si c'est son métier.
-    const macroBlock = macroMode
-      ? `\n══════════════════════════════════════════════
-MODE "ACTU GRAND PUBLIC" — ACTIVÉ (PRIORITÉ MAXIMALE)
-══════════════════════════════════════════════
-
-La créatrice cherche EXPLICITEMENT des actus dont parle le grand public cette semaine, PAS des actus liées à son secteur "${nicheLabel}". C'est un acte délibéré de prendre du recul par rapport à sa niche.
-
-Conséquences IMPÉRATIVES pour cette requête :
-- VISE ~5 actus de type="globale" + 1 seule actu de type="niche" (au lieu de 3+3).
-- Les actus globales sont choisies pour leur RÉSONANCE GRAND PUBLIC (ce dont parlent les gens en discussion, dîners, médias mainstream), PAS pour leur pont avec le profil.
-- Pour les actus globales, le champ "pertinence" devient une PISTE DE RÉACTION : "voici un angle que cette personne pourrait prendre", PAS un pont littéral citant son activité ou sa cible. Une phrase, sobre, qui ouvre une porte sans forcer.
-- Pour les actus globales : la règle "force_pont fort à 2/3" est REMPLACÉE par "force_pont fort à 1/3 minimum". "fragile" reste interdit. "moyen" est la valeur attendue par défaut.
-- EXCLUSION ABSOLUE (même si "${nicheLabel}" est en lien avec la com') : les actus globales qui parlent de réseaux sociaux, publication de contenu, Meta / Instagram / TikTok / LinkedIn / X / YouTube, algorithmes, créateur·ices de contenu, marketing digital, IA générative pour le contenu. Si une actu chaude pré-sourcée tombe dans cette catégorie, IGNORE-LA pour le bucket globale. Tu peux la replacer dans le bucket niche si pertinente.
-- L'unique actu niche autorisée peut, elle, parler de ce qu'elle veut dans le métier de la personne.\n`
-      : "";
-
-
-    // Bloc "mode scoop" — la créatrice veut du vrai newsjacking : des actus
-    // chocs/virales des derniers jours sur lesquelles elle peut rebondir
-    // publiquement, pas des micro-phénomènes culturels lents.
-    const scoopBlock = scoopMode
-      ? `\n══════════════════════════════════════════════
-MODE "ACTU CHOC À REBONDIR" — ACTIVÉ (PRIORITÉ MAXIMALE, ÉCRASE LE RESTE)
-══════════════════════════════════════════════
-
-La créatrice veut faire du VRAI NEWSJACKING : rebondir sur des actus CHAUDES, virales, CHOQUANTES, qui font réagir TOUT LE MONDE cette semaine (idéalement ces 1-3 derniers jours). PAS des micro-phénomènes culturels lents, PAS des "tendances émergentes", PAS des sujets evergreen.
-
-▶ OBJECTIF : renvoyer 3 à 5 actus chaudes des derniers jours en France, toutes de type="globale" (sauf 1 niche maximum si une actu du secteur est ELLE AUSSI vraiment choc cette semaine).
-
-▶ SOURCES PRIORITAIRES (utilise web_search avec ces sites) :
-lemonde.fr, liberation.fr, lefigaro.fr, nouvelobs.fr, slate.fr, mediapart.fr, huffingtonpost.fr, franceinfo.fr, francetvinfo.fr, bfmtv.com, 20minutes.fr, lesinrocks.com, konbini.com, numerama.com, lesechos.fr.
-${hotNews.length > 0 ? `Reprends aussi les ${hotNews.length} actus chaudes pré-sourcées ci-dessus si elles passent le test "oh wow".` : `⚠️ AUCUNE actu pré-sourcée disponible cette fois → tu DOIS faire 4 à 6 recherches web sur les sites ci-dessus pour trouver toi-même les actus chocs des derniers jours. Ne renvoie JAMAIS une réponse vide ou un message d'excuse : si après tes recherches tu n'as rien, élargis à des sujets culturels ou société qui font débat ce mois-ci.`}
-
-
-▶ TEST "OH WOW" OBLIGATOIRE — pour chaque sujet, à la lecture du titre seul, la cible doit avoir une réaction physique : sourcils qui se lèvent, "attends, quoi ?", envie immédiate de partager ou de réagir. Au moins UN de ces marqueurs DOIT être présent :
-  - chiffre contre-intuitif ou choc (révélé cette semaine)
-  - info cachée enfin révélée (fuite, enquête, exposé)
-  - contradiction frontale d'une croyance dominante
-  - dérive systémique nommée publiquement
-  - retournement / rebondissement d'une affaire en cours
-  - polémique en cours qui clive en ce moment même
-  - déclaration publique qui fait réagir (perso publique, marque, institution)
-
-▶ INTERDIT EN MODE SCOOP :
-  - "X est en hausse" / "tendance Y observée" / "selon une étude récente…" sans angle révélateur
-  - micro-phénomènes culturels mous ("ce mot revient", "cette pratique émerge")
-  - sujets evergreen ou de fond
-  - sujets sans date récente identifiable
-  - les exclusions éthiques restent absolues : pas de faits divers tragiques, pas de politique partisane, pas de récupération de drames personnels
-
-▶ PONT TRÈS RELÂCHÉ — la priorité absolue est le test "oh wow", PAS la force du pont. La règle "force_pont fort à 2/3" est REMPLACÉE par : "moyen acceptable partout, fort optionnel". Le champ "pertinence" devient une PISTE D'ANGLE OUVERTE — une phrase qui suggère sur quoi cette personne pourrait rebondir (réagir comme citoyenne, partager son ressenti de spectatrice, ouvrir le débat sans prendre parti, raconter ce que ça lui évoque), SANS obligation de citer son métier, sa cible ou son combat.
-
-▶ RÈGLE DE CONSERVATION (impérative) : si ${hotNews.length > 0 ? `tu as reçu ${hotNews.length} actu(s) pré-sourcée(s) ci-dessus, tu DOIS en conserver AU MOINS ${Math.min(4, hotNews.length)}` : "tu trouves des actus via web_search, tu DOIS en conserver au moins 4"} dès lors qu'elles passent le test "oh wow" et qu'elles ne tombent pas dans les exclusions éthiques (faits divers locaux anonymes, propagande partisane). Ne jette PAS une actu choc juste parce que tu ne vois pas de pont littéral vers le profil — écris une piste d'angle ouverte à la place.
-
-▶ EXCLUSION MÉTA-RÉSEAUX-SOCIAUX DÉSACTIVÉE en mode scoop seul : les actus type "TikTok ban", "Meta licencie 10000 personnes", "Musk rachète…" sont AUTORISÉES si elles font débat grand public.
-
-▶ La règle "1/3 décalant" reste valable, mais "décalant" ici veut dire angle de réaction inattendu, pas sujet décalé.\n`
-      : "";
-
-
-    const systemPrompt = `Tu es une assistante de veille culturelle pour créateur·ices de contenu et entrepreneur·es (tous secteurs, pas que les réseaux sociaux).
-
-PROFIL DE L'UTILISATEUR·ICE :
-${brandingContext}
-${universeBlock}
-${intentBlock}
-${macroBlock}
-${scoopBlock}
-${hotNewsBlock}══════════════════════════════════════════════
-PHILOSOPHIE — LIRE EN PREMIER
-══════════════════════════════════════════════
-
-${scoopMode
-  ? `MODE NEWSJACKING ACTIF (cf. bloc "ACTU CHOC À REBONDIR" plus haut). Tu IGNORES la philosophie "micro-phénomènes culturels" ci-dessous : ici on veut de l'actu chaude, choc, virale, des derniers jours. Les recherches "micro-phénomènes" ci-dessous sont DÉSACTIVÉES. Tu fais à la place 3 recherches web sur les sources mainstream (Le Monde, Libération, Slate, HuffPost, FranceInfo, etc.) pour trouver les actus qui font débat cette semaine, en respectant le test "oh wow" et les exclusions éthiques.`
-  : `On cherche en priorité des MICRO-PHÉNOMÈNES CULTURELS : un mot qui sature les conversations, une obsession collective, un nouveau comportement, un débat qui ressort, un objet culturel (film/livre/série) dont on parle. ${hotNews.length > 0 ? `EXCEPTION : tu as reçu ci-dessus ${hotNews.length} actu(s) chaude(s) déjà filtrée(s). Tu peux en reprendre 1 ou 2 si elles ont un vrai pont, en complément des micro-phénomènes.` : "Une vraie actu chaude n'est acceptée QUE si elle se connecte naturellement au profil de la personne."}`}
-
-Le critère central : chaque sujet doit avoir un PONT EXPLICITE vers cette personne. Pas un pont forcé du genre "et ça nous rappelle que la communication...". Un vrai pont qui cite quelque chose de précis du profil (sa cible, son activité, son combat, ses piliers, OU un terme de son univers élargi)${scoopMode ? " — mais en mode scoop, le pont est une PISTE DE RÉACTION, pas une citation littérale du métier." : ""}.
-
-══════════════════════════════════════════════
-RECHERCHES À EFFECTUER
-══════════════════════════════════════════════
-
-${scoopMode ? `▶ RECHERCHES "ACTU CHOC" (obligatoire, REMPLACE les autres) :
-Fais 3 à 5 recherches web ciblées sur les médias mainstream français pour trouver les actus chocs des derniers jours qui répondent au test "oh wow". Couvre des angles différents (société, économie, culture, justice, environnement, déclarations publiques). Ignore le bloc "micro-phénomènes" et le bloc "niche" ci-dessous.` : `▶ RECHERCHES "MICRO-PHÉNOMÈNES" — 3 axes culturels DIFFÉRENTS (obligatoire) :
-Pour chaque axe ci-dessous, fais une recherche web et trouve 1 phénomène. Jamais 2 sujets du même axe.
-
-${pickedAxes.map((a, i) => `  ${i + 1}. axe="${a.id}" → cherche : "${a.query}"`).join("\n")}
-
-▶ RECHERCHES NICHE — connectées à l'univers de "${nicheLabel}" (obligatoire) :
-Fais ces 3 recherches DIFFÉRENTES (pas une seule, les 3) :
-${nicheQueries.map((q, i) => `  ${i + 1}. "${q}"`).join("\n")}
-
-${universeBlock ? `RÈGLE D'ANCRAGE NICHE (impérative) : sur les 3 sujets niche, MINIMUM 2 doivent rester ANCRÉS dans le métier littéral OU son extension directe (= sujets connectés à un terme de niveau 1 : valeurs/combats ou moments de vie où la cible vit RÉELLEMENT le besoin du produit/service). MAXIMUM 1 sujet niche peut venir d'un terme de niveau 2 (univers émotionnel). Sur l'ensemble des sujets renvoyés (globaux + niche), MAXIMUM 1 SEUL peut venir d'un terme de niveau 3 (lifestyle/esthétiques). Si une recherche niche te donne du lifestyle pur, jette-la et refais-la avec un terme de niveau 1.\n` : ""}`}
-
-
-══════════════════════════════════════════════
-RÈGLE DU PONT EXPLICITE — GARDE-FOU N°1
-══════════════════════════════════════════════
-
-Pour CHAQUE sujet, le champ "pertinence" doit citer un élément CONCRET du profil (cible, activité, combat, piliers) et expliquer en 1 phrase pourquoi cette personne en particulier a quelque chose à dire dessus.
-
-✅ EXEMPLES DE BONS PONTS :
-- "Ta cible (${cibleRaw || "ton audience"}) vit exactement ce dilemme quand elle hésite entre X et Y."
-- "Tu portes le combat ${combatCause || "que tu défends"}, ce phénomène en est une illustration parfaite."
-- "Comme tu travailles sur ${activityRaw || "ton sujet"}, tu peux décortiquer ce que ça révèle de [aspect précis]."
-
-❌ EXEMPLES DE PONTS FORCÉS À ÉVITER (rejette le sujet si tu ne sais écrire QUE ça) :
-- "ça nous rappelle l'importance de la communication"
-- "comme dans ton métier, il faut savoir s'adapter"
-- "à l'image de ce phénomène, ta marque peut..."
-- "c'est un parallèle intéressant avec ton activité"
-
-Si tu ne peux pas écrire un pont concret citant le profil → NE RENVOIE PAS le sujet. Mieux vaut 3 sujets connectés que 6 hors-sol.
-
-══════════════════════════════════════════════
-RÈGLE DU REGISTRE — GARDE-FOU N°2 (1 sur 3 décalant)
-══════════════════════════════════════════════
-
-Chaque sujet a un registre :
-- "confortable" : sujet que la cible reconnaîtrait immédiatement comme "de son univers"
-- "entre_deux" : sujet connu mais pris sous un angle inattendu
-- "decalant" : sujet auquel personne dans le secteur de "${nicheLabel}" ne penserait spontanément
-
-Sur N sujets renvoyés (3 à 6), exactement ⌈N/3⌉ doivent être "decalant" (ex : 3 sujets → 1 décalant ; 6 sujets → 2 décalants). Le reste se répartit entre "confortable" et "entre_deux".
-
-ATTENTION : un sujet "decalant" doit QUAND MÊME respecter le pont explicite. Décalant ≠ hors-sol.
-
-══════════════════════════════════════════════
-GARDE-FOU N°3 — AUTO-ÉVALUATION DE LA FORCE DU PONT (NOUVEAU, OBLIGATOIRE)
-══════════════════════════════════════════════
-
-Pour CHAQUE sujet, attribue toi-même une note "force_pont" :
-
-- "fort" = le pont cite un élément LITTÉRAL du profil (cible exacte, activité exacte, combat exact, pilier exact, OU terme de NIVEAU 1 de l'univers élargi). La connexion est immédiate, sans paraphrase, et la cible la verrait sans qu'on lui explique.
-- "moyen" = le pont passe par un terme de NIVEAU 2 (univers émotionnel) et reste évident pour la cible, mais demande un angle clair.
-- "fragile" = le pont demande une étape de raisonnement pour être compris, OU repose uniquement sur du lifestyle/esthétique (niveau 3), OU fait appel à une analogie qu'il faut "déballer". → REJETTE le sujet, ne le renvoie pas.
-
-RÈGLE QUOTA : sur N sujets renvoyés, au moins ⌈N×2/3⌉ doivent être "fort". Au plus 1 seul peut être "fragile" (et même là : préfère ne pas le renvoyer).
-
-Avant d'écrire chaque sujet, demande-toi : "Si je montre cette pertinence à la personne sans contexte, est-ce qu'elle dit 'évidemment, c'est pour moi' ou est-ce qu'elle dit 'euh, pourquoi tu me parles de ça ?'". Si c'est la 2e → fragile → jette.
-
-══════════════════════════════════════════════
-INTERDIT
-══════════════════════════════════════════════
-
-🚫 Politique partisane, lois, élections, faits divers tragiques (sauf si c'est littéralement le métier de la personne)
-🚫 Communiqués de presse d'entreprises tech mainstream (Meta, Google, OpenAI, Apple)
-🚫 Marronniers vides ("tendances 2026", "comment bien commencer l'année")
-🚫 Sujets qui parlent UNIQUEMENT de réseaux sociaux ou de création de contenu, sauf si c'est le métier de "${nicheLabel}"
-🚫 Sujets génériques sur "l'IA" ou "ChatGPT"
-🚫 INTERDIT ABSOLU — événements datés (passés OU à venir) : webinaires, conférences, masterclass, colloques, séminaires, salons, tables rondes, journées professionnelles, pages d'inscription, replays, "save the date". Même si l'événement est récent ou "fait encore parler", il ne compte pas comme actu chaude. Date du jour : ${monthLabel}. Toute mention d'une date d'événement passé (ex : "le 7 mai", "édition 2025") → JETTE le sujet immédiatement.
-
-══════════════════════════════════════════════
-FORMAT DE RÉPONSE — JSON STRICT (pas de markdown, pas de backticks)
-══════════════════════════════════════════════
-
-{
-  "actus": [
-    {
-      "titre": "Titre court du phénomène (max 80 caractères)",
-      "resume": "Résumé factuel en 2 phrases courtes du phénomène et pourquoi on en parle",
-      "source": "Nom du média, de l'institution ou de l'étude (jamais un blog de marque, une boutique ni un concurrent)",
-      "source_url": "URL EXACTE d'une page trouvée par ta recherche web (OBLIGATOIRE : un sujet sans page trouvée est retiré)", "date_publication": "AAAA-MM-JJ, date de cette page",
-      "type": "globale" | "niche",
-      "axe": "mot_qui_revient" | "obsession_collective" | "comportement_emergent" | "debat_recurrent" | "objet_culturel" | "actu_connectable",
-      "ton": "confortable" | "entre_deux" | "decalant",
-      "force_pont": "fort" | "moyen",
-      "pertinence": "Pont explicite citant un élément précis du profil (cible/activité/combat/piliers), écrit en « tu » à la personne (jamais son prénom ni « elle »)"
-    }
-  ]
-}
-
-IMPORTANT : si tu reprends une actu chaude pré-sourcée (bloc plus haut), recopie son source_url tel quel.
-
-RÉPARTITION SOUPLE — entre 3 et 6 sujets, qualité avant quantité :
-- Idéalement 3 globales (1 par axe imposé) + 3 niche
-- Si un axe ne donne rien de connectable, renvoie moins. Minimum : 3 sujets au total avec au moins 1 globale ET 1 niche.
-- Règle absolue : JAMAIS 2 sujets du même axe.
-- Règle absolue : sur N sujets, ⌈N/3⌉ sont "decalant".
-- Règle absolue : sur N sujets, au moins ⌈N×2/3⌉ sont "fort". Aucun "fragile" ne doit être renvoyé.
-
-Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retourne :
-{ "actus": [], "message": "Pas de phénomène suffisamment connectable trouvé cette semaine. Réessaie dans quelques jours !" }`;
+    const consigne = construireConsigne({ brandingContext, universe, nicheLabel, cibleRaw, combatCause, activityRaw, monthLabel, hotNews, intentVibeLabels, intentCustom, macroMode, scoopMode, pickedAxes, nicheQueries, excludedUrls });
 
     const controller = new AbortController();
     const remainingBudget = Math.max(60_000, 170_000 - (Date.now() - t0));
     const timeout = setTimeout(() => controller.abort(), remainingBudget);
-
-    const exclusionBlock = excludedUrls.length > 0
-      ? `\n\nSUJETS DÉJÀ PROPOSÉS À L'UTILISATRICE — ne reprends AUCUNE de ces sources, ni le même sujet reformulé depuis une autre source :\n` +
-        excludedUrls.map((u) => `- ${u}`).join("\n")
-      : "";
 
     // Sonnet 5 active le thinking ADAPTATIF quand le champ est omis : les blocs de
     // réflexion consomment alors les max_tokens au milieu des recherches web et la
@@ -690,27 +432,59 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       max_tokens: 8192,
       ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
-      messages: [{ role: "user", content: systemPrompt + exclusionBlock + `\n\nFais les recherches maintenant. Pour chaque sujet candidat, applique les 3 garde-fous : (1) pont explicite concret citant le profil, (2) registre tagué + ⌈N/3⌉ décalants, (3) auto-évalue "force_pont" — si "fragile", jette. Au moins 2/3 des sujets renvoyés doivent être "fort". Mieux vaut 3 sujets ultra-connectés que 6 hors-sol.` }],
+      messages: [{ role: "user", content: consigne }],
     };
 
+    // Le même tri sert aux actus montrées en cours de route et à la liste finale :
+    // champs normalisés, pas d'évènement / webinaire / replay (mêmes motifs que
+    // Perplexity, liste scoop en mode scoop), lien = page trouvée par la recherche
+    // (sources.ts, 18/10/2026), moins de 3 semaines (5 en mode scoop).
+    const evergreenList = evergreenPatternsForMode(scoopMode ? "scoop" : "default");
+    const maxJours = scoopMode ? 35 : 21;
+    const trier = (brutes: unknown[], contenu: unknown[], journal: boolean) => {
+      const normales = normaliserActus(brutes, stripCitations).filter((a) => !evergreenList.some((rx) => rx.test(`${a?.titre || ""} ${a?.resume || ""} ${a?.pertinence || ""}`)));
+      const sourcees = garderActusSourcees(normales, pagesTrouvees(contenu, hotNews));
+      const fraiches = garderActusFraiches(sourcees.gardees, maxJours);
+      if (journal) console.log(`[newsjacking] tri : ${brutes.length} → ${fraiches.gardees.length} ; sans page : ${sourcees.retirees.join(" | ") || "aucune"} ; trop vieilles : ${fraiches.retirees.join(" | ") || "aucune"}`);
+      return fraiches.gardees;
+    };
+
+    const allContent: unknown[] = [];
+    let montrees = 0;
+    const suivi: SuiviFlux = emit ? {
+      onRequete: (requete) => emit("recherche", { requete }),
+      onTexte: (texte, blocs) => {
+        const pretes = actusCompletes(`${texteDesBlocs(allContent)}\n${texte}`);
+        if (pretes.length <= montrees) return;
+        const nouvelles = sanitizeStyleDeep(pretes.slice(montrees));
+        montrees = pretes.length;
+        for (const actu of trier(nouvelles, [...allContent, ...blocs], false)) emit("actu", { actu });
+      },
+    } : {};
+    const appeler = (stream: boolean) => fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ ...requestBody, stream }),
+      signal: controller.signal,
+    });
     // L'API peut interrompre un tour long à base d'outils serveur (web search) avec
     // stop_reason="pause_turn" : le contenu s'arrête avant le JSON final. Il faut
     // renvoyer le contenu partiel comme tour assistant et relancer pour obtenir la fin.
     let data: any;
     let tokensUsed = 0;
-    const allContent: any[] = [];
     for (let turn = 0; turn < 3; turn++) {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
-
+      let response = await appeler(true);
+      data = undefined;
+      if (response.ok && response.body) {
+        try {
+          data = await lireFluxRecherche(response.body, suivi);
+        } catch (e) {
+          if ((e as Error).name === "AbortError") throw e;
+          // Flux coupé en route : la même demande est relue d'un bloc.
+          console.warn(`[newsjacking] flux en échec (${(e as Error).message}), relance sans flux`);
+          response = await appeler(false);
+        }
+      }
       if (!response.ok) {
         clearTimeout(timeout);
         const errText = await response.text();
@@ -724,7 +498,7 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
         });
       }
 
-      data = await response.json();
+      data ??= await response.json();
       tokensUsed += (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0);
       allContent.push(...(data.content || []));
       if (data.stop_reason !== "pause_turn") break;
@@ -744,10 +518,8 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       console.warn("[newsjacking] réponse tronquée (stop_reason=max_tokens) — le parse va probablement passer par le filet");
     }
 
-    // Extract text blocks (web search responses have multiple text blocks interleaved with search results)
-    const textBlocks = allContent.filter((b: any) => b.type === "text").map((b: any) => b.text);
-    const fullText = textBlocks.join("\n");
-    console.log("Raw text blocks count:", textBlocks.length, "Full text length:", fullText.length, "stop_reason:", data?.stop_reason);
+    const fullText = texteDesBlocs(allContent);
+    console.log("Full text length:", fullText.length, "stop_reason:", data?.stop_reason);
 
     // Parse JSON — try multiple strategies (+ sanitizeStyleDeep, ce chemin
     // fetch brut contourne le nettoyage automatique de callAnthropic)
@@ -829,65 +601,16 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       parsed = { actus: [], message: typeof parsed?.message === "string" ? parsed.message : undefined };
     }
 
-    // Normalisation des champs (valeurs connues seulement) : sources.ts.
-    parsed.actus = normaliserActus(parsed.actus, stripCitations);
+    parsed.actus = trier(parsed.actus, allContent, true);
 
-    // Post-validation : on retire tout sujet qui ressemble à un événement /
-    // webinaire / replay / page evergreen, même si Claude l'a fait passer.
-    // Ces patterns sont les mêmes que côté Perplexity pour cohérence.
-    const beforeCount = parsed.actus.length;
-    // En mode scoop, on applique la MÊME whitelist que Perplexity (conférence,
-    // table ronde, événement annuel…) : sinon une actu choc pré-sourcée et gardée
-    // par Perplexity se faisait re-jeter ici → "Actu choc à rebondir" vide.
-    const evergreenList = evergreenPatternsForMode(scoopMode ? "scoop" : "default");
-    parsed.actus = parsed.actus.filter((a: any) => {
-      const blob = `${a?.titre || ""} ${a?.resume || ""} ${a?.pertinence || ""}`;
-      const isEvergreen = evergreenList.some((rx) => rx.test(blob));
-      if (isEvergreen) {
-        console.log(`[newsjacking] dropped (evergreen): "${String(a?.titre || "").slice(0, 80)}"`);
-        return false;
-      }
-      return true;
-    });
-    if (parsed.actus.length < beforeCount) {
-      console.log(`[newsjacking] filtered ${beforeCount - parsed.actus.length}/${beforeCount} actus (evergreen)`);
-    }
-    // Actu gardée seulement si son lien est une page trouvée par la recherche (sources.ts, 18/10/2026).
-    const tri = garderActusSourcees(parsed.actus, pagesTrouvees(allContent, hotNews));
-    if (tri.retirees.length) console.log(`[newsjacking] ${tri.retirees.length} actu(s) sans page trouvée retirée(s) : ${tri.retirees.join(" | ")}`);
-    parsed.actus = tri.gardees;
-
-    // Filet anti-vide SCOOP : si après tri il ne reste rien (Claude a flanché ou
-    // le post-filtre a tout raboté) mais que Perplexity avait pré-sourcé des actus
-    // chaudes, on les réinjecte directement. Le mode scoop n'est pas censé se
-    // vider — c'est littéralement "montre-moi du chaud à rebondir".
-    if (scoopMode && parsed.actus.length === 0 && hotNews.length > 0) {
-      const scoopEvergreen = evergreenPatternsForMode("scoop");
-      const excludedSet = new Set(excludedUrls.map((u) => u.trim().toLowerCase()));
-      const fallback = hotNews
-        .filter((a) => {
-          const blob = `${a.titre || ""} ${a.resume || ""}`;
-          if (scoopEvergreen.some((rx) => rx.test(blob))) return false;
-          if (a.source_url && excludedSet.has(a.source_url.trim().toLowerCase())) return false;
-          return true;
-        })
-        .slice(0, 5)
-        .map((a) => ({
-          titre: stripCitations(a.titre || ""),
-          resume: stripCitations(a.resume || ""),
-          source: a.source,
-          source_url: a.source_url,
-          type: "globale",
-          axe: "actu_connectable",
-          ton: "entre_deux",
-          force_pont: "moyen",
-          pertinence:
-            "Actu chaude du moment : réagis comme témoin de ton époque — ce que ça t'évoque, le débat que ça ouvre, sans forcer ton métier.",
-          angle_mode: "reaction",
-        }));
-      if (fallback.length > 0) {
-        console.log(`[newsjacking:scoop] filet anti-vide : réinjection de ${fallback.length} actu(s) pré-sourcée(s)`);
-        parsed.actus = fallback;
+    // Filet anti-vide : si le tri n'a rien gardé mais que Perplexity avait trouvé
+    // des actus chaudes, elles reviennent telles quelles, avec une piste de
+    // réaction. Vrai dans tous les modes depuis le 28/11/2026 (scoop seul avant).
+    if (parsed.actus.length === 0 && hotNews.length > 0) {
+      const secours = actusDeSecours(hotNews, (t) => evergreenList.some((rx) => rx.test(t)), excludedUrls, stripCitations);
+      if (secours.length > 0) {
+        console.log(`[newsjacking] filet anti-vide : ${secours.length} actu(s) pré-sourcée(s) remise(s)`);
+        parsed.actus = secours;
         delete parsed.message;
       }
     }
@@ -907,8 +630,9 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       }
     }
 
-    // Une recherche sans actu ne coûte rien (18/10/2026).
-    if (parsed.actus.length > 0) await logUsage(user.id, "deep_research", "newsjacking", tokensUsed, model, workspace_id);
+    // Une recherche sans actu ne coûte rien (18/10/2026) ; une recherche dont
+    // l'écran est parti avant la fin non plus (la liste n'est gardée nulle part).
+    if (parsed.actus.length > 0 && clientStillThere(emit, "newsjacking")) await logUsage(user.id, "deep_research", "newsjacking", tokensUsed, model, workspace_id);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -923,4 +647,4 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
   }
-});
+}
