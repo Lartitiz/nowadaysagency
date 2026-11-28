@@ -7,6 +7,8 @@ import { reportClientError } from "@/lib/client-error-monitor";
 import { supabase } from "@/integrations/supabase/client";
 import { clearFlowState, loadFlowState, saveFlowState } from "@/hooks/use-flow-persistence";
 import { buildCalendarContent } from "@/features/creer/build-calendar-content";
+import { isLinkedInVideo } from "@/features/creer/linkedin-shared-format";
+import { linkedInVideoRawForCalendar } from "@/features/creer/linkedin-video-caption";
 import { extractInstagramCaption, extractLinkedInText, canAutoPublishSchedule, buildScheduledPublishUpdate } from "@/features/creer/publish-guards";
 import {
   uploadPhotosToStorage as uploadPhotosImpl,
@@ -261,7 +263,8 @@ export function useCalendarSave({
   };
 
   // Extraction pure (testée) : voir src/features/creer/build-calendar-content.ts
-  const extractContentForCalendar = () => buildCalendarContent(selectedFormat, result?.raw);
+  // Vidéo LinkedIn : la légende Instagram d'origine et les stories de relance ne partent pas au calendrier.
+  const extractContentForCalendar = () => buildCalendarContent(selectedFormat, isLinkedInVideo(selectedFormat, isLinkedInCarousel) ? linkedInVideoRawForCalendar(result?.raw) : result?.raw);
 
   // Upload helpers extraits dans src/features/creer/upload-helpers.ts (wrappers fins).
   const uploadVisualsToStorage = (postId: string, onProgress?: (done: number, total: number) => void): Promise<string[]> =>

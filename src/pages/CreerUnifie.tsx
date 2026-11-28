@@ -13,7 +13,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } fro
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { slideText } from "@/lib/slide-text";
-import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
+import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers"; import { isLinkedInSharedFormat, isLinkedInVideo } from "@/features/creer/linkedin-shared-format";
 import { countContentBriefs, saveContentBrief } from "@/features/creer/content-brief";
 import { flattenResultForEdit } from "@/features/creer/edit-text-from-result";
 import { computeDraftConflict } from "@/features/creer/draft-conflict";
@@ -44,7 +44,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 
 import BrandReviewGate from "@/components/branding/BrandReviewGate";
 import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
-import { useLinkedInCarouselCaption } from "@/hooks/use-linkedin-carousel-caption";
+import { useLinkedInCarouselCaption } from "@/hooks/use-linkedin-carousel-caption"; import { useLinkedInVideoCaption } from "@/hooks/use-linkedin-video-caption";
 import { useUserSlidesGenerate } from "@/hooks/use-user-slides-generate";
 import { useSelectInspirationProposal } from "@/hooks/use-select-inspiration-proposal";
 import { useCalendarSave } from "@/hooks/use-calendar-save";
@@ -836,6 +836,9 @@ function CreerWorkspace() {
     session,
   });
 
+  // Vidéo LinkedIn (28/11/2026) : le parcours du reel, légende réécrite pour LinkedIn.
+  const linkedInVideo = isLinkedInVideo(selectedFormat, isLinkedInCarousel);
+  const videoCaption = useLinkedInVideoCaption({ newsContext: newsjackingContext, answers, result, setResult, generating, active: linkedInVideo && step === "result", ideaText, editorialAngle, objective, workspaceId, session });
   // ── Mode « Mes slides » : construction des slides SANS écriture IA ──
   const { userSlidesDraft, userSlidesBuilding, handleUserSlidesGenerate } = useUserSlidesGenerate({
     generating,
@@ -1646,7 +1649,7 @@ function CreerWorkspace() {
                 })}
                 onSelectionChange={({ channel, format, carouselSubMode: sub, slideLength: length }) => {
                   setSlideLength(length);
-                  setIsLinkedInCarousel(channel === "linkedin" && format === "carousel");
+                  setIsLinkedInCarousel(isLinkedInSharedFormat(channel, format));
                   // Persiste les choix en cours pour les restaurer au reload (avant « Suivant »).
                   setSelectedFormat((prev) => (prev === format ? prev : format));
                   setCarouselSubMode((prev) => (prev === sub ? prev : sub));
@@ -1897,12 +1900,8 @@ function CreerWorkspace() {
                 } : undefined}
                 photoBriefOverlayHtml={photoBriefOverlayHtml}
                 channel={isLinkedInCarousel ? "linkedin" : "instagram"}
-                captionLoading={captionLoading}
-                onRegenerateCaption={
-                  isLinkedInCarousel && (carouselSubMode === "mix" || carouselSubMode === "photo" || carouselSubMode === "pure_photo")
-                    ? regenerateCaption
-                    : undefined
-                }
+                captionLoading={linkedInVideo ? videoCaption.captionLoading : captionLoading}
+                onRegenerateCaption={linkedInVideo ? videoCaption.regenerateCaption : isLinkedInCarousel && (carouselSubMode === "mix" || carouselSubMode === "photo" || carouselSubMode === "pure_photo") ? regenerateCaption : undefined}
                 // « Mes slides » : changer d'angle relancerait une écriture IA — interdit.
                 onChangeAngle={carouselSubMode === "user_slides" ? undefined : handleChangeAngle}
                 currentAngle={editorialAngle}
@@ -2092,7 +2091,7 @@ function CreerWorkspace() {
       <SaveToIdeasDialog
         open={saveIdeaDialogOpen}
         onOpenChange={setSaveIdeaDialogOpen}
-        contentType={isLinkedInCarousel ? "post_linkedin" : mapFormatToContentType(selectedFormat)}
+        contentType={isLinkedInCarousel && selectedFormat !== "reel" ? "post_linkedin" : mapFormatToContentType(selectedFormat)}
         subject={ideaText}
         contentData={result?.raw}
         sourcePhotos={selectedFormat === "post" || photoMode ||

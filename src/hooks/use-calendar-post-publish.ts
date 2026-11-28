@@ -25,7 +25,7 @@ import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linked
 import { friendlyError } from "@/lib/error-messages";
 import { trackError } from "@/lib/error-tracker";
 import { versConnexions } from "@/lib/retour-apres-detour";
-import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/features/creer/publish-guards";
+import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason, LINKEDIN_VIDEO_REQUIRED } from "@/features/creer/publish-guards";
 
 export interface CalendarPostPublishInput {
   user: { id: string } | null | undefined;
@@ -144,8 +144,12 @@ export function useCalendarPostPublish({ user, workspaceId, postCanal, format, m
 
   // ── Publication directe LinkedIn (post texte : content_draft) ──
   const linkedInText = calendarPublishCaption(contentDraft, savedPreviewContent);
+  // Vidéo LinkedIn (28/11/2026) : elle part avec son MP4, jamais en texte seul.
+  const liVideo = postCanal === "linkedin" ? igVideo : null;
+  const liVideoMissing = postCanal === "linkedin" && format === "reel" && !liVideo;
   const linkedInPublishDisabledReason = (() => {
     if (postCanal !== "linkedin") return "Publication directe réservée aux posts LinkedIn.";
+    if (liVideoMissing) return LINKEDIN_VIDEO_REQUIRED;
     if (!linkedInText) return "Rédige le texte du post pour publier.";
     return null;
   })();
@@ -158,8 +162,10 @@ export function useCalendarPostPublish({ user, workspaceId, postCanal, format, m
     }
     setPublishingLinkedIn(true);
     try {
+      if (liVideo) toast.info("LinkedIn prépare ta vidéo : ça peut prendre deux à trois minutes.");
       const { permalink } = await publishTextToLinkedIn({
         text: linkedInText,
+        ...(liVideo ? { videoUrl: liVideo, title: theme || undefined } : {}),
         workspaceId,
         userId: user.id,
       });
@@ -213,6 +219,7 @@ export function useCalendarPostPublish({ user, workspaceId, postCanal, format, m
       if (!igVideo && igValidImages.length === 0) { toast.error("Ajoute une image ou monte ta vidéo avant de programmer."); return; }
       if (!igVideo && igValidImages.length > INSTAGRAM_DIRECT_MAX_IMAGES) { toast.error(instagramTooManyImagesReason(igValidImages.length)); return; }
     } else if (postCanal === "linkedin") {
+      if (liVideoMissing) { toast.error(LINKEDIN_VIDEO_REQUIRED); return; }
       if (!linkedInText) { toast.error("Rédige le texte du post avant de programmer."); return; }
     }
     if (!scheduleInput) { toast.error("Choisis une date et une heure."); return; }

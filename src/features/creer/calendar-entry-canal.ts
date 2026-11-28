@@ -8,5 +8,5 @@
 export function calendarEntryFormat(fmt: string | null, canal: unknown): { fmt: string | null; linkedinCarousel: boolean } {
   if (canal !== "linkedin" || !fmt) return { fmt, linkedinCarousel: false };
   if (fmt === "post") return { fmt: "linkedin", linkedinCarousel: false };
-  return { fmt, linkedinCarousel: fmt === "carousel" };
+  return { fmt, linkedinCarousel: fmt === "carousel" || fmt === "reel" };
 }

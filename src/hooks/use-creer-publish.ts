@@ -17,6 +17,7 @@ import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { versConnexions } from "@/lib/retour-apres-detour";
 import { publishReelToInstagram, publishImageToInstagram, publishRenderedCarouselToInstagram, resolveWorkspaceParam } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
+import { isLinkedInVideo } from "@/features/creer/linkedin-shared-format";
 import { useCreerPinterestPublish } from "@/hooks/use-creer-pinterest-publish";
 import { REASON_EPINGLE_IMAGE_MANQUANTE } from "@/features/creer/pinterest-publish-guards";
 
@@ -194,9 +195,13 @@ export function useCreerPublish({
   // ═══ Publication directe LinkedIn (post texte) ═══
   // Disponible pour un post LinkedIn texte (hors carrousel LinkedIn, qui est visuel).
   const isLinkedInTextPost = selectedFormat === "linkedin" && !isLinkedInCarousel;
+  // Vidéo LinkedIn (28/11/2026) : le parcours du reel, publié avec sa vidéo et sa légende LinkedIn.
+  const isLinkedInVideoPost = isLinkedInVideo(selectedFormat, isLinkedInCarousel);
   const publishLinkedInDisabledReason = linkedInPublishDisabledReason({
     isLinkedInTextPost,
     raw: result?.raw || result,
+    isLinkedInVideo: isLinkedInVideoPost,
+    reelMp4Url,
   });
 
   const handlePublishLinkedIn = async () => {
@@ -212,8 +217,10 @@ export function useCreerPublish({
 
     setPublishingLinkedIn(true);
     try {
+      if (isLinkedInVideoPost) toast.info("LinkedIn prépare ta vidéo : ça peut prendre deux à trois minutes.");
       const res = await publishTextToLinkedIn({
         text,
+        ...(isLinkedInVideoPost ? { videoUrl: reelMp4Url } : {}),
         workspaceId,
         userId: session.user.id,
       });
@@ -246,7 +253,7 @@ export function useCreerPublish({
   // ═══ Fenêtre « Publier ou programmer » ═══
   // Canal de publication automatique du contenu affiché (null = brouillon seulement).
   const publishChannel: "instagram" | "linkedin" | "pinterest" | null =
-    isLinkedInTextPost ? "linkedin" : showInstagramPublish ? "instagram" : pinterest.enabled ? "pinterest" : null;
+    isLinkedInTextPost || isLinkedInVideoPost ? "linkedin" : showInstagramPublish ? "instagram" : pinterest.enabled ? "pinterest" : null;
   const publishDialogDisabledReason =
     publishChannel === "linkedin" ? publishLinkedInDisabledReason
       : publishChannel === "pinterest" ? pinterest.disabledReason

@@ -1,4 +1,5 @@
 import { isDurableReelUrl, REEL_VIDEO_REQUIRED } from "@/lib/reel-publication";
+import { hasLinkedInVideoCaption, linkedInVideoPublishText, LINKEDIN_VIDEO_CAPTION_MISSING } from "@/features/creer/linkedin-video-caption";
 import { calendarPublishCaption, hasSlidesSeparator } from "../../../supabase/functions/_shared/calendar-caption";
 /**
  * Gardes de publication directe (Instagram / LinkedIn) — logique PURE extraite
@@ -76,6 +77,8 @@ export function extractInstagramCaption(raw: RawResult): string {
 /** Texte à publier sur LinkedIn (chaîne historique, sans le champ caption). */
 export function extractLinkedInText(raw: RawResult): string {
   const r: any = raw;
+  // Vidéo LinkedIn (parcours du reel) : la légende LinkedIn, jamais le script.
+  if (r?.sections || r?.script) return linkedInVideoPublishText(r);
   if (typeof r?.edited_text === "string") return r.edited_text;
   return (
     r?.edited_text ||
@@ -149,11 +152,20 @@ export function instagramPublishDisabledReason(args: {
   return null;
 }
 
+export const LINKEDIN_VIDEO_REQUIRED = "Monte et enregistre la vidéo avant de la publier ou de la programmer sur LinkedIn.";
+
 /** Raison pour laquelle la publication LinkedIn est désactivée, ou null si publiable. */
 export function linkedInPublishDisabledReason(args: {
   isLinkedInTextPost: boolean;
   raw: RawResult;
+  /** Vidéo LinkedIn : il faut la vidéo rangée chez nous ET la légende LinkedIn. */
+  isLinkedInVideo?: boolean;
+  reelMp4Url?: string | null;
 }): string | null {
+  if (args.isLinkedInVideo) {
+    if (!isDurableReelUrl(args.reelMp4Url)) return LINKEDIN_VIDEO_REQUIRED;
+    return hasLinkedInVideoCaption(args.raw) ? null : LINKEDIN_VIDEO_CAPTION_MISSING;
+  }
   if (!args.isLinkedInTextPost) return null; // bouton non affiché dans ce cas
   if (!extractLinkedInText(args.raw).trim()) return "Génère ton post LinkedIn pour pouvoir le publier.";
   return null;

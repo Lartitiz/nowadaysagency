@@ -7,6 +7,9 @@ export interface LinkedInPublishResult {
   postId?: string;
 }
 
+/** Envoi par morceaux puis traitement côté LinkedIn (jusqu'à ~2 min) : bien au-delà d'un post texte. */
+export const LINKEDIN_VIDEO_TIMEOUT_MS = 280000;
+
 /**
  * Publie un post TEXTE sur le profil LinkedIn connecté via l'edge social-linkedin-publish.
  * Lève une erreur avec un message lisible (à afficher en toast) en cas d'échec.
@@ -15,17 +18,22 @@ export async function publishTextToLinkedIn(opts: {
   text: string;
   /** Images publiques (optionnel) → publie un post IMAGE LinkedIn au lieu d'un post texte. */
   imageUrls?: string[];
+  /** Vidéo MP4 rangée chez nous (optionnel) → publie un post VIDÉO. LinkedIn la traite avant de publier : attente longue. */
+  videoUrl?: string | null;
+  /** Titre du média (vidéo). */
+  title?: string;
   workspaceId?: string | null;
   userId?: string | null;
   timeoutMs?: number;
 }): Promise<LinkedInPublishResult> {
-  const { text, imageUrls, workspaceId, userId, timeoutMs = 60000 } = opts;
+  const { text, imageUrls, videoUrl, title, workspaceId, userId } = opts;
+  const timeoutMs = opts.timeoutMs ?? (videoUrl ? LINKEDIN_VIDEO_TIMEOUT_MS : 60000);
   const { data, error } = await invokeWithTimeout(
     "social-linkedin-publish",
     {
       body: {
         text,
-        ...(imageUrls && imageUrls.length > 0 ? { media_urls: imageUrls } : {}),
+        ...(videoUrl ? { media_urls: [videoUrl], ...(title ? { title } : {}) } : imageUrls && imageUrls.length > 0 ? { media_urls: imageUrls } : {}),
         workspace_id: resolveWorkspaceParam(workspaceId, userId),
       },
     },

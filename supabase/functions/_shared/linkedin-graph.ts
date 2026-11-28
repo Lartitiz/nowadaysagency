@@ -233,6 +233,122 @@ export async function publishDocumentToLinkedIn(conn: any, text: string, pdfUrl:
   return String(urn);
 }
 
+// ═══ Vidéo (28/11/2026) : le reel monté dans l'outil, publié sur LinkedIn ═══
+const REST_VIDEOS_URL = "https://api.linkedin.com/rest/videos";
+/** Plafond lu en mémoire par la fonction (un reel monté pèse 5 à 40 Mo). */
+export const LINKEDIN_VIDEO_MAX_BYTES = 150 * 1024 * 1024;
+const VIDEO_READY_TRIES = 20;
+const VIDEO_READY_WAIT_MS = 5_000;
+
+/** Vrai si l'URL pointe vers une vidéo MP4 publique. */
+export function isLinkedInVideoUrl(url: unknown): url is string {
+  return typeof url === "string" && /^https?:\/\//.test(url) && /\.mp4(\?|$)/i.test(url);
+}
+
+/**
+ * Publie une VIDÉO (MP4) sur le profil LinkedIn du membre connecté.
+ * Flux : /rest/videos initializeUpload → envoi par morceaux → finalizeUpload →
+ * attente du traitement → /rest/posts content.media. Renvoie l'URN du post.
+ * `waitMs` : pause entre deux lectures de l'état (0 dans les tests).
+ */
+export async function publishVideoToLinkedIn(conn: any, text: string, videoUrl: string, title?: string, waitMs = VIDEO_READY_WAIT_MS): Promise<string> {
+  const memberId = conn?.platform_account_id;
+  if (!memberId) throw new Error("Identifiant du membre LinkedIn manquant. Reconnecte LinkedIn.");
+  if (!isLinkedInVideoUrl(videoUrl)) throw new Error("Aucune vidéo MP4 valide à publier sur LinkedIn.");
+  const author = `urn:li:person:${memberId}`;
+  const restHeaders = {
+    Authorization: `Bearer ${conn.access_token}`,
+    "Content-Type": "application/json",
+    "X-Restli-Protocol-Version": "2.0.0",
+    "LinkedIn-Version": LINKEDIN_VERSION,
+  };
+  const expired = "Jeton LinkedIn expiré ou invalide. Reconnecte LinkedIn dans Paramètres > Connexions.";
+
+  // 1) Récupère la vidéo (rangée dans notre stockage).
+  const vidRes = await fetchPublicMedia(videoUrl);
+  if (!vidRes?.ok) throw new Error("Vidéo inaccessible pour la publication LinkedIn.");
+  const bytes = new Uint8Array(await vidRes.arrayBuffer());
+  if (bytes.byteLength === 0) throw new Error("Vidéo vide : rien à publier sur LinkedIn.");
+  if (bytes.byteLength > LINKEDIN_VIDEO_MAX_BYTES) {
+    throw new Error("Cette vidéo est trop lourde pour être publiée depuis l'outil (150 Mo au plus). Télécharge-la et publie-la depuis LinkedIn.");
+  }
+
+  // 2) initializeUpload : LinkedIn renvoie l'URN de la vidéo et un lien d'envoi par morceau.
+  const initRes = await fetch(`${REST_VIDEOS_URL}?action=initializeUpload`, {
+    method: "POST",
+    headers: restHeaders,
+    body: JSON.stringify({ initializeUploadRequest: { owner: author, fileSizeBytes: bytes.byteLength, uploadCaptions: false, uploadThumbnail: false } }),
+  });
+  const initJson = await initRes.json().catch(() => ({}));
+  if (!initRes.ok) {
+    if (initRes.status === 401) throw new Error(expired);
+    throw new Error(initJson?.message || `Échec de l'init de la vidéo LinkedIn (HTTP ${initRes.status}).`);
+  }
+  const videoUrn = initJson?.value?.video;
+  const uploadToken = initJson?.value?.uploadToken ?? "";
+  const parts: Array<{ uploadUrl?: string; firstByte?: number; lastByte?: number }> = Array.isArray(initJson?.value?.uploadInstructions) ? initJson.value.uploadInstructions : [];
+  if (!videoUrn || parts.length === 0) throw new Error("LinkedIn n'a pas renvoyé de lien d'envoi pour la vidéo.");
+
+  // 3) Envoi des morceaux, dans l'ordre ; LinkedIn rend une étiquette (ETag) par morceau.
+  const uploadedPartIds: string[] = [];
+  for (const part of parts) {
+    if (!part?.uploadUrl) throw new Error("LinkedIn a renvoyé un lien d'envoi incomplet pour la vidéo.");
+    const first = Number(part.firstByte ?? 0);
+    const last = Number(part.lastByte ?? bytes.byteLength - 1);
+    const upRes = await fetch(part.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: bytes.subarray(first, last + 1),
+    });
+    const etag = upRes.headers.get("etag");
+    if (!upRes.ok || !etag) throw new Error(`Échec de l'envoi de la vidéo vers LinkedIn (HTTP ${upRes.status}).`);
+    uploadedPartIds.push(etag.replace(/^"|"$/g, ""));
+  }
+
+  // 4) finalizeUpload : LinkedIn assemble les morceaux.
+  const finRes = await fetch(`${REST_VIDEOS_URL}?action=finalizeUpload`, {
+    method: "POST",
+    headers: restHeaders,
+    body: JSON.stringify({ finalizeUploadRequest: { video: videoUrn, uploadToken, uploadedPartIds } }),
+  });
+  if (!finRes.ok) {
+    const j = await finRes.json().catch(() => ({}));
+    if (finRes.status === 401) throw new Error(expired);
+    throw new Error(String(j?.message || `LinkedIn n'a pas pu assembler la vidéo (HTTP ${finRes.status}).`));
+  }
+
+  // 5) Attend la fin du traitement. Un refus net arrête tout ; un traitement
+  //    encore en cours au bout du délai laisse LinkedIn trancher à l'étape 6.
+  for (let i = 0; i < VIDEO_READY_TRIES; i++) {
+    const stRes = await fetch(`${REST_VIDEOS_URL}/${encodeURIComponent(String(videoUrn))}`, { headers: restHeaders });
+    const stJson = await stRes.json().catch(() => ({}));
+    const status = String(stJson?.status || "");
+    if (status === "AVAILABLE") break;
+    if (status === "PROCESSING_FAILED") throw new Error("LinkedIn n'a pas pu traiter cette vidéo. Télécharge-la et publie-la depuis LinkedIn.");
+    if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+  }
+
+  // 6) Crée le post vidéo.
+  const payload = {
+    author,
+    commentary: escapeLinkedInCommentary(prepareLinkedInText(text)),
+    visibility: "PUBLIC",
+    distribution: { feedDistribution: "MAIN_FEED", targetEntities: [], thirdPartyDistributionChannels: [] },
+    content: { media: { id: videoUrn, title: (title || "Vidéo").slice(0, 100) } },
+    lifecycleState: "PUBLISHED",
+    isReshareDisabledByAuthor: false,
+  };
+  const postRes = await fetch(REST_POSTS_URL, { method: "POST", headers: restHeaders, body: JSON.stringify(payload) });
+  if (!postRes.ok) {
+    const j = await postRes.json().catch(() => ({}));
+    if (postRes.status === 401) throw new Error(expired);
+    throw new Error(String(j?.message || `Publication de la vidéo LinkedIn échouée (HTTP ${postRes.status}).`));
+  }
+  const urn = postRes.headers.get("x-restli-id") || postRes.headers.get("x-linkedin-id");
+  if (!urn) throw new Error("LinkedIn n'a pas renvoyé d'identifiant de post.");
+  return String(urn);
+}
+
 /**
  * Publie un post texte sur le profil LinkedIn du membre connecté.
  * Renvoie l'URN du post créé. Lève une Error avec un message lisible sinon.

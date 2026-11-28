@@ -34,6 +34,7 @@ import { useMarkCarouselEditorShown } from "@/lib/carousel-editor-shown";
 import { useHideAppBreadcrumb } from "@/lib/app-breadcrumb";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
+import { hasLinkedInVideoCaption } from "@/features/creer/linkedin-video-caption";
 import ReelMontage, { type ReelMontageProject } from "@/components/creer/ReelMontage";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -70,6 +71,10 @@ interface Props {
   saveStatus?: ReactNode;
   /** « Éditer le texte » : rangé dans l'onglet Script. */
   onEdit?: () => void;
+  /** Vidéo LinkedIn (28/11/2026) : même parcours, légende écrite pour LinkedIn. */
+  channel?: "linkedin" | "instagram";
+  captionLoading?: boolean;
+  onRegenerateCaption?: () => void;
 }
 
 function correctedSection(section: any) {
@@ -81,7 +86,8 @@ function correctedSection(section: any) {
   };
 }
 
-export default function ReelResult({ result, workspaceId, initialMp4Url, onStepChange, onMp4Change, onResultChange, startPhoto, saveStatus, onEdit }: Props) {
+export default function ReelResult({ result, workspaceId, initialMp4Url, onStepChange, onMp4Change, onResultChange, startPhoto, saveStatus, onEdit, channel, captionLoading, onRegenerateCaption }: Props) {
+  const onLinkedIn = channel === "linkedin";
   // Atelier du reel (26/11/2026) : comme le carrousel, le haut de la page se replie dans
   // la barre fine du menu pour que la vidéo et le passage soient visibles dès l'arrivée.
   useMarkCarouselEditorShown();
@@ -113,6 +119,8 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
   const copy = useCopyToClipboard();
 
   const handleCopyCaption = () => {
+    // LinkedIn : jamais la légende Instagram d'origine à la place de la légende LinkedIn.
+    if (onLinkedIn && !hasLinkedInVideoCaption(result)) return;
     const parts = [caption?.text, caption?.cta, hashtags.length ? hashtags.join(" ") : null].filter(Boolean);
     copy(parts.join("\n\n"), "Légende copiée !");
   };
@@ -243,7 +251,7 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
           Onglets nommés — surtout PAS un second stepper à pastilles
           numérotées : voir l'en-tête du fichier. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <div role="tablist" aria-label="Étapes de ton reel" className="flex flex-wrap gap-1.5">
+        <div role="tablist" aria-label={onLinkedIn ? "Étapes de ta vidéo" : "Étapes de ton reel"} className="flex flex-wrap gap-1.5">
           {steps.map((s, i) => (
             <button
               key={s.key}
@@ -325,11 +333,14 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
 
       {stepKey === "caption" && (
         <div className={READING}><CaptionStep
-          caption={caption}
-          hashtags={hashtags}
+          caption={onLinkedIn && !hasLinkedInVideoCaption(result) ? null : caption}
+          hashtags={onLinkedIn && !hasLinkedInVideoCaption(result) ? [] : hashtags}
+          linkedIn={onLinkedIn}
+          captionLoading={!!captionLoading}
+          onRegenerateCaption={onRegenerateCaption}
           coverText={coverText}
           coverKeyword={coverKeyword}
-          amplificationStories={amplificationStories}
+          amplificationStories={onLinkedIn ? [] : amplificationStories}
           personalTip={planTournage.length > 0 ? null : personalTip}
           montageDone={montageDone}
           mp4Url={mp4Url}
@@ -514,7 +525,13 @@ function CaptionStep({
   montageDone,
   mp4Url,
   onCopyCaption,
+  linkedIn = false,
+  captionLoading = false,
+  onRegenerateCaption,
 }: {
+  linkedIn?: boolean;
+  captionLoading?: boolean;
+  onRegenerateCaption?: () => void;
   caption: any;
   hashtags: string[];
   coverText: string | null;
@@ -546,14 +563,39 @@ function CaptionStep({
         </div>
       )}
 
+      {/* Vidéo LinkedIn : la légende est réécrite pour LinkedIn. Tant qu'elle
+          n'est pas là, on le dit : on ne montre jamais la légende Instagram. */}
+      {linkedIn && !caption?.text && (
+        <div className="rounded-lg border border-border bg-card p-4 space-y-2" data-testid="linkedin-video-caption-pending">
+          <span className="text-xs font-bold text-foreground uppercase tracking-wide">📝 Légende LinkedIn</span>
+          {captionLoading ? (
+            <p className="text-sm text-muted-foreground">J'écris la légende LinkedIn de ta vidéo…</p>
+          ) : (
+            <>
+              <p className="text-sm text-foreground">La légende LinkedIn n'a pas pu être écrite.</p>
+              {onRegenerateCaption && (
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onRegenerateCaption}>Réessayer</Button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {caption?.text && (
-        <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+        <div className="rounded-lg border border-border bg-card p-4 space-y-2" data-testid={linkedIn ? "linkedin-video-caption" : undefined}>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-bold text-foreground uppercase tracking-wide">📝 Légende</span>
-            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={onCopyCaption}>
-              <Copy className="h-3 w-3" />
-              Copier
-            </Button>
+            <span className="text-xs font-bold text-foreground uppercase tracking-wide">{linkedIn ? "📝 Légende LinkedIn" : "📝 Légende"}</span>
+            <div className="flex items-center gap-1">
+              {linkedIn && onRegenerateCaption && (
+                <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={captionLoading} onClick={onRegenerateCaption}>
+                  {captionLoading ? "J'écris…" : "Réécrire"}
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={onCopyCaption}>
+                <Copy className="h-3 w-3" />
+                Copier
+              </Button>
+            </div>
           </div>
           <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{caption.text}</p>
           {caption.cta && <p className="text-sm font-medium text-foreground">{caption.cta}</p>}

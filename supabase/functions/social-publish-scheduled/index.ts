@@ -8,7 +8,7 @@ import { isDurableReelUrl } from "../_shared/reel-publication.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { publishImagesToInstagram, publishReelToInstagram } from "../_shared/instagram-graph.ts";
-import { publishTextToLinkedIn, publishImagesToLinkedIn, publishDocumentToLinkedIn, isLinkedInImageUrl, isLinkedInPdfUrl } from "../_shared/linkedin-graph.ts";
+import { publishTextToLinkedIn, publishImagesToLinkedIn, publishDocumentToLinkedIn, publishVideoToLinkedIn, isLinkedInImageUrl, isLinkedInPdfUrl, isLinkedInVideoUrl } from "../_shared/linkedin-graph.ts";
 import { decryptConnTokens } from "../_shared/token-crypto.ts";
 import { isSweepTick, refreshExpiringInstagramTokens } from "../_shared/instagram-token-sweep.ts";
 
@@ -152,7 +152,14 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
         const media = (post.media_urls || []) as string[];
         const pdf = media.find(isLinkedInPdfUrl);
         const liImages = media.filter(isLinkedInImageUrl);
-        if (pdf) {
+        const liVideo = media.find(isLinkedInVideoUrl);
+        if (post.format === "reel" && !liVideo) {
+          // Une vidéo LinkedIn sans son MP4 ne part jamais en texte seul.
+          throw new Error("Cette vidéo LinkedIn n'a pas de MP4 joint : monte la vidéo ou joins-la avant de programmer.");
+        }
+        if (liVideo) {
+          postId = await publishVideoToLinkedIn(conn, text, liVideo, post.theme || "Vidéo");
+        } else if (pdf) {
           // PDF → carrousel natif LinkedIn (document).
           postId = await publishDocumentToLinkedIn(conn, text, pdf, post.theme || "Carrousel");
         } else if (liImages.length > 0) {

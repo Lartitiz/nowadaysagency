@@ -75,6 +75,32 @@ export function captionAnswersText(answers: unknown): string {
     .slice(0, 3000);
 }
 
+/**
+ * Mots de la consigne « légende » selon ce qu'elle accompagne (28/11/2026) :
+ * un carrousel PDF (défaut, texte d'origine) ou une vidéo (le parcours reel
+ * ouvert à LinkedIn). Même action, mêmes garde-fous : seuls ces mots changent.
+ */
+export function captionMediaWording(mediaKind: unknown) {
+  if (mediaKind === "video") {
+    return {
+      intro: "Tu rédiges UNIQUEMENT la légende (le texte du post) qui accompagne une vidéo publiée sur LinkedIn. La vidéo porte déjà le propos, dit à voix haute : la légende ne le recopie pas. Elle donne envie de lancer la vidéo, puis apporte à qui clique sur « voir plus » ce que la vidéo ne dit pas (un détail, une coulisse, le pourquoi), seulement si les informations fournies le contiennent.",
+      contextTitle: "CONTEXTE DE LA VIDÉO",
+      summaryLabel: "Script de la vidéo (ce qui est dit à l'oral)",
+      hookRule: "Les deux premières lignes (environ 140 caractères sur mobile) posent la tension ou la question et donnent envie de lancer la vidéo. PAS la première phrase du script : elle complète, elle ne répète pas.",
+      bodyExtra: "ce que la vidéo ne dit pas. 600 à 1200 caractères au plus, moins si la matière est courte. Aucun lien dans le texte. N'écris jamais « reel », « Instagram », « enregistre » ni « abonne-toi » : c'est une vidéo LinkedIn",
+      userPrompt: "Rédige la légende LinkedIn qui accompagne cette vidéo.",
+    };
+  }
+  return {
+    intro: "Tu rédiges UNIQUEMENT la légende (caption) qui accompagne un carrousel LinkedIn (PDF de slides). Les slides portent déjà la valeur structurée : la légende complète, contextualise, donne envie de cliquer le PDF.",
+    contextTitle: "CONTEXTE DU CARROUSEL",
+    summaryLabel: "Résumé des slides du PDF",
+    hookRule: "DOIT donner envie d'ouvrir le carrousel. PAS la même phrase que la slide 1 du PDF — elle complète, elle ne répète pas.",
+    bodyExtra: "ce que le PDF ne montre pas",
+    userPrompt: "Rédige la légende LinkedIn pour ce carrousel.",
+  };
+}
+
 /** Consigne « Ton cas d'abord » adaptée à la famille (texte pour l'IA, adapté de SOCLE_FAMILLES). */
 const CASE_BY_FAMILY: Partial<Record<AngleFamily, string>> = {
   B: "CAS CLIENT : le cas fourni est la preuve, raconté à la 3e personne (« ma cliente », « elle »), jamais comme son vécu à elle. Les chiffres de la cliente et ses mots entre guillemets seulement s'ils sont fournis.",
