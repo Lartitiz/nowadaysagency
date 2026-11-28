@@ -12,7 +12,7 @@ import CarouselInstagramPreview from "@/components/creer/CarouselInstagramPrevie
 import type { CarouselStylesApi, SavedCarouselStyle } from "@/hooks/use-carousel-styles";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import { thumbIndexAt as thumbIndexAtIn } from "@/components/creer/thumb-reorder";
-import { retouchedOnImport, withRetouched } from "@/lib/carousel-retouched"; import { setPhotoShade } from "@/lib/carousel-shade";
+import { retouchedOnImport, withRetouched } from "@/lib/carousel-retouched"; import { createEchoLog } from "@/lib/editor-echo"; import { setPhotoShade } from "@/lib/carousel-shade";
 import {
   slideExtraTexts,
   applyTheme,
@@ -176,20 +176,20 @@ export default function CarouselEditor({
   }>({ past: [], future: [], key: "", time: 0 });
   const current = useRef(document);
   current.current = document;
-  const echo = useRef<any[]>([]);
+  const echo = useRef(createEchoLog()); // envois récents de l'éditeur (editor-echo.ts)
   const callbacks = useRef({ onChange, raw });
   callbacks.current = { onChange, raw };
   const emit = (next: CarouselDocument, retouched?: boolean) => {
     const output = withRetouched(documentOutput(next, callbacks.current.raw), retouched);
-    echo.current = inputKey(output.raw, output.visualSlides);
+    echo.current.remember(inputKey(output.raw, output.visualSlides));
     current.current = next;
     setDocument(next);
     callbacks.current.onChange(output.raw, output.visualSlides);
   };
   const incoming = useMemo(() => inputKey(raw, visualSlides), [raw, visualSlides]);
   useEffect(() => {
-    if (incoming.every((value, index) => value === echo.current[index])) return;
-    const retouched = retouchedOnImport(raw, visualSlides, !echo.current.length); echo.current = incoming;
+    if (echo.current.isEcho(incoming)) return;
+    const retouched = retouchedOnImport(raw, visualSlides, echo.current.empty); echo.current.reset(incoming);
     history.current = { past: [], future: [], key: "", time: 0 };
     const next = readCarouselDocument(raw, visualSlides);
     emit(next, retouched);

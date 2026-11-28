@@ -476,7 +476,7 @@ export default function CreerStepResult({
     return () => clearTimeout(t);
   }, [generating, result, pinterestVisualMissing]);
 
-  const readyGate = useCarouselReadyGate({ format, generating: !!generating, raw: result?.raw || result, visualCount: visualSlides?.length ?? 0, visualLoading: !!visualLoading, visualsError: visualsAutoError, photos });
+  const readyGate = useCarouselReadyGate({ format, generating: !!generating, raw: result?.raw || result, visualCount: visualSlides?.length ?? 0, visualLoading: !!visualLoading, visualsError: visualsAutoError, photos, visualSlides, onImport: onCarouselDocumentChange });
   if (generating) {
     // Mode streaming : le contenu texte arrive progressivement
     if (streamingContent) {
