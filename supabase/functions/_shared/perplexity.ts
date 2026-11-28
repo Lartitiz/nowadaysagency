@@ -153,7 +153,7 @@ Couvre AU MOINS 4 des 6 catégories suivantes (1 par catégorie idéalement, jam
 ${universLine ? `\n${universLine}` : ""}${excludedLine}`
     : `Date du jour : ${todayLabel}. Actus publiées entre le ${afterLabel} et aujourd'hui.
 
-Trouve 2-3 actualités françaises de cette ${recency === "day" ? "journée" : recency === "week" ? "semaine" : "période"} qui font vraiment débat sur les réseaux ou en discussion publique : polémiques fraîches, déclarations virales, sorties marquantes (film, livre, série, album), phénomènes culturels qui montent, mouvements sociaux.
+Trouve 5 actualités françaises de cette ${recency === "day" ? "journée" : recency === "week" ? "semaine" : "période"} dont tout le monde parle (médias grand public, réseaux, conversations) : polémiques fraîches, déclarations virales, sorties marquantes (film, livre, série, album, émission), phénomènes culturels qui montent, mouvements sociaux, chiffres ou décisions qui touchent le quotidien. Couvre des domaines différents, jamais 3 sujets du même registre.
 ${niche ? `\nProfil de la personne qui va potentiellement réagir : ${niche}.` : ""}${universLine ? `\n${universLine}` : ""}${excludedLine}`;
 
   // Systems riches et stables (cachables côté Perplexity).
@@ -217,7 +217,7 @@ Pour chaque actu : titre court (<90 caractères), résumé factuel en 2 phrases,
     ],
     search_after_date_filter: formatDateUS(afterDate),
     temperature: mode === "scoop" ? 0.4 : 0.2,
-    max_tokens: mode === "scoop" ? 2000 : 1000,
+    max_tokens: mode === "scoop" ? 2000 : 1600,
     response_format: responseFormat,
   };
 
@@ -259,7 +259,7 @@ Pour chaque actu : titre court (<90 caractères), résumé factuel en 2 phrases,
 }
 
 /**
- * Cherche 2-5 actus chaudes qui font débat sur la semaine.
+ * Cherche jusqu'à 5-6 actus chaudes dont on parle cette semaine.
  * Applique une double validation (date + mots-clés evergreen) et retente
  * avec une fenêtre plus serrée si trop peu d'actus survivent.
  */

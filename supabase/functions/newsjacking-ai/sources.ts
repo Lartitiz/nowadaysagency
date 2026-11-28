@@ -93,6 +93,50 @@ export function garderActusSourcees(actus: any[], pages: Map<string, PageTrouvee
   return { gardees, retirees };
 }
 
+/**
+ * Une actu a moins de `maxJours` (28/11/2026) : relevé sur le compte de
+ * Laetitia, 5 « actus » sur 6 dataient de janvier à septembre. La consigne
+ * demandait déjà du récent ; la garde est donc dans le code. Une actu sans
+ * date connue est gardée (on ne peut pas la juger).
+ */
+export function garderActusFraiches(actus: any[], maxJours: number, maintenant = Date.now()): { gardees: any[]; retirees: string[] } {
+  const gardees: any[] = [];
+  const retirees: string[] = [];
+  for (const a of actus) {
+    const jour = dateIso(a?.date_publication, maintenant);
+    const age = jour ? (maintenant - new Date(`${jour}T12:00:00Z`).getTime()) / 86_400_000 : 0;
+    if (age > maxJours) retirees.push(`${String(a?.titre || "").slice(0, 60)} (${jour})`);
+    else gardees.push(a);
+  }
+  return { gardees, retirees };
+}
+
+/** Actus chaudes pré-sourcées remises telles quelles quand le tri n'a rien gardé : la recherche ne revient pas vide. */
+export function actusDeSecours(
+  chaudes: { titre?: string; resume?: string; source?: string; source_url?: string; date_publication?: string }[],
+  refuser: (texte: string) => boolean,
+  dejaVues: string[],
+  strip: (t: string) => string,
+): any[] {
+  const vues = new Set(dejaVues.map((u) => u.trim().toLowerCase()));
+  return chaudes
+    .filter((a) => !refuser(`${a.titre || ""} ${a.resume || ""}`) && !(a.source_url && vues.has(a.source_url.trim().toLowerCase())))
+    .slice(0, 5)
+    .map((a) => ({
+      titre: strip(a.titre || ""),
+      resume: strip(a.resume || ""),
+      source: a.source,
+      source_url: a.source_url,
+      date_publication: dateIso(a.date_publication),
+      type: "globale",
+      axe: "actu_connectable",
+      ton: "entre_deux",
+      force_pont: "moyen",
+      pertinence: "Actu chaude du moment : réagis comme témoin de ton époque, avec ce que ça t'évoque et le débat que ça ouvre, sans forcer ton métier.",
+      angle_mode: "reaction",
+    }));
+}
+
 /** Normalisation des champs : valeurs connues seulement (sinon le badge ne s'affiche pas côté écran). */
 export function normaliserActus(actus: any[], strip: (t: string) => string): any[] {
   return actus
