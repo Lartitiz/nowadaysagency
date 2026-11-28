@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { importForEditor, needsEditorImport } from "@/lib/carousel-gate-import";
 
 /** Laps laissé à la mise en page automatique pour démarrer après l'arrivée du texte. */
 export const READY_GATE_GRACE_MS = 2500;
@@ -26,7 +27,7 @@ export function gateSlides(raw: { slides?: GateSlide[] } | null | undefined) {
 }
 
 export function useCarouselReadyGate({
-  format, generating, raw, visualCount, visualLoading, visualsError, photos,
+  format, generating, raw, visualCount, visualLoading, visualsError, photos, visualSlides, onImport,
 }: {
   format: string;
   generating: boolean;
@@ -35,6 +36,9 @@ export function useCarouselReadyGate({
   visualLoading: boolean;
   visualsError?: string | null;
   photos?: { preview?: string }[];
+  /** Visuels prêts : convertis tout de suite pour la sauvegarde continue (carousel-gate-import.ts). */
+  visualSlides?: { slide_number: number; html: string }[];
+  onImport?: (raw: any, visualSlides: { slide_number: number; html: string }[]) => void;
 }): ReactNode {
   // Une écriture vue ici arme le sas ; le clic sur le bouton (ou un abandon) le désarme.
   const armed = useRef(false);
@@ -49,6 +53,13 @@ export function useCarouselReadyGate({
     const t = setTimeout(() => setGraceOver(true), READY_GATE_GRACE_MS);
     return () => clearTimeout(t);
   }, [generating, hasText]);
+
+  const importNow = format === "carousel" && armed.current && hasText && !visualLoading && !!onImport && needsEditorImport(raw, visualSlides);
+  useEffect(() => {
+    if (!importNow || !visualSlides || !onImport) return;
+    const out = importForEditor(raw, visualSlides);
+    onImport(out.raw, out.visualSlides);
+  }, [importNow, raw, visualSlides, onImport]);
 
   if (format !== "carousel" || !armed.current || !hasText) return null;
   const slides = gateSlides(raw);

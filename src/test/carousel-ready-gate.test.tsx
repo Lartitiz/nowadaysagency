@@ -56,4 +56,27 @@ describe("fin de création d'un carrousel : annonce et bouton, rien ne bascule t
     view.rerender(<Screen generating={false} raw={{ slides: [{ photo_index: 1 }] }} visualLoading />);
     expect(screen.getByText("écran habituel")).toBeTruthy();
   });
+
+  it("visuels prêts, carrousel pas encore ouvert : converti tout de suite pour la sauvegarde continue (Loom 28/11)", () => {
+    const visuals = [1, 2].map((n) => ({ slide_number: n, html: `<html><body><div style="position:relative;width:1080px;height:1350px"><p>Slide ${n}</p></div></body></html>` }));
+    const onImport = vi.fn();
+    function Gate(p: { generating: boolean; raw?: any; visualSlides?: typeof visuals }) {
+      const gate = useCarouselReadyGate({ format: "carousel", generating: p.generating, raw: p.raw, visualCount: p.visualSlides?.length ?? 0, visualLoading: false, photos: [], visualSlides: p.visualSlides, onImport });
+      return <>{gate ?? <p>écran habituel</p>}</>;
+    }
+    const view = render(<Gate generating />);
+    view.rerender(<Gate generating={false} raw={raw} />);
+    expect(onImport).not.toHaveBeenCalled();
+    view.rerender(<Gate generating={false} raw={raw} visualSlides={visuals} />);
+    expect(screen.getByTestId("carousel-ready-open")).toBeTruthy();
+    expect(onImport).toHaveBeenCalledTimes(1);
+    const [out, slides] = onImport.mock.calls[0];
+    expect(out.carousel_editor_version).toBe(1);
+    expect(out.carousel_retouched).toBe(false);
+    expect(slides).toHaveLength(2);
+    // Une fois converti, plus rien à refaire.
+    view.rerender(<Gate generating={false} raw={out} visualSlides={slides} />);
+    expect(onImport).toHaveBeenCalledTimes(1);
+  });
 });
+
