@@ -89,7 +89,7 @@ Deno.test("consigne par défaut : part du grand public, plus de micro-phénomèn
     pickedAxes: axesDuMoment("novembre 2026").slice(0, 3), nicheQueries: ["q1", "q2", "q3"], excludedUrls: ["https://deja.fr/a"],
   };
   const consigne = construireConsigne(base);
-  for (const attendu of ["DONT TOUT LE MONDE PARLE", "TOUT LE MONDE EN PARLE", "CE QUI N'EST PAS UNE ACTU", "Idéalement 4 actus \"globale\"", "MATIÈRE PREMIÈRE", "novembre 2026", "https://deja.fr/a", "https://telerama.fr/f"]) {
+  for (const attendu of ["DONT TOUT LE MONDE PARLE", "TOUT LE MONDE EN PARLE", "CE QUI N'EST PAS UNE ACTU", "Idéalement 4 actus \"globale\"", "Lance chaque recherche TELLE QUELLE", "est \"niche\", même publiée par un grand média", "MATIÈRE PREMIÈRE", "novembre 2026", "https://deja.fr/a", "https://telerama.fr/f"]) {
     if (!consigne.includes(attendu)) throw new Error(`absent de la consigne : ${attendu}`);
   }
   for (const interdit of ["MICRO-PHÉNOMÈNES", "⌈N×2/3⌉", "France 2026\"", "q3"]) {
