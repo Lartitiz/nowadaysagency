@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { normalizeObjective } from "@/lib/content-structures";
 import { cleanIdeaTitle, type IdeaToCreate } from "@/lib/idea-create-link";
 import { FORMAT_MAP, SUPPORTED_FORMATS } from "@/features/creer/creer-step";
+import { isLinkedInSharedFormat } from "@/features/creer/linkedin-shared-format";
 import { multiSubjectChoicePending } from "../../../supabase/functions/_shared/multi-subject";
 
 export interface IdeaStartPlan {
@@ -30,7 +31,7 @@ export function ideaStartPlan(idea: IdeaToCreate): IdeaStartPlan {
   const toFormat = !format
     || ((format === "story" || format === "reel") && multiSubjectChoicePending(subject))
     || ((format === "carousel" || format === "post") && !angle);
-  return { subject, angle, format, objective, canal, linkedinCarousel: canal === "linkedin" && format === "carousel", next: toFormat ? "format" : "questions" };
+  return { subject, angle, format, objective, canal, linkedinCarousel: isLinkedInSharedFormat(canal, format), next: toFormat ? "format" : "questions" };
 }
 
 type FormatNext = (format: string, angle?: string, options?: { overrideSubject?: string; linkedinCarousel?: boolean }) => unknown;

@@ -4,7 +4,7 @@ import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 
 const CHANNELS = [
   { id: "instagram", label: "Instagram", description: "Posts, carrousels, Reels et stories", icon: Instagram },
-  { id: "linkedin", label: "LinkedIn", description: "Posts et carrousels", icon: Linkedin },
+  { id: "linkedin", label: "LinkedIn", description: "Posts, carrousels et vidéos", icon: Linkedin },
   { id: "newsletter", label: "Newsletter", description: "Un email pour ton audience", icon: Mail },
   { id: "pinterest", label: "Pinterest", description: "Des épingles pour faire découvrir ton activité", icon: Pin },
 ] as const;

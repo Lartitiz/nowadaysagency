@@ -11,6 +11,7 @@ import NewContentButton from "@/components/creer/NewContentButton";
 import CarouselPhotoResult, { type CarouselColors } from "@/components/creer/formatRenderers/CarouselPhotoResult";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
+import { linkedInVideoRawForCalendar } from "@/features/creer/linkedin-video-caption";
 import StoryResult, { type StoryExportActions } from "@/components/creer/formatRenderers/StoryResult";
 import PostResult from "@/components/creer/formatRenderers/PostResult";
 import LinkedInResult from "@/components/creer/formatRenderers/LinkedInResult";
@@ -589,7 +590,7 @@ export default function CreerStepResult({
         return <CarouselResult result={result} onSlidesUpdate={onSlidesUpdate} onStaleChange={onCarouselStaleChange} />;
       case "reel":
         // Reel enregistré tout seul (13/11/2026) : même encadré que le carrousel et les stories.
-        return <ReelResult saveStatus={carouselCloudTools} onEdit={onEdit} initialMp4Url={reelMp4Url} result={result} workspaceId={reelWorkspaceId} onStepChange={setReelStep} onMp4Change={onReelMp4Change} onResultChange={onReelResultChange} startPhoto={photos?.[0]?.base64 || null} />;
+        return <ReelResult saveStatus={carouselCloudTools} onEdit={onEdit} initialMp4Url={reelMp4Url} result={result} workspaceId={reelWorkspaceId} onStepChange={setReelStep} onMp4Change={onReelMp4Change} onResultChange={onReelResultChange} startPhoto={photos?.[0]?.base64 || null} channel={channel} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} />;
       case "story":
         // Sauvegarde continue des stories : même encadré que le carrousel (rien sans elle).
         return <>{carouselCloudTools}<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} /></>;
@@ -616,7 +617,8 @@ export default function CreerStepResult({
   // Texte propre à copier selon le format (déplacé tel quel dans le menu « Autres actions »).
   // LinkedIn n'interprète pas le markdown : un **gras** collé resterait en
   // astérisques. Même nettoyage que la publication directe (linkedin-graph).
-  const handleCopyText = () => onCopy(copyTextForChannel(resultCopyText(format, result, reelStep?.key), format));
+  // Vidéo LinkedIn : « Copier » ne rend jamais la légende Instagram d'origine.
+  const handleCopyText = () => onCopy(copyTextForChannel(resultCopyText(format, format === "reel" && channel === "linkedin" ? linkedInVideoRawForCalendar(result) : result, reelStep?.key), format));
 
   return (
     <div className="relative space-y-4 animate-fade-in">
@@ -789,7 +791,7 @@ export default function CreerStepResult({
         <div role="status" data-testid="result-celebration" className="pointer-events-none absolute inset-x-0 top-0 z-40 mx-auto !mt-0 flex w-fit max-w-[calc(100vw-2rem)] items-center gap-2 rounded-xl border border-primary/20 bg-rose-pale px-4 py-2 shadow-lg animate-fade-in">
           <Sparkles className="h-4 w-4 text-primary shrink-0" />
           <p className="text-sm font-semibold text-foreground">
-            {(FORMAT_DONE_LABELS[format] || "Ton contenu est prêt")} ✨
+            {(format === "reel" && channel === "linkedin" ? "Ton script de vidéo est prêt" : FORMAT_DONE_LABELS[format] || "Ton contenu est prêt")} ✨
           </p>
         </div>
       )}

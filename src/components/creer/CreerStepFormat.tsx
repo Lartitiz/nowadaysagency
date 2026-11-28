@@ -7,6 +7,7 @@ import MultiSubjectChoice from "./MultiSubjectChoice";
 import CreerSubjectLine from "./CreerSubjectLine";
 import ChannelFormatChip from "./ChannelFormatChip";
 import ReelFromPhotosNote from "./ReelFromPhotosNote";
+import { isLinkedInSharedFormat } from "@/features/creer/linkedin-shared-format";
 import { photoCapForFormat } from "@/lib/format-photo-cap";
 import { multiSubjectChoicePending } from "../../../supabase/functions/_shared/multi-subject";
 import { recommendContentFormat } from "@/lib/format-recommendation";
@@ -36,7 +37,7 @@ import { cn } from "@/lib/utils";
 
 const CHANNELS = [
   { id: "instagram" as const, icon: Instagram, label: "Instagram", desc: "Carrousel, Reel, Story, Post" },
-  { id: "linkedin" as const, icon: Linkedin, label: "LinkedIn", desc: "Post ou carrousel" },
+  { id: "linkedin" as const, icon: Linkedin, label: "LinkedIn", desc: "Post, carrousel ou vidéo" },
   { id: "pinterest" as const, icon: Pin, label: "Pinterest", desc: "Épingle texte, visuelle ou inspirée" },
   { id: "newsletter" as const, icon: Mail, label: "Newsletter", desc: "Email 1500-3000 caractères" },
 ];
@@ -61,7 +62,8 @@ function formatAcceptsSinglePhoto(format: string | null | undefined): boolean {
   return ["post", "reel", "story", "linkedin", "newsletter"].includes(format);
 }
 
-function getPhotoToggleCopy(format: string): { title: string; subtitle: string } {
+function getPhotoToggleCopy(format: string, channel?: string | null): { title: string; subtitle: string } {
+  if (format === "reel" && channel === "linkedin") return { title: "📸 Ma vidéo s'appuie sur mes photos", subtitle: "Elles inspirent l'accroche et le script : ton idée reste le sujet" };
   switch (format) {
     case "post":
       return { title: "📸 J'accompagne une photo", subtitle: "Ta photo illustre ton idée : le texte parle de ton sujet, pas de l'image" };
@@ -339,6 +341,8 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
         ? [
             { id: "linkedin", label: "Post", emoji: "📝", desc: "1300-2000 caractères, photo en option" },
             { id: "carousel", label: "Carrousel", preview: "carousel", desc: "Plusieurs slides à faire défiler" },
+            // Vidéo LinkedIn (28/11/2026) : le parcours du reel, légende écrite pour LinkedIn.
+            { id: "reel", label: "Vidéo", preview: "reel", desc: "Une vidéo verticale, avec ton script" },
           ]
         : selectedChannel === "pinterest"
           ? [
@@ -467,7 +471,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
     const isCarouselMix = selectedFormat === "carousel" && carouselSubMode === "mix";
     const isCarouselPurePhoto = selectedFormat === "carousel" && carouselSubMode === "pure_photo";
     const isSinglePhotoFormat = formatAcceptsSinglePhoto(selectedFormat) && photoMode;
-    const isLinkedInCarousel = selectedChannel === "linkedin" && selectedFormat === "carousel";
+    const isLinkedInCarousel = isLinkedInSharedFormat(selectedChannel, selectedFormat);
     const isInspirationPin = selectedFormat === "pinterest_inspiration";
     const pinterestData = (selectedFormat === "pinterest" || selectedFormat === "pinterest_visual") ? {
       link: pinterestLink || undefined,
@@ -600,15 +604,15 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
             checked={photoMode}
             onCheckedChange={setPhotoMode}
             className="flex-shrink-0"
-            aria-label={getPhotoToggleCopy(selectedFormat!).title}
+            aria-label={getPhotoToggleCopy(selectedFormat!, selectedChannel).title}
           />
           <button
             type="button"
             onClick={() => setPhotoMode(!photoMode)}
             className="flex-1 min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded"
           >
-            <p className="text-sm font-medium text-foreground">{getPhotoToggleCopy(selectedFormat!).title}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{getPhotoToggleCopy(selectedFormat!).subtitle}</p>
+            <p className="text-sm font-medium text-foreground">{getPhotoToggleCopy(selectedFormat!, selectedChannel).title}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{getPhotoToggleCopy(selectedFormat!, selectedChannel).subtitle}</p>
           </button>
         </div>
 
