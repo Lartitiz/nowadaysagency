@@ -19,6 +19,10 @@ const ACTUS = [
   { titre: "Greenwashing", resume: "R2", source: "linfodurable.fr", source_url: "https://linfodurable.fr/a", type: "globale", force_pont: "moyen", pertinence: "P2" },
 ];
 
+// Le 2e angle est préparé 600 ms après la liste : chaque test qui lance une recherche
+// l'attend avant de finir, sinon cet appel tombe dans le test suivant (CI du 28/11/2026).
+const deuxAnglesPrepares = () => waitFor(() => expect(invoke.mock.calls.filter(([fn]) => fn === "newsjacking-angles").length).toBe(2), { timeout: 3000 });
+
 const panneau = () => render(<NewsjackingPanel onSelect={vi.fn()} onClose={vi.fn()} workspaceId="w1" />);
 
 describe("Réagir à une actualité — fiable", () => {
@@ -49,13 +53,14 @@ describe("Réagir à une actualité — fiable", () => {
     expect(screen.getAllByRole("button", { name: /Relancer.*3 crédits/ }).length).toBe(2);
     fireEvent.click(screen.getAllByRole("button", { name: /Voir les angles/ })[0]);
     await waitFor(() => expect(screen.getByRole("button", { name: /Voir 2 autres angles · 1 crédit/ })).toBeTruthy());
+    await deuxAnglesPrepares();
   });
 
   it("garde la liste et les angles déjà payés quand le panneau revient (rechargement, Retour)", async () => {
     const premier = panneau();
     fireEvent.click(screen.getByRole("button", { name: /Lancer la recherche/ }));
     await waitFor(() => expect(screen.getAllByRole("button", { name: /Voir les angles/ }).length).toBe(2));
-    await waitFor(() => expect(invoke.mock.calls.filter(([fn]) => fn === "newsjacking-angles").length).toBe(2));
+    await deuxAnglesPrepares();
     premier.unmount();
     invoke.mockClear();
 
@@ -100,6 +105,7 @@ describe("Réagir à une actualité — ce qui s'affiche pendant la recherche", 
     await act(async () => { finir({ data: { actus: ACTUS }, error: null }); });
     await waitFor(() => expect(screen.getAllByRole("button", { name: /Voir les angles/ }).length).toBe(2));
     expect(screen.queryByText("Ce dont on parle cette semaine")).toBeNull();
+    await deuxAnglesPrepares();
   });
 });
 
