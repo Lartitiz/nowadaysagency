@@ -1,10 +1,11 @@
 import { workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { assertWorkspacePublication } from "../_shared/social-workspace-guard.ts";
 // Publie un post sur le profil LinkedIn du membre connecté.
-// body.text = légende ; body.media_urls (optionnel) : images → post IMAGE, PDF → carrousel document.
+// body.text = légende ; body.media_urls (optionnel) : images → post IMAGE, PDF → carrousel document,
+// MP4 → post VIDÉO (jamais le texte seul à la place de la vidéo).
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
-import { publishTextToLinkedIn, publishImagesToLinkedIn, publishDocumentToLinkedIn, isLinkedInImageUrl, isLinkedInPdfUrl, linkedInPermalink } from "../_shared/linkedin-graph.ts";
+import { publishTextToLinkedIn, publishImagesToLinkedIn, publishDocumentToLinkedIn, publishVideoToLinkedIn, isLinkedInImageUrl, isLinkedInPdfUrl, isLinkedInVideoUrl, linkedInPermalink } from "../_shared/linkedin-graph.ts";
 import { decryptConnTokens } from "../_shared/token-crypto.ts";
 
 function jsonError(message: string, corsHeaders: Record<string, string>, status = 400) {
@@ -25,10 +26,11 @@ Deno.serve(async (req) => {
     const mediaUrls: string[] = Array.isArray(body?.media_urls) ? body.media_urls : [];
     const imageUrls = mediaUrls.filter(isLinkedInImageUrl);
     const pdfUrl = mediaUrls.find(isLinkedInPdfUrl) || null;
+    const videoUrl = mediaUrls.find(isLinkedInVideoUrl) || null;
     const title: string = typeof body?.title === "string" ? body.title : "Carrousel";
     const workspaceId: string | null = body?.workspace_id ?? null;
 
-    if (!text.trim() && imageUrls.length === 0 && !pdfUrl) {
+    if (!text.trim() && imageUrls.length === 0 && !pdfUrl && !videoUrl) {
       return jsonError("Ajoute du texte, une image ou un PDF pour publier sur LinkedIn.", corsHeaders);
     }
 
@@ -53,7 +55,9 @@ Deno.serve(async (req) => {
 
     let postId: string;
     try {
-      postId = pdfUrl
+      postId = videoUrl
+        ? await publishVideoToLinkedIn(conn, text, videoUrl, typeof body?.title === "string" ? body.title : "Vidéo")
+        : pdfUrl
         ? await publishDocumentToLinkedIn(conn, text, pdfUrl, title)
         : imageUrls.length > 0
           ? await publishImagesToLinkedIn(conn, text, imageUrls)

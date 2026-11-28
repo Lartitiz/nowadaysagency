@@ -11,7 +11,7 @@ import { numbersIn, runTextRedacGate } from "../_shared/redac-gate.ts";
 import { parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
 import { addressPassOptions } from "../_shared/audience-address-pass.ts";
 import { collectTextSlots, enforceAudienceAddressInSlots } from "../_shared/audience-address-fields.ts";
-import { captionAnswersText, linkedInSocleBlock } from "./socle-linkedin.ts";
+import { captionAnswersText, captionMediaWording, linkedInSocleBlock } from "./socle-linkedin.ts";
 import { SYSTEM_CACHE_BREAK } from "../_shared/system-cache.ts";
 
 // Plafond de la passe de correction (Haiku, édition mécanique à règles fermées,
@@ -183,6 +183,7 @@ serve(async (req) => {
       subject: z.string().max(5000).optional().nullable(),
       chosen_angle: z.string().max(500).optional().nullable(),
       slides_summary: z.string().max(8000).optional().nullable(),
+      media_kind: z.enum(["carousel", "video"]).optional().nullable(),
       news_context: z.string().max(4000).optional().nullable(),
       objective: z.string().max(200).optional().nullable(),
       series_id: z.string().uuid().optional().nullable(),
@@ -329,8 +330,9 @@ serve(async (req) => {
     } else if (action === "caption-for-carousel") {
       const { subject, chosen_angle, slides_summary, editorial_angle, objective } = params;
       const answersText = captionAnswersText(params.deepening_answers);
-      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${SYSTEM_CACHE_BREAK}${context}\n\n${LINKEDIN_STORYTELLING_RULES}\n\n${qualityBlocks}\n\nTu rédiges UNIQUEMENT la légende (caption) qui accompagne un carrousel LinkedIn (PDF de slides). Les slides portent déjà la valeur structurée : la légende complète, contextualise, donne envie de cliquer le PDF.\n\nCONTEXTE DU CARROUSEL :\n- Sujet : "${subject || ""}"\n${chosen_angle ? `- Angle choisi : "${chosen_angle}"\n` : ""}${editorial_angle ? `- Angle éditorial : "${editorial_angle}"\n` : ""}${objective ? `- Objectif : "${objective}"\n` : ""}${slides_summary ? `- Résumé des slides du PDF :\n${slides_summary}\n` : ""}${answersText ? `- Ses réponses (son vécu, ses mots, ses chiffres) :\n${answersText}\n` : ""}\n\nRÈGLES LINKEDIN STRICTES :\n1. HOOK (max 210 caractères) : phrase d'accroche AVANT le "voir plus". DOIT donner envie d'ouvrir le carrousel. PAS la même phrase que la slide 1 du PDF — elle complète, elle ne répète pas.\n2. BODY : développe seulement ce que les informations fournies permettent de dire sur le sujet et ce que le PDF ne montre pas. Phrases complètes, paragraphes courts (2-4 lignes), aérés. PAS de listicle. PAS de phrases isolées sur des lignes séparées (anti-broetry).\n3. FIN : une invitation concrète à la conversation si elle sert le sujet, ou une dernière phrase qui aboutit. JAMAIS "Sauvegarde", "DM moi", "Tag une copine".\n4. HASHTAGS : 0 à 2 hashtags professionnels si utiles (secteur, métier, thématique). PAS de hashtags génériques type #motivation #life. Sans le "#" dans le tableau.\n5. PAS de tirets cadratins (—). Écriture inclusive (point médian quand pertinent).\n6. Ton : professionnel chaleureux, expert·e accessible. ${linkedInAddressLine(audienceAddress, "Vouvoiement par défaut sauf si la voix de marque dit le contraire.")}\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks ni texte avant/après :\n{\n  "hook": "max 210 caractères",\n  "body": "texte adapté aux faits disponibles",\n  "cta": "invitation utile ou chaîne vide",\n  "hashtags": []\n}`;
-      userPrompt = "Rédige la légende LinkedIn pour ce carrousel.";
+      const w = captionMediaWording(params.media_kind);
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${SYSTEM_CACHE_BREAK}${context}\n\n${LINKEDIN_STORYTELLING_RULES}\n\n${qualityBlocks}\n\n${w.intro}\n\n${w.contextTitle} :\n- Sujet : "${subject || ""}"\n${chosen_angle ? `- Angle choisi : "${chosen_angle}"\n` : ""}${editorial_angle ? `- Angle éditorial : "${editorial_angle}"\n` : ""}${objective ? `- Objectif : "${objective}"\n` : ""}${slides_summary ? `- ${w.summaryLabel} :\n${slides_summary}\n` : ""}${answersText ? `- Ses réponses (son vécu, ses mots, ses chiffres) :\n${answersText}\n` : ""}\n\nRÈGLES LINKEDIN STRICTES :\n1. HOOK (max 210 caractères) : phrase d'accroche AVANT le "voir plus". ${w.hookRule}\n2. BODY : développe seulement ce que les informations fournies permettent de dire sur le sujet et ${w.bodyExtra}. Phrases complètes, paragraphes courts (2-4 lignes), aérés. PAS de listicle. PAS de phrases isolées sur des lignes séparées (anti-broetry).\n3. FIN : une invitation concrète à la conversation si elle sert le sujet, ou une dernière phrase qui aboutit. JAMAIS "Sauvegarde", "DM moi", "Tag une copine".\n4. HASHTAGS : 0 à 2 hashtags professionnels si utiles (secteur, métier, thématique). PAS de hashtags génériques type #motivation #life. Sans le "#" dans le tableau.\n5. PAS de tirets cadratins (—). Écriture inclusive (point médian quand pertinent).\n6. Ton : professionnel chaleureux, expert·e accessible. ${linkedInAddressLine(audienceAddress, "Vouvoiement par défaut sauf si la voix de marque dit le contraire.")}\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks ni texte avant/après :\n{\n  "hook": "max 210 caractères",\n  "body": "texte adapté aux faits disponibles",\n  "cta": "invitation utile ou chaîne vide",\n  "hashtags": []\n}`;
+      userPrompt = w.userPrompt;
 
     } else if (action === "improve-post") {
       const { postContent } = params;

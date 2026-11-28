@@ -5,7 +5,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { carouselAiSource } from "../_shared/test-carousel-ai-source.ts";
 import { LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../_shared/lived-case.ts";
-import { captionAnswersText, LINKEDIN_ONE_IDEA_RULE, linkedInAiCaseMode, linkedInAiFamily, linkedInSocleBlock } from "./socle-linkedin.ts";
+import { captionAnswersText, captionMediaWording, LINKEDIN_ONE_IDEA_RULE, linkedInAiCaseMode, linkedInAiFamily, linkedInSocleBlock } from "./socle-linkedin.ts";
 
 const OWN_CASE = "Je suis passée de 1 200 € à 2 100 € par mois, et j'ai eu peur de perdre mes clientes.";
 
@@ -83,4 +83,16 @@ Deno.test("carousel-ai : accroches, sujets et angles ne disent plus « Instagram
     assert(src.includes(`function ${fn}(body: any, isLinkedIn = false)`), fn);
     assert(src.includes(`${fn}(reqCtx.body, reqCtx.isLinkedIn)`), fn);
   }
+});
+
+Deno.test("légende : mots du carrousel par défaut, mots de la vidéo quand media_kind vaut video (28/11/2026)", () => {
+  for (const kind of [undefined, null, "carousel", "autre"]) {
+    const w = captionMediaWording(kind);
+    assert(w.intro.includes("carrousel LinkedIn (PDF de slides)"));
+    assertEquals(w.summaryLabel, "Résumé des slides du PDF");
+  }
+  const v = captionMediaWording("video");
+  assert(v.intro.includes("vidéo publiée sur LinkedIn"));
+  assert(v.hookRule.includes("PAS la première phrase du script"));
+  for (const texte of Object.values(v)) assert(!/PDF|carrousel|slide/i.test(texte), texte);
 });
