@@ -26,6 +26,8 @@ import { bindCanvas } from "@/components/creer/CarouselEditorParts/canvas-events
 import { centerOnSlide } from "@/components/creer/CarouselEditorParts/editor-icons";
 import { photoShade } from "@/lib/carousel-shade";
 import { useHoverBox } from "@/components/creer/CarouselEditorParts/use-hover-box";
+import { useOuterLasso } from "@/components/creer/CarouselEditorParts/canvas-lasso";
+import { createPortal } from "react-dom";
 import type { FixAll } from "@/components/creer/CarouselEditorParts/use-fix-all";
 import { slideTextRects } from "@/lib/toolbar-avoid";
 
@@ -106,7 +108,8 @@ export default function SlideCanvas({
   onHistoryKey: (event: KeyboardEvent) => void;
 }) {
   const host = useRef<HTMLDivElement>(null),
-    frame = useRef<HTMLIFrameElement>(null);
+    frame = useRef<HTMLIFrameElement>(null),
+    area = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0),
     [overflow, setOverflow] = useState(false),
     [guides, setGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null }),
@@ -116,6 +119,8 @@ export default function SlideCanvas({
       | null
     >(null);
   const scale = width / 1080 || 1;
+  // Glisser depuis la zone autour de la slide : cadre de sélection, sans surligner la page (Loom 28/11).
+  const outer = useOuterLasso({ slideArea: area, frame, scale, locked: !!slide.locked, onSelectMany });
   // Une retouche faite DANS l'aperçu (glisser, poignée, flèche) y est déjà
   // appliquée : on ne recharge pas l'iframe (pas de clignotement, le clavier et
   // les appuis répétés ne sont plus perdus). Toute autre retouche recharge.
@@ -404,7 +409,7 @@ export default function SlideCanvas({
     <div className={zoom > 1 ? "max-h-[75vh] overflow-auto rounded-xl" : undefined}>
       {/* La barre de l'élément est posée à côté de la slide (pas dedans, qui coupe ce qui dépasse) :
           elle peut en sortir quand le texte choisi remplit la slide (W élargi, 18/10/2026). */}
-      <div className="relative">
+      <div className="relative" ref={area}>
       <div
         ref={host}
         className="relative overflow-hidden rounded-xl border bg-white shadow-sm"
@@ -451,6 +456,7 @@ export default function SlideCanvas({
             }}
           />
         )}
+        {outer && createPortal(<div aria-hidden="true" data-testid="selection-marquee" style={{ position: "fixed", ...outer, border: "1px solid #FB3D80", background: "rgba(251, 61, 128, 0.08)", pointerEvents: "none", zIndex: 60 }} />, window.document.body)}
         {marquee && (
           <div aria-hidden="true" data-testid="selection-marquee" style={{ position: "absolute", left: marquee.x * scale, top: marquee.y * scale, width: marquee.w * scale, height: marquee.h * scale, border: "1px solid #FB3D80", background: "rgba(251, 61, 128, 0.08)", pointerEvents: "none" }} />
         )}

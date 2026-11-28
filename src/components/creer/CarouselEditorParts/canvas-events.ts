@@ -7,6 +7,7 @@ import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from "reac
 import { isPassiveShape, syncGlass, type ElementRect } from "@/lib/carousel-editor";
 import { findClippedIds, hasClippedElement, inspectSlide, type QualityIssue } from "@/lib/carousel-quality";
 import { caretRange, swipeDelta, swipeStart, trackTyping } from "@/components/creer/CarouselEditorParts/inline-typing";
+import { lassoHits } from "@/components/creer/CarouselEditorParts/canvas-lasso";
 import {
   clamp, numberOr,
   VEIL,
@@ -502,22 +503,6 @@ export function bindCanvas(ctx: CanvasContext) {
     // Clic long (sans bouger) sur un élément : le cadre de sélection part de là.
     let hold: number | undefined;
     let pointer = { x: 0, y: 0 };
-    const lassoHits = (x1: number, y1: number, x2: number, y2: number) => {
-      const left = Math.min(x1, x2), right = Math.max(x1, x2), top = Math.min(y1, y2), bottom = Math.max(y1, y2);
-      const ok = (el: HTMLElement) =>
-        !el.matches(VEIL) && !isPassiveShape(el) && !isLockedEl(el) && !(isPhotoEl(el) && isFullBleed(el));
-      return Array.from(doc.querySelectorAll<HTMLElement>("[data-editor-id]"))
-        .filter((el) => {
-          if (!ok(el)) return false;
-          // Un élément rangé dans un cadre choisissable vient avec son cadre.
-          for (let p = el.parentElement?.closest<HTMLElement>("[data-editor-id]"); p; p = p.parentElement?.closest<HTMLElement>("[data-editor-id]"))
-            if (ok(p)) return false;
-          const r = el.getBoundingClientRect();
-          if (!r.width && !r.height) return false;
-          return r.left < right && r.right > left && r.top < bottom && r.bottom > top;
-        })
-        .map((el) => el.dataset.editorId!);
-    };
     // Photo glissée depuis l'ordinateur : elle remplace la photo visée (ou la photo de la slide).
     const hasFile = (e: DragEvent) => Array.from(e.dataTransfer?.types || []).includes("Files");
     // Cadre photo visé : celui sous le pointeur, sinon un cadre vide, sinon la photo de la slide.
@@ -696,7 +681,7 @@ export function bindCanvas(ctx: CanvasContext) {
           return;
         }
         if (l.swipe) return void (swipeDelta(l, e) && latest.current.onSwipe?.(swipeDelta(l, e)));
-        const ids = lassoHits(l.x, l.y, e.clientX, e.clientY);
+        const ids = lassoHits(doc, l.x, l.y, e.clientX, e.clientY);
         if (latest.current.onSelectMany) latest.current.onSelectMany(ids, l.shift);
         else if (ids.length) latest.current.onSelect(ids[0]);
         return;

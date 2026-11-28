@@ -715,8 +715,8 @@ export default function CarouselEditor({
         <div
           className={
             fullscreen
-              ? "fixed inset-0 z-50 flex flex-col items-center justify-center gap-2 overflow-auto bg-background p-4"
-              : `sticky top-[calc(var(--app-header-h,49px)+2.5rem)] z-20 order-1 min-w-0 w-full bg-background pb-1 md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:bg-transparent md:pb-0 max-md:static`
+              ? "select-none [&_input]:select-text [&_textarea]:select-text fixed inset-0 z-50 flex flex-col items-center justify-center gap-2 overflow-auto bg-background p-4"
+              : `select-none [&_input]:select-text [&_textarea]:select-text sticky top-[calc(var(--app-header-h,49px)+2.5rem)] z-20 order-1 min-w-0 w-full bg-background pb-1 md:top-[calc(var(--app-header-h,57px)+3.5rem)] lg:top-[calc(var(--app-header-h,81px)+3rem)] md:order-none md:bg-transparent md:pb-0 max-md:static`
           }
           data-canvas-sticky
           onKeyDown={(e) => {
