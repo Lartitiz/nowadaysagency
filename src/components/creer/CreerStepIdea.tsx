@@ -7,7 +7,8 @@ import { ArrowRight, Camera, ArrowLeft } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 import StoryQuestionsDialog from "./StoryQuestionsDialog";
-import type { StoryAnswer } from "@/features/creer/story/story-answers";
+import { storyStillApplies, type StoryAnswer, type TakenStory } from "@/features/creer/story/story-answers";
+import StoryAttached from "./StoryAttached";
 // Gros panneau (recherche d'actu) chargé à la demande — pas dans le chunk initial.
 const NewsjackingPanel = lazy(() => import("./NewsjackingPanel"));
 import CreerTransformTab from "./CreerTransformTab";
@@ -47,6 +48,9 @@ interface Props {
   historyControls?: ReactNode;
   /** « Je te pose des questions » : idée tirée de son histoire, et ses réponses pour l'écriture. */
   onStoryTaken?: (subject: string, answers: StoryAnswer[]) => void;
+  /** Histoire gardée pour cette création : montrée sous le champ tant qu'elle suit le sujet. */
+  story?: TakenStory | null;
+  onStoryDrop?: () => void;
 }
 
 const UNIVERSAL_PLACEHOLDER = "Ex : je raconte une expérience vécue / je réagis à un chiffre qui m'a marquée / j'ose un avis à contre-courant / je montre mon process en coulisses…";
@@ -60,7 +64,7 @@ const STARTER_IDEAS = [
   "Ce que j'aurais aimé savoir en débutant",
 ];
 
-export default function CreerStepIdea({ initialFormat, channel, onNext, onPickIdea, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry, historyControls, onStoryTaken }: Props) {
+export default function CreerStepIdea({ initialFormat, channel, onNext, onPickIdea, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry, historyControls, onStoryTaken, story, onStoryDrop }: Props) {
   const [fallbackIdea, setFallbackIdea] = useState(initialIdea || "");
   const [coachOpen, setCoachOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
@@ -116,6 +120,9 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
     }
   }, [autoOpenTransform]);
 
+  // Même règle que l'écriture (storyStillApplies) : affichée = envoyée.
+  const storyFor = (subject: string) => (story && storyStillApplies(story, subject) ? <StoryAttached story={story} onDrop={onStoryDrop} /> : null);
+
   const exitPhotosMode = () => {
     setShowPhotosMode(false);
     // Returning to the text entry is navigation, not a request to delete photos.
@@ -168,6 +175,7 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
                   </Button>
                 </div>
               </div>
+              {storyFor(idea) && <div className="mt-3">{storyFor(idea)}</div>}
               {!ideaPicks && <details className="mt-5 text-sm">
                 <summary className="w-fit cursor-pointer text-primary underline underline-offset-4 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4">
                   Essayer avec un exemple
@@ -253,6 +261,7 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
             <p className="text-2xs text-muted-foreground">
               Tu peux laisser ce champ vide : tes photos serviront de point de départ.
             </p>
+            {storyFor(localPhotoSubject)}
           </div>
 
           <Button
@@ -297,7 +306,8 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
           open={storyOpen}
           onOpenChange={setStoryOpen}
           workspaceId={workspaceId}
-          onKeep={(subject, answers) => { setIdea(subject); onStoryTaken(subject, answers); }}
+          // Le sujet des photos suit aussi l'histoire : un ancien sujet photo la faisait lâcher en « Partir de photos ».
+          onKeep={(subject, answers) => { setIdea(subject); setLocalPhotoSubject(subject); onStoryTaken(subject, answers); }}
         />
       )}
 

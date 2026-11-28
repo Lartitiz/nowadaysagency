@@ -86,7 +86,9 @@ export function withStoryAnswers(answers: Record<string, string>, story: TakenSt
 export function storyContextForQuestions(story: TakenStory | null | undefined): string {
   if (!story || story.answers.length === 0) return "";
   const lines = story.answers.filter((a) => a.answer.trim()).map((a) => `- ${a.question} ${a.answer.trim()}`);
-  return lines.length ? `\n\n[Histoire déjà racontée par l'utilisatrice, ne pas la redemander]\n${lines.join("\n")}` : "";
+  // Loom du 28/11/2026 : « qu'est-ce qui a changé… », « quelle stratégie… » redemandés
+  // alors qu'elle venait de le raconter. Consigne explicite : ne demander que ce qui manque.
+  return lines.length ? `\n\n[Histoire déjà racontée par l'utilisatrice, ne pas la redemander]\n${lines.join("\n")}\n[Consigne : ne pose AUCUNE question dont la réponse est déjà dans cette histoire, même tournée autrement. Demande seulement un détail concret qui manque vraiment (un chiffre, une phrase dite, un exemple). Si rien d'essentiel ne manque, ne pose aucune question.]` : "";
 }
 
 const significantWords = (s: string) => new Set(

@@ -1592,7 +1592,7 @@ function CreerWorkspace() {
                 (photoEntry ? photoSubjectHistory : ideaHistory).travel(action === "redo");
               }}>
                 {planVerified && <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />}
-                <CreerStepIdea initialFormat={selectedFormat} channel={(deriveCanalFromState({ selectedFormat, isLinkedInCarousel }) as ForcedChannel | null) ?? forcedChannel} onNext={(idea, id) => keepContent.guardSubject(idea, id, () => handleIdeaNext(idea, id))} onPickIdea={(idea) => keepContent.guardIdeaPick(idea, handleIdeaPick)} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject} onStoryTaken={(subject, answers) => { if (isCurrentCreation()) takenStory.takeStory({ subject, answers }); }}
+                <CreerStepIdea initialFormat={selectedFormat} channel={(deriveCanalFromState({ selectedFormat, isLinkedInCarousel }) as ForcedChannel | null) ?? forcedChannel} onNext={(idea, id) => keepContent.guardSubject(idea, id, () => handleIdeaNext(idea, id))} onPickIdea={(idea) => keepContent.guardIdeaPick(idea, handleIdeaPick)} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject} onStoryTaken={(subject, answers) => { if (isCurrentCreation()) takenStory.takeStory({ subject, answers }); }} story={takenStory.story} onStoryDrop={takenStory.dropStory}
                   onIdeaChange={(value) => { if (isCurrentCreation()) ideaHistory.change(value, true); }} onPhotosChange={(photos) => { if (!isCurrentCreation()) return; setUploadedPhotos(photos); void savePhotos(photos); }}
                   onPhotoDescriptionChange={setPhotoDescription} onPhotoSubjectChange={(value) => { if (isCurrentCreation()) photoSubjectHistory.change(value, true); }}
                   photoEntry={photoEntry} onPhotoEntryChange={setPhotoEntry}
@@ -1766,7 +1766,7 @@ function CreerWorkspace() {
             )}
 
             {step === "result" && structureLoading && (
-              <CarouselStructureLoader hasPhotos={uploadedPhotos.length > 0} photos={uploadedPhotos} answers={Object.values(answers)} />
+              <CarouselStructureLoader hasPhotos={uploadedPhotos.length > 0} photos={uploadedPhotos} answers={Object.values(withStoryAnswers(answers, activeStory))} />
             )}
 
             {step === "result" && autoGeneratePendingRef.current && !result && !generating && !structureLoading && (
