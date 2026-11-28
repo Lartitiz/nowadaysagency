@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
+import NewsjackingAttente from "./NewsjackingAttente";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, RefreshCw, Loader2, Sparkles, EyeOff, ChevronDown, Bookmark, BookmarkCheck, Newspaper, Lightbulb, Link2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { dateActu } from "./newsjacking-date";
 import { ecrireListeActus, lireListeActus } from "./newsjacking-session";
 
-import { type ActuAngle, type Actu, type NewsjackingPanelProps, type AnglesState, VEHICULE_CONFIG, AXE_CONFIG, PONT_CONFIG, PRECOMPUTE_COUNT, VIBES, MAX_VIBES, MAX_INTENT_CHARS, stripCitations, searchStageLabel } from "./newsjacking-config";
+import { type ActuAngle, type Actu, type NewsjackingPanelProps, type AnglesState, VEHICULE_CONFIG, AXE_CONFIG, PONT_CONFIG, PRECOMPUTE_COUNT, VIBES, MAX_VIBES, MAX_INTENT_CHARS, stripCitations, EN_DIRECT_VIDE, suivreRecherche } from "./newsjacking-config";
 
 export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: NewsjackingPanelProps) {
   const { user } = useAuth();
@@ -48,8 +50,9 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   useEffect(() => {
     ecrireListeActus(user?.id, actus ? { actus, angles: anglesByIdx, filter, hidden: [...hidden], savedIdx: [...savedIdx], vibes: selectedVibes, intent: customIntent, workspaceId } : null);
   }, [user?.id, workspaceId, actus, anglesByIdx, filter, hidden, savedIdx, selectedVibes, customIntent]);
-  // Compteur écoulé pendant la recherche (rassure l'utilisatrice)
+  // Compteur écoulé pendant la recherche, et ce que le serveur a déjà trouvé (28/11/2026).
   const [searchElapsed, setSearchElapsed] = useState(0);
+  const [enDirect, setEnDirect] = useState(EN_DIRECT_VIDE);
   useEffect(() => {
     if (!loading) { setSearchElapsed(0); return; }
     const t0 = Date.now();
@@ -84,6 +87,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     setSavedIdx(new Set());
     setSavingIdx(new Set());
     setAnglesByIdx({});
+    setEnDirect(EN_DIRECT_VIDE);
     primaryStartedRef.current = new Set();
     variantsStartedRef.current = new Set();
 
@@ -97,8 +101,9 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       // aussi quand l'utilisatrice est sur l'onglet "Globale" au moment de relancer.
       const force_macro = broaden || filter === "globale";
       const excluded_urls = Array.from(seenUrlsRef.current).slice(-50);
-      const { data, error: fnError } = await invokeWithTimeout("newsjacking-ai", {
+      const { data, error: fnError } = await invokeWithHeartbeat("newsjacking-ai", {
         body: { workspace_id: workspaceId || undefined, intent, force_macro, excluded_urls },
+        onStatus: (etape, d) => setEnDirect((avant) => suivreRecherche(avant, etape, d)),
       }, 180000);
 
       if (fnError) {
@@ -184,6 +189,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     setSavedIdx(new Set());
     setSavingIdx(new Set());
     setAnglesByIdx({});
+    setEnDirect(EN_DIRECT_VIDE);
     primaryStartedRef.current = new Set();
     variantsStartedRef.current = new Set();
 
@@ -495,7 +501,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           <div className="text-center space-y-1">
             <h3 className="text-sm font-semibold text-foreground">Trouver une actu à relier à ton activité</h3>
             <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              L'IA cherche l'actu récente et la croise avec ta marque (30 à 60 secondes). Chaque actu vient avec le lien de sa source.
+L'IA cherche les actus de la semaine dont tout le monde parle et te montre comment les relier à ton activité. Elles s'affichent au fur et à mesure, chacune avec le lien de sa source.
             </p>
             <p className="text-2xs text-muted-foreground/80 max-w-md mx-auto">
               💳 3 crédits pour lancer la recherche : elle prépare aussi les angles des 2 premières actus (rien si elle ne trouve rien). Ensuite, les angles d'une autre actu = 1 crédit.
@@ -565,7 +571,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           <div className="flex items-start gap-2 rounded-xl bg-primary/5 px-3.5 py-2.5">
             <Lightbulb className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
             <p className="text-2xs leading-relaxed text-muted-foreground">
-              <span className="font-medium text-foreground">Petit secret :</span> pas besoin que l'actu soit "dans ton secteur". Ce qui compte, c'est le lien que tu crées. Et souvent, c'est l'angle inattendu qui marque le plus.
+              <span className="font-medium text-foreground">Petit secret :</span> pas besoin que l'actu soit "dans ton secteur". Ce qui marche, c'est une actu que tout le monde connaît, reliée à ce dont tu parles.
             </p>
           </div>
 
@@ -657,8 +663,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         <div className="flex gap-2">
           {([
             { id: "all", label: "Tout", emoji: "✨" },
-            { id: "globale", label: "Globale", emoji: "🌍" },
-            { id: "niche", label: "Ma niche", emoji: "🎯" },
+            { id: "globale", label: "Tout le monde en parle", emoji: "🌍" },
+            { id: "niche", label: "Mon secteur", emoji: "🎯" },
           ] as const).map((tab) => {
             const visibleSet = actus.filter((_, i) => !hidden.has(i));
             const count = tab.id === "all" ? visibleSet.length : visibleSet.filter(a => a.type === tab.id).length;
@@ -684,29 +690,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         </div>
       )}
 
-      {/* Loading */}
-      {loading && (
-        <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={searchStageLabel(searchElapsed)}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.25 }}
-              className="text-sm text-muted-foreground text-center"
-            >
-              {searchStageLabel(searchElapsed)}
-            </motion.p>
-          </AnimatePresence>
-          <p className="text-xs text-muted-foreground/80 tabular-nums">
-            {searchElapsed < 30
-              ? `Recherche en cours… ${searchElapsed}s`
-              : `Ça peut prendre jusqu'à 2 min, c'est normal… ${searchElapsed}s`}
-          </p>
-        </div>
-      )}
+      {loading && <NewsjackingAttente secondes={searchElapsed} enDirect={enDirect} />}
 
       {/* Error */}
       {started && !loading && error && (
@@ -780,7 +764,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
               <p className="text-sm text-muted-foreground">
                 {hidden.size === actus.length
                   ? "Tu as masqué toutes les actus."
-                  : `Aucune actu ${filter === "globale" ? "globale" : "de ta niche"} à afficher.`}
+                  : `Aucune actu ${filter === "globale" ? "grand public" : "de ton secteur"} à afficher.`}
               </p>
               <Button variant="ghost" size="sm" onClick={() => { setFilter("all"); setHidden(new Set()); }}>
                 Tout réafficher

@@ -214,7 +214,7 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
 
       {/* Photos-first mode */}
       {showPhotosMode && (
-        <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
+        <div data-colonne-etroite className="max-w-2xl mx-auto space-y-4 animate-fade-in">
           <button
             type="button"
             onClick={exitPhotosMode}
@@ -282,7 +282,7 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
       {/* Newsjacking panel */}
       {showNewsjacking && (
         <Suspense fallback={<div className="py-12 flex justify-center"><Spinner className="h-8 w-8" /></div>}>
-        <div className="max-w-2xl mx-auto"><NewsjackingPanel
+        <div data-colonne-etroite className="max-w-2xl mx-auto"><NewsjackingPanel
           onSelect={(data) => {
             setShowNewsjacking(false);
             toast("📡 Actu chargée", {

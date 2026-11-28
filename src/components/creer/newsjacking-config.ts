@@ -88,6 +88,20 @@ export interface AnglesState {
   variantsSlow?: boolean;
 }
 
+// Ce que le serveur envoie pendant la recherche (28/11/2026) : les sujets
+// repérés, la recherche web en cours, puis chaque actu dès qu'elle est prête.
+export interface PisteActu { titre: string; source?: string; source_url?: string; date_publication?: string }
+export interface EnDirect { pistes: PisteActu[]; requete?: string; actus: Actu[] }
+export const EN_DIRECT_VIDE: EnDirect = { pistes: [], actus: [] };
+
+/** Range un évènement du serveur dans l'état de l'attente. */
+export function suivreRecherche(avant: EnDirect, etape: string, d?: Record<string, unknown>): EnDirect {
+  if (etape === "pistes" && Array.isArray(d?.actus)) return { ...avant, pistes: d.actus as PisteActu[] };
+  if (etape === "recherche" && typeof d?.requete === "string") return { ...avant, requete: d.requete };
+  if (etape === "actu" && d?.actu && typeof d.actu === "object") return { ...avant, actus: [...avant.actus, d.actu as Actu] };
+  return avant;
+}
+
 // Combien d'actus dont on pré-calcule l'angle "primary" en arrière-plan
 // dès que la recherche d'actus aboutit.
 export const PRECOMPUTE_COUNT = 2;
@@ -119,8 +133,8 @@ export function stripCitations(text?: string): string {
 // Étapes de progression affichées pendant la recherche (~30-90 s) pour
 // remplacer le spinner muet : rassure que ça avance, pas que ça a planté.
 export function searchStageLabel(elapsed: number): string {
-  if (elapsed < 12) return "Je cherche les actus fraîches du moment…";
-  if (elapsed < 30) return "Je croise avec l'univers de ta marque…";
-  if (elapsed < 60) return "Je prépare les premiers angles pour toi…";
+  if (elapsed < 12) return "Je cherche ce dont tout le monde parle cette semaine…";
+  if (elapsed < 30) return "Je croise avec ce dont tu parles…";
+  if (elapsed < 60) return "J'écris le lien avec ton activité…";
   return "Encore un instant, je fouille en profondeur…";
 }

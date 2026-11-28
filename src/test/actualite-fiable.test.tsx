@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 // « Réagir à une actualité » (18/10/2026) : coûts écrits à la vérité, liste
 // d'actus déjà payée gardée dans l'onglet, bouton principal en tête du départ.
 
 const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: invoke }));
+// La recherche d'actus répond en flux (28/11/2026) : même faux serveur, appelé avec ses options.
+vi.mock("@/lib/invoke-with-heartbeat", () => ({ invokeWithHeartbeat: invoke }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1" } }) }));
 vi.mock("react-router-dom", () => ({ useNavigate: () => vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => ({ insert: async () => ({ error: null }) }) } }));
@@ -64,6 +66,40 @@ describe("Réagir à une actualité — fiable", () => {
     expect(await screen.findByText(/Accroche/)).toBeTruthy();
     // Rien n'est repayé : ni recherche ni angle.
     expect(invoke).not.toHaveBeenCalled();
+  });
+});
+
+describe("Réagir à une actualité — ce qui s'affiche pendant la recherche", () => {
+  beforeEach(() => { sessionStorage.clear(); invoke.mockReset(); });
+
+  it("montre les sujets repérés, la recherche en cours, puis chaque actu prête, avant la liste finale", async () => {
+    let finir: (v: unknown) => void = () => {};
+    let suivre: (etape: string, d?: Record<string, unknown>) => void = () => {};
+    invoke.mockImplementation((fn: string, opts: { onStatus?: typeof suivre }) => {
+      if (fn !== "newsjacking-ai") return Promise.resolve({ data: { angles: [{ vehicule: "constat_decale", hook: "Accroche", description: "D", format_suggere: "post" }] }, error: null });
+      suivre = opts.onStatus!;
+      return new Promise((r) => { finir = r; });
+    });
+    panneau();
+    fireEvent.click(screen.getByRole("button", { name: /Lancer la recherche/ }));
+    await waitFor(() => expect(screen.getByText(/Les premières actus arrivent/)).toBeTruthy());
+
+    act(() => suivre("pistes", { actus: [{ titre: "Le film dont tout le monde parle", source: "Télérama", date_publication: "2026-11-25" }] }));
+    expect(screen.getByText("Ce dont on parle cette semaine")).toBeTruthy();
+    expect(screen.getByText("Le film dont tout le monde parle")).toBeTruthy();
+
+    act(() => suivre("recherche", { requete: "polémique de la semaine" }));
+    expect(screen.getByText(/Je cherche : « polémique de la semaine »/)).toBeTruthy();
+
+    act(() => suivre("actu", { actu: ACTUS[1] }));
+    expect(screen.getByText("Greenwashing")).toBeTruthy();
+    expect(screen.getByText(/1 actu prête/)).toBeTruthy();
+    // Tant que la recherche tourne, rien à choisir : la liste finale fait foi.
+    expect(screen.queryByRole("button", { name: /Voir les angles/ })).toBeNull();
+
+    await act(async () => { finir({ data: { actus: ACTUS }, error: null }); });
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Voir les angles/ }).length).toBe(2));
+    expect(screen.queryByText("Ce dont on parle cette semaine")).toBeNull();
   });
 });
 
